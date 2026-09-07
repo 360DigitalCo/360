@@ -1,37 +1,93 @@
-const { app, BrowserWindow, Menu } = require("electron");
-const path = require("path");
+'use strict';
+
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
+const path = require('path');
+const detector = require('./game-detector');
+
+const BASE_URL = 'https://360-search.com';
+let win;
 
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1280,
-    height: 800,
-    title: "360",
-    icon: path.join(__dirname, "icon.ico"),
+    height: 820,
+    minWidth: 800,
+    minHeight: 600,
+    title: '360',
     webPreferences: {
+      contextIsolation: true,
       nodeIntegration: false,
-      contextIsolation: true
-    }
+      sandbox: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+    backgroundColor: '#050816',
+    show: false,
   });
 
-  // Remove Electron's default menu bar
-  Menu.setApplicationMenu(null);
+  win.loadURL(BASE_URL);
 
-  // Load the 360 website
-  win.loadURL("https://360-search.com");
+  win.once('ready-to-show', () => win.show());
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(BASE_URL)) return { action: 'allow' };
+
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
 }
+
+/* ── Game detector → renderer bridge ─────────────────────────────── */
+
+function startDetector() {
+  detector.on('game-start', (game) => {
+    win?.webContents.send('game-start', {
+      name: game.name,
+      slug: game.slug,
+      platform: game.platform,
+    });
+  });
+
+  detector.on('game-stop', (game) => {
+    win?.webContents.send('game-stop', {
+      name: game.name,
+      slug: game.slug,
+      platform: game.platform,
+    });
+  });
+
+  detector.start();
+}
+
+/* Sync IPC: renderer asks for current game on page load */
+ipcMain.on('game-current', (event) => {
+  const g = detector.current;
+
+  event.returnValue = g
+    ? {
+        name: g.name,
+        slug: g.slug,
+        platform: g.platform,
+      }
+    : null;
+});
+
+/* ── Lifecycle ───────────────────────────────────────────────────── */
 
 app.whenReady().then(() => {
   createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+  startDetector();
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+app.on('window-all-closed', () => {
+  detector.stop();
+
+  if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });
