@@ -1,17 +1,46 @@
-/* 360 Rewards game activity tracker.
- * Every eligible local game gets a server-validated session. The server decides
- * how many Rewards Points are earned from the elapsed active time.
+/* 360 Rewards — game activity tracker + rich presence broadcaster.
+ *
+ * Rewards: every eligible game earns points for active play time.
+ *   Server validates the session; client just tracks elapsed seconds.
+ *
+ * Rich presence: broadcasts { type:'game', slug, name } into the
+ *   'presence-global' Realtime channel so chat shows "🎮 Playing X"
+ *   under each user's name in the online list and members panel.
+ *
+ * BlockBlast has its own score-based banking — skip rewards there
+ * but still broadcast presence so chat can show you're playing.
  */
 (function () {
   'use strict';
 
-  const path = window.location.pathname.toLowerCase();
-  // Block Blast already has score-based Rewards banking. Do not double-award it.
-  if (path.endsWith('/blockblast.html')) return;
-
+  const path     = window.location.pathname.toLowerCase();
   const GAME_SLUG = decodeURIComponent(path.split('/').pop().replace(/\.html$/i, ''));
+  const SKIP_REWARDS = path.endsWith('/blockblast.html');
+
   const SUPABASE_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
+
+  /* Human-readable name map for rich presence display */
+  const GAME_NAMES = {
+    'minesweeper':            'Minesweeper',
+    'starfallrng':            'Starfall RNG',
+    'PenguinKnockout':        'Penguin Knockout',
+    '360Fish':                '360 Fish',
+    'NightfallRNG':           'Nightfall RNG',
+    'BlockBlast':             'Block Blast',
+    'Blockblast':             'Block Blast',
+    'jjkrng':                 'JJK RNG',
+    'epochera':               'Epoch Era',
+    'spaceGlider':            'Space Glider',
+    'untitledMonsterFighter': 'Monster Fighter',
+    'nyc_dream':              'NYC Dream',
+    'UnwantedProblems':       'Unwanted Problems',
+    'starfallrngultimate':    'Starfall RNG Ultimate',
+    'BlitzTowerDefense':      'Blitz Tower Defense',
+    'StarBlasted':            'Star Blasted',
+    'CQBSIM':                 'CQBSIM',
+    'angelrng':               'Angel RNG',
+  };
 
   function showToast(msg) {
     let el = document.getElementById('gr-toast');
@@ -44,47 +73,102 @@
     if (!window.supabase?.createClient) return;
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let sessionId = null;
-    let activeSeconds = 0;
-    let lastTick = Date.now();
-    let visible = !document.hidden;
+    let sessionId      = null;
+    let activeSeconds  = 0;
+    let lastTick       = Date.now();
+    let visible        = !document.hidden;
     let lastInteraction = Date.now();
-    let finishing = false;
+    let finishing      = false;
+    let presenceChan   = null;
+    let currentProfile = null;
 
     const tick = () => {
       const now = Date.now();
-      const activelyInteracting = visible && (now - lastInteraction) <= 15000;
-      if (activelyInteracting) activeSeconds += Math.max(0, Math.min(10, (now - lastTick) / 1000));
+      const active = visible && (now - lastInteraction) <= 15000;
+      if (active) activeSeconds += Math.max(0, Math.min(10, (now - lastTick) / 1000));
       lastTick = now;
     };
 
+    /* ── Rich presence ── */
+    async function trackPresence(playing) {
+      if (!presenceChan || !currentProfile) return;
+      const payload = {
+        uid:        currentProfile.id,
+        username:   currentProfile.username,
+        avatar_url: currentProfile.avatar_url,
+      };
+      if (playing) {
+        payload.current_activity = {
+          type: 'game',
+          slug: GAME_SLUG,
+          name: GAME_NAMES[GAME_SLUG] || GAME_SLUG,
+        };
+      }
+      try { await presenceChan.track(payload); } catch (_) {}
+    }
+
+    async function startPresence(profile) {
+      currentProfile = profile;
+      /* Join the same channel key chat.js uses so the state merges */
+      presenceChan = client.channel('presence-global', {
+        config: { presence: { key: profile.id } },
+      });
+      presenceChan.subscribe(async status => {
+        if (status === 'SUBSCRIBED') await trackPresence(true);
+      });
+    }
+
+    function stopPresence() {
+      trackPresence(false).finally(() => {
+        try { presenceChan?.unsubscribe(); } catch (_) {}
+        presenceChan = null;
+      });
+    }
+
+    /* ── Rewards ── */
     async function start() {
       try {
         const { data: { session } } = await client.auth.getSession();
         if (!session?.user) return;
-        const { data, error } = await client.rpc('start_game_session', { p_game_slug: GAME_SLUG });
-        if (!error) sessionId = data;
+
+        /* Fetch profile for presence */
+        const { data: profile } = await client
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (profile) startPresence(profile);
+
+        if (!SKIP_REWARDS) {
+          const { data, error } = await client.rpc('start_game_session', { p_game_slug: GAME_SLUG });
+          if (!error) sessionId = data;
+        }
       } catch (_) {}
     }
 
     async function finish() {
-      if (finishing || !sessionId) return;
+      if (finishing) return;
       finishing = true;
       tick();
-      const seconds = Math.floor(activeSeconds);
-      try {
-        const { data, error } = await client.rpc('finish_game_session', {
-          p_session_id: sessionId,
-          p_activity_seconds: seconds
-        });
-        if (!error && data) {
-          const row = Array.isArray(data) ? data[0] : data;
-          if (row && Number(row.points_awarded) > 0) {
-            showToast(`+${Number(row.points_awarded).toLocaleString()} Rewards Points earned`);
+
+      stopPresence();
+
+      if (!SKIP_REWARDS && sessionId) {
+        const seconds = Math.floor(activeSeconds);
+        try {
+          const { data, error } = await client.rpc('finish_game_session', {
+            p_session_id:       sessionId,
+            p_activity_seconds: seconds,
+          });
+          if (!error && data) {
+            const row = Array.isArray(data) ? data[0] : data;
+            if (row && Number(row.points_awarded) > 0) {
+              showToast(`+${Number(row.points_awarded).toLocaleString()} Rewards Points earned`);
+            }
           }
-        }
-      } catch (_) {}
-      sessionId = null;
+        } catch (_) {}
+        sessionId = null;
+      }
     }
 
     ['pointerdown', 'pointermove', 'keydown', 'touchstart'].forEach(type => {
@@ -96,12 +180,18 @@
       visible = !document.hidden;
       lastTick = Date.now();
       if (!visible) finish();
+      else if (!finishing) {
+        /* Resumed — restart a fresh session */
+        finishing = false;
+        activeSeconds = 0;
+        sessionId = null;
+        start();
+      }
     });
 
     window.addEventListener('pagehide', finish, { once: true });
     window.addEventListener('beforeunload', finish, { once: true });
 
-    // Keep the activity clock fresh even when a game has no own timer.
     window.setInterval(tick, 5000);
     start();
   }
