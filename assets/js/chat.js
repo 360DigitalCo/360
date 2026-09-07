@@ -1257,7 +1257,22 @@ async function loadMembers(){
       const badges=[]; if(isOwner)badges.push('👑 Owner');else if(p.role==='admin')badges.push('🛡 Admin');else if(p.role==='mod')badges.push('⚔️ Mod');
       if(p.tag)badges.push(p.tag); sub.textContent=badges.join(' · ')||'Member';
       nameWrap.appendChild(name); nameWrap.appendChild(sub);
-      if(p.current_activity){try{const act=typeof p.current_activity==='string'?JSON.parse(p.current_activity):p.current_activity;if(act?.type==='music'&&act.track){const chip=document.createElement('div');chip.style.cssText='font-size:10px;color:var(--a);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;';chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>${act.track}${act.artist?' · '+act.artist:''}</span>`;nameWrap.appendChild(chip);}}catch(e){}}
+      if(p.current_activity){try{
+        const act=typeof p.current_activity==='string'?JSON.parse(p.current_activity):p.current_activity;
+        const chip=document.createElement('div');
+        chip.style.cssText='font-size:10px;color:var(--a);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;';
+        if(act?.type==='game'&&act.name){
+          const platform=act.platform?` · ${esc(act.platform)}`:'';
+          chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M9 17v-4m-2 2h4"/><circle cx="16" cy="13" r=".5" fill="currentColor"/><circle cx="18" cy="15" r=".5" fill="currentColor"/></svg><span>Playing ${esc(act.name)}${platform}</span>`;
+          nameWrap.appendChild(chip);
+        } else if(act?.type==='music'&&act.track){
+          chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>${esc(act.track)}${act.artist?' · '+esc(act.artist):''}</span>`;
+          nameWrap.appendChild(chip);
+        } else if(typeof act==='string'&&act.startsWith('Playing ')){
+          chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M9 17v-4m-2 2h4"/><circle cx="16" cy="13" r=".5" fill="currentColor"/><circle cx="18" cy="15" r=".5" fill="currentColor"/></svg><span>${esc(act)}</span>`;
+          nameWrap.appendChild(chip);
+        }
+      }catch(e){}}
       const dot=document.createElement('div'); dot.className='mi-status'+(onlineUids.has(uid)?' online':'');
       item.appendChild(av); item.appendChild(nameWrap); item.appendChild(dot);
       item.addEventListener('click',()=>showProfilePopup(uid,item)); list.appendChild(item);
@@ -1289,7 +1304,6 @@ document.getElementById('onlinePill')?.addEventListener('click',()=>{
 function renderOnlineList(){
   const list=document.getElementById('online-list'); if(!list) return;
   list.innerHTML='';
-  // presenceState keys are user IDs, values are arrays of presence objects
   const entries=Object.values(presenceState).flat();
   if(!entries.length){list.innerHTML=`<div style="padding:16px;font-size:13px;color:var(--dc-muted);text-align:center;">No one else online.</div>`;return;}
   entries.forEach(u=>{
@@ -1298,9 +1312,25 @@ function renderOnlineList(){
     if(u.avatar_url){const img=document.createElement('img');img.src=u.avatar_url;av.appendChild(img);}
     else av.textContent=getInitials(u.username||'?');
     const info=document.createElement('div'); info.className='online-info';
+    const nameWrap=document.createElement('div'); nameWrap.style.cssText='display:flex;align-items:center;gap:5px;';
     const nm=document.createElement('span'); nm.className='online-name'; nm.textContent=u.username||'User';
     const dot=document.createElement('span'); dot.className='online-dot';
-    info.appendChild(nm); info.appendChild(dot);
+    nameWrap.appendChild(nm); nameWrap.appendChild(dot);
+    info.appendChild(nameWrap);
+    if(u.current_activity){try{
+      const act=typeof u.current_activity==='string'?JSON.parse(u.current_activity):u.current_activity;
+      const chip=document.createElement('div');
+      chip.style.cssText='font-size:10px;color:var(--a);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;';
+      if(act?.type==='game'&&act.name){
+        const platform=act.platform?` · ${esc(act.platform)}`:'';
+        chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M9 17v-4m-2 2h4"/><circle cx="16" cy="13" r=".5" fill="currentColor"/><circle cx="18" cy="15" r=".5" fill="currentColor"/></svg><span>Playing ${esc(act.name)}${platform}</span>`;
+      } else if(act?.type==='music'&&act.track){
+        chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>${esc(act.track)}${act.artist?' · '+esc(act.artist):''}</span>`;
+      } else if(typeof act==='string'&&act.startsWith('Playing ')){
+        chip.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M9 17v-4m-2 2h4"/><circle cx="16" cy="13" r=".5" fill="currentColor"/><circle cx="18" cy="15" r=".5" fill="currentColor"/></svg><span>${esc(act)}</span>`;
+      }
+      if(chip.innerHTML) info.appendChild(chip);
+    }catch(e){}}
     item.appendChild(av); item.appendChild(info); list.appendChild(item);
   });
 }
