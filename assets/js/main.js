@@ -12,6 +12,15 @@
 const version = "3.6.0";
 
 // Apply the site-wide bold font preference before the rest of the page initializes.
+// Load Electron game detector client when running inside the desktop app
+(function loadElectronGameDetector() {
+  if (!window.electronGames) return;
+  const s = document.createElement('script');
+  s.src = '/assets/js/game-detector-client.js';
+  s.defer = true;
+  document.head.appendChild(s);
+})();
+
 (function applyBoldFontPreference() {
   try {
     if (localStorage.getItem("360_bold_font") === "true") {
