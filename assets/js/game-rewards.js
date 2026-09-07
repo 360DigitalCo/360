@@ -1,26 +1,17 @@
 /* 360 Rewards + Rich Presence — game-rewards.js
  *
- * Runs inside each game page. Does three things:
+ * Runs inside each 360 game page. Does two things:
  *
  *  1. REWARDS  — tracks active play time and awards points via
  *                Supabase RPCs (start_game_session / finish_game_session).
  *
- *  2. DISCORD RP — when running inside the 360 Electron app, sends
- *                  rich presence to the local Discord client via IPC
- *                  (main process uses discord-rpc npm package, same
- *                  protocol Discord uses for games). Shows up in
- *                  Discord exactly like a real game.
- *
- *  3. SUPABASE PRESENCE — broadcasts { type:'game', slug, name } into
- *                  'presence-global' Realtime channel so 360 Chat
- *                  shows "🎮 Playing X" under the user's name.
- *                  This is the fallback for browser-only users and
- *                  runs in parallel with Discord RP inside the app.
+ *  2. PRESENCE — broadcasts { type:'game', slug, name } into the
+ *                'presence-global' Supabase Realtime channel so
+ *                360 Chat shows "🎮 Playing X" under your name.
  */
 (function () {
   'use strict';
 
-  const path      = window.location.pathname.toLowerCase();
   const GAME_SLUG = decodeURIComponent(
     window.location.pathname.split('/').pop().replace(/\.html$/i, '')
   );
@@ -51,20 +42,17 @@
     'STARFALL_Ωjar':          'STARFALL_Ω',
   };
 
-  /* Match slug case-insensitively */
   function getGameName(slug) {
-    const exact = GAME_NAMES[slug];
-    if (exact) return exact;
-    const lower = slug.toLowerCase();
+    if (GAME_NAMES[slug]) return GAME_NAMES[slug];
+    const lo = slug.toLowerCase();
     for (const [k, v] of Object.entries(GAME_NAMES)) {
-      if (k.toLowerCase() === lower) return v;
+      if (k.toLowerCase() === lo) return v;
     }
     return slug;
   }
 
   const GAME_NAME = getGameName(GAME_SLUG);
 
-  /* ── Toast ── */
   function showToast(msg) {
     let el = document.getElementById('gr-toast');
     if (!el) {
@@ -92,43 +80,17 @@
     }, 3500);
   }
 
-  /* ── Discord RP via Electron IPC ──────────────────────────────────
-   * The preload exposes window.electronRP with:
-   *   setActivity({ details, state, startTimestamp, largeImageKey, largeImageText })
-   *   clearActivity()
-   * Main process passes these to discord-rpc npm package which
-   * connects to the local Discord desktop client over a named pipe.
-   * ────────────────────────────────────────────────────────────────── */
-  function setDiscordRP(startTimestamp) {
-    if (!window.electronRP?.setActivity) return;
-    window.electronRP.setActivity({
-      details:        `Playing ${GAME_NAME}`,
-      state:          '360 Games',
-      startTimestamp: startTimestamp || Date.now(),
-      largeImageKey:  'logo',          // asset uploaded in Discord Dev Portal
-      largeImageText: '360 Platform',
-      smallImageKey:  'game_icon',
-      smallImageText: GAME_NAME,
-      buttons: [
-        { label: 'Play on 360', url: 'https://360-search.com/games' },
-      ],
-    });
-  }
-
-  function clearDiscordRP() {
-    if (!window.electronRP?.clearActivity) return;
-    window.electronRP.clearActivity();
-  }
-
-  /* ── Supabase presence (chat "Playing X" chip) ─────────────────── */
+  /* ── Supabase presence ── */
   let presenceChan = null;
   let profile      = null;
 
   async function startPresence(client) {
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
     const { data } = await client
       .from('profiles')
       .select('id, username, avatar_url')
-      .eq('id', (await client.auth.getUser()).data.user.id)
+      .eq('id', user.id)
       .maybeSingle();
     if (!data) return;
     profile = data;
@@ -144,7 +106,9 @@
   async function trackPresence(playing) {
     if (!presenceChan || !profile) return;
     const payload = {
-      uid: profile.id, username: profile.username, avatar_url: profile.avatar_url,
+      uid: profile.id,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
     };
     if (playing) {
       payload.current_activity = { type: 'game', slug: GAME_SLUG, name: GAME_NAME };
@@ -159,7 +123,7 @@
     });
   }
 
-  /* ── Main boot ─────────────────────────────────────────────────── */
+  /* ── Boot ── */
   function boot() {
     if (!window.supabase?.createClient) return;
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -170,7 +134,6 @@
     let visible       = !document.hidden;
     let lastInteract  = Date.now();
     let finishing     = false;
-    const startTime   = Date.now();
 
     const tick = () => {
       const now = Date.now();
@@ -184,14 +147,7 @@
       try {
         const { data: { session } } = await client.auth.getSession();
         if (!session?.user) return;
-
-        /* Discord RP — set immediately */
-        setDiscordRP(startTime);
-
-        /* Supabase presence */
         await startPresence(client);
-
-        /* Rewards session */
         if (!SKIP_REWARDS) {
           const { data, error } = await client.rpc('start_game_session', { p_game_slug: GAME_SLUG });
           if (!error) sessionId = data;
@@ -203,10 +159,7 @@
       if (finishing) return;
       finishing = true;
       tick();
-
-      clearDiscordRP();
       stopPresence();
-
       if (!SKIP_REWARDS && sessionId) {
         try {
           const { data, error } = await client.rpc('finish_game_session', {
@@ -234,18 +187,14 @@
       lastTick = Date.now();
       if (!visible) {
         finish();
-      } else if (!finishing) {
-        finishing     = false;
-        activeSeconds = 0;
-        sessionId     = null;
-        setDiscordRP(Date.now());
+      } else {
+        finishing = false; activeSeconds = 0; sessionId = null;
         start();
       }
     });
 
     window.addEventListener('pagehide', finish, { once: true });
     window.addEventListener('beforeunload', finish, { once: true });
-
     setInterval(tick, 5000);
     start();
   }
