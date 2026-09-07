@@ -610,6 +610,48 @@ const supabaseClient = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM"
 );
 
+/* Sync all platform preferences to the user's account.
+   Settings360 intercepts localStorage reads/writes for known keys
+   automatically — no per-page changes needed anywhere else. */
+if (typeof Settings360 !== "undefined") {
+  Settings360.init(supabaseClient).then(() => {
+    /* Re-apply theme/dark/bg/bold after remote values land, since
+       main.js runs those init paths before auth resolves. */
+    const theme = Settings360.get("theme");
+    if (theme) {
+      document.body.classList.forEach(c => { if (c.startsWith("theme-")) document.body.classList.remove(c); });
+      document.body.classList.add("theme-" + theme);
+      const swatch = document.querySelector(`.swatch[data-theme="${theme}"]`);
+      if (swatch) { document.querySelectorAll(".swatch").forEach(s => s.classList.remove("active")); swatch.classList.add("active"); }
+    }
+    const dark = Settings360.get("darkMode");
+    if (typeof dark === "boolean") {
+      document.body.classList.toggle("dark", dark);
+      const dt = document.getElementById("darkToggle");
+      if (dt) dt.checked = dark;
+    }
+    const bg = Settings360.get("customBG");
+    if (bg && !document.body.style.backgroundImage) {
+      document.body.style.backgroundImage     = `url('${bg}')`;
+      document.body.style.backgroundSize      = "cover";
+      document.body.style.backgroundPosition  = "center";
+      document.body.style.backgroundAttachment= "fixed";
+    }
+    const bold = Settings360.get("boldFont");
+    if (bold === true) document.body.classList.add("bold-font");
+    const wide = Settings360.get("wideMode");
+    if (typeof wide === "boolean" && window.WideMode) {
+      if (wide && !window.WideMode.isOn) window.WideMode.enable();
+      else if (!wide && window.WideMode.isOn) window.WideMode.disable();
+    }
+    const gallium = Settings360.get("galliumMode");
+    if (typeof gallium === "boolean" && window.GalliumMode) {
+      if (gallium && !window.GalliumMode.isOn) window.GalliumMode.enable();
+      else if (!gallium && window.GalliumMode.isOn) window.GalliumMode.disable();
+    }
+  });
+}
+
 /* ============================================================
    VERSION DETECTION / FORCE-UPDATE SYSTEM
    Checks the "site_meta" table (key='version') on load. If the
