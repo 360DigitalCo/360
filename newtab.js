@@ -277,6 +277,58 @@ const STYLE = `
   .nt-quote-text { font-size: .9rem; font-style: italic; line-height: 1.6; }
   .nt-quote-author { font-size: .78rem; color: var(--mut); margin-top: 8px; font-weight: 600; }
 
+  /* Pomodoro */
+  .nt-pom-card { padding: 16px 18px; text-align: center; }
+  .nt-pom-card h3 {
+    font-size: .85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--mut); margin-bottom: 10px;
+  }
+  .nt-pom-label { font-size: .8rem; font-weight: 600; color: var(--mut); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .nt-pom-time {
+    font-size: 2.8rem; font-weight: 800; letter-spacing: -.02em;
+    background: var(--grad); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; line-height: 1; margin-bottom: 12px;
+  }
+  .nt-pom-btns { display: flex; gap: 8px; justify-content: center; }
+  .nt-pom-btn {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--txt); font-size: .88rem; font-weight: 600;
+    cursor: pointer; transition: background .15s, border-color .15s; font-family: inherit;
+  }
+  .nt-pom-btn.start { background: var(--grad); color: #050816; border-color: transparent; }
+  .nt-pom-btn:hover:not(.start) { background: var(--cardhov); border-color: var(--a); }
+  .nt-pom-status { font-size: .82rem; color: var(--mut); margin-top: 8px; min-height: 18px; }
+
+  /* Calendar mini */
+  .nt-cal-card { padding: 14px 16px; }
+  .nt-cal-card h3 {
+    font-size: .85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--mut); margin-bottom: 10px;
+  }
+  .nt-cal-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .nt-cal-nav button {
+    background: none; border: none; cursor: pointer; color: var(--mut);
+    font-size: 1.1rem; padding: 2px 6px; border-radius: 6px; transition: background .15s;
+  }
+  .nt-cal-nav button:hover { background: var(--cardhov); }
+  .nt-cal-month { font-size: .88rem; font-weight: 700; color: var(--txt); }
+  .nt-cal-grid {
+    display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; text-align: center;
+  }
+  .nt-cal-dl { font-size: .65rem; color: var(--mut); font-weight: 700; padding: 2px 0; }
+  .nt-cal-day {
+    font-size: .78rem; padding: 4px 2px; border-radius: 5px;
+    cursor: default; color: var(--txt); transition: background .12s;
+  }
+  .nt-cal-day.today {
+    background: var(--grad); color: #050816; font-weight: 800;
+    -webkit-text-fill-color: #050816;
+  }
+  .nt-cal-day:hover:not(.today) { background: var(--cardhov); }
+
   /* Scrollbar */
   #nt-root ::-webkit-scrollbar { width: 5px; }
   #nt-root ::-webkit-scrollbar-track { background: transparent; }
@@ -351,6 +403,27 @@ const HTML = `
       <div class="nt-todo-list" id="nt-todo-list"></div>
     </div>
 
+    <div class="nt-card nt-pom-card">
+      <h3>Pomodoro</h3>
+      <div class="nt-pom-label" id="nt-pom-label">Focus</div>
+      <div class="nt-pom-time"  id="nt-pom-time">25:00</div>
+      <div class="nt-pom-btns">
+        <button class="nt-pom-btn start" id="nt-pom-start">Start</button>
+        <button class="nt-pom-btn" id="nt-pom-reset">Reset</button>
+      </div>
+      <div class="nt-pom-status" id="nt-pom-status"></div>
+    </div>
+
+    <div class="nt-card nt-cal-card">
+      <h3>Calendar</h3>
+      <div class="nt-cal-nav">
+        <button id="nt-cal-prev">‹</button>
+        <span class="nt-cal-month" id="nt-cal-month"></span>
+        <button id="nt-cal-next">›</button>
+      </div>
+      <div class="nt-cal-grid" id="nt-cal-grid"></div>
+    </div>
+
     <div class="nt-card nt-quote">
       <div class="nt-quote-text"   id="nt-quote-text">Loading...</div>
       <div class="nt-quote-author" id="nt-quote-author"></div>
@@ -394,6 +467,8 @@ function initAll() {
   initApps();
   initCalc();
   initTodo();
+  initPomodoro();
+  initCalendar();
   initQuote();
 }
 
@@ -598,6 +673,102 @@ function initTodo() {
   }
   document.getElementById("nt-todo-add").addEventListener("click", add);
   document.getElementById("nt-todo-input").addEventListener("keydown", e => { if (e.key==="Enter") add(); });
+  render();
+}
+
+/* ── Pomodoro ── */
+function initPomodoro() {
+  const WORK  = 25 * 60;
+  const BREAK = 5  * 60;
+  let remaining = WORK;
+  let running   = false;
+  let onBreak   = false;
+  let iv        = null;
+
+  const pad = n => String(n).padStart(2, '0');
+  const labelEl  = document.getElementById('nt-pom-label');
+  const timeEl   = document.getElementById('nt-pom-time');
+  const startBtn = document.getElementById('nt-pom-start');
+  const resetBtn = document.getElementById('nt-pom-reset');
+  const statusEl = document.getElementById('nt-pom-status');
+
+  function render() {
+    timeEl.textContent   = `${pad(Math.floor(remaining / 60))}:${pad(remaining % 60)}`;
+    startBtn.textContent = running ? 'Pause' : 'Start';
+  }
+
+  function tick() {
+    remaining--;
+    render();
+    if (remaining <= 0) {
+      clearInterval(iv); iv = null; running = false;
+      onBreak = !onBreak;
+      remaining = onBreak ? BREAK : WORK;
+      labelEl.textContent  = onBreak ? 'Break' : 'Focus';
+      statusEl.textContent = onBreak ? '☕ Break time!' : '🎯 Back to work!';
+      render();
+    }
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (running) { clearInterval(iv); iv = null; running = false; }
+    else         { running = true; iv = setInterval(tick, 1000); }
+    render();
+  });
+  resetBtn.addEventListener('click', () => {
+    clearInterval(iv); iv = null; running = false; onBreak = false;
+    remaining = WORK; labelEl.textContent = 'Focus'; statusEl.textContent = '';
+    render();
+  });
+
+  render();
+}
+
+/* ── Calendar ── */
+function initCalendar() {
+  const now   = new Date();
+  let   year  = now.getFullYear();
+  let   month = now.getMonth();
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  const monthEl = document.getElementById('nt-cal-month');
+  const gridEl  = document.getElementById('nt-cal-grid');
+
+  function render() {
+    const first   = new Date(year, month, 1).getDay();
+    const total   = new Date(year, month + 1, 0).getDate();
+    const isToday = d => d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
+
+    monthEl.textContent = `${MONTHS[month]} ${year}`;
+    gridEl.innerHTML = '';
+
+    DAY_LABELS.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'nt-cal-dl';
+      el.textContent = d;
+      gridEl.appendChild(el);
+    });
+    for (let i = 0; i < first; i++) {
+      gridEl.appendChild(document.createElement('div'));
+    }
+    for (let d = 1; d <= total; d++) {
+      const el = document.createElement('div');
+      el.className = `nt-cal-day${isToday(d) ? ' today' : ''}`;
+      el.textContent = d;
+      gridEl.appendChild(el);
+    }
+  }
+
+  document.getElementById('nt-cal-prev').addEventListener('click', () => {
+    month--; if (month < 0) { month = 11; year--; } render();
+  });
+  document.getElementById('nt-cal-next').addEventListener('click', () => {
+    month++; if (month > 11) { month = 0; year++; } render();
+  });
+
   render();
 }
 
