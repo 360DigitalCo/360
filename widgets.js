@@ -1,13 +1,15 @@
 /* ══════════════════════════════════════════════════════════════
-   360 — WIDGETS.JS  v2.0
+   360 — WIDGETS.JS  v3.6.0
    Homepage draggable widget board + Settings form controller.
-   Widget types: clock · weather · note · stocks · countdown · quote · news
+   Widget types: clock · weather · note · stocks · countdown ·
+                 quote · news · todo · calendar · pomodoro ·
+                 currency · rss
 ══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
   /* ── Storage ───────────────────────────────────────────────── */
-  const STORAGE_KEY = '360_widgets_v2';
+  const STORAGE_KEY = '360_widgets_v3';
 
   function loadWidgets() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
@@ -22,15 +24,20 @@
 
   /* ── Widget type registry ──────────────────────────────────── */
   const WIDGET_TYPES = {
-    clock:     { label: 'Clock',     icon: 'clock', color: '#8b5cf6', defaultW: 240, defaultH: 165 },
-    weather:   { label: 'Weather',   icon: 'cloud', color: '#06b6d4', defaultW: 260, defaultH: 190 },
-    note:      { label: 'Note',      icon: 'pencil', color: '#f59e0b', defaultW: 240, defaultH: 200 },
-    stocks:    { label: 'Stocks',    icon: 'graph', color: '#10b981', defaultW: 270, defaultH: 228 },
-    countdown: { label: 'Countdown', icon: 'hourglass', color: '#f43f5e', defaultW: 280, defaultH: 165 },
-    quote:     { label: 'Quote',     icon: 'comment-discussion', color: '#3b82f6', defaultW: 270, defaultH: 175 },
-    news:      { label: 'News',      icon: 'newspaper', color: '#f97316', defaultW: 280, defaultH: 280 },
+    clock:     { label: 'Clock',     icon: 'clock',              color: '#8b5cf6', defaultW: 240, defaultH: 175 },
+    weather:   { label: 'Weather',   icon: 'cloud',              color: '#06b6d4', defaultW: 270, defaultH: 200 },
+    note:      { label: 'Note',      icon: 'pencil',             color: '#f59e0b', defaultW: 240, defaultH: 210 },
+    stocks:    { label: 'Stocks',    icon: 'graph',              color: '#10b981', defaultW: 270, defaultH: 240 },
+    countdown: { label: 'Countdown', icon: 'hourglass',          color: '#f43f5e', defaultW: 290, defaultH: 175 },
+    quote:     { label: 'Quote',     icon: 'comment-discussion', color: '#3b82f6', defaultW: 270, defaultH: 185 },
+    news:      { label: 'News',      icon: 'newspaper',          color: '#f97316', defaultW: 290, defaultH: 290 },
+    todo:      { label: 'To-Do',     icon: 'checklist',          color: '#22c55e', defaultW: 260, defaultH: 260 },
+    calendar:  { label: 'Calendar',  icon: 'calendar',           color: '#ec4899', defaultW: 270, defaultH: 260 },
+    pomodoro:  { label: 'Pomodoro',  icon: 'stopwatch',          color: '#ef4444', defaultW: 240, defaultH: 210 },
+    currency:  { label: 'Currency',  icon: 'arrow-switch',       color: '#a855f7', defaultW: 260, defaultH: 200 },
+    rss:       { label: 'RSS Feed',  icon: 'rss',                color: '#fb923c', defaultW: 290, defaultH: 280 },
     // Legacy alias
-    time:      { label: 'Clock',     icon: 'clock', color: '#8b5cf6', defaultW: 240, defaultH: 165 },
+    time:      { label: 'Clock',     icon: 'clock',              color: '#8b5cf6', defaultW: 240, defaultH: 175 },
   };
 
   /* ── Weather helpers ───────────────────────────────────────── */
@@ -51,18 +58,19 @@
   async function fetchWeather(lat, lon, unit) {
     const tu = unit === 'F' ? 'fahrenheit' : 'celsius';
     const [wRes, gRes] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=${tu}&wind_speed_unit=mph`),
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m,apparent_temperature&temperature_unit=${tu}&wind_speed_unit=mph`),
       fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
     ]);
     const w = await wRes.json(), g = await gRes.json();
     const cur = w.current, code = cur.weathercode;
     return {
-      temp: Math.round(cur.temperature_2m),
+      temp:     Math.round(cur.temperature_2m),
+      feels:    Math.round(cur.apparent_temperature),
       unit,
-      icon: WMO_ICONS[code] || 'meter',
-      desc: WMO_DESC[code]  || 'Unknown',
-      city: g.address?.city || g.address?.town || g.address?.village || 'Your location',
-      wind: Math.round(cur.windspeed_10m),
+      icon:     WMO_ICONS[code] || 'meter',
+      desc:     WMO_DESC[code]  || 'Unknown',
+      city:     g.address?.city || g.address?.town || g.address?.village || 'Your location',
+      wind:     Math.round(cur.windspeed_10m),
       humidity: cur.relative_humidity_2m
     };
   }
@@ -78,18 +86,21 @@
 
   /* ── Quotes ────────────────────────────────────────────────── */
   const QUOTES = [
-    { text: 'The secret of getting ahead is getting started.',         author: 'Mark Twain' },
-    { text: 'It does not matter how slowly you go — just don\'t stop.', author: 'Confucius' },
-    { text: 'Build. Break. Learn. Repeat.',                            author: 'Unknown' },
-    { text: 'Code is like humor. When you have to explain it, it\'s bad.', author: 'Cory House' },
-    { text: 'Simplicity is the soul of efficiency.',                   author: 'Austin Freeman' },
-    { text: 'Make it work, make it right, make it fast.',              author: 'Kent Beck' },
-    { text: 'Stay focused and never stop.',                            author: '360 Digital' },
-    { text: 'Every expert was once a beginner.',                       author: 'Helen Hayes' },
-    { text: 'Dream big. Start small. Act now.',                        author: 'Robin Sharma' },
-    { text: 'Progress, not perfection.',                               author: 'Unknown' },
-    { text: 'Act as if what you do makes a difference. It does.',      author: 'William James' },
-    { text: 'The best way to predict the future is to create it.',     author: 'Peter Drucker' },
+    { text: 'The secret of getting ahead is getting started.',            author: 'Mark Twain' },
+    { text: "It does not matter how slowly you go — just don't stop.",    author: 'Confucius' },
+    { text: 'Build. Break. Learn. Repeat.',                               author: 'Unknown' },
+    { text: "Code is like humor. When you have to explain it, it's bad.", author: 'Cory House' },
+    { text: 'Simplicity is the soul of efficiency.',                      author: 'Austin Freeman' },
+    { text: 'Make it work, make it right, make it fast.',                 author: 'Kent Beck' },
+    { text: 'Stay focused and never stop.',                               author: '360 Digital' },
+    { text: 'Every expert was once a beginner.',                          author: 'Helen Hayes' },
+    { text: 'Dream big. Start small. Act now.',                           author: 'Robin Sharma' },
+    { text: 'Progress, not perfection.',                                  author: 'Unknown' },
+    { text: 'Act as if what you do makes a difference. It does.',         author: 'William James' },
+    { text: 'The best way to predict the future is to create it.',        author: 'Peter Drucker' },
+    { text: 'Focus is the art of knowing what to ignore.',                author: 'Unknown' },
+    { text: 'Small steps every day lead to big results.',                 author: 'Unknown' },
+    { text: 'Discipline is the bridge between goals and accomplishment.',  author: 'Jim Rohn' },
   ];
 
   /* ── News fetch ────────────────────────────────────────────── */
@@ -101,12 +112,27 @@
     'Sports: Record-breaking performances this season',
   ];
 
-  async function fetchNews() {
-    const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent('https://feeds.bbci.co.uk/news/rss.xml')}&count=5`;
+  async function fetchNews(feedUrl) {
+    const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl || 'https://feeds.bbci.co.uk/news/rss.xml')}&count=6`;
     const res  = await fetch(url);
     const data = await res.json();
     if (!data.items?.length) throw new Error('empty');
     return data.items;
+  }
+
+  /* ── Currency rates (ECB via open free endpoint) ───────────── */
+  const CURRENCY_CACHE_KEY = '360_currency_cache';
+
+  async function fetchRates(base) {
+    const cached = JSON.parse(localStorage.getItem(CURRENCY_CACHE_KEY) || '{}');
+    const stale  = !cached.ts || (Date.now() - cached.ts > 3600000);
+    if (!stale && cached.base === base && cached.rates) return cached.rates;
+    const res  = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+    const data = await res.json();
+    if (!data.rates) throw new Error('no rates');
+    const payload = { base, rates: data.rates, ts: Date.now() };
+    localStorage.setItem(CURRENCY_CACHE_KEY, JSON.stringify(payload));
+    return data.rates;
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -168,10 +194,7 @@
         }, { once: true });
       });
 
-      /* Content */
       populateWidget(w, body);
-
-      /* Interactions */
       makeDraggable(card, header, w, widgets);
       makeResizable(card, resizer, w, def, widgets);
     }
@@ -190,12 +213,18 @@
       case 'countdown': initCountdown(body, w); break;
       case 'quote':     initQuote(body, w);      break;
       case 'news':      initNews(body, w);       break;
+      case 'todo':      initTodo(body, w);       break;
+      case 'calendar':  initCalendar(body, w);   break;
+      case 'pomodoro':  initPomodoro(body, w);   break;
+      case 'currency':  initCurrency(body, w);   break;
+      case 'rss':       initRss(body, w);        break;
       default: body.textContent = 'Unknown widget type';
     }
   }
 
   /* ── Clock ─────────────────────────────────────────────────── */
   function initClock(body, w) {
+    const fmt24 = w.format24 ?? false;
     body.innerHTML = `
       <div class="wg-clock-time">--:--:--</div>
       <div class="wg-clock-date"></div>
@@ -206,14 +235,19 @@
     const greetEl = body.querySelector('.wg-clock-greeting');
     const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const locale = w.locale    || undefined;
-    const tz     = w.timezone  || undefined;
+    const locale = w.locale   || undefined;
+    const tz     = w.timezone || undefined;
+
     function tick() {
-      const now  = new Date();
-      timeEl.textContent = now.toLocaleTimeString(locale, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const d   = tz ? new Date(now.toLocaleString('en-US', { timeZone: tz })) : now;
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString(locale, {
+        timeZone: tz,
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: !fmt24
+      });
+      const d = tz ? new Date(now.toLocaleString('en-US', { timeZone: tz })) : now;
       dateEl.textContent  = `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-      const h   = d.getHours();
+      const h = d.getHours();
       greetEl.textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night';
     }
     tick();
@@ -227,13 +261,9 @@
   function initWeather(body, w) {
     body.innerHTML = `<div class="wg-weather-loading">${octicon('location')} Fetching weather…</div>`;
     const unit = w.unit || localStorage.getItem('tempUnit') || 'C';
-    if (!navigator.geolocation) {
-      body.innerHTML = `<div class="wg-weather-err">Geolocation unavailable</div>`;
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const d = await fetchWeather(pos.coords.latitude, pos.coords.longitude, unit);
+
+    function load(lat, lon) {
+      fetchWeather(lat, lon, unit).then(d => {
         body.innerHTML = `
           <div class="wg-weather-main">
             <span class="wg-weather-icon">${octicon(d.icon)}</span>
@@ -243,10 +273,23 @@
             </div>
           </div>
           <div class="wg-weather-loc">${octicon('location')} ${d.city}</div>
-          <div class="wg-weather-extra">Humidity ${d.humidity}%&nbsp;&nbsp;Wind ${d.wind} mph</div>
+          <div class="wg-weather-extra">
+            <span>Feels ${d.feels}°${d.unit}</span>
+            <span>Humidity ${d.humidity}%</span>
+            <span>Wind ${d.wind} mph</span>
+          </div>
         `;
-      } catch { body.innerHTML = `<div class="wg-weather-err">Weather unavailable</div>`; }
-    }, () => { body.innerHTML = `<div class="wg-weather-err">Location denied</div>`; });
+      }).catch(() => { body.innerHTML = `<div class="wg-weather-err">Weather unavailable</div>`; });
+    }
+
+    if (!navigator.geolocation) {
+      body.innerHTML = `<div class="wg-weather-err">Geolocation unavailable</div>`;
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => load(pos.coords.latitude, pos.coords.longitude),
+      ()  => { body.innerHTML = `<div class="wg-weather-err">Location denied</div>`; }
+    );
   }
 
   /* ── Note ──────────────────────────────────────────────────── */
@@ -254,7 +297,7 @@
     const key   = `360_widget_note_${w.id}`;
     const saved = localStorage.getItem(key) ?? w.text ?? '';
     body.style.padding = '0';
-    body.innerHTML = `<textarea class="wg-note-area" placeholder="Type a note…" maxlength="600">${saved}</textarea>`;
+    body.innerHTML = `<textarea class="wg-note-area" placeholder="Type a note…" maxlength="1200">${saved}</textarea>`;
     const ta = body.querySelector('.wg-note-area');
     let debounce;
     ta.addEventListener('input', () => {
@@ -265,16 +308,20 @@
 
   /* ── Stocks ────────────────────────────────────────────────── */
   function initStocks(body, w) {
-    const stocks = BASE_STOCKS.map(s => ({
-      ...s,
-      price:  +(s.price  + (Math.random() - 0.5) * 2.4).toFixed(2),
-      change: +(s.change + (Math.random() - 0.5) * 0.6).toFixed(2),
-    }));
+    const tickers = w.tickers?.length ? w.tickers : BASE_STOCKS.map(s => s.symbol);
+    const data = BASE_STOCKS
+      .filter(s => tickers.includes(s.symbol))
+      .map(s => ({
+        ...s,
+        price:  +(s.price  + (Math.random() - 0.5) * 2.4).toFixed(2),
+        change: +(s.change + (Math.random() - 0.5) * 0.6).toFixed(2),
+      }));
+
     body.innerHTML = `
       <div class="wg-stocks-header">
         <span>Symbol</span><span>Price</span><span>Chg</span>
       </div>
-      ${stocks.map(s => {
+      ${data.map(s => {
         const up = s.change >= 0;
         return `<div class="wg-stock-row">
           <span class="wg-stock-sym">${s.symbol}</span>
@@ -285,6 +332,7 @@
       }).join('')}
       <div class="wg-stocks-note">Simulated · updates every 30s</div>
     `;
+
     const iv = setInterval(() => {
       if (!document.querySelector(`[data-id="${w.id}"]`)) { clearInterval(iv); return; }
       initStocks(body, w);
@@ -310,6 +358,7 @@
         <div class="wg-cd-block"><span class="wg-cd-num" id="cd-s-${w.id}">-</span><span class="wg-cd-label">sec</span></div>
       </div>
     `;
+
     function tick() {
       const diff = new Date(w.targetDate) - new Date();
       if (diff <= 0) {
@@ -348,10 +397,10 @@
   }
 
   /* ── News ──────────────────────────────────────────────────── */
-  async function initNews(body) {
+  async function initNews(body, w) {
     body.innerHTML = `<div class="wg-news-loading">${octicon('newspaper')} Loading headlines…</div>`;
     try {
-      const items = await fetchNews();
+      const items = await fetchNews(w.feedUrl);
       body.innerHTML = items.map(item => `
         <a class="wg-news-item" href="${item.link}" target="_blank" rel="noopener noreferrer">
           <div class="wg-news-headline">${item.title}</div>
@@ -365,6 +414,246 @@
           <div class="wg-news-meta">Today</div>
         </div>
       `).join('');
+    }
+  }
+
+  /* ── To-Do ─────────────────────────────────────────────────── */
+  function initTodo(body, w) {
+    const key    = `360_widget_todo_${w.id}`;
+    let   todos  = JSON.parse(localStorage.getItem(key) || '[]');
+
+    function save() { localStorage.setItem(key, JSON.stringify(todos)); }
+
+    function render() {
+      list.innerHTML = '';
+      if (!todos.length) {
+        list.innerHTML = `<div class="wg-todo-empty">No tasks yet.</div>`;
+        return;
+      }
+      todos.forEach((t, i) => {
+        const row = document.createElement('div');
+        row.className = `wg-todo-item${t.done ? ' done' : ''}`;
+        row.innerHTML = `
+          <input type="checkbox" data-i="${i}" ${t.done ? 'checked' : ''}/>
+          <span class="wg-todo-text">${t.text}</span>
+          <button class="wg-todo-del" data-i="${i}" title="Remove">✕</button>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    body.innerHTML = `
+      <div class="wg-todo-input-row">
+        <input class="wg-todo-input" placeholder="Add task…" maxlength="80"/>
+        <button class="wg-todo-add">＋</button>
+      </div>
+      <div class="wg-todo-list"></div>
+    `;
+
+    const input = body.querySelector('.wg-todo-input');
+    const list  = body.querySelector('.wg-todo-list');
+
+    function add() {
+      const txt = input.value.trim();
+      if (!txt) return;
+      todos.unshift({ text: txt, done: false });
+      save(); render(); input.value = '';
+    }
+
+    body.querySelector('.wg-todo-add').addEventListener('click', add);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+
+    list.addEventListener('click', e => {
+      const i = parseInt(e.target.dataset.i);
+      if (isNaN(i)) return;
+      if (e.target.type === 'checkbox') {
+        todos[i].done = e.target.checked; save(); render();
+      } else if (e.target.classList.contains('wg-todo-del')) {
+        todos.splice(i, 1); save(); render();
+      }
+    });
+
+    render();
+  }
+
+  /* ── Calendar ──────────────────────────────────────────────── */
+  function initCalendar(body) {
+    const now   = new Date();
+    let   year  = now.getFullYear();
+    let   month = now.getMonth();
+
+    const MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+    const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+    function render() {
+      const first    = new Date(year, month, 1).getDay();
+      const total    = new Date(year, month + 1, 0).getDate();
+      const isToday  = (d) => d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
+
+      let cells = '';
+      DAYS.forEach(d => { cells += `<div class="wg-cal-daylabel">${d}</div>`; });
+      for (let i = 0; i < first; i++) cells += `<div></div>`;
+      for (let d = 1; d <= total; d++) {
+        cells += `<div class="wg-cal-day${isToday(d) ? ' today' : ''}">${d}</div>`;
+      }
+
+      body.innerHTML = `
+        <div class="wg-cal-nav">
+          <button class="wg-cal-prev">‹</button>
+          <span class="wg-cal-label">${MONTHS[month]} ${year}</span>
+          <button class="wg-cal-next">›</button>
+        </div>
+        <div class="wg-cal-grid">${cells}</div>
+      `;
+
+      body.querySelector('.wg-cal-prev').addEventListener('click', () => {
+        month--; if (month < 0) { month = 11; year--; } render();
+      });
+      body.querySelector('.wg-cal-next').addEventListener('click', () => {
+        month++; if (month > 11) { month = 0; year++; } render();
+      });
+    }
+
+    render();
+  }
+
+  /* ── Pomodoro ──────────────────────────────────────────────── */
+  function initPomodoro(body, w) {
+    const WORK  = (w.workMin  || 25) * 60;
+    const BREAK = (w.breakMin || 5)  * 60;
+
+    let remaining = WORK;
+    let running   = false;
+    let onBreak   = false;
+    let iv        = null;
+
+    const pad = n => String(n).padStart(2, '0');
+
+    body.innerHTML = `
+      <div class="wg-pom-label">Focus</div>
+      <div class="wg-pom-time">25:00</div>
+      <div class="wg-pom-controls">
+        <button class="wg-pom-btn start">Start</button>
+        <button class="wg-pom-btn reset">Reset</button>
+      </div>
+      <div class="wg-pom-status"></div>
+    `;
+
+    const labelEl  = body.querySelector('.wg-pom-label');
+    const timeEl   = body.querySelector('.wg-pom-time');
+    const startBtn = body.querySelector('.wg-pom-btn.start');
+    const resetBtn = body.querySelector('.wg-pom-btn.reset');
+    const statusEl = body.querySelector('.wg-pom-status');
+
+    function tick() {
+      remaining--;
+      render();
+      if (remaining <= 0) {
+        clearInterval(iv); iv = null; running = false;
+        onBreak = !onBreak;
+        remaining = onBreak ? BREAK : WORK;
+        labelEl.textContent  = onBreak ? 'Break' : 'Focus';
+        statusEl.textContent = onBreak ? '☕ Break time!' : '🎯 Back to work!';
+        render();
+      }
+    }
+
+    function render() {
+      timeEl.textContent  = `${pad(Math.floor(remaining / 60))}:${pad(remaining % 60)}`;
+      startBtn.textContent = running ? 'Pause' : 'Start';
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (!document.body.contains(body)) { clearInterval(iv); return; }
+      if (running) {
+        clearInterval(iv); iv = null; running = false;
+      } else {
+        running = true;
+        iv = setInterval(() => {
+          if (!document.body.contains(body)) { clearInterval(iv); return; }
+          tick();
+        }, 1000);
+      }
+      render();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      clearInterval(iv); iv = null; running = false; onBreak = false;
+      remaining = WORK; labelEl.textContent = 'Focus'; statusEl.textContent = '';
+      render();
+    });
+  }
+
+  /* ── Currency ──────────────────────────────────────────────── */
+  function initCurrency(body, w) {
+    const defaultBase = w.baseCurrency || 'USD';
+    const pairs = w.pairs || ['EUR','GBP','JPY','CAD'];
+
+    body.innerHTML = `
+      <div class="wg-cur-row">
+        <select class="wg-cur-base"></select>
+        <input class="wg-cur-amount" type="number" value="1" min="0" step="any"/>
+      </div>
+      <div class="wg-cur-results"><div class="wg-cur-loading">Loading rates…</div></div>
+    `;
+
+    const baseSelect = body.querySelector('.wg-cur-base');
+    const amountIn   = body.querySelector('.wg-cur-amount');
+    const results    = body.querySelector('.wg-cur-results');
+
+    const COMMON = ['USD','EUR','GBP','JPY','CAD','AUD','CHF','CNY','INR','BRL','MXN','KRW'];
+    COMMON.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      if (c === defaultBase) opt.selected = true;
+      baseSelect.appendChild(opt);
+    });
+
+    async function load() {
+      results.innerHTML = `<div class="wg-cur-loading">Loading…</div>`;
+      try {
+        const base  = baseSelect.value;
+        const amt   = parseFloat(amountIn.value) || 1;
+        const rates = await fetchRates(base);
+        results.innerHTML = pairs
+          .filter(p => rates[p])
+          .map(p => {
+            const val = (rates[p] * amt).toFixed(4);
+            return `<div class="wg-cur-pair">
+              <span class="wg-cur-code">${p}</span>
+              <span class="wg-cur-val">${val}</span>
+            </div>`;
+          }).join('');
+      } catch {
+        results.innerHTML = `<div class="wg-cur-err">Rates unavailable</div>`;
+      }
+    }
+
+    baseSelect.addEventListener('change', load);
+    let debounce;
+    amountIn.addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(load, 400);
+    });
+
+    load();
+  }
+
+  /* ── RSS Feed ──────────────────────────────────────────────── */
+  async function initRss(body, w) {
+    const feedUrl = w.feedUrl || 'https://feeds.bbci.co.uk/news/rss.xml';
+    body.innerHTML = `<div class="wg-news-loading">${octicon('rss')} Loading feed…</div>`;
+    try {
+      const items = await fetchNews(feedUrl);
+      body.innerHTML = items.slice(0, 6).map(item => `
+        <a class="wg-news-item" href="${item.link}" target="_blank" rel="noopener noreferrer">
+          <div class="wg-news-headline">${item.title}</div>
+          <div class="wg-news-meta">${new Date(item.pubDate).toLocaleDateString()}</div>
+        </a>
+      `).join('');
+    } catch {
+      body.innerHTML = `<div class="wg-news-err">Feed unavailable.<br><small>Check the URL in settings.</small></div>`;
     }
   }
 
@@ -431,7 +720,7 @@
     const list = document.getElementById('widgetList');
     if (!list) return;
 
-    let widgets     = loadWidgets();
+    let widgets      = loadWidgets();
     let selectedType = 'clock';
 
     /* ── Type buttons ── */
@@ -448,12 +737,17 @@
     function updateFields(type) {
       const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
       const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
-      ['wf-note-fields', 'wf-weather-fields', 'wf-clock-fields', 'wf-countdown-fields']
+      ['wf-note-fields','wf-weather-fields','wf-clock-fields','wf-countdown-fields',
+       'wf-todo-fields','wf-pomodoro-fields','wf-currency-fields','wf-rss-fields']
         .forEach(hide);
-      if (type === 'note')                    show('wf-note-fields');
-      if (type === 'weather')                 show('wf-weather-fields');
+      if (type === 'note')                     show('wf-note-fields');
+      if (type === 'weather')                  show('wf-weather-fields');
       if (type === 'clock' || type === 'time') show('wf-clock-fields');
-      if (type === 'countdown')               show('wf-countdown-fields');
+      if (type === 'countdown')                show('wf-countdown-fields');
+      if (type === 'todo')                     show('wf-todo-fields');
+      if (type === 'pomodoro')                 show('wf-pomodoro-fields');
+      if (type === 'currency')                 show('wf-currency-fields');
+      if (type === 'rss')                      show('wf-rss-fields');
     }
 
     /* ── Form submission ── */
@@ -465,21 +759,31 @@
         const g   = id => document.getElementById(id);
         const v   = id => g(id)?.value.trim() ?? '';
 
-        /* Stagger spawn positions so they don't pile on top */
         const offset = (widgets.length % 8) * 22;
 
         widgets.push({
-          id:         uid(),
-          type:       selectedType,
-          title:      v('wf-title') || def.label,
-          width:      def.defaultW,
-          height:     def.defaultH,
-          text:       v('wf-note-text'),
-          unit:       g('wf-unit')?.value || 'C',
-          timezone:   v('wf-timezone'),
-          locale:     v('wf-locale'),
-          targetDate: v('wf-countdown-date') || null,
-          eventName:  v('wf-countdown-event') || 'Event',
+          id:           uid(),
+          type:         selectedType,
+          title:        v('wf-title') || def.label,
+          width:        def.defaultW,
+          height:       def.defaultH,
+          // note
+          text:         v('wf-note-text'),
+          // weather / clock
+          unit:         g('wf-unit')?.value || 'C',
+          timezone:     v('wf-timezone'),
+          locale:       v('wf-locale'),
+          format24:     g('wf-format24')?.checked ?? false,
+          // countdown
+          targetDate:   v('wf-countdown-date') || null,
+          eventName:    v('wf-countdown-event') || 'Event',
+          // pomodoro
+          workMin:      parseInt(v('wf-work-min'))  || 25,
+          breakMin:     parseInt(v('wf-break-min')) || 5,
+          // currency
+          baseCurrency: v('wf-base-currency') || 'USD',
+          // rss / news
+          feedUrl:      v('wf-feed-url') || null,
           x: 20 + offset,
           y: 80 + offset,
         });
@@ -487,7 +791,6 @@
         saveWidgets(widgets);
         form.reset();
 
-        /* Reset type selector to clock */
         typeButtons.forEach(b => b.classList.remove('wf-type-active'));
         document.querySelector('[data-widget-type="clock"]')?.classList.add('wf-type-active');
         selectedType = 'clock';
