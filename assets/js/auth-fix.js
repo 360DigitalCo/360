@@ -30,8 +30,8 @@
   // Override the global openAuth used by sendMessage, chat, etc.
   window.openAuth = function(mode) {
     const dest = mode === "signup"
-      ? "signup.html?from=" + fromParam()
-      : "signin.html?from=" + fromParam();
+      ? "/signup?from=" + fromParam()
+      : "/signin?from=" + fromParam();
     window.location.href = dest;
   };
 
@@ -57,13 +57,13 @@
   if (ghBtn) ghBtn.onclick = () => {
     supabaseClient.auth.signInWithOAuth({
       provider: "github",
-      options: { redirectTo: window.location.origin + "/account?signin&from=" + fromParam() }
+      options: { redirectTo: window.location.origin + "/signin?from=" + fromParam() }
     });
   };
   if (ggBtn) ggBtn.onclick = () => {
     supabaseClient.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin + "/account?signin&from=" + fromParam() }
+      options: { redirectTo: window.location.origin + "/signin?from=" + fromParam() }
     });
   };
 

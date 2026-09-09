@@ -150,6 +150,13 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.supabaseClient = supabase.createClient(
+      'https://wiswfpfsjiowtrdyqpxy.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
+    );
+  </script>
+  <script src="/assets/js/auth.js"></script>
 </head>
 <body>
 <div class="card">
@@ -201,10 +208,7 @@
 </div>
 
 <script>
-const sb = supabase.createClient(
-  'https://wiswfpfsjiowtrdyqpxy.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
-);
+const sb = supabaseClient;
 
 const qs = new URLSearchParams(location.search);
 const STATE     = qs.get('state');
@@ -225,11 +229,7 @@ const SCOPE_META = {
 if (!STATE || !CLIENT_ID) {
   document.getElementById('loading').textContent = 'Invalid request — missing parameters.';
 } else {
-  // Wait for Supabase to fully restore the session before rendering the auth-dependent UI.
-  // INITIAL_SESSION fires once the client has validated the token and attached the JWT.
-  sb.auth.onAuthStateChange((event, s) => {
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') init(s);
-  });
+  authReady.then(s => init(s));
 }
 
 async function init(resolvedSession) {
@@ -271,7 +271,6 @@ async function init(resolvedSession) {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display    = '';
 
-  // Auth check — use the session passed in from onAuthStateChange (already validated)
   const session = resolvedSession || null;
 
   const approveBtn = document.getElementById('approve-btn');

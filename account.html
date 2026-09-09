@@ -413,6 +413,7 @@
 </div>
 <script>window.SKIP_AUTH_CHIP = true;</script>
 <script src="/assets/js/main.js"></script>
+<script src="/assets/js/auth.js"></script>
 <script src="/assets/js/auth-fix.js"></script>
 <script src="/assets/js/wide.js"></script>
 <script src="/assets/js/gallium.js"></script>
@@ -993,7 +994,7 @@
         if(upsertErr) console.warn('Profile upsert failed (non-fatal):', upsertErr.message);
       }
       // If the session already exists (email confirmation disabled in project), redirect now
-      const { data: { session: immediateSession } } = await sb.auth.getSession();
+      const immediateSession = await authReady;
       if(immediateSession){
         sessionStorage.removeItem('360_auth_redirect');
         setMsg(msg,'Account created! Redirecting…','ok');
@@ -1225,13 +1226,10 @@
     (async()=>{
       if(isLogout){ showLogout(); return; }
 
-      // Handle email confirmation tokens in the URL hash (#access_token=…&type=signup)
-      if(location.hash.includes('access_token') || location.hash.includes('type=signup')){
-        // Supabase JS picks these up automatically; give it a tick then re-check session
-        await new Promise(r=>setTimeout(r,300));
-      }
-
-      const { data:{session} } = await sb.auth.getSession();
+      // authReady resolves once Supabase has validated the session and attached the JWT.
+      // Using this instead of getSession() eliminates the race condition where subsequent
+      // .from() calls run before the client has set its internal auth state.
+      const session = await authReady;
       if(session){
         const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
         if(aal && aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel){

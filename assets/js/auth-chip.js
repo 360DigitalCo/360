@@ -40,7 +40,7 @@
   }
 
   async function buildUserChip() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const session = await window.authReady;
     if (!session) return;
 
     const { data: profile } = await supabaseClient

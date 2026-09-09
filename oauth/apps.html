@@ -200,6 +200,13 @@
     .auth-wall-sub { color: var(--mut); font-size: 14px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.supabaseClient = supabase.createClient(
+      'https://wiswfpfsjiowtrdyqpxy.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
+    );
+  </script>
+  <script src="/assets/js/auth.js"></script>
 </head>
 <body>
 
@@ -357,54 +364,42 @@
 </div>
 
 <script>
-const sb = supabase.createClient(
-  'https://wiswfpfsjiowtrdyqpxy.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
-);
+const sb = supabaseClient;
 
 let session = null;
 let apps    = [];
 let detailClientId = null;
 
-// Wait for Supabase to fully restore the session from storage before doing anything.
-// getSession() alone is not enough — the client may not have attached the JWT to
-// subsequent .from() calls yet. onAuthStateChange INITIAL_SESSION fires only once
-// the session is validated and the client is ready to send authenticated requests.
-function boot() {
-  sb.auth.onAuthStateChange(async (event, s) => {
-    // Only act on the first event — INITIAL_SESSION (already signed in) or
-    // SIGNED_IN (just completed sign-in on this page load, e.g. OAuth hash).
-    if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN') return;
+async function boot() {
+  const s = await authReady;
 
-    if (!s) {
-      document.getElementById('auth-wall').style.display = 'flex';
-      return;
-    }
-    session = s;
+  if (!s) {
+    document.getElementById('auth-wall').style.display = 'flex';
+    return;
+  }
+  session = s;
 
-    // Now the client has the JWT attached — profile query will pass RLS.
-    const { data: profile, error: pErr } = await sb
-      .from('profiles')
-      .select('dev_suite,username')
-      .eq('id', session.user.id)
-      .single();
+  const { data: profile, error: pErr } = await sb
+    .from('profiles')
+    .select('dev_suite,username')
+    .eq('id', session.user.id)
+    .single();
 
-    if (pErr || !profile) {
-      document.getElementById('auth-wall').style.display = 'flex';
-      document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
-      return;
-    }
+  if (pErr || !profile) {
+    document.getElementById('auth-wall').style.display = 'flex';
+    document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
+    return;
+  }
 
-    if (!profile.dev_suite) {
-      document.getElementById('auth-wall').style.display = 'flex';
-      document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
-      return;
-    }
+  if (!profile.dev_suite) {
+    document.getElementById('auth-wall').style.display = 'flex';
+    document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
+    return;
+  }
 
-    document.getElementById('shell').style.display = '';
-    await loadApps();
-    wireModal();
-  });
+  document.getElementById('shell').style.display = '';
+  await loadApps();
+  wireModal();
 }
 
 async function loadApps() {
