@@ -358,7 +358,7 @@
 
 <script>
 const SUPABASE_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let session = null;
@@ -366,13 +366,35 @@ let apps    = [];
 let detailClientId = null;
 
 async function boot() {
-  const { data: { session: s } } = await sb.auth.getSession();
-  if (!s) { document.getElementById('auth-wall').style.display = 'flex'; return; }
+  // getSession() reads from localStorage — already populated after signin redirect
+  let { data: { session: s } } = await sb.auth.getSession();
+
+  // If landed via OAuth hash callback, exchange it for a session
+  if (!s && window.location.hash.includes('access_token')) {
+    const { data } = await sb.auth.getSessionFromUrl({ reHashParams: true });
+    s = data?.session ?? null;
+  }
+
+  if (!s) {
+    document.getElementById('auth-wall').style.display = 'flex';
+    return;
+  }
   session = s;
 
-  // Check dev_suite flag
-  const { data: profile } = await sb.from('profiles').select('dev_suite,username').eq('id', s.user.id).single();
-  if (!profile?.dev_suite) {
+  // Verify dev_suite directly from profiles (don't trust JWT claims alone)
+  const { data: profile, error: pErr } = await sb
+    .from('profiles')
+    .select('dev_suite,username')
+    .eq('id', session.user.id)
+    .single();
+
+  if (pErr || !profile) {
+    document.getElementById('auth-wall').style.display = 'flex';
+    document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
+    return;
+  }
+
+  if (!profile.dev_suite) {
     document.getElementById('auth-wall').style.display = 'flex';
     document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
     return;
