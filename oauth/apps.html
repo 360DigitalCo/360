@@ -365,44 +365,45 @@ let session = null;
 let apps    = [];
 let detailClientId = null;
 
-async function boot() {
-  // getSession() reads from localStorage — already populated after signin redirect
-  let { data: { session: s } } = await sb.auth.getSession();
+// Wait for Supabase to fully restore the session from storage before doing anything.
+// getSession() alone is not enough — the client may not have attached the JWT to
+// subsequent .from() calls yet. onAuthStateChange INITIAL_SESSION fires only once
+// the session is validated and the client is ready to send authenticated requests.
+function boot() {
+  sb.auth.onAuthStateChange(async (event, s) => {
+    // Only act on the first event — INITIAL_SESSION (already signed in) or
+    // SIGNED_IN (just completed sign-in on this page load, e.g. OAuth hash).
+    if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN') return;
 
-  // If landed via OAuth hash callback, exchange it for a session
-  if (!s && window.location.hash.includes('access_token')) {
-    const { data } = await sb.auth.getSessionFromUrl({ reHashParams: true });
-    s = data?.session ?? null;
-  }
+    if (!s) {
+      document.getElementById('auth-wall').style.display = 'flex';
+      return;
+    }
+    session = s;
 
-  if (!s) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    return;
-  }
-  session = s;
+    // Now the client has the JWT attached — profile query will pass RLS.
+    const { data: profile, error: pErr } = await sb
+      .from('profiles')
+      .select('dev_suite,username')
+      .eq('id', session.user.id)
+      .single();
 
-  // Verify dev_suite directly from profiles (don't trust JWT claims alone)
-  const { data: profile, error: pErr } = await sb
-    .from('profiles')
-    .select('dev_suite,username')
-    .eq('id', session.user.id)
-    .single();
+    if (pErr || !profile) {
+      document.getElementById('auth-wall').style.display = 'flex';
+      document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
+      return;
+    }
 
-  if (pErr || !profile) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
-    return;
-  }
+    if (!profile.dev_suite) {
+      document.getElementById('auth-wall').style.display = 'flex';
+      document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
+      return;
+    }
 
-  if (!profile.dev_suite) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
-    return;
-  }
-
-  document.getElementById('shell').style.display = '';
-  await loadApps();
-  wireModal();
+    document.getElementById('shell').style.display = '';
+    await loadApps();
+    wireModal();
+  });
 }
 
 async function loadApps() {

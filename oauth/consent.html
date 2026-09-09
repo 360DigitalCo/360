@@ -224,10 +224,14 @@ const SCOPE_META = {
 if (!STATE || !CLIENT_ID) {
   document.getElementById('loading').textContent = 'Invalid request — missing parameters.';
 } else {
-  init();
+  // Wait for Supabase to fully restore the session before rendering the auth-dependent UI.
+  // INITIAL_SESSION fires once the client has validated the token and attached the JWT.
+  sb.auth.onAuthStateChange((event, s) => {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') init(s);
+  });
 }
 
-async function init() {
+async function init(resolvedSession) {
   // App header
   document.getElementById('app-name').textContent = APP_NAME;
   document.getElementById('app-url').textContent  = HOMEPAGE
@@ -266,13 +270,8 @@ async function init() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display    = '';
 
-  // Auth check
-  // Reads from localStorage — present immediately after signin redirect
-  let { data: { session } } = await sb.auth.getSession();
-  if (!session && window.location.hash.includes('access_token')) {
-    const { data } = await sb.auth.getSessionFromUrl({ reHashParams: true });
-    session = data?.session ?? null;
-  }
+  // Auth check — use the session passed in from onAuthStateChange (already validated)
+  const session = resolvedSession || null;
 
   const approveBtn = document.getElementById('approve-btn');
   const denyBtn    = document.getElementById('deny-btn');
