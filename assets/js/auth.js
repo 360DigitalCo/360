@@ -28,7 +28,10 @@
   // Keep authSession current on token refresh and sign-out
   supabaseClient.auth.onAuthStateChange(function (event, session) {
     if (event === 'TOKEN_REFRESHED') window.authSession = session;
-    if (event === 'SIGNED_OUT')      window.authSession = null;
+    if (event === 'SIGNED_OUT') {
+      window.authSession = null;
+      sessionStorage.removeItem('360_auth_redirect');
+    }
   });
 
   // Global helper — signs out and goes home

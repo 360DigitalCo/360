@@ -20,10 +20,11 @@
     return encodeURIComponent(window.location.pathname + window.location.search);
   }
 
-  // Always persist the current page as the redirect target so email-confirm links
-  // and OAuth callbacks can always bounce back here, even across browser sessions.
+  // Persist current page as redirect target for after sign-in.
+  // Skip auth pages themselves so we don't create a redirect loop.
   const thisPage = window.location.pathname + window.location.search;
-  if (!thisPage.includes('signin.html') && !thisPage.includes('signup.html')) {
+  const authPages = ['/signin', '/signup', '/account', '/oauth/'];
+  if (!authPages.some(p => thisPage.startsWith(p))) {
     sessionStorage.setItem('360_auth_redirect', thisPage);
   }
 

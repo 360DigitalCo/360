@@ -425,7 +425,8 @@
     const qs         = location.search.slice(1);
     const param      = qs.split('&')[0].toLowerCase();
     const _fromParam = qs.match(/(?:^|&)from=([^&]*)/i);
-    const _redirectTo = _fromParam ? decodeURIComponent(_fromParam[1]) || '/' : '/';;
+    const _storedRedirect = sessionStorage.getItem('360_auth_redirect') || '/';
+    const _redirectTo = _fromParam ? decodeURIComponent(_fromParam[1]) || _storedRedirect : _storedRedirect;;
     const isLogout   = param === 'signout';
     const content    = document.getElementById('acContent');
 
@@ -529,7 +530,7 @@
     /* ─── OAuth ──────────────────────────────────── */
     function oAuth(provider){
       // After OAuth the browser returns to this URL; we then redirect to _redirectTo
-      const redirectUrl = location.origin+'/account?signin&from='+encodeURIComponent(_redirectTo);
+      const redirectUrl = location.origin+'/signin?from='+encodeURIComponent(_redirectTo);
       sb.auth.signInWithOAuth({ provider, options:{ redirectTo: redirectUrl, scopes: provider==='google'?'profile email':'' } });
     }
 

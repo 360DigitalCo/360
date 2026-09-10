@@ -271,10 +271,12 @@
 </div>
 <div class="ac-field">
 <label>Email</label>
-<div class="ac-email-row">
-<input autocomplete="off" id="suEmail" placeholder="you" type="text"/>
-<span class="ac-email-suffix">@360-search.com</span>
+<input autocomplete="email" id="suEmail" placeholder="you@example.com" type="email"/>
 </div>
+<div class="ac-field">
+<label>Date of birth</label>
+<input id="suDob" type="date" max="" autocomplete="bday"/>
+<span class="ac-hint" id="dobHint"></span>
 </div>
 <div class="ac-field">
 <label>Username</label>
@@ -335,6 +337,10 @@
     const qs = location.search.slice(1);
     const _fromParam = qs.match(/(?:^|&)from=([^&]*)/i);
     const _redirectTo = _fromParam ? decodeURIComponent(_fromParam[1]) || "/" : "/";
+
+    // Set DOB max to today so future dates can't be picked
+    const dobInput = document.getElementById("suDob");
+    if (dobInput) dobInput.max = new Date().toISOString().split("T")[0];
 
     // Pre-fill username if arriving from the 360Mail claim page (?u=name)
     const _uParam = qs.match(/(?:^|&)u=([^&]*)/i);
@@ -415,12 +421,22 @@
     }
 
     async function doSignUp() {
-      const emailLocal = suEmail.value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-      const email    = emailLocal ? emailLocal + "@360-search.com" : "";
+      const email = suEmail.value.trim().toLowerCase();
       const username = suUser.value.trim();
       const password = suPass.value;
       const confirm  = suConfirm.value;
       if (!email || !username || !password || !confirm) { setMsg(suMsg, "All fields are required.", "err"); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMsg(suMsg, "Please enter a valid email address.", "err"); return; }
+      const dobVal = document.getElementById("suDob")?.value || null;
+      if (!dobVal) { setMsg(suMsg, "Date of birth is required.", "err"); return; }
+      const dobAge = (() => {
+        const d = new Date(dobVal), now = new Date();
+        let a = now.getFullYear() - d.getFullYear();
+        const m = now.getMonth() - d.getMonth();
+        if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
+        return a;
+      })();
+      if (dobAge < 13) { setMsg(suMsg, "You must be at least 13 years old to create an account.", "err"); return; }
       if (!/^[a-zA-Z0-9_]{3,32}$/.test(username)) { setMsg(suMsg, "Username must be 3–32 chars, letters/numbers/underscores only.", "err"); return; }
       if (password.length < 6) { setMsg(suMsg, "Password must be at least 6 characters.", "err"); return; }
       if (password !== confirm) { setMsg(suMsg, "Passwords do not match.", "err"); return; }
@@ -436,11 +452,24 @@
       if (signUpErr) { setMsg(suMsg, signUpErr.message, "err"); suBtn.disabled = false; suBtn.textContent = "Create Account"; return; }
 
       const userId = signUpData?.user?.id;
-      if (userId) await sb.from("profiles").upsert({
-        id: userId, username, email,
-        first_name: document.getElementById("suFirst")?.value?.trim() || "",
-        last_name:  document.getElementById("suLast")?.value?.trim()  || null,
-      }, { onConflict: "id" });
+      if (userId) {
+          const dobVal    = document.getElementById("suDob")?.value || null;
+          const dobDate   = dobVal ? new Date(dobVal) : null;
+          const now       = new Date();
+          let age = 0;
+          if (dobDate) {
+            age = now.getFullYear() - dobDate.getFullYear();
+            const m = now.getMonth() - dobDate.getMonth();
+            if (m < 0 || (m === 0 && now.getDate() < dobDate.getDate())) age--;
+          }
+          await sb.from("profiles").upsert({
+            id: userId, username, email,
+            first_name:    document.getElementById("suFirst")?.value?.trim() || "",
+            last_name:     document.getElementById("suLast")?.value?.trim()  || null,
+            date_of_birth: dobVal,
+            age_verified:  age >= 13,
+          }, { onConflict: "id" });
+        }
 
       setMsg(suMsg, 'Account created! Check your email to confirm, then <a href="/signin" style="color:var(--a)">sign in</a>.', "ok");
       suBtn.textContent = "Check your email";

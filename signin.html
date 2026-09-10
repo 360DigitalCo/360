@@ -267,7 +267,9 @@
     // Parse redirect target
     const qs = location.search.slice(1);
     const _fromParam = qs.match(/(?:^|&)from=([^&]*)/i);
-    const _redirectTo = _fromParam ? decodeURIComponent(_fromParam[1]) || "/" : "/";
+    // Fall back to sessionStorage so pages that call openAuth() without a ?from= still work
+    const _storedRedirect = sessionStorage.getItem('360_auth_redirect') || '/';
+    const _redirectTo = _fromParam ? decodeURIComponent(_fromParam[1]) || _storedRedirect : _storedRedirect;
 
     // If already signed in, redirect away
     authReady.then(session => { if (session) window.location.replace(_redirectTo); });
