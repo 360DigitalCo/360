@@ -322,6 +322,82 @@
     .av-preview-name { font-size:14px; font-weight:700; color:var(--txt); }
     body.dark .av-preview-name { color:var(--txtd); }
 
+
+    /* ── Profile header ───────────────────────────────────── */
+    .ac-profile-header { display:flex; gap:16px; align-items:flex-start; margin-bottom:16px; }
+    .ac-profile-info   { flex:1; min-width:0; }
+    .ac-bio  { font-size:13px; color:var(--mut); margin:4px 0 6px; }
+    .ac-stats-row { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mut); margin-top:6px; }
+    .ac-complete-badge   { color:#10b981; font-weight:700; }
+    .ac-incomplete-badge { color:#f59e0b; font-weight:700; }
+
+    /* ── Badges ───────────────────────────────────────────── */
+    .ac-badges-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .ac-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      font-size:11.5px; font-weight:700; padding:3px 9px;
+      border-radius:99px; border:1px solid;
+      background:rgba(255,255,255,.04);
+    }
+
+    /* ── Profile tabs ─────────────────────────────────────── */
+    .ac-profile-tabs {
+      display:flex; gap:4px; flex-wrap:wrap;
+      margin:18px 0 0; padding-bottom:12px;
+      border-bottom:1px solid var(--br);
+    }
+    .ac-ptab {
+      padding:6px 13px; border-radius:7px; border:none;
+      background:transparent; color:var(--mut);
+      font-size:12.5px; font-weight:600; cursor:pointer;
+      font-family:inherit; transition:background .12s, color .12s;
+      display:flex; align-items:center; gap:5px;
+    }
+    .ac-ptab:hover { background:rgba(255,255,255,.06); color:var(--txt); }
+    .ac-ptab.active { background:rgba(59,130,246,.15); color:#60a5fa; }
+    .ac-ptab-panel  { margin-top:14px; }
+    .ac-notif-badge {
+      background:#ef4444; color:#fff;
+      font-size:10px; font-weight:800; padding:1px 5px;
+      border-radius:99px; line-height:1.4;
+    }
+
+    /* ── Tab sections ─────────────────────────────────────── */
+    .ac-tab-section-title {
+      font-size:11px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.06em; color:var(--mut); margin-bottom:8px;
+    }
+    .ac-security-row {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; padding:12px 0; border-bottom:1px solid var(--br);
+    }
+    .ac-security-label { font-size:13.5px; font-weight:700; }
+    .ac-security-sub   { font-size:12px; color:var(--mut); margin-top:2px; }
+    .ac-danger-section { color:#ef4444; }
+    .ac-danger-row .ac-security-sub { color:rgba(239,68,68,.7); }
+    .ac-delete-btn {
+      background:rgba(239,68,68,.1) !important;
+      color:#ef4444 !important;
+      border-color:rgba(239,68,68,.25) !important;
+    }
+    .ac-delete-btn:hover { background:rgba(239,68,68,.2) !important; }
+
+    /* ── Activity / notifications rows ───────────────────── */
+    .ac-notif-row {
+      padding:10px 0; border-bottom:1px solid var(--br);
+      cursor:pointer; transition:opacity .15s;
+    }
+    .ac-notif-row:last-child { border-bottom:none; }
+    .ac-notif-title { font-size:13.5px; font-weight:600; }
+    .ac-notif-body  { font-size:12.5px; color:var(--mut); margin-top:2px; }
+    .ac-notif-time  { font-size:11px; color:var(--mut); margin-top:3px; }
+    .ac-act-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:8px 0; border-bottom:1px solid var(--br); gap:10px;
+    }
+    .ac-act-row:last-child { border-bottom:none; }
+    .ac-act-event { font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ac-act-time  { font-size:11.5px; color:var(--mut); flex-shrink:0; }
   </style>
 <meta content="360  Account — part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="360 — Account" property="og:title"/><meta content="360  Account — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/account.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 — Account" name="twitter:title"/><meta content="360  Account — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/account.html" rel="canonical"/></head>
 <body>
@@ -1051,8 +1127,8 @@
         btn.disabled=true; btn.textContent='Saving…';
         const avatarUrl = monogramSVG(avState.letter, avState.bg, 200);
         const { data, error } = await sb.from('profiles').update({
-          first_name:firstName, last_name:lastName||null, birthdate,
-          avatar_url:avatarUrl, avatar_style:'monogram', avatar_seed:avState.letter+'|'+avState.bg,
+          first_name:firstName, last_name:lastName||null, date_of_birth:birthdate||null,
+          avatar_url:avatarUrl, avatar_style:'monogram', avatar_seed:avState.letter+'|'+avState.bg, updated_at:new Date().toISOString(),
         }).eq('id',user.id).select('*').maybeSingle();
         if(error){ setMsg(msg,error.message,'err'); btn.disabled=false; btn.textContent=isEdit?'Save changes':'Finish setup'; return; }
         showProfile(user, data);
@@ -1064,15 +1140,70 @@
       const username = profile.username || user.user_metadata?.username || user.email?.split('@')[0] || 'User';
       const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || username;
       const avatarUrl = profile.avatar_url || monogramSVG((profile.first_name||username).charAt(0).toUpperCase(), BG_COLORS[0], 200);
+      // Load badges, stats, notifications in parallel
+      const [badgeRes, notifRes, actRes] = await Promise.all([
+        sb.from('user_badges').select('badge_id, badges(label,icon,color), awarded_at').eq('user_id', user.id).order('awarded_at'),
+        sb.from('notifications').select('id,type,title,body,action_url,read,created_at').eq('user_id', user.id).eq('read', false).order('created_at', {ascending:false}).limit(10),
+        sb.from('account_activity').select('event,meta,created_at').eq('user_id', user.id).order('created_at', {ascending:false}).limit(8),
+      ]);
+      const badges    = badgeRes.data || [];
+      const notifs    = notifRes.data || [];
+      const activity  = actRes.data   || [];
+      const unread    = notifs.length;
+
+      const badgeHtml = badges.length
+        ? badges.map(b => `<span class="ac-badge" style="border-color:${b.badges.color};color:${b.badges.color};" title="${esc(b.badges.label)}">${b.badges.icon} ${esc(b.badges.label)}</span>`).join('')
+        : '<span style="color:var(--mut);font-size:12px;">No badges yet</span>';
+
+      const notifHtml = notifs.length
+        ? notifs.map(n => `<div class="ac-notif-row" data-id="${n.id}">
+            <div class="ac-notif-title">${esc(n.title)}</div>
+            ${n.body ? `<div class="ac-notif-body">${esc(n.body)}</div>` : ''}
+            <div class="ac-notif-time">${new Date(n.created_at).toLocaleDateString()}</div>
+          </div>`).join('')
+        : '<div style="color:var(--mut);font-size:13px;padding:8px 0;">No new notifications</div>';
+
+      const actHtml = activity.length
+        ? activity.map(a => `<div class="ac-act-row">
+            <span class="ac-act-event">${esc(a.event.replace(/_/g,' '))}</span>
+            <span class="ac-act-time">${new Date(a.created_at).toLocaleDateString()}</span>
+          </div>`).join('')
+        : '<div style="color:var(--mut);font-size:13px;padding:8px 0;">No recent activity</div>';
+
+      const profileAge = profile.created_at
+        ? Math.floor((Date.now() - new Date(profile.created_at)) / (1000*60*60*24*30)) + ' months'
+        : '';
+
       content.innerHTML = `
         <div class="ac-profile">
-          <img src="${esc(avatarUrl)}" class="ac-avatar" style="object-fit:cover;" alt="${esc(fullName)}" />
-          <div>
-            <div class="ac-pname">${esc(fullName)}</div>
-            <div class="ac-pemail">${esc(user.email||'')} · @${esc(username)}</div>
+          <div class="ac-profile-header">
+            <img src="${esc(avatarUrl)}" class="ac-avatar" style="object-fit:cover;" alt="${esc(fullName)}" />
+            <div class="ac-profile-info">
+              <div class="ac-pname">${esc(fullName)}</div>
+              <div class="ac-pemail">@${esc(username)} · ${esc(user.email||'')}</div>
+              ${profile.bio ? `<div class="ac-bio">${esc(profile.bio)}</div>` : ''}
+              <div class="ac-stats-row">
+                <span>Searches: ${profile.search_count||0}</span>
+                ${profileAge ? `<span>Member: ${profileAge}</span>` : ''}
+                ${profile.profile_complete ? '<span class="ac-complete-badge">✓ Complete</span>' : '<span class="ac-incomplete-badge">⚠ Profile incomplete</span>'}
+              </div>
+            </div>
           </div>
+          <div class="ac-badges-row">${badgeHtml}</div>
           <button class="ac-sec-btn" id="editProfileBtn">✏️ Edit your 360ID</button>
           <p class="ac-msg" id="profMsg"></p>
+
+          <!-- Tab bar -->
+          <div class="ac-profile-tabs">
+            <button class="ac-ptab active" data-tab="security">Security</button>
+            <button class="ac-ptab" data-tab="notifications">Notifications ${unread ? `<span class="ac-notif-badge">${unread}</span>` : ''}</button>
+            <button class="ac-ptab" data-tab="activity">Activity</button>
+            <button class="ac-ptab" data-tab="privacy">Privacy</button>
+            <button class="ac-ptab" data-tab="data">Data</button>
+          </div>
+
+          <!-- Tab panels -->
+          <div id="ptab-security" class="ac-ptab-panel">
           <div class="ac-field" style="margin-top:18px;text-align:left;">
             <label>Phone Number</label>
             <input id="phoneInput" type="tel" placeholder="+1 555 123 4567" />
@@ -1084,32 +1215,126 @@
           </div>
           <button class="ac-sec-btn" id="verifyPhoneOtp" style="display:none;">Verify</button>
           <p class="ac-msg" id="phoneMsg"></p>
-          <div style="margin-top:20px;text-align:left;border-top:1px solid var(--br);padding-top:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-              <div>
-                <div style="font-weight:700;font-size:14px;">Two-Factor Authentication</div>
-                <div style="font-size:12px;color:var(--mut);" id="mfaStatusLabel">Checking…</div>
-              </div>
-              <label class="bob-toggle-row" style="margin:0;">
-                <input type="checkbox" id="mfaToggle" style="width:18px;height:18px;" disabled />
-              </label>
+          <div class="ac-security-row">
+            <div>
+              <div class="ac-security-label">Two-Factor Authentication</div>
+              <div class="ac-security-sub" id="mfaStatusLabel">Checking…</div>
             </div>
-            <div id="mfaEnrollBody" style="display:none;margin-top:14px;"></div>
-            <p class="ac-msg" id="mfaMsg"></p>
+            <label class="bob-toggle-row" style="margin:0;">
+              <input type="checkbox" id="mfaToggle" style="width:18px;height:18px;" disabled />
+            </label>
           </div>
-          <button class="ac-sec-btn" onclick="window.location.href='/';">← Back to 360</button>
-          <button class="ac-sec-btn ac-signout-btn" id="pgSignOut">Sign Out</button>
+          <div id="mfaEnrollBody" style="display:none;margin-top:14px;"></div>
+          <p class="ac-msg" id="mfaMsg"></p>
+          <div class="ac-security-row">
+            <div>
+              <div class="ac-security-label">Change Password</div>
+              <div class="ac-security-sub">Update your account password</div>
+            </div>
+            <button class="ac-sec-btn" id="changePassBtn" style="margin:0;">Change</button>
+          </div>
+          <div id="changePassBody" style="display:none;margin-top:10px;">
+            <div class="ac-field"><label>New password</label><input id="newPassInput" type="password" placeholder="Min 6 characters" autocomplete="new-password"/></div>
+            <div class="ac-field"><label>Confirm new password</label><input id="newPassConfirm" type="password" placeholder="Repeat password" autocomplete="new-password"/></div>
+            <p class="ac-msg" id="changePassMsg"></p>
+            <button class="ac-sec-btn" id="changePassSave">Save new password</button>
+          </div>
+          <div class="ac-security-row" style="border-bottom:none;">
+            <div>
+              <div class="ac-security-label">Sign out everywhere</div>
+              <div class="ac-security-sub">Signs out all devices and sessions</div>
+            </div>
+            <button class="ac-sec-btn" id="signOutAllBtn" style="margin:0;">Sign out all</button>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
+            <button class="ac-sec-btn" onclick="window.location.href='/';">← Back to 360</button>
+            <button class="ac-sec-btn ac-signout-btn" id="pgSignOut">Sign Out</button>
+          </div>
+          </div>
+
+          <!-- Notifications tab -->
+          <div id="ptab-notifications" class="ac-ptab-panel" style="display:none;">
+            <div class="ac-tab-section-title">Unread notifications</div>
+            <div id="notif-list">${notifHtml}</div>
+            ${notifs.length ? '<button class="ac-sec-btn" id="markAllReadBtn">Mark all as read</button>' : ''}
+          </div>
+
+          <!-- Activity tab -->
+          <div id="ptab-activity" class="ac-ptab-panel" style="display:none;">
+            <div class="ac-tab-section-title">Recent account activity</div>
+            <div id="activity-list">${actHtml}</div>
+            <div class="ac-tab-section-title" style="margin-top:18px;">Saved searches</div>
+            <div id="saved-searches-list"><span style="color:var(--mut);font-size:13px;">Loading…</span></div>
+            <div class="ac-tab-section-title" style="margin-top:18px;">Search history</div>
+            <div id="search-history-list"><span style="color:var(--mut);font-size:13px;">Loading…</span></div>
+            <button class="ac-sec-btn" id="clearHistoryBtn" style="margin-top:10px;">Clear search history</button>
+          </div>
+
+          <!-- Privacy tab -->
+          <div id="ptab-privacy" class="ac-ptab-panel" style="display:none;">
+            <div class="ac-tab-section-title">Profile visibility</div>
+            <div class="ac-security-row">
+              <div><div class="ac-security-label">Public profile</div><div class="ac-security-sub">Others can find and view your profile</div></div>
+              <label class="bob-toggle-row" style="margin:0;"><input type="checkbox" id="privPublic" style="width:18px;height:18px;" ${profile.profile_public!==false?'checked':''}/></label>
+            </div>
+            <div class="ac-security-row">
+              <div><div class="ac-security-label">Allow follows</div><div class="ac-security-sub">Others can follow your account</div></div>
+              <label class="bob-toggle-row" style="margin:0;"><input type="checkbox" id="privFollow" style="width:18px;height:18px;" ${profile.allow_follow!==false?'checked':''}/></label>
+            </div>
+            <div class="ac-security-row" style="border-bottom:none;">
+              <div><div class="ac-security-label">Show search history</div><div class="ac-security-sub">Allow 360 to use your history to improve results</div></div>
+              <label class="bob-toggle-row" style="margin:0;"><input type="checkbox" id="privHistory" style="width:18px;height:18px;" ${profile.show_search_history?'checked':''}/></label>
+            </div>
+            <button class="ac-sec-btn" id="savePrivacyBtn" style="margin-top:14px;">Save privacy settings</button>
+            <p class="ac-msg" id="privacyMsg"></p>
+            <div class="ac-tab-section-title" style="margin-top:18px;">Blocked users</div>
+            <div id="blocked-list"><span style="color:var(--mut);font-size:13px;">Loading…</span></div>
+          </div>
+
+          <!-- Data tab -->
+          <div id="ptab-data" class="ac-ptab-panel" style="display:none;">
+            <div class="ac-tab-section-title">Your data</div>
+            <div class="ac-security-row">
+              <div><div class="ac-security-label">Export your data</div><div class="ac-security-sub">Download your profile, search history, and activity as JSON</div></div>
+              <button class="ac-sec-btn" id="exportDataBtn" style="margin:0;">Export</button>
+            </div>
+            <div class="ac-tab-section-title" style="margin-top:18px;">Referrals</div>
+            <div id="referral-section"><span style="color:var(--mut);font-size:13px;">Loading…</span></div>
+            <div class="ac-tab-section-title ac-danger-section" style="margin-top:24px;">Danger zone</div>
+            <div class="ac-security-row ac-danger-row" style="border-bottom:none;">
+              <div><div class="ac-security-label" style="color:#ef4444;">Delete account</div><div class="ac-security-sub">Permanently delete your 360 account and all data. This cannot be undone.</div></div>
+              <button class="ac-sec-btn ac-delete-btn" id="deleteAccountBtn" style="margin:0;">Delete</button>
+            </div>
+          </div>
+
         </div>
       `;
       document.getElementById('editProfileBtn').onclick = ()=>renderCompleteProfile(user, profile, true);
       initMfaSection();
+
+      // Tab switching
+      document.querySelectorAll('.ac-ptab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.ac-ptab').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.ac-ptab-panel').forEach(p => p.style.display='none');
+          btn.classList.add('active');
+          const panel = document.getElementById('ptab-' + btn.dataset.tab);
+          if(panel) panel.style.display = '';
+          if(btn.dataset.tab === 'activity')  loadActivityTab(user);
+          if(btn.dataset.tab === 'privacy')   loadPrivacyTab(user);
+          if(btn.dataset.tab === 'data')      loadDataTab(user);
+        });
+      });
+
+      // Sign out
       document.getElementById('pgSignOut').onclick = async()=>{
         const b=document.getElementById('pgSignOut'); b.textContent='Signing out…'; b.disabled=true;
         await sb.auth.signOut();
-        // Clear any saved redirect target then reload — the page will show sign-in
         sessionStorage.removeItem('360_auth_redirect');
         location.href = '/';
       };
+
+      // Phone OTP
       const sendBtn=document.getElementById('sendPhoneOtp'), verifyBtn=document.getElementById('verifyPhoneOtp');
       const phoneInput=document.getElementById('phoneInput'), otpField=document.getElementById('otpField');
       const otpInput=document.getElementById('otpInput'), phoneMsg=document.getElementById('phoneMsg');
@@ -1124,6 +1349,159 @@
         if(error){ setMsg(phoneMsg,error.message,'err'); return; }
         setMsg(phoneMsg,'Phone verified! ✓','ok'); verifyBtn.style.display='none';
       };
+
+      // Change password
+      document.getElementById('changePassBtn').onclick = ()=>{
+        const b = document.getElementById('changePassBody');
+        b.style.display = b.style.display==='none' ? '' : 'none';
+      };
+      document.getElementById('changePassSave').onclick = async()=>{
+        const np = document.getElementById('newPassInput').value;
+        const nc = document.getElementById('newPassConfirm').value;
+        const msg = document.getElementById('changePassMsg');
+        if(np.length < 6){ setMsg(msg,'Password must be at least 6 characters.','err'); return; }
+        if(np !== nc){ setMsg(msg,'Passwords do not match.','err'); return; }
+        const{error} = await sb.auth.updateUser({password:np});
+        if(error){ setMsg(msg,error.message,'err'); return; }
+        setMsg(msg,'Password updated!','ok');
+        document.getElementById('changePassBody').style.display='none';
+      };
+
+      // Sign out all sessions
+      document.getElementById('signOutAllBtn').onclick = async()=>{
+        if(!confirm('Sign out of all devices?')) return;
+        await sb.auth.signOut({scope:'global'});
+        sessionStorage.removeItem('360_auth_redirect');
+        location.href='/';
+      };
+
+      // Notifications — mark all read
+      const markAllBtn = document.getElementById('markAllReadBtn');
+      if(markAllBtn) markAllBtn.onclick = async()=>{
+        await sb.from('notifications').update({read:true}).eq('user_id',user.id).eq('read',false);
+        document.getElementById('notif-list').innerHTML='<div style="color:var(--mut);font-size:13px;padding:8px 0;">No new notifications</div>';
+        markAllBtn.style.display='none';
+      };
+      document.querySelectorAll('.ac-notif-row').forEach(row=>{
+        row.style.cursor='pointer';
+        row.addEventListener('click',async()=>{
+          await sb.from('notifications').update({read:true}).eq('id',row.dataset.id);
+          row.style.opacity='0.5';
+        });
+      });
+
+      // Privacy toggles save
+      const savePrivBtn = document.getElementById('savePrivacyBtn');
+      if(savePrivBtn) savePrivBtn.onclick = async()=>{
+        const {error} = await sb.from('profiles').update({
+          profile_public:      document.getElementById('privPublic').checked,
+          allow_follow:        document.getElementById('privFollow').checked,
+          show_search_history: document.getElementById('privHistory').checked,
+        }).eq('id',user.id);
+        const msg = document.getElementById('privacyMsg');
+        if(error){ setMsg(msg,error.message,'err'); } else { setMsg(msg,'Privacy settings saved.','ok'); }
+      };
+
+      // Export data
+      document.getElementById('exportDataBtn').onclick = async()=>{
+        const [pRes, hRes, aRes] = await Promise.all([
+          sb.from('profiles').select('*').eq('id',user.id).single(),
+          sb.from('search_history').select('*').eq('user_id',user.id).limit(500),
+          sb.from('account_activity').select('*').eq('user_id',user.id).limit(500),
+        ]);
+        const blob = new Blob([JSON.stringify({
+          profile:        pRes.data,
+          search_history: hRes.data,
+          activity:       aRes.data,
+          exported_at:    new Date().toISOString(),
+        },null,2)], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '360-account-data.json';
+        a.click();
+      };
+
+      // Delete account
+      document.getElementById('deleteAccountBtn').onclick = async()=>{
+        const conf = prompt('Type DELETE to confirm permanent account deletion:');
+        if(conf !== 'DELETE') return;
+        const {error} = await sb.from('profiles').update({account_deleted:true, account_deleted_at:new Date().toISOString()}).eq('id',user.id);
+        if(error){ alert(error.message); return; }
+        await sb.auth.signOut();
+        location.href='/';
+      };
+    }
+
+    async function loadActivityTab(user){
+      // Saved searches
+      const {data:saved} = await sb.from('saved_searches').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+      const savedEl = document.getElementById('saved-searches-list');
+      if(savedEl) savedEl.innerHTML = saved?.length
+        ? saved.map(s=>`<div class="ac-act-row"><span class="ac-act-event">${esc(s.query)}</span><button class="ac-sec-btn" style="padding:3px 8px;font-size:11px;margin:0;" data-sid="${s.id}">Remove</button></div>`).join('')
+        : '<span style="color:var(--mut);font-size:13px;">No saved searches</span>';
+      savedEl?.querySelectorAll('[data-sid]').forEach(btn=>{
+        btn.addEventListener('click',async()=>{
+          await sb.from('saved_searches').delete().eq('id',btn.dataset.sid);
+          btn.closest('.ac-act-row').remove();
+        });
+      });
+
+      // Search history
+      const {data:hist} = await sb.from('search_history').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(30);
+      const histEl = document.getElementById('search-history-list');
+      if(histEl) histEl.innerHTML = hist?.length
+        ? hist.map(h=>`<div class="ac-act-row"><span class="ac-act-event">${esc(h.query)}</span><span class="ac-act-time">${new Date(h.created_at).toLocaleDateString()}</span></div>`).join('')
+        : '<span style="color:var(--mut);font-size:13px;">No search history</span>';
+
+      const clearBtn = document.getElementById('clearHistoryBtn');
+      if(clearBtn) clearBtn.onclick = async()=>{
+        if(!confirm('Clear all search history?')) return;
+        await sb.from('search_history').delete().eq('user_id',user.id);
+        if(histEl) histEl.innerHTML='<span style="color:var(--mut);font-size:13px;">Cleared.</span>';
+      };
+    }
+
+    async function loadPrivacyTab(user){
+      const {data:blocked} = await sb.from('blocked_users')
+        .select('blocked_id, profiles!blocked_id(username,avatar_url)')
+        .eq('blocker_id',user.id);
+      const el = document.getElementById('blocked-list');
+      if(!el) return;
+      el.innerHTML = blocked?.length
+        ? blocked.map(b=>`<div class="ac-act-row">
+            <span class="ac-act-event">@${esc(b.profiles?.username||b.blocked_id)}</span>
+            <button class="ac-sec-btn" style="padding:3px 8px;font-size:11px;margin:0;" data-bid="${b.blocked_id}">Unblock</button>
+          </div>`).join('')
+        : '<span style="color:var(--mut);font-size:13px;">No blocked users</span>';
+      el.querySelectorAll('[data-bid]').forEach(btn=>{
+        btn.addEventListener('click',async()=>{
+          await sb.from('blocked_users').delete().eq('blocker_id',user.id).eq('blocked_id',btn.dataset.bid);
+          btn.closest('.ac-act-row').remove();
+        });
+      });
+    }
+
+    async function loadDataTab(user){
+      // Referral code
+      let {data:ref} = await sb.from('referrals').select('*').eq('referrer_id',user.id).limit(1).maybeSingle();
+      if(!ref){
+        const {data:newRef} = await sb.from('referrals').insert({referrer_id:user.id}).select().single();
+        ref = newRef;
+      }
+      const refEl = document.getElementById('referral-section');
+      if(refEl && ref) refEl.innerHTML=`
+        <div class="ac-act-row" style="align-items:center;">
+          <div>
+            <div class="ac-security-label">Your referral code</div>
+            <div class="ac-security-sub">Share this with friends to invite them to 360</div>
+          </div>
+        </div>
+        <div class="copy-field" style="background:var(--bg);border:1px solid var(--br);border-radius:7px;padding:8px 12px;display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <code id="ref-code" style="font-family:monospace;font-size:14px;font-weight:700;flex:1;">${esc(ref.code)}</code>
+          <button class="ac-sec-btn" style="margin:0;padding:5px 12px;" onclick="navigator.clipboard.writeText('${esc(ref.code)}').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+        </div>
+        <div class="ac-security-sub" style="margin-top:6px;">${ref.used ? '✓ Used by someone' : 'Not yet used'}</div>
+      `;
     }
 
     /* ─── Two-Factor Authentication (TOTP via Supabase MFA) ─── */
