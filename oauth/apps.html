@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>360 Dev Suite — OAuth Apps</title>
   <meta name="robots" content="noindex,nofollow"/>
-    <style>
+  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg:     #050816;
@@ -15,189 +15,76 @@
       --txt:    #e2e8f0;
       --mut:    #64748b;
       --a:      #3b82f6;
-      --green:  #22c55e;
       --red:    #ef4444;
       --grad:   linear-gradient(135deg,#3b82f6,#8b5cf6);
       --r:      12px;
     }
-    body {
-      background: var(--bg); color: var(--txt);
-      font-family: "Segoe UI", system-ui, sans-serif;
-      font-size: 14px; min-height: 100dvh;
-    }
-    a { color: var(--a); text-decoration: none; }
-
-    /* Layout */
-    .shell { max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; }
-    .page-header {
-      display: flex; align-items: center; gap: 14px; margin-bottom: 36px;
-    }
-    .page-icon {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: var(--grad);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 17px; color: #fff; flex-shrink: 0;
-    }
-    .page-title { font-size: 22px; font-weight: 800; }
-    .page-sub   { color: var(--mut); font-size: 13px; margin-top: 2px; }
-
-    /* Section */
-    .section { margin-bottom: 36px; }
-    .section-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .section-title { font-size: 15px; font-weight: 700; }
-
-    /* Card */
-    .card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--r);
-    }
-    .card-body { padding: 24px; }
-
-    /* App list */
-    .app-row {
-      display: flex; align-items: center; gap: 14px;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      transition: background .12s;
-    }
-    .app-row:last-child { border-bottom: none; }
-    .app-row:hover { background: rgba(255,255,255,.02); }
-    .app-icon {
-      width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
-      background: linear-gradient(135deg,#1e3a5f,#2d1b69);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px; font-weight: 800;
-    }
-    .app-icon img { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; }
-    .app-info { flex: 1; min-width: 0; }
-    .app-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .app-id   { font-size: 11.5px; color: var(--mut); margin-top: 2px; font-family: monospace; }
-    .app-badge {
-      font-size: 10.5px; font-weight: 700; padding: 2px 7px;
-      border-radius: 99px; border: 1px solid;
-      flex-shrink: 0;
-    }
-    .badge-pub  { color: #86efac; border-color: rgba(134,239,172,.3); background: rgba(34,197,94,.08); }
-    .badge-conf { color: #93c5fd; border-color: rgba(147,197,253,.3); background: rgba(59,130,246,.08); }
-    .app-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .btn-sm {
-      padding: 5px 12px; border-radius: 7px;
-      border: 1px solid var(--border); background: var(--card2);
-      color: var(--txt); font-size: 12px; font-weight: 600;
-      cursor: pointer; font-family: inherit; transition: background .12s;
-    }
-    .btn-sm:hover { background: rgba(255,255,255,.06); }
-    .btn-sm.danger { color: var(--red); border-color: rgba(239,68,68,.2); }
-    .btn-sm.danger:hover { background: rgba(239,68,68,.08); }
-    .empty-state {
-      padding: 40px 24px; text-align: center; color: var(--mut); font-size: 13.5px;
-    }
-
-    /* Form */
-    .form-grid { display: grid; gap: 16px; }
-    .form-row  { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
-    @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
-    .field label {
-      display: block; font-size: 12px; font-weight: 700;
-      color: var(--mut); text-transform: uppercase; letter-spacing: .05em;
-      margin-bottom: 6px;
-    }
-    .field input, .field textarea, .field select {
-      width: 100%; padding: 9px 12px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--txt);
-      font-size: 13.5px; font-family: inherit;
-      outline: none; transition: border-color .15s;
-    }
-    .field input:focus, .field textarea:focus, .field select:focus {
-      border-color: var(--a);
-    }
-    .field textarea { resize: vertical; min-height: 68px; }
-    .field-hint { font-size: 11.5px; color: var(--mut); margin-top: 4px; }
-
-    /* Scope checkboxes */
-    .scope-grid {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .scope-check {
-      display: flex; align-items: center; gap: 6px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 7px; padding: 6px 10px;
-      cursor: pointer; transition: border-color .12s;
-    }
-    .scope-check input { accent-color: var(--a); cursor: pointer; }
-    .scope-check:has(input:checked) { border-color: var(--a); background: rgba(59,130,246,.06); }
-    .scope-check span { font-size: 12.5px; font-weight: 600; }
-
-    /* Buttons */
-    .btn {
-      padding: 10px 20px; border-radius: 9px;
-      border: 1px solid var(--border); background: var(--card2);
-      color: var(--txt); font-size: 13.5px; font-weight: 700;
-      cursor: pointer; font-family: inherit; transition: opacity .15s;
-    }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn.primary { background: var(--grad); color: #fff; border-color: transparent; }
-    .btn:hover:not(:disabled) { opacity: .85; }
-    .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-
-    /* Modal */
-    .modal-bg {
-      position: fixed; inset: 0; background: rgba(5,8,22,.85);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 200; padding: 20px;
-    }
-    .modal {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--r); width: 100%; max-width: 520px;
-      padding: 28px;
-    }
-    .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 20px; }
-    .modal-close {
-      float: right; background: none; border: none;
-      color: var(--mut); font-size: 20px; cursor: pointer; line-height: 1;
-    }
-
-    /* Detail modal */
-    .detail-row {
-      display: flex; flex-direction: column; gap: 3px;
-      padding: 10px 0; border-bottom: 1px solid var(--border);
-    }
-    .detail-row:last-child { border-bottom: none; }
-    .detail-label { font-size: 11px; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: .05em; }
-    .detail-val { font-size: 13px; word-break: break-all; }
-    .copy-field {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 7px; padding: 7px 10px;
-    }
-    .copy-field code { flex: 1; font-size: 12.5px; word-break: break-all; }
-    .copy-btn {
-      background: none; border: none; color: var(--mut);
-      font-size: 12px; cursor: pointer; font-family: inherit;
-      white-space: nowrap; font-weight: 600;
-    }
-    .copy-btn:hover { color: var(--txt); }
-
-    /* Msg */
-    .msg {
-      padding: 10px 14px; border-radius: 8px;
-      font-size: 13px; margin-bottom: 16px; display: none;
-    }
-    .msg.ok  { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.25); color: #86efac; }
-    .msg.err { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.25); color: #fca5a5; }
-
-    /* Auth wall */
-    #auth-wall {
-      min-height: 100dvh; display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px; text-align: center; padding: 24px;
-    }
-    .auth-wall-icon { font-size: 40px; }
-    .auth-wall-title { font-size: 20px; font-weight: 800; }
-    .auth-wall-sub { color: var(--mut); font-size: 14px; }
+    body { background:var(--bg); color:var(--txt); font-family:"Segoe UI",system-ui,sans-serif; font-size:14px; min-height:100dvh; }
+    a { color:var(--a); text-decoration:none; }
+    .shell { max-width:900px; margin:0 auto; padding:40px 20px 80px; }
+    .page-header { display:flex; align-items:center; gap:14px; margin-bottom:36px; }
+    .page-icon { width:42px; height:42px; border-radius:10px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:17px; color:#fff; flex-shrink:0; }
+    .page-title { font-size:22px; font-weight:800; }
+    .page-sub   { color:var(--mut); font-size:13px; margin-top:2px; }
+    .section { margin-bottom:36px; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .section-title { font-size:15px; font-weight:700; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); }
+    .card-body { padding:24px; }
+    .app-row { display:flex; align-items:center; gap:14px; padding:16px 20px; border-bottom:1px solid var(--border); transition:background .12s; cursor:pointer; }
+    .app-row:last-child { border-bottom:none; }
+    .app-row:hover { background:rgba(255,255,255,.03); }
+    .app-icon { width:38px; height:38px; border-radius:8px; flex-shrink:0; background:linear-gradient(135deg,#1e3a5f,#2d1b69); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:800; overflow:hidden; }
+    .app-icon img { width:38px; height:38px; object-fit:cover; }
+    .app-info { flex:1; min-width:0; }
+    .app-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .app-id   { font-size:11.5px; color:var(--mut); margin-top:2px; font-family:monospace; }
+    .app-badge { font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; border:1px solid; flex-shrink:0; }
+    .badge-pub  { color:#86efac; border-color:rgba(134,239,172,.3); background:rgba(34,197,94,.08); }
+    .badge-conf { color:#93c5fd; border-color:rgba(147,197,253,.3); background:rgba(59,130,246,.08); }
+    .empty-state { padding:40px 24px; text-align:center; color:var(--mut); font-size:13.5px; }
+    .btn { padding:10px 20px; border-radius:9px; border:1px solid var(--border); background:var(--card2); color:var(--txt); font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+    .btn.primary { background:var(--grad); color:#fff; border-color:transparent; }
+    .btn.danger  { color:var(--red); border-color:rgba(239,68,68,.25); background:transparent; }
+    .btn.danger:hover { background:rgba(239,68,68,.08); }
+    .btn:hover:not(:disabled):not(.danger) { opacity:.85; }
+    .btn-row { display:flex; gap:10px; align-items:center; margin-top:20px; }
+    .form-grid { display:grid; gap:16px; }
+    .form-row  { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+    @media (max-width:560px) { .form-row { grid-template-columns:1fr; } }
+    .field label { display:block; font-size:12px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+    .field input,.field textarea,.field select { width:100%; padding:9px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13.5px; font-family:inherit; outline:none; transition:border-color .15s; }
+    .field input:focus,.field textarea:focus,.field select:focus { border-color:var(--a); }
+    .field textarea { resize:vertical; min-height:72px; }
+    .field-hint { font-size:11.5px; color:var(--mut); margin-top:4px; }
+    .scope-grid { display:flex; flex-wrap:wrap; gap:8px; }
+    .scope-check { display:flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:6px 10px; cursor:pointer; transition:border-color .12s; }
+    .scope-check input { accent-color:var(--a); cursor:pointer; }
+    .scope-check:has(input:checked) { border-color:var(--a); background:rgba(59,130,246,.06); }
+    .scope-check span { font-size:12.5px; font-weight:600; }
+    .modal-bg { position:fixed; inset:0; background:rgba(5,8,22,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:var(--r); width:100%; max-width:520px; padding:28px; max-height:90dvh; overflow-y:auto; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .modal-title { font-size:17px; font-weight:800; }
+    .modal-close { background:none; border:none; color:var(--mut); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; border-radius:4px; }
+    .modal-close:hover { color:var(--txt); background:rgba(255,255,255,.06); }
+    .detail-row { display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .detail-row:first-child { padding-top:0; }
+    .detail-row:last-child { border-bottom:none; padding-bottom:0; }
+    .detail-label { font-size:11px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.05em; }
+    .detail-val { font-size:13px; word-break:break-all; }
+    .copy-field { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:7px 10px; }
+    .copy-field code { flex:1; font-size:12px; word-break:break-all; font-family:monospace; }
+    .copy-btn { background:none; border:none; color:var(--mut); font-size:12px; cursor:pointer; font-family:inherit; white-space:nowrap; font-weight:600; padding:0; flex-shrink:0; }
+    .copy-btn:hover { color:var(--txt); }
+    .msg { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
+    .msg.ok  { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.25); color:#86efac; }
+    .msg.err { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25); color:#fca5a5; }
+    #auth-wall { min-height:100dvh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding:24px; }
+    .auth-wall-icon { font-size:40px; }
+    .auth-wall-title { font-size:20px; font-weight:800; }
+    .auth-wall-sub { color:var(--mut); font-size:14px; max-width:320px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -210,15 +97,13 @@
 </head>
 <body>
 
-<!-- Auth wall (shown if not signed in) -->
 <div id="auth-wall" style="display:none;">
   <div class="auth-wall-icon">🔐</div>
   <div class="auth-wall-title">Sign in to access Dev Suite</div>
   <div class="auth-wall-sub">You need a 360 account with Dev Suite enabled.</div>
-  <a class="btn primary" href="/signin?from=/oauth/apps">Sign in</a>
+  <a class="btn primary" href="/signin?from=/oauth/apps" style="text-decoration:none;display:inline-block;">Sign in</a>
 </div>
 
-<!-- Main shell -->
 <div class="shell" id="shell" style="display:none;">
   <div class="page-header">
     <div class="page-icon">360</div>
@@ -228,96 +113,69 @@
     </div>
   </div>
 
-  <!-- App list -->
   <div class="section">
     <div class="section-head">
       <div class="section-title">Your applications</div>
       <button class="btn primary" id="new-btn">+ New application</button>
     </div>
-    <div class="card" id="app-list-card">
+    <div class="card">
       <div class="empty-state" id="app-empty">Loading…</div>
       <div id="app-list"></div>
     </div>
   </div>
 
-  <!-- Docs quick-ref -->
   <div class="section">
-    <div class="section-head">
-      <div class="section-title">Quick reference</div>
-    </div>
-    <div class="card">
-      <div class="card-body" style="display:grid;gap:12px;">
-        <div class="detail-row" style="padding-top:0;">
-          <div class="detail-label">Authorization endpoint</div>
-          <div class="copy-field">
-            <code>https://360-search.com/oauth/authorize</code>
-            <button class="copy-btn" onclick="copy(this,'https://360-search.com/oauth/authorize')">Copy</button>
-          </div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-label">Token endpoint</div>
-          <div class="copy-field">
-            <code>https://360-search.com/oauth/token</code>
-            <button class="copy-btn" onclick="copy(this,'https://360-search.com/oauth/token')">Copy</button>
-          </div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-label">Userinfo endpoint</div>
-          <div class="copy-field">
-            <code>https://360-search.com/oauth/userinfo</code>
-            <button class="copy-btn" onclick="copy(this,'https://360-search.com/oauth/userinfo')">Copy</button>
-          </div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-label">Supported scopes</div>
-          <div class="detail-val" style="color:var(--mut);">
-            <code style="color:var(--txt);">profile</code> · username, display name, avatar &nbsp;
-            <code style="color:var(--txt);">email</code> · email + verified status &nbsp;
-            <code style="color:var(--txt);">openid</code> · user sub &nbsp;
-            <code style="color:var(--txt);">premium</code> · membership tier &nbsp;
-            <code style="color:var(--txt);">dev</code> · Dev Suite flag
-          </div>
-        </div>
-        <div class="detail-row" style="border:none;padding-bottom:0;">
-          <div class="detail-label">Flow</div>
-          <div class="detail-val" style="color:var(--mut);">OAuth 2.0 Authorization Code + PKCE (S256). Public clients must use PKCE. Confidential clients send <code style="color:var(--txt);">client_secret</code>.</div>
+    <div class="section-head"><div class="section-title">Quick reference</div></div>
+    <div class="card"><div class="card-body" style="display:grid;gap:0;">
+      <div class="detail-row">
+        <div class="detail-label">Authorization endpoint</div>
+        <div class="copy-field"><code id="r-auth">https://360-search.com/oauth/authorize</code><button class="copy-btn" data-copy="r-auth">Copy</button></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Token endpoint</div>
+        <div class="copy-field"><code id="r-token">https://360-search.com/oauth/token</code><button class="copy-btn" data-copy="r-token">Copy</button></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Userinfo endpoint</div>
+        <div class="copy-field"><code id="r-userinfo">https://360-search.com/oauth/userinfo</code><button class="copy-btn" data-copy="r-userinfo">Copy</button></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Supported scopes</div>
+        <div class="detail-val" style="color:var(--mut);line-height:1.8;">
+          <code style="color:var(--txt);">profile</code> username, display name, avatar &nbsp;·&nbsp;
+          <code style="color:var(--txt);">email</code> email + verified &nbsp;·&nbsp;
+          <code style="color:var(--txt);">openid</code> sub &nbsp;·&nbsp;
+          <code style="color:var(--txt);">premium</code> membership tier &nbsp;·&nbsp;
+          <code style="color:var(--txt);">dev</code> Dev Suite flag
         </div>
       </div>
-    </div>
+      <div class="detail-row">
+        <div class="detail-label">Flow</div>
+        <div class="detail-val" style="color:var(--mut);">OAuth 2.0 Authorization Code + PKCE (S256). Public clients must use PKCE. Confidential clients send <code style="color:var(--txt);">client_secret</code>.</div>
+      </div>
+    </div></div>
   </div>
 </div>
 
-<!-- New / Edit app modal -->
+<!-- New app modal -->
 <div class="modal-bg" id="app-modal" style="display:none;">
   <div class="modal">
-    <button class="modal-close" id="modal-close">✕</button>
-    <div class="modal-title" id="modal-title">New application</div>
-
+    <div class="modal-header">
+      <div class="modal-title">New application</div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
     <div class="msg" id="form-msg"></div>
-
     <div class="form-grid">
       <div class="form-row">
-        <div class="field">
-          <label>App name *</label>
-          <input id="f-name" placeholder="My App" maxlength="80"/>
-        </div>
-        <div class="field">
-          <label>Homepage URL</label>
-          <input id="f-homepage" type="url" placeholder="https://myapp.com"/>
-        </div>
+        <div class="field"><label>App name *</label><input id="f-name" placeholder="My App" maxlength="80"/></div>
+        <div class="field"><label>Homepage URL</label><input id="f-homepage" type="url" placeholder="https://myapp.com"/></div>
       </div>
-      <div class="field">
-        <label>Description</label>
-        <textarea id="f-desc" placeholder="What does your app do?" maxlength="300"></textarea>
-      </div>
-      <div class="field">
-        <label>Logo URL</label>
-        <input id="f-logo" type="url" placeholder="https://myapp.com/logo.png"/>
-      </div>
+      <div class="field"><label>Description</label><textarea id="f-desc" placeholder="What does your app do?" maxlength="300"></textarea></div>
+      <div class="field"><label>Logo URL</label><input id="f-logo" type="url" placeholder="https://myapp.com/logo.png"/></div>
       <div class="field">
         <label>Redirect URIs * <span style="font-weight:400;text-transform:none;">(one per line)</span></label>
         <textarea id="f-redirects" placeholder="https://myapp.com/auth/callback" style="min-height:80px;"></textarea>
-        <div class="field-hint">All redirect URIs the server is allowed to send codes to.</div>
+        <div class="field-hint">All URIs the server is allowed to redirect to after authorization.</div>
       </div>
       <div class="field">
         <label>Scopes</label>
@@ -332,240 +190,135 @@
       <div class="field">
         <label>Client type</label>
         <select id="f-public">
-          <option value="public">Public (SPA / mobile — uses PKCE, no secret)</option>
-          <option value="confidential">Confidential (server-side — uses client_secret)</option>
+          <option value="public">Public — SPA / mobile (PKCE, no secret)</option>
+          <option value="confidential">Confidential — server-side (client_secret)</option>
         </select>
       </div>
       <div class="field" id="secret-field" style="display:none;">
         <label>Client secret</label>
         <input id="f-secret" type="password" placeholder="Min 32 characters" autocomplete="new-password"/>
-        <div class="field-hint">Store this securely — it won't be shown again.</div>
+        <div class="field-hint">Store this securely — it is never shown again.</div>
       </div>
     </div>
-
-    <div class="btn-row" style="margin-top:20px;">
+    <div class="btn-row">
       <button class="btn" id="modal-cancel">Cancel</button>
-      <button class="btn primary" id="modal-submit">Create application</button>
+      <button class="btn primary" id="modal-submit" style="margin-left:auto;">Create application</button>
     </div>
   </div>
 </div>
 
-<!-- App detail modal -->
+<!-- Detail modal -->
 <div class="modal-bg" id="detail-modal" style="display:none;">
   <div class="modal">
-    <button class="modal-close" id="detail-close">✕</button>
-    <div class="modal-title" id="detail-title">App details</div>
+    <div class="modal-header">
+      <div class="modal-title" id="detail-title">App details</div>
+      <button class="modal-close" id="detail-close">✕</button>
+    </div>
     <div id="detail-body"></div>
-    <div class="btn-row" style="margin-top:20px;">
-      <button class="btn danger btn-sm" id="detail-delete" style="padding:10px 20px;font-size:13.5px;">Delete app</button>
-      <button class="btn" id="detail-done" style="margin-left:auto;">Close</button>
+    <div class="btn-row">
+      <button class="btn danger" id="detail-delete">Delete app</button>
+      <button class="btn primary" id="detail-done" style="margin-left:auto;">Close</button>
     </div>
   </div>
 </div>
 
 <script>
 const sb = supabaseClient;
-
 let session = null;
 let apps    = [];
-let detailClientId = null;
 
+/* ── Boot ──────────────────────────────────────────────────── */
 async function boot() {
   const s = await authReady;
-
-  if (!s) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    return;
-  }
+  if (!s) { showWall('Sign in to access Dev Suite', 'You need a 360 account with Dev Suite enabled.'); return; }
   session = s;
 
-  const { data: profile, error: pErr } = await sb
-    .from('profiles')
-    .select('dev_suite,username')
-    .eq('id', session.user.id)
-    .single();
-
-  if (pErr || !profile) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    document.querySelector('.auth-wall-sub').textContent = 'Could not load profile. Try signing out and back in.';
-    return;
-  }
-
-  if (!profile.dev_suite) {
-    document.getElementById('auth-wall').style.display = 'flex';
-    document.querySelector('.auth-wall-sub').textContent = 'Dev Suite is not enabled on your account. Contact 360 support to request access.';
-    return;
-  }
+  const { data: profile, error } = await sb
+    .from('profiles').select('dev_suite').eq('id', s.user.id).single();
+  if (error || !profile)    { showWall('Could not load profile', 'Try signing out and back in.'); return; }
+  if (!profile.dev_suite)   { showWall('Dev Suite not enabled', 'Contact 360 support to request access.'); return; }
 
   document.getElementById('shell').style.display = '';
-  await loadApps();
+  wireQuickRef();
   wireModal();
+  await loadApps();
 }
 
+function showWall(title, sub) {
+  const w = document.getElementById('auth-wall');
+  w.querySelector('.auth-wall-title').textContent = title;
+  w.querySelector('.auth-wall-sub').textContent   = sub;
+  w.style.display = 'flex';
+}
+
+/* ── App list — direct Supabase query ──────────────────────── */
 async function loadApps() {
-  const res = await fetch('/oauth/clients', {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-  apps = res.ok ? await res.json() : [];
-  renderList();
-}
-
-function renderList() {
-  const list  = document.getElementById('app-list');
   const empty = document.getElementById('app-empty');
-  list.innerHTML = '';
-  if (!apps.length) {
-    empty.textContent = 'No applications yet. Create one to get started.';
-    empty.style.display = '';
+  const list  = document.getElementById('app-list');
+  empty.textContent   = 'Loading…';
+  empty.style.display = '';
+  list.innerHTML      = '';
+
+  const { data, error } = await sb
+    .from('oauth_clients')
+    .select('client_id,name,logo_url,is_public,allowed_scopes,redirect_uris,homepage_url,description,created_at')
+    .eq('owner_id', session.user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  apps = data || [];
+  if (error || !apps.length) {
+    empty.textContent = error ? 'Could not load applications.' : 'No applications yet. Create one to get started.';
     return;
   }
   empty.style.display = 'none';
+
   apps.forEach(app => {
     const row = document.createElement('div');
     row.className = 'app-row';
     row.innerHTML = `
-      <div class="app-icon">
-        ${app.logo_url ? `<img src="${app.logo_url}" alt="${app.name}"/>` : app.name.charAt(0).toUpperCase()}
-      </div>
+      <div class="app-icon">${app.logo_url ? `<img src="${esc(app.logo_url)}" alt="">` : esc(app.name.charAt(0).toUpperCase())}</div>
       <div class="app-info">
-        <div class="app-name">${app.name}</div>
-        <div class="app-id">${app.client_id}</div>
+        <div class="app-name">${esc(app.name)}</div>
+        <div class="app-id">${esc(app.client_id)}</div>
       </div>
       <span class="app-badge ${app.is_public ? 'badge-pub' : 'badge-conf'}">${app.is_public ? 'Public' : 'Confidential'}</span>
-      <div class="app-actions">
-        <button class="btn-sm" data-cid="${app.client_id}">Details</button>
-      </div>
     `;
-    row.querySelector('[data-cid]').addEventListener('click', () => openDetail(app.client_id));
+    row.addEventListener('click', () => openDetail(app.client_id));
     list.appendChild(row);
   });
 }
 
-function wireModal() {
-  const modal        = document.getElementById('app-modal');
-  const publicSelect = document.getElementById('f-public');
-  const secretField  = document.getElementById('secret-field');
-
-  publicSelect.addEventListener('change', () => {
-    secretField.style.display = publicSelect.value === 'confidential' ? '' : 'none';
-  });
-
-  document.getElementById('new-btn').addEventListener('click', () => {
-    modal.style.display = 'flex';
-  });
-  document.getElementById('modal-close').addEventListener('click',  closeModal);
-  document.getElementById('modal-cancel').addEventListener('click', closeModal);
-
-  document.getElementById('modal-submit').addEventListener('click', async () => {
-    const btn = document.getElementById('modal-submit');
-    btn.disabled = true; btn.textContent = 'Creating…';
-
-    const name      = document.getElementById('f-name').value.trim();
-    const homepage  = document.getElementById('f-homepage').value.trim();
-    const desc      = document.getElementById('f-desc').value.trim();
-    const logo      = document.getElementById('f-logo').value.trim();
-    const redirects = document.getElementById('f-redirects').value.trim().split('\n').map(s => s.trim()).filter(Boolean);
-    const scopes    = [...document.querySelectorAll('.scope-grid input:checked')].map(i => i.value);
-    const isPublic  = publicSelect.value === 'public';
-    const secret    = document.getElementById('f-secret').value;
-
-    if (!name || !redirects.length) {
-      showFormMsg('App name and at least one redirect URI are required.', 'err');
-      btn.disabled = false; btn.textContent = 'Create application';
-      return;
-    }
-    if (!isPublic && secret.length < 32) {
-      showFormMsg('Client secret must be at least 32 characters.', 'err');
-      btn.disabled = false; btn.textContent = 'Create application';
-      return;
-    }
-
-    const body = {
-      name, description: desc || null, homepage_url: homepage || null,
-      logo_url: logo || null, redirect_uris: redirects,
-      allowed_scopes: scopes, is_public: isPublic,
-    };
-    if (!isPublic && secret) body.client_secret = secret;
-
-    const res  = await fetch('/oauth/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showFormMsg(data.error_description || 'Failed to create application.', 'err');
-      btn.disabled = false; btn.textContent = 'Create application';
-      return;
-    }
-
-    closeModal();
-    await loadApps();
-    openDetail(data.client_id);
-  });
-}
-
-function closeModal() {
-  document.getElementById('app-modal').style.display = 'none';
-  document.getElementById('form-msg').style.display  = 'none';
-  document.getElementById('f-name').value      = '';
-  document.getElementById('f-homepage').value  = '';
-  document.getElementById('f-desc').value      = '';
-  document.getElementById('f-logo').value      = '';
-  document.getElementById('f-redirects').value = '';
-  document.getElementById('f-secret').value    = '';
-  document.getElementById('modal-submit').disabled    = false;
-  document.getElementById('modal-submit').textContent = 'Create application';
-}
-
-function showFormMsg(msg, type) {
-  const el = document.getElementById('form-msg');
-  el.textContent = msg;
-  el.className   = `msg ${type}`;
-  el.style.display = '';
-}
-
-async function openDetail(clientId) {
-  detailClientId = clientId;
-  const res  = await fetch(`/oauth/clients/${clientId}`, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-  if (!res.ok) return;
-  const app = await res.json();
+/* ── Detail modal ──────────────────────────────────────────── */
+function openDetail(clientId) {
+  const app = apps.find(a => a.client_id === clientId);
+  if (!app) return;
 
   document.getElementById('detail-title').textContent = app.name;
 
-  const authUrl = `https://360-search.com/oauth/authorize?client_id=${app.client_id}&response_type=code&redirect_uri=${encodeURIComponent(app.redirect_uris[0])}&scope=${encodeURIComponent(app.allowed_scopes.join(' '))}`;
+  const authUrl = `https://360-search.com/oauth/authorize?client_id=${encodeURIComponent(app.client_id)}&response_type=code&redirect_uri=${encodeURIComponent((app.redirect_uris || [])[0] || '')}&scope=${encodeURIComponent((app.allowed_scopes || []).join(' '))}`;
 
   document.getElementById('detail-body').innerHTML = `
-    <div class="detail-row" style="padding-top:0;">
+    <div class="detail-row">
       <div class="detail-label">Client ID</div>
-      <div class="copy-field">
-        <code>${app.client_id}</code>
-        <button class="copy-btn" onclick="copy(this,'${app.client_id}')">Copy</button>
-      </div>
+      <div class="copy-field"><code id="dc-cid">${esc(app.client_id)}</code><button class="copy-btn" data-copy="dc-cid">Copy</button></div>
     </div>
     <div class="detail-row">
       <div class="detail-label">Type</div>
-      <div class="detail-val">${app.is_public ? 'Public (PKCE required)' : 'Confidential (client_secret required)'}</div>
+      <div class="detail-val">${app.is_public ? 'Public — PKCE required, no secret' : 'Confidential — client_secret required'}</div>
     </div>
+    ${app.description ? `<div class="detail-row"><div class="detail-label">Description</div><div class="detail-val" style="color:var(--mut);">${esc(app.description)}</div></div>` : ''}
     <div class="detail-row">
       <div class="detail-label">Allowed scopes</div>
-      <div class="detail-val">${app.allowed_scopes.map(s => `<code>${s}</code>`).join(' ')}</div>
+      <div class="detail-val">${(app.allowed_scopes||[]).map(s=>`<code>${esc(s)}</code>`).join(' ')}</div>
     </div>
     <div class="detail-row">
       <div class="detail-label">Redirect URIs</div>
-      <div class="detail-val" style="display:flex;flex-direction:column;gap:4px;">
-        ${app.redirect_uris.map(u => `<code style="font-size:12px;">${u}</code>`).join('')}
-      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">${(app.redirect_uris||[]).map(u=>`<code style="font-size:12px;font-family:monospace;word-break:break-all;">${esc(u)}</code>`).join('')}</div>
     </div>
     <div class="detail-row">
       <div class="detail-label">Example authorization URL</div>
-      <div class="copy-field">
-        <code style="font-size:11px;">${authUrl}</code>
-        <button class="copy-btn" onclick="copy(this,\`${authUrl}\`)">Copy</button>
-      </div>
+      <div class="copy-field"><code id="dc-url" style="font-size:11px;">${esc(authUrl)}</code><button class="copy-btn" data-copy="dc-url">Copy</button></div>
     </div>
     <div class="detail-row">
       <div class="detail-label">Created</div>
@@ -573,36 +326,135 @@ async function openDetail(clientId) {
     </div>
   `;
 
-  document.getElementById('detail-modal').style.display = 'flex';
+  document.getElementById('detail-body').querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', () => doCopy(btn, document.getElementById(btn.dataset.copy)?.textContent.trim()));
+  });
 
+  document.getElementById('detail-delete').onclick = () => deleteApp(app.client_id, app.name);
   document.getElementById('detail-done').onclick   = closeDetail;
   document.getElementById('detail-close').onclick  = closeDetail;
-  document.getElementById('detail-delete').onclick = () => deleteApp(clientId, app.name);
+  document.getElementById('detail-modal').style.display = 'flex';
 }
 
-function closeDetail() {
-  document.getElementById('detail-modal').style.display = 'none';
-  detailClientId = null;
-}
+function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
 
 async function deleteApp(clientId, name) {
-  if (!confirm(`Delete "${name}"? This will immediately revoke all tokens issued by this app.`)) return;
-  const res = await fetch(`/oauth/clients/${clientId}`, {
-    method:  'DELETE',
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-  if (res.ok || res.status === 204) {
-    closeDetail();
-    await loadApps();
-  }
+  if (!confirm(`Delete "${name}"?\n\nAll tokens issued by this app will be revoked immediately.`)) return;
+  await sb.from('oauth_access_tokens').update({ revoked: true }).eq('client_id', clientId);
+  await sb.from('oauth_refresh_tokens').update({ revoked: true }).eq('client_id', clientId);
+  const { error } = await sb.from('oauth_clients')
+    .update({ is_active: false }).eq('client_id', clientId).eq('owner_id', session.user.id);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  closeDetail();
+  await loadApps();
 }
 
-function copy(btn, text) {
+/* ── New app modal ─────────────────────────────────────────── */
+function wireModal() {
+  const modal     = document.getElementById('app-modal');
+  const publicSel = document.getElementById('f-public');
+
+  publicSel.addEventListener('change', () => {
+    document.getElementById('secret-field').style.display = publicSel.value === 'confidential' ? '' : 'none';
+  });
+
+  document.getElementById('new-btn').addEventListener('click', () => {
+    modal.style.display = 'flex';
+    document.getElementById('f-name').focus();
+  });
+
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  document.getElementById('detail-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detail-modal')) closeDetail();
+  });
+
+  document.getElementById('modal-submit').addEventListener('click', submitNewApp);
+}
+
+async function submitNewApp() {
+  const btn      = document.getElementById('modal-submit');
+  const name     = document.getElementById('f-name').value.trim();
+  const homepage = document.getElementById('f-homepage').value.trim();
+  const desc     = document.getElementById('f-desc').value.trim();
+  const logo     = document.getElementById('f-logo').value.trim();
+  const redirects = document.getElementById('f-redirects').value.trim()
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  const scopes   = [...document.querySelectorAll('.scope-grid input:checked')].map(i => i.value);
+  const isPublic = document.getElementById('f-public').value === 'public';
+  const secret   = document.getElementById('f-secret').value.trim();
+
+  if (!name)             { showFormMsg('App name is required.', 'err'); return; }
+  if (!redirects.length) { showFormMsg('At least one redirect URI is required.', 'err'); return; }
+  if (!scopes.length)    { showFormMsg('Select at least one scope.', 'err'); return; }
+  if (!isPublic && secret.length < 32) { showFormMsg('Client secret must be at least 32 characters.', 'err'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  const arr      = crypto.getRandomValues(new Uint8Array(12));
+  const clientId = '360_' + Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+
+  let secretHash = null;
+  if (!isPublic && secret) {
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+    secretHash = btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  }
+
+  const { error } = await sb.from('oauth_clients').insert({
+    client_id: clientId, owner_id: session.user.id,
+    name, description: desc || null, homepage_url: homepage || null, logo_url: logo || null,
+    redirect_uris: redirects, allowed_scopes: scopes,
+    is_public: isPublic, client_secret_hash: secretHash, is_active: true,
+  });
+
+  if (error) {
+    showFormMsg(error.message || 'Failed to create application.', 'err');
+    btn.disabled = false; btn.textContent = 'Create application';
+    return;
+  }
+
+  closeModal();
+  await loadApps();
+  openDetail(clientId);
+}
+
+function closeModal() {
+  document.getElementById('app-modal').style.display = 'none';
+  document.getElementById('form-msg').style.display  = 'none';
+  ['f-name','f-homepage','f-desc','f-logo','f-redirects','f-secret'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-public').value = 'public';
+  document.getElementById('secret-field').style.display = 'none';
+  const btn = document.getElementById('modal-submit');
+  btn.disabled = false; btn.textContent = 'Create application';
+}
+
+function showFormMsg(msg, type) {
+  const el = document.getElementById('form-msg');
+  el.textContent = msg; el.className = `msg ${type}`; el.style.display = '';
+}
+
+/* ── Quick ref copy ────────────────────────────────────────── */
+function wireQuickRef() {
+  document.querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', () => doCopy(btn, document.getElementById(btn.dataset.copy)?.textContent.trim()));
+  });
+}
+
+function doCopy(btn, text) {
+  if (!text) return;
   navigator.clipboard.writeText(text).then(() => {
     const orig = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = orig; }, 1500);
-  });
+  }).catch(() => {});
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 boot();

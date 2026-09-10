@@ -238,7 +238,9 @@ export async function consentApprove(req, res) {
   const redirect = new URL(pkce.redirect_uri);
   redirect.searchParams.set('code',  code);
   redirect.searchParams.set('state', state);
-  return res.redirect(302, redirect.toString());
+  // Return JSON so the consent page can navigate — fetch() silently follows
+  // 302s and the browser never sees the Location header.
+  return res.json({ redirect_to: redirect.toString() });
 }
 
 /* ═══════════════════════════════════════════════════════════════
