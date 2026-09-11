@@ -1,464 +1,355 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>360 Dev Suite — OAuth Apps</title>
-  <meta name="robots" content="noindex,nofollow"/>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:     #050816;
-      --card:   #0d1225;
-      --card2:  #111827;
-      --border: rgba(255,255,255,.08);
-      --txt:    #e2e8f0;
-      --mut:    #64748b;
-      --a:      #3b82f6;
-      --red:    #ef4444;
-      --grad:   linear-gradient(135deg,#3b82f6,#8b5cf6);
-      --r:      12px;
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>360 — Apps</title>
+<link href="favicon-32x32.png" rel="icon" type="image/png"/>
+<link href="manifest.json" rel="manifest"/>
+<meta content="#3b82f6" name="theme-color"/>
+<link href="/assets/css/main.css" rel="stylesheet"/>
+<link href="/assets/css/wide.css" rel="stylesheet"/>
+<link href="/assets/css/gallium.css" rel="stylesheet"/>
+<link href="/assets/css/responsive.css" rel="stylesheet"/>
+<link href="/assets/css/cursor.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    .apps-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
     }
-    body { background:var(--bg); color:var(--txt); font-family:"Segoe UI",system-ui,sans-serif; font-size:14px; min-height:100dvh; }
-    a { color:var(--a); text-decoration:none; }
-    .shell { max-width:900px; margin:0 auto; padding:40px 20px 80px; }
-    .page-header { display:flex; align-items:center; gap:14px; margin-bottom:36px; }
-    .page-icon { width:42px; height:42px; border-radius:10px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:17px; color:#fff; flex-shrink:0; }
-    .page-title { font-size:22px; font-weight:800; }
-    .page-sub   { color:var(--mut); font-size:13px; margin-top:2px; }
-    .section { margin-bottom:36px; }
-    .section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-    .section-title { font-size:15px; font-weight:700; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); }
-    .card-body { padding:24px; }
-    .app-row { display:flex; align-items:center; gap:14px; padding:16px 20px; border-bottom:1px solid var(--border); transition:background .12s; cursor:pointer; }
-    .app-row:last-child { border-bottom:none; }
-    .app-row:hover { background:rgba(255,255,255,.03); }
-    .app-icon { width:38px; height:38px; border-radius:8px; flex-shrink:0; background:linear-gradient(135deg,#1e3a5f,#2d1b69); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:800; overflow:hidden; }
-    .app-icon img { width:38px; height:38px; object-fit:cover; }
-    .app-info { flex:1; min-width:0; }
-    .app-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .app-id   { font-size:11.5px; color:var(--mut); margin-top:2px; font-family:monospace; }
-    .app-badge { font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; border:1px solid; flex-shrink:0; }
-    .badge-pub  { color:#86efac; border-color:rgba(134,239,172,.3); background:rgba(34,197,94,.08); }
-    .badge-conf { color:#93c5fd; border-color:rgba(147,197,253,.3); background:rgba(59,130,246,.08); }
-    .empty-state { padding:40px 24px; text-align:center; color:var(--mut); font-size:13.5px; }
-    .btn { padding:10px 20px; border-radius:9px; border:1px solid var(--border); background:var(--card2); color:var(--txt); font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
-    .btn:disabled { opacity:.4; cursor:not-allowed; }
-    .btn.primary { background:var(--grad); color:#fff; border-color:transparent; }
-    .btn.danger  { color:var(--red); border-color:rgba(239,68,68,.25); background:transparent; }
-    .btn.danger:hover { background:rgba(239,68,68,.08); }
-    .btn:hover:not(:disabled):not(.danger) { opacity:.85; }
-    .btn-row { display:flex; gap:10px; align-items:center; margin-top:20px; }
-    .form-grid { display:grid; gap:16px; }
-    .form-row  { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
-    @media (max-width:560px) { .form-row { grid-template-columns:1fr; } }
-    .field label { display:block; font-size:12px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
-    .field input,.field textarea,.field select { width:100%; padding:9px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13.5px; font-family:inherit; outline:none; transition:border-color .15s; }
-    .field input:focus,.field textarea:focus,.field select:focus { border-color:var(--a); }
-    .field textarea { resize:vertical; min-height:72px; }
-    .field-hint { font-size:11.5px; color:var(--mut); margin-top:4px; }
-    .scope-grid { display:flex; flex-wrap:wrap; gap:8px; }
-    .scope-check { display:flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:6px 10px; cursor:pointer; transition:border-color .12s; }
-    .scope-check input { accent-color:var(--a); cursor:pointer; }
-    .scope-check:has(input:checked) { border-color:var(--a); background:rgba(59,130,246,.06); }
-    .scope-check span { font-size:12.5px; font-weight:600; }
-    .modal-bg { position:fixed; inset:0; background:rgba(5,8,22,.85); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
-    .modal { background:var(--card); border:1px solid var(--border); border-radius:var(--r); width:100%; max-width:520px; padding:28px; max-height:90dvh; overflow-y:auto; }
-    .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .modal-title { font-size:17px; font-weight:800; }
-    .modal-close { background:none; border:none; color:var(--mut); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; border-radius:4px; }
-    .modal-close:hover { color:var(--txt); background:rgba(255,255,255,.06); }
-    .detail-row { display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--border); }
-    .detail-row:first-child { padding-top:0; }
-    .detail-row:last-child { border-bottom:none; padding-bottom:0; }
-    .detail-label { font-size:11px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.05em; }
-    .detail-val { font-size:13px; word-break:break-all; }
-    .copy-field { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:7px 10px; }
-    .copy-field code { flex:1; font-size:12px; word-break:break-all; font-family:monospace; }
-    .copy-btn { background:none; border:none; color:var(--mut); font-size:12px; cursor:pointer; font-family:inherit; white-space:nowrap; font-weight:600; padding:0; flex-shrink:0; }
-    .copy-btn:hover { color:var(--txt); }
-    .msg { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
-    .msg.ok  { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.25); color:#86efac; }
-    .msg.err { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25); color:#fca5a5; }
-    #auth-wall { min-height:100dvh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding:24px; }
-    .auth-wall-icon { font-size:40px; }
-    .auth-wall-title { font-size:20px; font-weight:800; }
-    .auth-wall-sub { color:var(--mut); font-size:14px; max-width:320px; }
+    .apps-page h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(120deg, var(--a), var(--a2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .apps-subtitle { font-size: 13px; color: var(--mut); margin-bottom: 28px; }
+    body.dark .apps-subtitle { color: var(--mutd); }
+
+    .apps-section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--mut);
+      margin-bottom: 14px; padding-bottom: 6px;
+      border-bottom: 1px solid var(--br);
+    }
+    body.dark .apps-section-label { color: var(--mutd); }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .app-card {
+      background: rgba(255,255,255,.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--br);
+      border-radius: 14px;
+      padding: 22px 20px;
+      cursor: pointer;
+      transition: .2s;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    body.dark .app-card { background: rgba(15,23,42,.7); }
+    .app-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px rgba(59,130,246,.18);
+      border-color: var(--a);
+    }
+    .app-card::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(6,182,212,.04));
+      opacity: 0; transition: opacity .2s; border-radius: inherit;
+    }
+    .app-card:hover::before { opacity: 1; }
+
+    .app-card .card-ripple {
+      position: absolute;
+      border-radius: 50%;
+      transform: scale(0);
+      animation: card-ripple .55s ease-out;
+      background: rgba(255,255,255,.45);
+      pointer-events: none;
+    }
+    @keyframes card-ripple {
+      to { transform: scale(4); opacity: 0; }
+    }
+
+    .app-icon { font-size: 38px; line-height: 1; }
+    .app-title { font-size: 15px; font-weight: 700; color: var(--txt); }
+    body.dark .app-title { color: var(--txtd); }
+    .app-desc { font-size: 12px; color: var(--mut); line-height: 1.5; }
+    body.dark .app-desc { color: var(--mutd); }
+
+    .app-badge {
+      position: absolute; top: 10px; right: 10px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; padding: 2px 8px; border-radius: 999px;
+      background: linear-gradient(110deg, var(--a), var(--a2));
+      color: #050816;
+    }
+
+    @media (max-width: 600px) {
+      .apps-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .apps-page { padding: 80px 14px 30px; }
+    }
+
+    .expired {
+        visibility: invisible;
+        display: none;
+    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    window.supabaseClient = supabase.createClient(
-      'https://wiswfpfsjiowtrdyqpxy.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
-    );
-  </script>
-  <script src="/assets/js/auth.js"></script>
-</head>
+<meta content="Explore 360 apps for productivity, communication, creativity, music, maps, notes, mail and more." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360 Apps — Productivity, Communication &amp; More" property="og:title"/><meta content="Explore 360 apps for productivity, communication, creativity, music, maps, notes, mail and more." property="og:description"/><meta content="https://360-search.com/apps.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 Apps — Productivity, Communication &amp; More" name="twitter:title"/><meta content="Explore 360 apps for productivity, communication, creativity, music, maps, notes, mail and more." name="twitter:description"/><link href="https://360-search.com/apps.html" rel="canonical"/></head>
 <body>
-
-<div id="auth-wall" style="display:none;">
-  <div class="auth-wall-icon">🔐</div>
-  <div class="auth-wall-title">Sign in to access Dev Suite</div>
-  <div class="auth-wall-sub">You need a 360 account with Dev Suite enabled.</div>
-  <a class="btn primary" href="/signin?from=/oauth/apps" style="text-decoration:none;display:inline-block;">Sign in</a>
+<div class="cursor-dot"></div>
+<div class="cursor-trail"></div>
+<div class="cursor-crosshair"></div>
+<div class="cursor-blob"></div>
+<div class="auth-top-right">
+<button class="auth-btn" id="signInBtn">Sign In</button>
+<button class="auth-btn" id="signUpBtn">Sign Up</button>
+<button class="auth-btn" id="signOutBtn" style="display:none;">Sign Out</button>
 </div>
-
-<div class="shell" id="shell" style="display:none;">
-  <div class="page-header">
-    <div class="page-icon">360</div>
-    <div>
-      <div class="page-title">Dev Suite — OAuth Apps</div>
-      <div class="page-sub">Register and manage "Sign in with 360" applications</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-head">
-      <div class="section-title">Your applications</div>
-      <button class="btn primary" id="new-btn">+ New application</button>
-    </div>
-    <div class="card">
-      <div class="empty-state" id="app-empty">Loading…</div>
-      <div id="app-list"></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-head"><div class="section-title">Quick reference</div></div>
-    <div class="card"><div class="card-body" style="display:grid;gap:0;">
-      <div class="detail-row">
-        <div class="detail-label">Authorization endpoint</div>
-        <div class="copy-field"><code id="r-auth">https://360-search.com/oauth/authorize</code><button class="copy-btn" data-copy="r-auth">Copy</button></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Token endpoint</div>
-        <div class="copy-field"><code id="r-token">https://360-search.com/oauth/token</code><button class="copy-btn" data-copy="r-token">Copy</button></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Userinfo endpoint</div>
-        <div class="copy-field"><code id="r-userinfo">https://360-search.com/oauth/userinfo</code><button class="copy-btn" data-copy="r-userinfo">Copy</button></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Supported scopes</div>
-        <div class="detail-val" style="color:var(--mut);line-height:1.8;">
-          <code style="color:var(--txt);">profile</code> username, display name, avatar &nbsp;·&nbsp;
-          <code style="color:var(--txt);">email</code> email + verified &nbsp;·&nbsp;
-          <code style="color:var(--txt);">openid</code> sub &nbsp;·&nbsp;
-          <code style="color:var(--txt);">premium</code> membership tier &nbsp;·&nbsp;
-          <code style="color:var(--txt);">dev</code> Dev Suite flag
-        </div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Flow</div>
-        <div class="detail-val" style="color:var(--mut);">OAuth 2.0 Authorization Code + PKCE (S256). Public clients must use PKCE. Confidential clients send <code style="color:var(--txt);">client_secret</code>.</div>
-      </div>
-    </div></div>
-  </div>
+<button class="sidebar-toggle" id="sidebarToggle">☰ Menu</button>
+<aside class="sidebar" id="sidebar"><span id="sidebar-slot"></span></aside>
+<div class="overlay" id="overlay"></div>
+<div class="settings-panel" id="settingsPanel">
+<h3>Appearance</h3>
+<div class="settings-label">Theme</div>
+<div class="theme-swatches">
+<div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+<div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+<div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+<div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
 </div>
-
-<!-- New app modal -->
-<div class="modal-bg" id="app-modal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">New application</div>
-      <button class="modal-close" id="modal-close">✕</button>
-    </div>
-    <div class="msg" id="form-msg"></div>
-    <div class="form-grid">
-      <div class="form-row">
-        <div class="field"><label>App name *</label><input id="f-name" placeholder="My App" maxlength="80"/></div>
-        <div class="field"><label>Homepage URL</label><input id="f-homepage" type="url" placeholder="https://myapp.com"/></div>
-      </div>
-      <div class="field"><label>Description</label><textarea id="f-desc" placeholder="What does your app do?" maxlength="300"></textarea></div>
-      <div class="field"><label>Logo URL</label><input id="f-logo" type="url" placeholder="https://myapp.com/logo.png"/></div>
-      <div class="field">
-        <label>Redirect URIs * <span style="font-weight:400;text-transform:none;">(one per line)</span></label>
-        <textarea id="f-redirects" placeholder="https://myapp.com/auth/callback" style="min-height:80px;"></textarea>
-        <div class="field-hint">All URIs the server is allowed to redirect to after authorization.</div>
-      </div>
-      <div class="field">
-        <label>Scopes</label>
-        <div class="scope-grid">
-          <label class="scope-check"><input type="checkbox" value="profile" checked/><span>profile</span></label>
-          <label class="scope-check"><input type="checkbox" value="email"/><span>email</span></label>
-          <label class="scope-check"><input type="checkbox" value="openid"/><span>openid</span></label>
-          <label class="scope-check"><input type="checkbox" value="premium"/><span>premium</span></label>
-          <label class="scope-check"><input type="checkbox" value="dev"/><span>dev</span></label>
-        </div>
-      </div>
-      <div class="field">
-        <label>Client type</label>
-        <select id="f-public">
-          <option value="public">Public — SPA / mobile (PKCE, no secret)</option>
-          <option value="confidential">Confidential — server-side (client_secret)</option>
-        </select>
-      </div>
-      <div class="field" id="secret-field" style="display:none;">
-        <label>Client secret</label>
-        <input id="f-secret" type="password" placeholder="Min 32 characters" autocomplete="new-password"/>
-        <div class="field-hint">Store this securely — it is never shown again.</div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn" id="modal-cancel">Cancel</button>
-      <button class="btn primary" id="modal-submit" style="margin-left:auto;">Create application</button>
-    </div>
-  </div>
+<div class="settings-label" style="margin-top:20px;">Mode</div>
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+<span style="font-size:14px;">Dark mode</span>
+<input id="darkToggle" type="checkbox"/>
+</label>
+<h3 style="margin-top:20px;">Cursor</h3>
+<div class="settings-label">Style</div>
+<div class="cursor-options">
+<div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+<div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+<div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+<div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+<div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+<div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
 </div>
-
-<!-- Detail modal -->
-<div class="modal-bg" id="detail-modal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="detail-title">App details</div>
-      <button class="modal-close" id="detail-close">✕</button>
-    </div>
-    <div id="detail-body"></div>
-    <div class="btn-row">
-      <button class="btn danger" id="detail-delete">Delete app</button>
-      <button class="btn primary" id="detail-done" style="margin-left:auto;">Close</button>
-    </div>
-  </div>
+<div class="cursor-color-row">
+<label>Cursor color</label>
+<input id="cursorColorPicker" type="color" value="#3b82f6"/>
+<button id="cursorColorReset">Reset</button>
 </div>
-
+<div class="temp-unit-box" style="margin-top:20px;">
+      Temp Unit: <span id="tempUnitLabel">°C</span>
+<button id="tempUnitBtn">Switch</button>
+</div>
+<h3 style="margin-top:25px;">Legal</h3>
+<a class="legal-link" href="/privacypolicy">🔒 Privacy Policy</a>
+<a class="legal-link" href="/tos">📜 Terms of Service</a>
+<h3 style="margin-top:25px;">About</h3>
+<details class="about-dropdown">
+<summary>ℹ️ What is 360?</summary>
+<p>360 is a next-generation search engine and digital workspace. Built by 360 Digital, Co.</p>
+</details>
+</div>
+<div class="auth-popup hidden" id="auth-popup">
+<div class="auth-box">
+<h2>Account</h2>
+<input id="auth-email" placeholder="Email" type="email"/>
+<input id="auth-password" placeholder="Password" type="password"/>
+<button id="auth-login-btn">Log In</button>
+<button id="auth-signup-btn">Sign Up</button>
+<button class="oauth-btn" id="github-login">
+<svg fill="currentColor" height="18" viewbox="0 0 24 24" width="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"></path></svg>
+<span>Sign in with GitHub</span>
+</button>
+<button class="oauth-btn" id="google-login">
+<svg height="18" viewbox="0 0 24 24" width="18"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path></svg>
+<span>Sign in with Google</span>
+</button>
+<p class="auth-error" id="auth-error"></p>
+<button class="close-btn" id="auth-close-btn">Close</button>
+</div>
+</div>
+<!-- ══ APPS PAGE ══ -->
+<div class="apps-page">
+<h2>📦 Apps</h2>
+<p class="apps-subtitle">360-integrated tools and services.</p>
+<div class="apps-section-label">360 Suite</div>
+<div class="apps-grid">
+<a class="app-card" href="apps/360vids">
+<span class="app-badge">New!</span>
+<div class="app-icon">🎬</div>
+<div class="app-title">360Vids</div>
+<div class="app-desc">Watch and upload content!</div>
+</a>
+<!-- Music — links to 360Music -->
+<a class="app-card" href="apps/360Music">
+<span class="app-badge">Popular!</span>
+<div class="app-icon">🎶</div>
+<div class="app-title">360Music</div>
+<div class="app-desc">Listen and upload music!</div>
+</a>
+<!-- Zone — links to 360zone -->
+<a class="app-card" href="apps/360zone">
+<span class="app-badge">Tools</span>
+<div class="app-icon">🏫</div>
+<div class="app-title">Zone</div>
+<div class="app-desc">Work faster and smarter in the Zone.</div>
+</a>
+<a class="app-card" href="apps/360Notes">
+<span class="app-badge">New!</span>
+<div class="app-icon">📖</div>
+<div class="app-title">360Notes</div>
+<div class="app-desc">Smarter notekeeping.</div>
+</a>
+<a class="app-card" href="apps/360Draw">
+<span class="app-badge">New!</span>
+<div class="app-icon">🎨</div>
+<div class="app-title">360Draw</div>
+<div class="app-desc">Draw and share.</div>
+</a>
+<a class="app-card" href="apps/360Docs">
+<span class="app-badge">New!</span>
+<div class="app-icon">📃</div>
+<div class="app-title">360Docs</div>
+<div class="app-desc">Write your heart out... or write in HTML....</div>
+</a>
+<a class="app-card" href="apps/360Do">
+<span class="app-badge">New!</span>
+<div class="app-icon">💡</div>
+<div class="app-title">360Do</div>
+<div class="app-desc">If your memory is bad... try 360 memory!</div>
+</a>
+<a class="app-card" href="apps/360mail-claim">
+<span class="app-badge">New!</span>
+<div class="app-icon">✉️</div>
+<div class="app-title">360Mail</div>
+<div class="app-desc">Your private, 360-powered email inbox.</div>
+</a>
+<a class="app-card" href="apps/360Studio">
+<span class="app-badge">New!</span>
+<div class="app-icon">🎛️</div>
+<div class="app-title">360Studio</div>
+<div class="app-desc">Manage all your content in one place.</div>
+</a>
+<a class="app-card" href="apps/360MySite">
+<span class="app-badge">New!</span>
+<div class="app-icon">🌐</div>
+<div class="app-title">360MySite</div>
+<div class="app-desc">Get your webpages and content on 360 with proper insights.</div>
+</a>
+<a class="app-card" href="apps/360Canvas">
+<span class="app-badge">New!</span>
+<div class="app-icon">🚀</div>
+<div class="app-title">360Canvas</div>
+<div class="app-desc">Deploy and create webpages on 360.</div>
+</a>
+<a class="app-card" href="apps/360Meet">
+<span class="app-badge">New!</span>
+<div class="app-icon">👥</div>
+<div class="app-title">360Meet</div>
+<div class="app-desc">Talk and see groups or single users.</div>
+</a>
+<a class="app-card" href="apps/360Maps">
+<span class="app-badge">New!</span>
+<div class="app-icon">🗺️</div>
+<div class="app-title">360Maps</div>
+<div class="app-desc">Get efficient directions with 360Maps.</div>
+</a>
+<a class="app-card" href="vpn/360vpn">
+<span class="app-badge">Re-released!</span>
+<div class="app-icon">🛜</div>
+<div class="app-title">360VPN</div>
+<div class="app-desc">Simple VPN client and proxy dedicated to not sharing data.</div>
+</a>
+<a class="app-card" href="apps/Pomodoro">
+<span class="app-badge">New!</span>
+<div class="app-icon">🕥</div>
+<div class="app-title">Pomodoro</div>
+<div class="app-desc">Focus timer (soon to integrate with Notes and Stack!)</div>
+</a>
+</div>
+<div class="apps-section-label">Coming Soon</div>
+<div class="apps-grid">
+<div class="app-card" style="opacity:.5;pointer-events:none;">
+<div class="app-icon">📅</div>
+<div class="app-title">360Calendar</div>
+<div class="app-desc">Smart scheduling inside 360.</div>
+</div>
+<div class="app-card" style="opacity:.5;pointer-events:none;">
+<div class="app-icon">📁</div>
+<div class="app-title">360Drive</div>
+<div class="app-desc">Secure cloud storage for your files.</div>
+</div>
+<!--
+        <div class="app-card" style="opacity:.5;pointer-events:none;">
+        <div class="app-icon">🕥</div> Did you know I (Zaki) used the 10:30 emoji because 360 was made Jan 5 at exactly 10:30 sharp??
+        <div class="app-title">Pomodoro</div>
+        <div class="app-desc">Focus timer (soon to integrate with Notes and Stack!)</div>
+      </div>
+-->
+<div class="app-card" style="opacity:.5;pointer-events:none;">
+<div class="app-icon">📞</div>
+<div class="app-title">WebCell</div>
+<div class="app-desc">Calling app</div>
+</div>
+<div class="app-card" style="opacity:.5;pointer-events:none;">
+<div class="app-icon">💬</div>
+<div class="app-title">Messenger</div>
+<div class="app-desc">Create group chats, chats and call contacts with WebCell.</div>
+</div>
+</div>
+</div>
 <script>
-const sb = supabaseClient;
-let session = null;
-let apps    = [];
+    (function () {
+      const cards = document.querySelectorAll('.app-card');
+      cards.forEach((card) => {
+        card.addEventListener('click', (event) => {
+          const ripple = document.createElement('span');
+          ripple.className = 'card-ripple';
 
-/* ── Boot ──────────────────────────────────────────────────── */
-async function boot() {
-  const s = await authReady;
-  if (!s) { showWall('Sign in to access Dev Suite', 'You need a 360 account with Dev Suite enabled.'); return; }
-  session = s;
+          const rect = card.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
+          ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
 
-  const { data: profile, error } = await sb
-    .from('profiles').select('dev_suite').eq('id', s.user.id).single();
-  if (error || !profile)    { showWall('Could not load profile', 'Try signing out and back in.'); return; }
-  if (!profile.dev_suite)   { showWall('Dev Suite not enabled', 'Contact 360 support to request access.'); return; }
+          const oldRipple = card.querySelector('.card-ripple');
+          if (oldRipple) oldRipple.remove();
 
-  document.getElementById('shell').style.display = '';
-  wireQuickRef();
-  wireModal();
-  await loadApps();
-}
-
-function showWall(title, sub) {
-  const w = document.getElementById('auth-wall');
-  w.querySelector('.auth-wall-title').textContent = title;
-  w.querySelector('.auth-wall-sub').textContent   = sub;
-  w.style.display = 'flex';
-}
-
-/* ── App list — direct Supabase query ──────────────────────── */
-async function loadApps() {
-  const empty = document.getElementById('app-empty');
-  const list  = document.getElementById('app-list');
-  empty.textContent   = 'Loading…';
-  empty.style.display = '';
-  list.innerHTML      = '';
-
-  const { data, error } = await sb
-    .from('oauth_clients')
-    .select('client_id,name,logo_url,is_public,allowed_scopes,redirect_uris,homepage_url,description,created_at')
-    .eq('owner_id', session.user.id)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
-
-  apps = data || [];
-  if (error || !apps.length) {
-    empty.textContent = error ? 'Could not load applications.' : 'No applications yet. Create one to get started.';
-    return;
-  }
-  empty.style.display = 'none';
-
-  apps.forEach(app => {
-    const row = document.createElement('div');
-    row.className = 'app-row';
-    row.innerHTML = `
-      <div class="app-icon">${app.logo_url ? `<img src="${esc(app.logo_url)}" alt="">` : esc(app.name.charAt(0).toUpperCase())}</div>
-      <div class="app-info">
-        <div class="app-name">${esc(app.name)}</div>
-        <div class="app-id">${esc(app.client_id)}</div>
-      </div>
-      <span class="app-badge ${app.is_public ? 'badge-pub' : 'badge-conf'}">${app.is_public ? 'Public' : 'Confidential'}</span>
-    `;
-    row.addEventListener('click', () => openDetail(app.client_id));
-    list.appendChild(row);
-  });
-}
-
-/* ── Detail modal ──────────────────────────────────────────── */
-function openDetail(clientId) {
-  const app = apps.find(a => a.client_id === clientId);
-  if (!app) return;
-
-  document.getElementById('detail-title').textContent = app.name;
-
-  const authUrl = `https://360-search.com/oauth/authorize?client_id=${encodeURIComponent(app.client_id)}&response_type=code&redirect_uri=${encodeURIComponent((app.redirect_uris || [])[0] || '')}&scope=${encodeURIComponent((app.allowed_scopes || []).join(' '))}`;
-
-  document.getElementById('detail-body').innerHTML = `
-    <div class="detail-row">
-      <div class="detail-label">Client ID</div>
-      <div class="copy-field"><code id="dc-cid">${esc(app.client_id)}</code><button class="copy-btn" data-copy="dc-cid">Copy</button></div>
-    </div>
-    <div class="detail-row">
-      <div class="detail-label">Type</div>
-      <div class="detail-val">${app.is_public ? 'Public — PKCE required, no secret' : 'Confidential — client_secret required'}</div>
-    </div>
-    ${app.description ? `<div class="detail-row"><div class="detail-label">Description</div><div class="detail-val" style="color:var(--mut);">${esc(app.description)}</div></div>` : ''}
-    <div class="detail-row">
-      <div class="detail-label">Allowed scopes</div>
-      <div class="detail-val">${(app.allowed_scopes||[]).map(s=>`<code>${esc(s)}</code>`).join(' ')}</div>
-    </div>
-    <div class="detail-row">
-      <div class="detail-label">Redirect URIs</div>
-      <div style="display:flex;flex-direction:column;gap:4px;">${(app.redirect_uris||[]).map(u=>`<code style="font-size:12px;font-family:monospace;word-break:break-all;">${esc(u)}</code>`).join('')}</div>
-    </div>
-    <div class="detail-row">
-      <div class="detail-label">Example authorization URL</div>
-      <div class="copy-field"><code id="dc-url" style="font-size:11px;">${esc(authUrl)}</code><button class="copy-btn" data-copy="dc-url">Copy</button></div>
-    </div>
-    <div class="detail-row">
-      <div class="detail-label">Created</div>
-      <div class="detail-val" style="color:var(--mut);">${new Date(app.created_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
-    </div>
-  `;
-
-  document.getElementById('detail-body').querySelectorAll('[data-copy]').forEach(btn => {
-    btn.addEventListener('click', () => doCopy(btn, document.getElementById(btn.dataset.copy)?.textContent.trim()));
-  });
-
-  document.getElementById('detail-delete').onclick = () => deleteApp(app.client_id, app.name);
-  document.getElementById('detail-done').onclick   = closeDetail;
-  document.getElementById('detail-close').onclick  = closeDetail;
-  document.getElementById('detail-modal').style.display = 'flex';
-}
-
-function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
-
-async function deleteApp(clientId, name) {
-  if (!confirm(`Delete "${name}"?\n\nAll tokens issued by this app will be revoked immediately.`)) return;
-  await sb.from('oauth_access_tokens').update({ revoked: true }).eq('client_id', clientId);
-  await sb.from('oauth_refresh_tokens').update({ revoked: true }).eq('client_id', clientId);
-  const { error } = await sb.from('oauth_clients')
-    .update({ is_active: false }).eq('client_id', clientId).eq('owner_id', session.user.id);
-  if (error) { alert('Delete failed: ' + error.message); return; }
-  closeDetail();
-  await loadApps();
-}
-
-/* ── New app modal ─────────────────────────────────────────── */
-function wireModal() {
-  const modal     = document.getElementById('app-modal');
-  const publicSel = document.getElementById('f-public');
-
-  publicSel.addEventListener('change', () => {
-    document.getElementById('secret-field').style.display = publicSel.value === 'confidential' ? '' : 'none';
-  });
-
-  document.getElementById('new-btn').addEventListener('click', () => {
-    modal.style.display = 'flex';
-    document.getElementById('f-name').focus();
-  });
-
-  document.getElementById('modal-close').addEventListener('click', closeModal);
-  document.getElementById('modal-cancel').addEventListener('click', closeModal);
-  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-
-  document.getElementById('detail-modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('detail-modal')) closeDetail();
-  });
-
-  document.getElementById('modal-submit').addEventListener('click', submitNewApp);
-}
-
-async function submitNewApp() {
-  const btn      = document.getElementById('modal-submit');
-  const name     = document.getElementById('f-name').value.trim();
-  const homepage = document.getElementById('f-homepage').value.trim();
-  const desc     = document.getElementById('f-desc').value.trim();
-  const logo     = document.getElementById('f-logo').value.trim();
-  const redirects = document.getElementById('f-redirects').value.trim()
-    .split('\n').map(s => s.trim()).filter(Boolean);
-  const scopes   = [...document.querySelectorAll('.scope-grid input:checked')].map(i => i.value);
-  const isPublic = document.getElementById('f-public').value === 'public';
-  const secret   = document.getElementById('f-secret').value.trim();
-
-  if (!name)             { showFormMsg('App name is required.', 'err'); return; }
-  if (!redirects.length) { showFormMsg('At least one redirect URI is required.', 'err'); return; }
-  if (!scopes.length)    { showFormMsg('Select at least one scope.', 'err'); return; }
-  if (!isPublic && secret.length < 32) { showFormMsg('Client secret must be at least 32 characters.', 'err'); return; }
-
-  btn.disabled = true; btn.textContent = 'Creating…';
-
-  const arr      = crypto.getRandomValues(new Uint8Array(12));
-  const clientId = '360_' + Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
-
-  let secretHash = null;
-  if (!isPublic && secret) {
-    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
-    secretHash = btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-  }
-
-  const { error } = await sb.from('oauth_clients').insert({
-    client_id: clientId, owner_id: session.user.id,
-    name, description: desc || null, homepage_url: homepage || null, logo_url: logo || null,
-    redirect_uris: redirects, allowed_scopes: scopes,
-    is_public: isPublic, client_secret_hash: secretHash, is_active: true,
-  });
-
-  if (error) {
-    showFormMsg(error.message || 'Failed to create application.', 'err');
-    btn.disabled = false; btn.textContent = 'Create application';
-    return;
-  }
-
-  closeModal();
-  await loadApps();
-  openDetail(clientId);
-}
-
-function closeModal() {
-  document.getElementById('app-modal').style.display = 'none';
-  document.getElementById('form-msg').style.display  = 'none';
-  ['f-name','f-homepage','f-desc','f-logo','f-redirects','f-secret'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('f-public').value = 'public';
-  document.getElementById('secret-field').style.display = 'none';
-  const btn = document.getElementById('modal-submit');
-  btn.disabled = false; btn.textContent = 'Create application';
-}
-
-function showFormMsg(msg, type) {
-  const el = document.getElementById('form-msg');
-  el.textContent = msg; el.className = `msg ${type}`; el.style.display = '';
-}
-
-/* ── Quick ref copy ────────────────────────────────────────── */
-function wireQuickRef() {
-  document.querySelectorAll('[data-copy]').forEach(btn => {
-    btn.addEventListener('click', () => doCopy(btn, document.getElementById(btn.dataset.copy)?.textContent.trim()));
-  });
-}
-
-function doCopy(btn, text) {
-  if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = orig; }, 1500);
-  }).catch(() => {});
-}
-
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-boot();
-</script>
-  <script src="/assets/js/emoji.js" defer></script>
+          card.appendChild(ripple);
+          ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+        });
+      });
+    })();
+  </script>
+<audio id="clickSound" preload="auto" src="click-sound.mp3"></audio>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/auth-fix.js"></script>
+<script src="/assets/js/wide.js"></script>
+<script src="/assets/js/gallium.js"></script>
+<script src="/assets/js/cookie.js"></script>
+<script src="/assets/js/cursor.js"></script>
 </body>
 </html>
