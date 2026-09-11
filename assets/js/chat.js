@@ -76,7 +76,7 @@ const SHORTCODES = {
   ':v:':'✌️', ':crossed_fingers:':'🤞', ':love_you_gesture:':'🤟',
   ':metal:':'🤘', ':call_me_hand:':'🤙', ':point_left:':'👈',
   ':point_right:':'👉', ':point_up_2:':'👆', ':fu:':'🖕', ':point_down:':'👇',
-  ':point_up:':'☝️', ':thumbsup:':'+1:','👍', ':thumbsdown:':'👎',
+  ':point_up:':'☝️', ':thumbsup:':'👍', ':thumbsdown:':'👎',
   ':clap:':'👏', ':raised_hands:':'🙌', ':open_hands:':'👐', ':pray:':'🙏',
   ':handshake:':'🤝', ':muscle:':'💪', ':leg:':'🦵', ':foot:':'🦶',
   ':ear:':'👂', ':nose:':'👃', ':eyes:':'👀', ':eye:':'👁️', ':tongue:':'👅',
@@ -1671,10 +1671,11 @@ document.addEventListener('click',()=>emojiPicker.classList.add('hidden'));
   let acPrefix  = '';
 
   function getColonWord(val, pos){
-    // Walk back from cursor to find :word
+    // Walk back from cursor to find :word (no lookbehind for compat)
     const before = val.slice(0, pos);
-    const m = before.match(/(?:^|\s)(:([a-z0-9_]{1,30}))$/);
-    return m ? { full: m[1], word: m[2] } : null;
+    const m = before.match(/(^|\s)(:([a-z0-9_]{1,30}))$/);
+    if(!m) return null;
+    return { full: m[2], word: m[3] };
   }
 
   function renderAC(matches, query){
@@ -1708,7 +1709,8 @@ document.addEventListener('click',()=>emojiPicker.classList.add('hidden'));
     const before = inp.value.slice(0, pos);
     const after  = inp.value.slice(pos);
     // Replace the :word we matched
-    const newBefore = before.replace(/(?:^|(?<=\s)):[a-z0-9_]{1,30}$/, SHORTCODES[key] + ' ');
+    // Replace :word at end of before — safe non-lookbehind
+    const newBefore = before.replace(/(^|\s):[a-z0-9_]{1,30}$/, (m, sp) => sp + SHORTCODES[key] + ' ');
     inp.value = newBefore + after;
     // Move cursor after the inserted emoji
     const newPos = newBefore.length;
