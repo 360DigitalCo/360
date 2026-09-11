@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in with 360</title>
+  <meta name="robots" content="noindex,nofollow"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #050816;
+      --card:   #0d1225;
+      --border: rgba(255,255,255,.08);
+      --txt:    #e2e8f0;
+      --mut:    #64748b;
+      --a:      #3b82f6;
+      --grad:   linear-gradient(135deg,#3b82f6,#8b5cf6);
+      --r:      14px;
+    }
+    body { min-height:100dvh; display:flex; align-items:center; justify-content:center; background:var(--bg); font-family:"Segoe UI",system-ui,sans-serif; color:var(--txt); padding:24px 16px; }
+    .card { width:100%; max-width:420px; background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:36px 32px 28px; }
+    .brand { display:flex; align-items:center; gap:10px; margin-bottom:28px; }
+    .brand-logo { width:32px; height:32px; background:var(--grad); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; color:#fff; }
+    .brand-name { font-size:16px; font-weight:700; }
+    .app-header { display:flex; gap:14px; align-items:center; padding-bottom:20px; border-bottom:1px solid var(--border); margin-bottom:20px; }
+    .app-logo { width:52px; height:52px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+    .app-logo-placeholder { width:52px; height:52px; border-radius:10px; background:linear-gradient(135deg,#1e3a5f,#2d1b69); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .app-name { font-size:18px; font-weight:700; }
+    .app-url  { font-size:13px; color:var(--mut); margin-top:2px; }
+    .scope-list { list-style:none; display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+    .scope-item { display:flex; align-items:flex-start; gap:10px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13.5px; }
+    .scope-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+    .scope-label { font-weight:600; }
+    .scope-desc  { color:var(--mut); font-size:12px; margin-top:2px; }
+    .account-row { display:flex; align-items:center; gap:10px; background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2); border-radius:8px; padding:10px 14px; margin-bottom:20px; font-size:13px; }
+    .account-avatar { width:28px; height:28px; border-radius:50%; background:var(--grad); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; color:#fff; flex-shrink:0; overflow:hidden; }
+    .account-avatar img { width:28px; height:28px; object-fit:cover; }
+    .account-name { font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .account-switch { font-size:12px; color:var(--a); background:none; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }
+    .scope-heading { font-size:14px; font-weight:600; margin-bottom:12px; }
+    .btn-row { display:flex; gap:10px; }
+    .btn { flex:1; padding:12px; border-radius:9px; border:1px solid var(--border); font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:opacity .15s; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-approve { background:var(--grad); color:#fff; border-color:transparent; }
+    .btn-deny    { background:transparent; color:var(--txt); }
+    .btn:hover:not(:disabled) { opacity:.88; }
+    .signin-prompt { text-align:center; font-size:13.5px; color:var(--mut); margin-bottom:20px; }
+    .signin-prompt a { color:var(--a); text-decoration:none; font-weight:600; }
+    .legal { font-size:11.5px; color:var(--mut); margin-top:18px; text-align:center; line-height:1.6; }
+    .legal a { color:var(--mut); }
+    .err { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25); border-radius:8px; padding:10px 14px; font-size:13px; color:#fca5a5; margin-bottom:16px; display:none; }
+    #loading { text-align:center; color:var(--mut); font-size:14px; padding:40px 0; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.supabaseClient = supabase.createClient(
+      'https://wiswfpfsjiowtrdyqpxy.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM'
+    );
+  </script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <div class="brand-logo">360</div>
+    <span class="brand-name">360 Digital</span>
+  </div>
+  <div id="loading">Loading…</div>
+  <div id="main" style="display:none;">
+    <div class="app-header">
+      <div id="app-logo-wrap"></div>
+      <div>
+        <div class="app-name" id="app-name"></div>
+        <div class="app-url"  id="app-url"></div>
+      </div>
+    </div>
+    <div class="err" id="err"></div>
+    <div id="account-row" class="account-row" style="display:none;">
+      <div class="account-avatar" id="account-avatar"></div>
+      <span class="account-name" id="account-name"></span>
+      <button class="account-switch" id="switch-btn">Switch</button>
+    </div>
+    <div id="signin-prompt" class="signin-prompt" style="display:none;">
+      <a id="signin-link" href="">Sign in to 360</a> to continue.
+    </div>
+    <div id="scope-section" style="display:none;">
+      <div class="scope-heading">This app is requesting access to:</div>
+      <ul class="scope-list" id="scope-list"></ul>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-deny"    id="deny-btn">Cancel</button>
+      <button class="btn btn-approve" id="approve-btn" disabled>Approve</button>
+    </div>
+    <p class="legal">
+      By approving, you allow <strong id="legal-app"></strong> to access your
+      360 account data as listed above. &nbsp;
+      <a href="https://360-search.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
+      <a href="https://360-search.com/terms"   target="_blank" rel="noopener">Terms</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const sb = supabaseClient;
+
+const qs       = new URLSearchParams(location.search);
+const STATE    = qs.get('state');
+const CLIENT_ID = qs.get('client_id');
+const SCOPE    = qs.get('scope')    || 'profile';
+const APP_NAME = qs.get('app_name') || 'An application';
+const LOGO     = qs.get('logo')     || '';
+const HOMEPAGE = qs.get('homepage') || '';
+
+const SCOPE_META = {
+  openid:  { icon: '🔑', label: 'Your identity',    desc: 'A unique identifier for your account.' },
+  profile: { icon: '👤', label: 'Your profile',     desc: 'Username, display name, and avatar.' },
+  email:   { icon: '✉️', label: 'Email address',    desc: 'Your primary email and verification status.' },
+  premium: { icon: '⭐', label: 'Membership tier',  desc: 'Whether you have a 360 Premium subscription.' },
+  dev:     { icon: '🛠️', label: 'Dev Suite access', desc: 'Whether your account has Dev Suite enabled.' },
+};
+
+if (!STATE || !CLIENT_ID) {
+  document.getElementById('loading').textContent = 'Invalid request — missing parameters.';
+} else {
+  authReady.then(s => init(s));
+}
+
+async function init(session) {
+  // App header
+  document.getElementById('app-name').textContent  = APP_NAME;
+  document.getElementById('legal-app').textContent = APP_NAME;
+
+  try {
+    document.getElementById('app-url').textContent = HOMEPAGE ? new URL(HOMEPAGE).hostname : CLIENT_ID;
+  } catch {
+    document.getElementById('app-url').textContent = CLIENT_ID;
+  }
+
+  const logoWrap = document.getElementById('app-logo-wrap');
+  if (LOGO) {
+    const img = document.createElement('img');
+    img.className = 'app-logo'; img.src = LOGO; img.alt = APP_NAME;
+    img.onerror = () => { img.replaceWith(makePlaceholder()); };
+    logoWrap.appendChild(img);
+  } else {
+    logoWrap.appendChild(makePlaceholder());
+  }
+
+  function makePlaceholder() {
+    const el = document.createElement('div');
+    el.className = 'app-logo-placeholder';
+    el.textContent = APP_NAME.charAt(0).toUpperCase();
+    return el;
+  }
+
+  // Scope list — only shown when user is signed in
+  const scopeList = document.getElementById('scope-list');
+  SCOPE.split(' ').filter(Boolean).forEach(s => {
+    const meta = SCOPE_META[s];
+    if (!meta) return;
+    const li = document.createElement('li');
+    li.className = 'scope-item';
+    li.innerHTML = `
+      <span class="scope-icon">${meta.icon}</span>
+      <div>
+        <div class="scope-label">${meta.label}</div>
+        <div class="scope-desc">${meta.desc}</div>
+      </div>`;
+    scopeList.appendChild(li);
+  });
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display    = '';
+
+  const approveBtn = document.getElementById('approve-btn');
+  const denyBtn    = document.getElementById('deny-btn');
+
+  // Cancel — go back to the redirect_uri with error, or just go back
+  denyBtn.addEventListener('click', () => {
+    const redirectUri = qs.get('redirect_uri');
+    if (redirectUri) {
+      try {
+        const url = new URL(redirectUri);
+        url.searchParams.set('error', 'access_denied');
+        url.searchParams.set('error_description', 'The user cancelled the request.');
+        if (STATE) url.searchParams.set('state', STATE);
+        window.location.href = url.toString();
+        return;
+      } catch {}
+    }
+    history.length > 1 ? history.back() : window.location.href = '/';
+  });
+
+  if (session) {
+    // Load profile
+    const { data: profile } = await sb
+      .from('profiles').select('username,avatar_url').eq('id', session.user.id).single();
+
+    // Show account chip
+    const accountRow = document.getElementById('account-row');
+    const av         = document.getElementById('account-avatar');
+    if (profile?.avatar_url) {
+      av.innerHTML = `<img src="${profile.avatar_url}" alt="">`;
+    } else {
+      av.textContent = (profile?.username || session.user.email || 'U').charAt(0).toUpperCase();
+    }
+    document.getElementById('account-name').textContent = profile?.username || session.user.email || 'Your account';
+    accountRow.style.display = '';
+
+    document.getElementById('scope-section').style.display = '';
+
+    // Switch account
+    document.getElementById('switch-btn').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      // Reload the same consent URL — user will see sign-in prompt
+      location.reload();
+    });
+
+    approveBtn.disabled = false;
+    approveBtn.addEventListener('click', async () => {
+      approveBtn.disabled = true;
+      approveBtn.textContent = 'Approving…';
+
+      try {
+        const res = await fetch('/oauth/consent/approve', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ state: STATE, supabase_access_token: session.access_token }),
+        });
+
+        if (res.redirected) {
+          // fetch() followed the 302 — grab the final URL and navigate
+          window.location.href = res.url;
+          return;
+        }
+
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const d = await res.json();
+          if (d.redirect_to) { window.location.href = d.redirect_to; return; }
+          if (!res.ok) { showErr(d.error_description || 'Approval failed.'); }
+        } else {
+          // Server sent a redirect as plain text URL
+          const url = await res.text();
+          if (url.startsWith('http')) { window.location.href = url; return; }
+          showErr('Approval failed — unexpected response.');
+        }
+      } catch (e) {
+        showErr(e.message || 'Network error. Please try again.');
+      }
+
+      approveBtn.disabled  = false;
+      approveBtn.textContent = 'Approve';
+    });
+
+  } else {
+    // Not signed in — show prompt, keep scopes hidden
+    const prompt     = document.getElementById('signin-prompt');
+    const signinUrl  = `/signin?from=${encodeURIComponent(location.pathname + location.search)}`;
+    document.getElementById('signin-link').href = signinUrl;
+    prompt.style.display = '';
+    approveBtn.disabled  = true;
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent  = msg;
+  el.style.display = '';
+}
+</script>
+  <script src="/assets/js/emoji.js" defer></script>
+</body>
+</html>

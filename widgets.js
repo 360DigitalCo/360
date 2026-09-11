@@ -880,4 +880,13 @@
     startIndexMode();
     startSettingsMode();
   }
+  // Emoji → SVG on widget board
+  (function(){
+    if (document.getElementById('em-style')) return; // already loaded by main.js
+    var s = document.createElement('script');
+    s.src = '/assets/js/emoji.js';
+    s.defer = true;
+    document.head.appendChild(s);
+  })();
+
 })();

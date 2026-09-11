@@ -455,6 +455,14 @@ function mount() {
   if (isDark) document.body.classList.add("nt-dark");
 
   initAll();
+
+  // Emoji → SVG (skip chat pane)
+  (function(){
+    var s = document.createElement('script');
+    s.src = '/assets/js/emoji.js';
+    s.defer = true;
+    document.head.appendChild(s);
+  })();
 }
 
 /* ══ Init all widgets ══ */
