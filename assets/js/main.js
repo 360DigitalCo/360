@@ -619,6 +619,14 @@ const supabaseClient = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM"
 );
 
+// Load emoji → SVG renderer on all non-chat pages
+(function(){
+  var s = document.createElement('script');
+  s.src = '/assets/js/emoji.js';
+  s.defer = true;
+  document.head.appendChild(s);
+})();
+
 /* Sync all platform preferences to the user's account.
    Settings360 intercepts localStorage reads/writes for known keys
    automatically — no per-page changes needed anywhere else. */
