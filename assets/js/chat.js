@@ -44,6 +44,33 @@ const profileCache   = {};
 const translateCache = {};
 const unreadCounts   = {};
 
+/* ── UI icon SVGs ────────────────────────────────────────────
+   Pure SVG for every emoji used as a UI control icon.
+   Keeps chat chrome crisp regardless of OS emoji font.
+──────────────────────────────────────────────────────────── */
+const ICON = {
+  close:   '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  delete:  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v1M3 3.5l.7 7.5a.5.5 0 00.5.5h5.6a.5.5 0 00.5-.5L11 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  pin:     '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 1l-5 5 1 1-2.5 2.5L4 11l2.5-2.5 1 1 5-5L9 1zM5 9l-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  thread:  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h10v7H7.5L4 12V9H2V2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  edit:    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 1.5l2 2-8 8H1.5v-2l8-8z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  copy:    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="4" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M4 4V3a1 1 0 011-1h5a1 1 0 011 1v6a1 1 0 01-1 1H9" stroke="currentColor" stroke-width="1.4"/></svg>',
+  lock:    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="6" width="9" height="6.5" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  link:    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 8a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24l-1 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 6a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l1-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  check:   '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 7l3.5 3.5L11 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  error:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 4v3.5M7 9.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  warn:    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1.5L12.5 12H1.5L7 1.5z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 5.5v3M7 10v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  crown:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 10.5l1.5-6 3 4L7 3l1 5.5 3-4 1.5 6H1.5z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  shield:  '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1.5l5 2v4c0 2.5-2.5 4.5-5 5-2.5-.5-5-2.5-5-5v-4l5-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  leave:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2H2.5A1 1 0 001.5 3v8a1 1 0 001 1H5M9.5 4.5L12 7m0 0l-2.5 2.5M12 7H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  invite:  '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 6.5H11m0 0L9 4.5M11 6.5L9 8.5M1.5 6.5A4 4 0 106.5 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  online:  '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4" fill="#22c55e"/></svg>',
+  friends: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5.5" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 12c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 3.5l1.5 1.5L13 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  mute:    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2l10 10M7 2l-4 4H1v4h2l4 4V8M11.5 5.5a4 4 0 010 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  ban:     '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 3.5l7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  star:    '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1l1.6 3.3 3.6.5-2.6 2.5.6 3.6L6.5 9l-3.2 1.9.6-3.6L1.3 4.8l3.6-.5L6.5 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+};
+
 const QUICK_EMOJIS = ['👍','❤️','😂','💀','🔥','😮','😢','👏','✨','💯','🚀','⭐','🎉','👀','🙏'];
 const ALL_EMOJIS   = ['😀','😂','😍','🥰','😎','🤔','😢','😡','👍','👎','❤️','🔥','💀','🎉','✨',
                       '💯','🚀','⭐','👀','🙏','💪','🤖','😊','🥺','🤣','😅','😱','🫡','💅','🗿',
@@ -315,6 +342,34 @@ function filterProfanity(t){if(!t)return t;let o=t;for(const p of PROF){try{o=o.
 
 /* ── Utils ───────────────────────────────────────────── */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ── Twemoji helper ──────────────────────────────────────────
+   Converts emoji chars in a string to Twemoji SVG <img> tags.
+   Used in renderText() so message emoji render consistently
+   cross-platform instead of relying on OS emoji fonts.
+   Does NOT run on raw HTML — only on the final text segments
+   after esc() has already been applied.
+──────────────────────────────────────────────────────────── */
+const TWEMOJI_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
+const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu;
+
+function emojiToImg(char) {
+  const cp = [...char]
+    .filter(c => c.codePointAt(0) !== 0xFE0F) // strip VS16
+    .map(c => c.codePointAt(0).toString(16))
+    .join('-');
+  return `<img src="${TWEMOJI_CDN}${cp}.svg" alt="${esc(char)}" class="ce" aria-label="${esc(char)}" role="img" draggable="false" style="display:inline-block;width:1.2em;height:1.2em;vertical-align:-0.25em;pointer-events:none;">`;
+}
+
+function chatEmoji(html) {
+  // Replace emoji chars that appear outside HTML tags
+  return html.replace(/(<[^>]+>)|([\s\S])/g, (m, tag, ch) => {
+    if (tag) return tag; // inside a tag — leave alone
+    if (!ch) return m;
+    const replaced = ch.replace(EMOJI_RE, emojiToImg);
+    return replaced;
+  });
+}
 function getInitials(n){if(!n)return'?';const p=n.trim().split(' ');return(p.length===1?p[0][0]:(p[0][0]+p[p.length-1][0])).toUpperCase();}
 
 /* ── TIMESTAMP FIX ────────────────────────────────────
@@ -382,7 +437,7 @@ function showEphemeral(text, icon='🤖', label='Only visible to you'){
       <div class="dc-ephemeral-label">${esc(label)}</div>
       <div class="dc-ephemeral-text">${renderText(text)}</div>
     </div>
-    <button class="dc-ephemeral-dismiss" title="Dismiss">✕</button>`;
+    <button class="dc-ephemeral-dismiss" title="Dismiss">${ICON.close}</button>`;
   el.querySelector('.dc-ephemeral-dismiss').onclick=()=>el.remove();
   win.appendChild(el);
   const w=document.getElementById('dc-messages');
@@ -527,7 +582,7 @@ async function buildSidebar(server){
   }
   if(currentUserId&&(isAdminOrMod(currentProfile)||server.owner_id===currentUserId)){
     addSidebarBtn(body,'＋ Add Channel',()=>openAddChannelModal(server));
-    addSidebarBtn(body,'✏️ Edit Server',()=>openServerModal(server));
+    addSidebarBtn(body,ICON.edit+' Edit Server',()=>openServerModal(server));
     if(server.owner_id===currentUserId) addSidebarBtn(body,'🔗 Invite Links',()=>openInvitePanel(server));
   }
   if(currentUserId&&!joinedServerIds.has(server.id)&&!isAdminOrMod(currentProfile)){
@@ -611,8 +666,8 @@ async function browseSidebar(body){
       ?`<img src="${esc(s.icon)}" style="width:18px;height:18px;border-radius:4px;object-fit:cover;">`
       :`<span>${esc(s.icon||'🌐')}</span>`;
     item.innerHTML=ico+`<span>${esc(s.name)}</span>`+
-      (joinedServerIds.has(s.id)?`<span style="margin-left:auto;font-size:11px;color:var(--a);">✓</span>`:
-       s.has_passcode?`<span style="margin-left:auto;font-size:11px;opacity:.5;">🔒</span>`:'');
+      (joinedServerIds.has(s.id)?`<span style="margin-left:auto;font-size:11px;color:var(--a);">${ICON.check}</span>`:
+       s.has_passcode?`<span style="margin-left:auto;font-size:11px;opacity:.5;">${ICON.lock}</span>`:'');
     item.addEventListener('click',()=>handleServerClick(s)); body.appendChild(item);
   });
 }
@@ -629,17 +684,17 @@ document.getElementById('sb-server-menu')?.addEventListener('click',async(e)=>{
   const isOwner=server.owner_id===currentUserId;
   const canManage=isOwner||isAdminOrMod(currentProfile);
   const menu=document.createElement('div'); menu.id='server-ctx-menu'; menu.className='server-ctx-menu';
-  const items=[{label:'📋 Copy Server ID',fn:()=>{navigator.clipboard.writeText(server.id);showToast('Copied!');}}];
+  const items=[{label:ICON.copy+' Copy Server ID',fn:()=>{navigator.clipboard.writeText(server.id);showToast('Copied!');}}];
   if(canManage){
-    items.push({label:'✏️ Edit Server',fn:()=>openServerModal(server)});
+    items.push({label:ICON.edit+' Edit Server',fn:()=>openServerModal(server)});
     items.push({label:'👥 Members',fn:()=>document.getElementById('btnMembers').click()});
     if(isOwner) items.push({label:'🔗 Invite Links',fn:()=>openInvitePanel(server)});
-    if(canManage) items.push({label:'✏️ Edit Channels',fn:()=>openChannelEditor(server)});
+    if(canManage) items.push({label:ICON.edit+' Edit Channels',fn:()=>openChannelEditor(server)});
     if(isOwner) items.push({label:'🎉 Onboarding Setup',fn:()=>openOnboardingSetup(server)});
     if(isOwner) items.push({label:'🔗 Copy Server URL',fn:()=>{const slug=server.slug;if(slug){navigator.clipboard.writeText(location.origin+'/chat/'+slug);showToast('Server URL copied!');}else{showToast('Set a slug in Onboarding Setup first');}}});
     items.push({label:'🤖 Bot Marketplace',fn:()=>window.open('/marketplace','_blank')});
     items.push({sep:true});
-    if(isOwner) items.push({label:'🗑 Delete Server',danger:true,fn:async()=>{
+    if(isOwner) items.push({label:ICON.delete+' Delete Server',danger:true,fn:async()=>{
       if(!confirm(`Delete "${server.name}"? This cannot be undone.`)) return;
       await sb.from('channels').delete().eq('server_id',server.id);
       await sb.from('server_members').delete().eq('server_id',server.id);
@@ -650,7 +705,7 @@ document.getElementById('sb-server-menu')?.addEventListener('click',async(e)=>{
     }});
   }
   if(!isOwner&&joinedServerIds.has(server.id)){
-    items.push({label:'🚪 Leave Server',danger:true,fn:async()=>{
+    items.push({label:ICON.leave+' Leave Server',danger:true,fn:async()=>{
       if(!confirm(`Leave "${server.name}"?`)) return;
       await sb.from('server_members').delete().eq('server_id',server.id).eq('user_id',currentUserId);
       joinedServerIds.delete(server.id); setActiveServer(null); buildSidebar(null);
@@ -682,7 +737,7 @@ async function handleServerClick(server){
 }
 async function joinServer(serverId){
   const{error}=await sb.from('server_members').insert({server_id:serverId,user_id:currentUserId});
-  if(error&&!error.message?.includes('unique')&&!error.code?.includes('23505')){ showToast('❌ '+error.message); return; }
+  if(error&&!error.message?.includes('unique')&&!error.code?.includes('23505')){ showToast(ICON.error+' '+error.message); return; }
   joinedServerIds.add(serverId);
   window.dispatchEvent(new CustomEvent('carlos-member-join',{detail:{userId:currentUserId,username:currentProfile?.username||'Someone',serverId}}));
 }
@@ -723,7 +778,7 @@ function showPasscodeGate(server){
   document.getElementById('passcode-gate')?.remove();
   const gate=document.createElement('div'); gate.id='passcode-gate';
   gate.style.cssText='position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.75);backdrop-filter:blur(16px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
-  gate.innerHTML=`<div style="font-size:44px">🔒</div>
+  gate.innerHTML=`<div style="font-size:44px">${ICON.lock}</div>
     <div style="font-size:20px;font-weight:800;color:#fff">${esc(server.name)}</div>
     <div style="font-size:13px;color:rgba(255,255,255,.6)">This server requires a passcode.</div>
     <input id="gate-inp" type="password" placeholder="Enter passcode" style="padding:11px 18px;border-radius:12px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);font-size:15px;outline:none;width:260px;color:#fff;text-align:center;font-family:inherit;"/>
@@ -1040,13 +1095,13 @@ function buildMsgEl(msg,container){
 
   const actions=document.createElement('div'); actions.className='dc-msg-actions';
   [{i:'↩',t:'Reply',fn:()=>setReply(msg)},{i:'😊',t:'React',fn:ev=>openReactionPicker(msg.id,ev)},
-   {i:'🧵',t:'Thread',fn:()=>openThread(msg)},{i:'📌',t:'Pin',fn:()=>pinMsg(msg)},
+   {i:ICON.thread,t:'Thread',fn:()=>openThread(msg)},{i:ICON.pin,t:'Pin',fn:()=>pinMsg(msg)},
    {i:'↪️',t:'Forward',fn:()=>openForwardModal(msg)}].forEach(a=>{
     const btn=document.createElement('button'); btn.className='dc-action-btn'; btn.title=a.t; btn.textContent=a.i;
     btn.addEventListener('click',ev=>{ev.stopPropagation();a.fn(ev);}); actions.appendChild(btn);
   });
   if(msg.user_id===currentUserId||isAdminOrMod(currentProfile)){
-    const d=document.createElement('button'); d.className='dc-action-btn'; d.title='Delete'; d.textContent='🗑'; d.style.color='#ef4444';
+    const d=document.createElement('button'); d.className='dc-action-btn'; d.title='Delete'; d.innerHTML=ICON.delete; d.style.color='#ef4444';
     d.addEventListener('click',ev=>{ev.stopPropagation();deleteMsg(msg.id);}); actions.appendChild(d);
   }
   el.appendChild(actions);
@@ -1135,6 +1190,8 @@ function renderText(raw){
   // Restore code blocks
   t=t.replace(/\x00CODE(\d+)\x00/g,(_,i)=>codeBlocks[+i]);
   t=t.replace(/\x00INLINE(\d+)\x00/g,(_,i)=>inlineCodes[+i]);
+  // Convert emoji chars to Twemoji SVGs (consistent cross-platform rendering)
+  t=chatEmoji(t);
   return t;
 }
 function patchMsgEl(el,msg){const d=el.querySelector('.dc-msg-text');if(d&&msg.text)d.innerHTML=renderText(msg.text);}
@@ -1201,7 +1258,7 @@ document.getElementById('ctx-pin').onclick=()=>ctxTargetMsg&&pinMsg(ctxTargetMsg
 document.getElementById('ctx-forward').onclick=()=>ctxTargetMsg&&openForwardModal(ctxTargetMsg);
 document.getElementById('ctx-copy').onclick=()=>{
   const t=msgElMap.get(String(ctxTargetMsg?.id))?.querySelector('.dc-msg-text')?.textContent||'';
-  navigator.clipboard.writeText(t).then(()=>showToast('📋 Copied!'));
+  navigator.clipboard.writeText(t).then(()=>showToast(ICON.copy+' Copied!'));
 };
 document.getElementById('ctx-delete').onclick=()=>ctxTargetMsg&&deleteMsg(ctxTargetMsg.id);
 document.getElementById('ctx-edit').onclick=()=>{
@@ -1297,7 +1354,7 @@ function appendThreadMsg(m,skipScroll=false){
   el.innerHTML=`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px;">
     <span style="font-size:13px;font-weight:700;color:var(--dc-text)">${esc(m.username||'Unknown')}</span>
     <span style="font-size:11px;color:var(--dc-muted)">${formatTime(m.created_at)}</span>
-    ${m.user_id===currentUserId?`<button onclick="deleteThreadMsg(${m.id},this.closest('[data-thread-msg-id]'))" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ef4444;font-size:12px;">🗑</button>`:''}
+    ${m.user_id===currentUserId?`<button onclick="deleteThreadMsg(${m.id},this.closest('[data-thread-msg-id]'))" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ef4444;font-size:12px;">${ICON.delete}</button>`:''}
   </div>
   <div style="font-size:14px;color:var(--dc-text);line-height:1.5;">${renderText(m.text||'')}</div>`;
   list.appendChild(el);
@@ -1419,10 +1476,10 @@ async function pinMsg(msg){
   let payload;
   if(r.type==='channel') payload={channel_id:r.id,dm_id:null,message_id:msg.id,pinned_by:currentUserId};
   else if(r.type==='dm') payload={channel_id:null,dm_id:r.id,message_id:msg.id,pinned_by:currentUserId};
-  else { showToast("📌 Pinning isn't available in this room."); return; }
+  else { showToast(ICON.pin+" Pinning isn't available in this room."); return; }
   const{error}=await sb.from('pinned_messages').insert(payload);
-  if(error){if(error.code==='23505')showToast('📌 Already pinned');else showToast('❌ '+error.message);return;}
-  showToast('📌 Pinned!');
+  if(error){if(error.code==='23505')showToast(ICON.pin+' Already pinned');else showToast('❌ '+error.message);return;}
+  showToast(ICON.pin+' Pinned!');
 }
 async function loadPins(){
   const list=document.getElementById('pins-list'); list.innerHTML=''; const r=activeRoom;
@@ -1453,7 +1510,7 @@ async function loadPins(){
   data.forEach(pin=>{
     const msg=pin.messages; const item=document.createElement('div'); item.className='pin-item';
     item.innerHTML=`<div class="pi-author">${esc(msg?.username||'Unknown')}</div><div class="pi-text">${esc((msg?.text||'📎 file').slice(0,100))}</div>`;
-    const del=document.createElement('button');del.style.cssText='float:right;background:none;border:none;cursor:pointer;color:var(--dc-muted);font-size:12px;';del.textContent='✕';
+    const del=document.createElement('button');del.style.cssText='float:right;background:none;border:none;cursor:pointer;color:var(--dc-muted);font-size:12px;';del.innerHTML=ICON.close;
     del.onclick=async(e)=>{e.stopPropagation();await sb.from('pinned_messages').delete().eq('id',pin.id);loadPins();showToast('Unpinned');};
     item.prepend(del); item.onclick=e=>{if(e.target===del)return;jumpToMsg(pin.message_id);}; list.appendChild(item);
   });
@@ -1497,7 +1554,7 @@ async function loadMembers(){
       const name=document.createElement('span'); name.textContent=p.username||'User';
       name.style.cssText='font-size:13px;font-weight:600;display:block;';
       const sub=document.createElement('div'); sub.style.cssText='font-size:11px;color:var(--dc-muted);';
-      const badges=[]; if(isOwner)badges.push('👑 Owner');else if(p.role==='admin')badges.push('🛡 Admin');else if(p.role==='mod')badges.push('⚔️ Mod');
+      const badges=[]; if(isOwner)badges.push(ICON.crown+' Owner');else if(p.role==='admin')badges.push(ICON.shield+' Admin');else if(p.role==='mod')badges.push(ICON.shield+' Mod');
       if(p.tag)badges.push(p.tag); sub.textContent=badges.join(' · ')||'Member';
       nameWrap.appendChild(name); nameWrap.appendChild(sub);
       if(p.current_activity){try{
@@ -1534,7 +1591,7 @@ document.getElementById('members-close').onclick=()=>document.getElementById('me
 function initOnlinePanel(){
   if(document.getElementById('online-panel')) return;
   const p=document.createElement('div'); p.id='online-panel'; p.className='online-panel hidden';
-  p.innerHTML=`<div class="online-header"><span>🟢 Online Now</span><button id="online-close">✕</button></div><div id="online-list" class="online-list"></div>`;
+  p.innerHTML=`<div class="online-header"><span>${ICON.online} Online Now</span><button id="online-close">${ICON.close}</button></div><div id="online-list" class="online-list"></div>`;
   document.getElementById('dcMain').appendChild(p);
   document.getElementById('online-close').onclick=()=>p.classList.add('hidden');
 }
@@ -1977,7 +2034,7 @@ function grammarEnabled() {
 function toggleGrammar() {
   const on = grammarEnabled();
   try { localStorage.setItem('360_grammar', on ? 'off' : 'on'); } catch(e) {}
-  showToast(on ? '✏️ Grammar correction off' : '✏️ Grammar correction on');
+  showToast(on ? ICON.edit+' Grammar correction off' : ICON.edit+' Grammar correction on');
   updateGrammarBtn();
 }
 window.toggleGrammar = toggleGrammar;
@@ -2015,7 +2072,7 @@ function showGrammarDiff(original, corrected) {
   const toast = document.createElement('div');
   toast.className = 'grammar-toast';
   const enc = encodeURIComponent(original);
-  toast.innerHTML = `<span>✏️ corrected</span><button onclick="undoGrammar('${enc}',this.closest('.grammar-toast'))">undo</button>`;
+  toast.innerHTML = `<span>${ICON.edit} corrected</span><button onclick="undoGrammar('${enc}',this.closest('.grammar-toast'))">undo</button>`;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
 }
@@ -2047,7 +2104,7 @@ async function runCommand(text,p){
     case '/unflip': msgInput.value='┬─┬ノ( º _ ºノ)'; break;
     case '/help': showToast(CMDS.filter(c=>!c.mod||needsMod).map(c=>c.c).join(' · '),5000); break;
     case '/clear': if(!needsMod){showToast('❌ Mods only');break;} document.getElementById('dc-messages').innerHTML=''; msgElMap.clear(); break;
-    case '/slow': if(!needsMod){showToast('❌ Mods only');break;} slowModeSeconds=parseInt(args)||0; showToast(slowModeSeconds?`🐌 Slow: ${slowModeSeconds}s`:'✅ Slow mode off'); break;
+    case '/slow': if(!needsMod){showToast('❌ Mods only');break;} slowModeSeconds=parseInt(args)||0; showToast(slowModeSeconds?`Slow: ${slowModeSeconds}s`:`${ICON.check} Slow mode off`); break;
     case '/warn':case '/mute':case '/unmute':case '/ban':case '/unban':case '/promote':case '/demote':case '/announce':
       if(!needsMod){showToast('❌ Mods only');break;} await runModCmd(cmd,args,p,payload); break;
     default: showToast('❌ Unknown command. Try /help');
@@ -2063,8 +2120,8 @@ async function runModCmd(cmd,args,p,payload){
     case '/unmute': await sb.from('profiles').update({muted_until:null}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'unmute','');showToast('✅ Unmuted');break;
     case '/ban':{const reason=args.split(' ').slice(1).join(' ')||'No reason';if(tgt.role==='admin'){showToast('❌ Cannot ban admin');break;}await sb.from('profiles').update({banned:true}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'ban',reason);payload.text=`🚫 @${tgt.username} banned: ${reason}`;await insertMsg(payload);break;}
     case '/unban': await sb.from('profiles').update({banned:false,warn_count:0}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'unban','');showToast('✅ Unbanned');break;
-    case '/promote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'mod'}).eq('id',tgt.id);showToast('✅ Promoted to mod');break;
-    case '/demote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'user'}).eq('id',tgt.id);showToast('✅ Demoted');break;
+    case '/promote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'mod'}).eq('id',tgt.id);showToast(ICON.check+' Promoted to mod');break;
+    case '/demote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'user'}).eq('id',tgt.id);showToast(ICON.check+' Demoted');break;
     case '/announce': payload.text=`📢 **${args}**`;await insertMsg(payload);break;
   }
 }
@@ -2118,7 +2175,7 @@ function initFriendsPanel(){
   if(document.getElementById('friends-panel')){friendsPanel=document.getElementById('friends-panel');return;}
   const main=document.getElementById('dcMain'); if(!main) return;
   const p=document.createElement('div'); p.id='friends-panel'; p.className='friends-panel hidden';
-  p.innerHTML=`<div class="friends-header"><span>👥 Friends</span><button id="friends-close" title="Close">✕</button></div>
+  p.innerHTML=`<div class="friends-header"><span>${ICON.friends} Friends</span><button id="friends-close" title="Close">${ICON.close}</button></div>
     <div class="friends-tabs"><button class="ftab active" data-tab="friends">Friends</button><button class="ftab" data-tab="pending">Pending <span id="friend-pending-count"></span></button><button class="ftab" data-tab="add">Add Friend</button></div>
     <div class="friends-body"><div id="ftab-friends" class="ftab-content"></div><div id="ftab-pending" class="ftab-content hidden"></div><div id="ftab-add" class="ftab-content hidden"><div class="fadd-form"><input id="fadd-input" placeholder="@username or email" autocomplete="off"/><button class="dc-btn-pri" id="fadd-btn">Send Request</button></div><p id="fadd-err" style="color:#ef4444;font-size:12px;min-height:16px;margin:8px 0 0;"></p></div></div>`;
   main.appendChild(p); friendsPanel=p;
@@ -2152,7 +2209,7 @@ async function loadFriendsList(){
     item.appendChild(makeFriendListAvatar(prof)); item.appendChild(makeFriendListInfo(prof.username,online?'● Online':'○ Offline',online?'online':'offline'));
     const actions=document.createElement('div'); actions.className='fl-actions';
     const dmBtn=document.createElement('button'); dmBtn.className='dc-action-btn'; dmBtn.title='Message'; dmBtn.textContent='💬'; dmBtn.onclick=e=>{e.stopPropagation();friendsPanel?.classList.add('hidden');startDMWith(prof.username||prof.email||'');};
-    const rmBtn=document.createElement('button'); rmBtn.className='dc-action-btn'; rmBtn.title='Remove'; rmBtn.textContent='✕'; rmBtn.style.color='#ef4444'; rmBtn.onclick=async e=>{e.stopPropagation();await sb.from('friendships').delete().eq('id',f.id);loadFriendsList();showToast('Removed friend.');};
+    const rmBtn=document.createElement('button'); rmBtn.className='dc-action-btn'; rmBtn.title='Remove'; rmBtn.innerHTML=ICON.close; rmBtn.style.color='#ef4444'; rmBtn.onclick=async e=>{e.stopPropagation();await sb.from('friendships').delete().eq('id',f.id);loadFriendsList();showToast('Removed friend.');};
     const callBtn=document.createElement('button'); callBtn.className='fl-call-btn'; callBtn.title='Voice call'; callBtn.textContent='📞'; callBtn.onclick=e=>{e.stopPropagation();friendsPanel?.classList.add('hidden');if(window.Voice)window.Voice.startCall(fid,prof.username||'Friend');};
     actions.append(dmBtn,callBtn,rmBtn); item.appendChild(actions); item.addEventListener('click',()=>showProfilePopup(fid,item)); el.appendChild(item);
   });
@@ -2166,7 +2223,7 @@ async function loadPendingFriends(){
   const countEl=document.getElementById('friend-pending-count'); if(countEl)countEl.textContent=incoming.length?`(${incoming.length})`:'';
   if(!rows.length){el.innerHTML='<div class="fl-empty">No pending requests.</div>';return;} el.innerHTML='';
   const addSection=t=>{const h=document.createElement('div');h.className='fl-section';h.textContent=t;el.appendChild(h);};
-  if(incoming.length){addSection('Incoming'); for(const f of incoming){const prof=await getProfile(f.requester_id); const item=document.createElement('div'); item.className='fl-item'; item.append(makeFriendListAvatar(prof),makeFriendListInfo(prof.username,'wants to be friends')); const actions=document.createElement('div');actions.className='fl-actions'; const acc=document.createElement('button');acc.className='dc-btn-pri';acc.style.cssText='padding:4px 10px;font-size:12px;';acc.textContent='✓';acc.onclick=async()=>{await sb.from('friendships').update({status:'accepted'}).eq('id',f.id);loadPendingFriends();loadFriendsList();showToast('🎉 Friend accepted!');}; const dec=document.createElement('button');dec.className='dc-action-btn';dec.style.color='#ef4444';dec.textContent='✕';dec.onclick=async()=>{await sb.from('friendships').delete().eq('id',f.id);loadPendingFriends();showToast('Request declined.');}; actions.append(acc,dec); item.appendChild(actions); el.appendChild(item);}}
+  if(incoming.length){addSection('Incoming'); for(const f of incoming){const prof=await getProfile(f.requester_id); const item=document.createElement('div'); item.className='fl-item'; item.append(makeFriendListAvatar(prof),makeFriendListInfo(prof.username,'wants to be friends')); const actions=document.createElement('div');actions.className='fl-actions'; const acc=document.createElement('button');acc.className='dc-btn-pri';acc.style.cssText='padding:4px 10px;font-size:12px;';acc.innerHTML=ICON.check;acc.onclick=async()=>{await sb.from('friendships').update({status:'accepted'}).eq('id',f.id);loadPendingFriends();loadFriendsList();showToast('🎉 Friend accepted!');}; const dec=document.createElement('button');dec.className='dc-action-btn';dec.style.color='#ef4444';dec.innerHTML=ICON.close;dec.onclick=async()=>{await sb.from('friendships').delete().eq('id',f.id);loadPendingFriends();showToast('Request declined.');}; actions.append(acc,dec); item.appendChild(actions); el.appendChild(item);}}
   if(outgoing.length){addSection('Sent'); for(const f of outgoing){const prof=await getProfile(f.addressee_id); const item=document.createElement('div'); item.className='fl-item'; item.append(makeFriendListAvatar(prof),makeFriendListInfo(prof.username,'Request pending…')); const actions=document.createElement('div');actions.className='fl-actions'; const can=document.createElement('button');can.className='dc-action-btn';can.style.color='#ef4444';can.textContent='Cancel';can.onclick=async()=>{await sb.from('friendships').delete().eq('id',f.id);loadPendingFriends();showToast('Request cancelled.');}; actions.appendChild(can); item.appendChild(actions); el.appendChild(item);}}
 }
 async function sendFriendRequest(){
@@ -2402,7 +2459,7 @@ function openInvitePanel(server){
   let panel=document.getElementById('invite-panel');
   if(!panel){
     panel=document.createElement('div');panel.id='invite-panel';panel.className='invite-panel hidden';
-    panel.innerHTML=`<div class="invite-header"><span>🔗 Invite Links</span><button id="invite-close">✕</button></div><div class="invite-body"><button id="invite-gen-btn" class="dc-btn-pri" style="width:100%;margin-bottom:12px;">＋ Generate Invite</button><div id="invite-list" class="invite-list"></div></div>`;
+    panel.innerHTML=`<div class="invite-header"><span>${ICON.link} Invite Links</span><button id="invite-close">${ICON.close}</button></div><div class="invite-body"><button id="invite-gen-btn" class="dc-btn-pri" style="width:100%;margin-bottom:12px;">＋ Generate Invite</button><div id="invite-list" class="invite-list"></div></div>`;
     document.getElementById('dcMain').appendChild(panel);
     document.getElementById('invite-close').onclick=()=>panel.classList.add('hidden');
   }
