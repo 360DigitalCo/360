@@ -582,7 +582,7 @@ async function buildSidebar(server){
   }
   if(currentUserId&&(isAdminOrMod(currentProfile)||server.owner_id===currentUserId)){
     addSidebarBtn(body,'＋ Add Channel',()=>openAddChannelModal(server));
-    addSidebarBtn(body,ICON.edit+' Edit Server',()=>openServerModal(server));
+    addSidebarBtn(body,'✏️ Edit Server',()=>openServerModal(server));
     if(server.owner_id===currentUserId) addSidebarBtn(body,'🔗 Invite Links',()=>openInvitePanel(server));
   }
   if(currentUserId&&!joinedServerIds.has(server.id)&&!isAdminOrMod(currentProfile)){
@@ -684,17 +684,17 @@ document.getElementById('sb-server-menu')?.addEventListener('click',async(e)=>{
   const isOwner=server.owner_id===currentUserId;
   const canManage=isOwner||isAdminOrMod(currentProfile);
   const menu=document.createElement('div'); menu.id='server-ctx-menu'; menu.className='server-ctx-menu';
-  const items=[{label:ICON.copy+' Copy Server ID',fn:()=>{navigator.clipboard.writeText(server.id);showToast('Copied!');}}];
+  const items=[{label:'📋 Copy Server ID',fn:()=>{navigator.clipboard.writeText(server.id);showToast('Copied!');}}];
   if(canManage){
-    items.push({label:ICON.edit+' Edit Server',fn:()=>openServerModal(server)});
+    items.push({label:'✏️ Edit Server',fn:()=>openServerModal(server)});
     items.push({label:'👥 Members',fn:()=>document.getElementById('btnMembers').click()});
     if(isOwner) items.push({label:'🔗 Invite Links',fn:()=>openInvitePanel(server)});
-    if(canManage) items.push({label:ICON.edit+' Edit Channels',fn:()=>openChannelEditor(server)});
+    if(canManage) items.push({label:'✏️ Edit Channels',fn:()=>openChannelEditor(server)});
     if(isOwner) items.push({label:'🎉 Onboarding Setup',fn:()=>openOnboardingSetup(server)});
     if(isOwner) items.push({label:'🔗 Copy Server URL',fn:()=>{const slug=server.slug;if(slug){navigator.clipboard.writeText(location.origin+'/chat/'+slug);showToast('Server URL copied!');}else{showToast('Set a slug in Onboarding Setup first');}}});
     items.push({label:'🤖 Bot Marketplace',fn:()=>window.open('/marketplace','_blank')});
     items.push({sep:true});
-    if(isOwner) items.push({label:ICON.delete+' Delete Server',danger:true,fn:async()=>{
+    if(isOwner) items.push({label:'🗑 Delete Server',danger:true,fn:async()=>{
       if(!confirm(`Delete "${server.name}"? This cannot be undone.`)) return;
       await sb.from('channels').delete().eq('server_id',server.id);
       await sb.from('server_members').delete().eq('server_id',server.id);
@@ -705,7 +705,7 @@ document.getElementById('sb-server-menu')?.addEventListener('click',async(e)=>{
     }});
   }
   if(!isOwner&&joinedServerIds.has(server.id)){
-    items.push({label:ICON.leave+' Leave Server',danger:true,fn:async()=>{
+    items.push({label:'🚪 Leave Server',danger:true,fn:async()=>{
       if(!confirm(`Leave "${server.name}"?`)) return;
       await sb.from('server_members').delete().eq('server_id',server.id).eq('user_id',currentUserId);
       joinedServerIds.delete(server.id); setActiveServer(null); buildSidebar(null);
@@ -737,7 +737,7 @@ async function handleServerClick(server){
 }
 async function joinServer(serverId){
   const{error}=await sb.from('server_members').insert({server_id:serverId,user_id:currentUserId});
-  if(error&&!error.message?.includes('unique')&&!error.code?.includes('23505')){ showToast(ICON.error+' '+error.message); return; }
+  if(error&&!error.message?.includes('unique')&&!error.code?.includes('23505')){ showToast('❌ '+error.message); return; }
   joinedServerIds.add(serverId);
   window.dispatchEvent(new CustomEvent('carlos-member-join',{detail:{userId:currentUserId,username:currentProfile?.username||'Someone',serverId}}));
 }
@@ -1097,7 +1097,7 @@ function buildMsgEl(msg,container){
   [{i:'↩',t:'Reply',fn:()=>setReply(msg)},{i:'😊',t:'React',fn:ev=>openReactionPicker(msg.id,ev)},
    {i:ICON.thread,t:'Thread',fn:()=>openThread(msg)},{i:ICON.pin,t:'Pin',fn:()=>pinMsg(msg)},
    {i:'↪️',t:'Forward',fn:()=>openForwardModal(msg)}].forEach(a=>{
-    const btn=document.createElement('button'); btn.className='dc-action-btn'; btn.title=a.t; btn.textContent=a.i;
+    const btn=document.createElement('button'); btn.className='dc-action-btn'; btn.title=a.t; btn.innerHTML=a.i;
     btn.addEventListener('click',ev=>{ev.stopPropagation();a.fn(ev);}); actions.appendChild(btn);
   });
   if(msg.user_id===currentUserId||isAdminOrMod(currentProfile)){
@@ -1258,7 +1258,7 @@ document.getElementById('ctx-pin').onclick=()=>ctxTargetMsg&&pinMsg(ctxTargetMsg
 document.getElementById('ctx-forward').onclick=()=>ctxTargetMsg&&openForwardModal(ctxTargetMsg);
 document.getElementById('ctx-copy').onclick=()=>{
   const t=msgElMap.get(String(ctxTargetMsg?.id))?.querySelector('.dc-msg-text')?.textContent||'';
-  navigator.clipboard.writeText(t).then(()=>showToast(ICON.copy+' Copied!'));
+  navigator.clipboard.writeText(t).then(()=>showToast('📋 Copied!'));
 };
 document.getElementById('ctx-delete').onclick=()=>ctxTargetMsg&&deleteMsg(ctxTargetMsg.id);
 document.getElementById('ctx-edit').onclick=()=>{
@@ -1476,10 +1476,10 @@ async function pinMsg(msg){
   let payload;
   if(r.type==='channel') payload={channel_id:r.id,dm_id:null,message_id:msg.id,pinned_by:currentUserId};
   else if(r.type==='dm') payload={channel_id:null,dm_id:r.id,message_id:msg.id,pinned_by:currentUserId};
-  else { showToast(ICON.pin+" Pinning isn't available in this room."); return; }
+  else { showToast("📌 Pinning isn't available in this room."); return; }
   const{error}=await sb.from('pinned_messages').insert(payload);
-  if(error){if(error.code==='23505')showToast(ICON.pin+' Already pinned');else showToast('❌ '+error.message);return;}
-  showToast(ICON.pin+' Pinned!');
+  if(error){if(error.code==='23505')showToast('📌 Already pinned');else showToast('❌ '+error.message);return;}
+  showToast('📌 Pinned!');
 }
 async function loadPins(){
   const list=document.getElementById('pins-list'); list.innerHTML=''; const r=activeRoom;
@@ -1555,7 +1555,7 @@ async function loadMembers(){
       name.style.cssText='font-size:13px;font-weight:600;display:block;';
       const sub=document.createElement('div'); sub.style.cssText='font-size:11px;color:var(--dc-muted);';
       const badges=[]; if(isOwner)badges.push(ICON.crown+' Owner');else if(p.role==='admin')badges.push(ICON.shield+' Admin');else if(p.role==='mod')badges.push(ICON.shield+' Mod');
-      if(p.tag)badges.push(p.tag); sub.textContent=badges.join(' · ')||'Member';
+      if(p.tag)badges.push(esc(p.tag)); sub.innerHTML=badges.join(' · ')||'Member';
       nameWrap.appendChild(name); nameWrap.appendChild(sub);
       if(p.current_activity){try{
         const act=typeof p.current_activity==='string'?JSON.parse(p.current_activity):p.current_activity;
@@ -2034,7 +2034,7 @@ function grammarEnabled() {
 function toggleGrammar() {
   const on = grammarEnabled();
   try { localStorage.setItem('360_grammar', on ? 'off' : 'on'); } catch(e) {}
-  showToast(on ? ICON.edit+' Grammar correction off' : ICON.edit+' Grammar correction on');
+  showToast(on ? '✏️ Grammar correction off' : '✏️ Grammar correction on');
   updateGrammarBtn();
 }
 window.toggleGrammar = toggleGrammar;
@@ -2072,7 +2072,7 @@ function showGrammarDiff(original, corrected) {
   const toast = document.createElement('div');
   toast.className = 'grammar-toast';
   const enc = encodeURIComponent(original);
-  toast.innerHTML = `<span>${ICON.edit} corrected</span><button onclick="undoGrammar('${enc}',this.closest('.grammar-toast'))">undo</button>`;
+  toast.innerHTML = `<span>✏️ corrected</span><button onclick="undoGrammar('${enc}',this.closest('.grammar-toast'))">undo</button>`;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
 }
@@ -2104,7 +2104,7 @@ async function runCommand(text,p){
     case '/unflip': msgInput.value='┬─┬ノ( º _ ºノ)'; break;
     case '/help': showToast(CMDS.filter(c=>!c.mod||needsMod).map(c=>c.c).join(' · '),5000); break;
     case '/clear': if(!needsMod){showToast('❌ Mods only');break;} document.getElementById('dc-messages').innerHTML=''; msgElMap.clear(); break;
-    case '/slow': if(!needsMod){showToast('❌ Mods only');break;} slowModeSeconds=parseInt(args)||0; showToast(slowModeSeconds?`Slow: ${slowModeSeconds}s`:`${ICON.check} Slow mode off`); break;
+    case '/slow': if(!needsMod){showToast('❌ Mods only');break;} slowModeSeconds=parseInt(args)||0; showToast(slowModeSeconds?`🐌 Slow: ${slowModeSeconds}s`:'✅ Slow mode off'); break;
     case '/warn':case '/mute':case '/unmute':case '/ban':case '/unban':case '/promote':case '/demote':case '/announce':
       if(!needsMod){showToast('❌ Mods only');break;} await runModCmd(cmd,args,p,payload); break;
     default: showToast('❌ Unknown command. Try /help');
@@ -2120,8 +2120,8 @@ async function runModCmd(cmd,args,p,payload){
     case '/unmute': await sb.from('profiles').update({muted_until:null}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'unmute','');showToast('✅ Unmuted');break;
     case '/ban':{const reason=args.split(' ').slice(1).join(' ')||'No reason';if(tgt.role==='admin'){showToast('❌ Cannot ban admin');break;}await sb.from('profiles').update({banned:true}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'ban',reason);payload.text=`🚫 @${tgt.username} banned: ${reason}`;await insertMsg(payload);break;}
     case '/unban': await sb.from('profiles').update({banned:false,warn_count:0}).eq('id',tgt.id);await logAutomod(tgt.id,tgt.username,'unban','');showToast('✅ Unbanned');break;
-    case '/promote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'mod'}).eq('id',tgt.id);showToast(ICON.check+' Promoted to mod');break;
-    case '/demote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'user'}).eq('id',tgt.id);showToast(ICON.check+' Demoted');break;
+    case '/promote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'mod'}).eq('id',tgt.id);showToast('✅ Promoted to mod');break;
+    case '/demote': if(p.role!=='admin'){showToast('❌ Admins only');break;}await sb.from('profiles').update({role:'user'}).eq('id',tgt.id);showToast('✅ Demoted');break;
     case '/announce': payload.text=`📢 **${args}**`;await insertMsg(payload);break;
   }
 }
