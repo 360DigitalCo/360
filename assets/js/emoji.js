@@ -44,16 +44,17 @@
   const SKIP_CLASS = [
     'chat-page','chat-window','chat-msg','chat-bubble','no-emoji',
     // Large display emoji containers — skip so they render at native size
-    'app-icon','hero-icon','stat-icon','st-nav-icon','ac-wall-icon',
+    'app-icon','pinned-app-icon','hero-icon','stat-icon','st-nav-icon','ac-wall-icon',
     'ob-icon','dc-reaction','rail-icon','nav-emoji','board-icon',
     'page-icon','section-icon','reward-icon','weather-icon','news-icon',
+    'auth-wall-icon','ac-wall-icon','widget-icon','wg-weather-icon',
   ];
 
   function shouldSkip(node) {
     let el = node.nodeType === 1 ? node : node.parentElement;
     while (el) {
       if (SKIP_TAGS.has(el.tagName)) return true;
-      if (el.dataset && el.dataset.rawEmoji !== undefined) return true;
+      if (el.dataset && (el.dataset.rawEmoji !== undefined || el.dataset.noEmoji !== undefined)) return true;
       if (SKIP_CLASS.some(cls => el.classList && el.classList.contains(cls))) return true;
       el = el.parentElement;
     }
@@ -135,7 +136,11 @@
     if (!document.getElementById('em-style')) {
       const s = document.createElement('style');
       s.id = 'em-style';
-      s.textContent = '.em{display:inline-block;width:1.15em;height:1.15em;vertical-align:-0.2em;pointer-events:none;user-select:none;}';
+      s.textContent = [
+        '.em{display:inline-block;width:1.15em;height:1.15em;vertical-align:-0.2em;pointer-events:none;user-select:none;}',
+        /* Fallback: if an .em somehow ends up inside a large icon container, make it fill the container */
+        '.app-icon .em,.hero-icon .em,.stat-icon .em,.st-nav-icon .em,.ob-icon .em,.pinned-app-icon .em,.reward-icon .em{width:1em;height:1em;vertical-align:-0.15em;}',
+      ].join('');
       document.head.appendChild(s);
     }
   }
