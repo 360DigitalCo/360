@@ -100,17 +100,17 @@ Explore 360 and work efficiently in the 360Suite!
 
 ### Web
 
-Just visit https://360-search.com — no install needed.
+Just visit https://360-search.com; there's no install needed.
 
 ### Windows
 
-1. Download `360 Setup 3.0.0.exe` from Releases.
+1. Download `360-windows.v360.zip` from [Releases](https://github.com/360DigitalCo/360/releases).
 2. Double-click and it installs silently.
 3. 360 launches automatically when finished.
 
 ### Linux (Ubuntu/Debian/Zorin/Mint/Pop!_OS)
 
-1. Download `360-desktop_3.0.0_amd64.deb` from Releases.
+1. Download `360-linux.v360.zip` from Releases.
 
 ```bash
 sudo apt update
@@ -122,6 +122,8 @@ Or install GDebi:
 ```bash
 sudo apt install gdebi -y
 ```
+### updated steps for Linux, more specific unzipping instructions and macOS .dmg installation tutorial soon! (super busy, apologies)
+
 
 ### Android
 
@@ -134,7 +136,7 @@ Coming soon via the Samsung Galaxy Store.
 - [x] Web app
 - [x] Windows desktop app
 - [x] Linux desktop app
-- [ ] Mac desktop app
+- [X] Mac desktop app
 - [ ] Android app (Samsung Galaxy Store)
 - [x] Android APK
 - [ ] Edge / Opera browser extension
