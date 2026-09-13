@@ -76,6 +76,7 @@
   let activeTrip = null;
   let tripStopMarkers = [];
   let navMode = null; // remembers travel mode for rerouting
+  let avoidTolls = false; // persisted across directions sessions
 
   const $ = (s) => document.querySelector(s);
 
@@ -1450,6 +1451,10 @@
               </button>
             `).join("")}
           </div>
+          <label class="maps-toll-toggle" id="mapsTollToggle">
+            <input type="checkbox" id="mapsAvoidTolls"${avoidTolls ? " checked" : ""}/>
+            <span>Avoid tolls</span>
+          </label>
           <div class="maps-modal-actions">
             <button class="maps-btn-outline" id="mapsModeCancel">Cancel</button>
           </div>
@@ -1457,6 +1462,7 @@
       document.body.appendChild(overlay);
 
       function cleanup(result) {
+        if (result) avoidTolls = overlay.querySelector("#mapsAvoidTolls").checked;
         overlay.remove();
         resolve(result);
       }
