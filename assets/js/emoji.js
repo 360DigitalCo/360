@@ -41,7 +41,13 @@
 
   // Skip subtrees: chat, inputs, code blocks, pre, anything marked data-raw-emoji
   const SKIP_TAGS = new Set(['SCRIPT','STYLE','TEXTAREA','INPUT','CODE','PRE','SVG','IMG']);
-  const SKIP_CLASS = ['chat-page','chat-window','chat-msg','chat-bubble','no-emoji'];
+  const SKIP_CLASS = [
+    'chat-page','chat-window','chat-msg','chat-bubble','no-emoji',
+    // Large display emoji containers — skip so they render at native size
+    'app-icon','hero-icon','stat-icon','st-nav-icon','ac-wall-icon',
+    'ob-icon','dc-reaction','rail-icon','nav-emoji','board-icon',
+    'page-icon','section-icon','reward-icon','weather-icon','news-icon',
+  ];
 
   function shouldSkip(node) {
     let el = node.nodeType === 1 ? node : node.parentElement;
