@@ -576,7 +576,7 @@ function renderSidebar() {
   const pinnedApps = getPinnedApps();
   const position = getPinnedAppsPosition();
   const appItemHtml = pinnedApps
-    .map(it => `<div class="nav-item pinned-app-item" data-href="${it.href}"><span class="pinned-app-icon">${it.icon}</span>${escapeHtml(it.label)}</div>`)
+    .map(it => `<a class="nav-item pinned-app-item" href="${it.href}" data-href="${it.href}"><span class="pinned-app-icon">${it.icon}</span>${escapeHtml(it.label)}</a>`)
     .join("");
   const pinnedSectionHtml = pinnedApps.length
     ? `<div class="nav-section pinned-apps-section"><div class="nav-section-label">Pinned Apps</div>${appItemHtml}</div>`
@@ -591,7 +591,7 @@ function renderSidebar() {
   }
 
   const navHtml = allItems
-    .map(it => `<div class="nav-item${it.pinned ? " pinned-app-item" : ""}" data-href="${it.href}">${it.icon ? `<span class="pinned-app-icon">${it.icon}</span>` : ""}${escapeHtml(it.label)}</div>`)
+    .map(it => `<a class="nav-item${it.pinned ? " pinned-app-item" : ""}" href="${it.href}" data-href="${it.href}">${it.icon ? `<span class="pinned-app-icon">${it.icon}</span>` : ""}${escapeHtml(it.label)}</a>`)
     .join("");
 
   slot.innerHTML = `
@@ -1260,20 +1260,35 @@ document.addEventListener("click", e => {
 });
 
 /* Nav item navigation */
-sidebar?.addEventListener("click", e => {
+sidebar?.addEventListener("mousedown", e => {
+  if (e.button !== 0) return; // only left click gets the ripple
   const item = e.target.closest(".nav-item[data-href]");
   if (!item || !sidebar.contains(item)) return;
-  e.stopPropagation();
 
   const ripple = document.createElement("span");
   ripple.className = "nav-ripple";
   const rect = item.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height);
+  const size = Math.max(rect.width, rect.height) * 2;
   ripple.style.width = ripple.style.height = `${size}px`;
   ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
   ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
   item.appendChild(ripple);
   ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+});
+
+sidebar?.addEventListener("click", e => {
+  const item = e.target.closest(".nav-item[data-href]");
+  if (!item || !sidebar.contains(item)) return;
+  e.stopPropagation();
+
+  // Ctrl/meta/shift: open in new tab (for <div> items; <a> items handle this natively but we also catch it here)
+  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    e.preventDefault();
+    window.open(item.dataset.href, "_blank", "noopener");
+    return;
+  }
+
+  e.preventDefault();
 
   const href = item.dataset.href;
   if (href) {
@@ -1405,8 +1420,8 @@ if (bgResetBtn) {
 /* ============================================================
    RIPPLE EFFECT
    ============================================================ */
-document.addEventListener("click", e => {
-  const target = e.target.closest("[data-ripple], button, .nav-item, .swatch, .auth-btn");
+document.addEventListener("mousedown", e => {
+  const target = e.target.closest("[data-ripple], button, .swatch, .auth-btn");
   if (!target) return;
   if (target.matches("input, textarea, select, .overlay, .auth-popup")) return;
 
