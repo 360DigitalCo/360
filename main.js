@@ -576,7 +576,7 @@ function renderSidebar() {
   const pinnedApps = getPinnedApps();
   const position = getPinnedAppsPosition();
   const appItemHtml = pinnedApps
-    .map(it => `<div class="nav-item pinned-app-item" data-href="${it.href}"><a class="nav-link" href="${it.href}" tabindex="-1"></a><span class="pinned-app-icon">${it.icon}</span>${escapeHtml(it.label)}</div>`)
+    .map(it => `<a class="nav-item pinned-app-item" href="${it.href}" data-href="${it.href}"><span class="pinned-app-icon">${it.icon}</span>${escapeHtml(it.label)}</a>`)
     .join("");
   const pinnedSectionHtml = pinnedApps.length
     ? `<div class="nav-section pinned-apps-section"><div class="nav-section-label">Pinned Apps</div>${appItemHtml}</div>`
@@ -591,7 +591,7 @@ function renderSidebar() {
   }
 
   const navHtml = allItems
-    .map(it => `<div class="nav-item${it.pinned ? " pinned-app-item" : ""}" data-href="${it.href}"><a class="nav-link" href="${it.href}" tabindex="-1"></a>${it.icon ? `<span class="pinned-app-icon">${it.icon}</span>` : ""}${escapeHtml(it.label)}</div>`)
+    .map(it => `<a class="nav-item${it.pinned ? " pinned-app-item" : ""}" href="${it.href}" data-href="${it.href}">${it.icon ? `<span class="pinned-app-icon">${it.icon}</span>` : ""}${escapeHtml(it.label)}</a>`)
     .join("");
 
   slot.innerHTML = `
@@ -1261,15 +1261,9 @@ document.addEventListener("click", e => {
 
 /* Nav item navigation */
 sidebar?.addEventListener("mousedown", e => {
+  if (e.button !== 0) return; // only left click gets the ripple
   const item = e.target.closest(".nav-item[data-href]");
   if (!item || !sidebar.contains(item)) return;
-
-  // Middle-click: open in new tab
-  if (e.button === 1) {
-    e.preventDefault();
-    window.open(item.dataset.href, "_blank");
-    return;
-  }
 
   const ripple = document.createElement("span");
   ripple.className = "nav-ripple";
@@ -1287,11 +1281,10 @@ sidebar?.addEventListener("click", e => {
   if (!item || !sidebar.contains(item)) return;
   e.stopPropagation();
 
-  // Ctrl/meta click: open in new tab
-  if (e.ctrlKey || e.metaKey) {
-    window.open(item.dataset.href, "_blank");
-    return;
-  }
+  // Ctrl/meta/shift: let the browser handle it natively (new tab, new window)
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+  e.preventDefault();
 
   const href = item.dataset.href;
   if (href) {
