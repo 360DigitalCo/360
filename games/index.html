@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC DREAM 2.0 — The American Hustle</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══ INTRO SCREEN ══════════════════════════════════════════════════ -->
+<div id="screen-intro" class="active">
+  <div class="skyline-bg"></div>
+  <div class="intro-content">
+    <div class="intro-logo">NYC<br>DREAM</div>
+    <div class="intro-sub">The American Hustle — City Life Simulator 2.0</div>
+    <div class="intro-tagline">"In New York, every man for himself."</div>
+
+    <div class="char-create">
+      <!-- Skin tone -->
+      <div class="cc-row">
+        <span class="cc-label">SKIN TONE</span>
+        <div style="display:flex;gap:6px;">
+          <div class="skin-opt selected" data-skin="1" onclick="selectSkin(1)">🧑</div>
+          <div class="skin-opt" data-skin="2" onclick="selectSkin(2)">🧑🏽</div>
+          <div class="skin-opt" data-skin="3" onclick="selectSkin(3)">🧑🏾</div>
+          <div class="skin-opt" data-skin="4" onclick="selectSkin(4)">🧑🏿</div>
+          <div class="skin-opt" data-skin="5" onclick="selectSkin(5)">👩🏿</div>
+        </div>
+      </div>
+      <!-- Style -->
+      <div class="cc-row">
+        <span class="cc-label">STYLE</span>
+        <div style="display:flex;gap:6px;">
+          <div class="style-opt selected" data-style="casual" onclick="selectStyle('casual')" title="Casual">👕</div>
+          <div class="style-opt" data-style="business" onclick="selectStyle('business')" title="Business">👔</div>
+          <div class="style-opt" data-style="street" onclick="selectStyle('street')" title="Streetwear">🧢</div>
+        </div>
+      </div>
+      <!-- Origin -->
+      <div class="cc-row" style="align-items:flex-start;">
+        <span class="cc-label" style="margin-top:4px;">ORIGIN</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1;">
+          <button class="origin-btn selected" data-origin="local"     onclick="selectOrigin('local')">🏙️ NYC LOCAL<br><span style="font-size:8px;opacity:.6;">$200 · 60 rep</span></button>
+          <button class="origin-btn" data-origin="immigrant"          onclick="selectOrigin('immigrant')">🌍 IMMIGRANT<br><span style="font-size:8px;opacity:.6;">$80 · 40 rep</span></button>
+          <button class="origin-btn" data-origin="tourist"            onclick="selectOrigin('tourist')">🗽 TOURIST TURNED RESIDENT<br><span style="font-size:8px;opacity:.6;">$350 · 30 rep</span></button>
+          <button class="origin-btn" data-origin="suburban"           onclick="selectOrigin('suburban')">🚂 JERSEY / SUBURBAN<br><span style="font-size:8px;opacity:.6;">$150 · 45 rep</span></button>
+        </div>
+      </div>
+      <!-- Name -->
+      <div id="name-input-wrap">
+        <label>YOUR NAME</label>
+        <input id="player-name" type="text" placeholder="ENTER YOUR NAME" maxlength="16" autocomplete="off">
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startGame()">ARRIVE IN NEW YORK</button>
+    <div style="font-size:8px;color:#222;letter-spacing:2px;margin-top:12px;">KEYBOARD SHORTCUTS AVAILABLE IN-GAME</div>
+  </div>
+</div>
+
+<!-- ══ GAME SCREEN ════════════════════════════════════════════════════ -->
+<div id="screen-game">
+
+  <!-- LEFT PANEL -->
+  <div id="panel-left">
+
+    <!-- Minimap (click to open full map) -->
+    <div id="minimap-wrap" onclick="openFullMap()" title="Click to open full map">
+      <canvas id="minimap-canvas"></canvas>
+      <div class="minimap-overlay"><span class="minimap-label">OPEN MAP [M]</span></div>
+      <div class="minimap-clock" id="mini-clock">8:00 AM</div>
+      <div class="minimap-day" id="mini-day">Day 1</div>
+    </div>
+
+    <!-- Player card -->
+    <div class="player-card">
+      <div class="char-portrait-wrap">
+        <div id="char-portrait" style="font-size:36px;">🧑</div>
+        <div class="player-info">
+          <div class="player-name-display" id="display-name">PLAYER</div>
+          <div class="player-title" id="display-title">NEWCOMER • UNEMPLOYED</div>
+          <div id="display-origin" style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NYC LOCAL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="rating-bar-wrap">
+      <div class="rating-label">
+        <span>REPUTATION</span>
+        <span id="rating-tier" style="color:var(--yellow);font-size:8px;">NEWCOMER</span>
+        <span id="rating-num" style="color:var(--yellow);font-weight:700;">50</span>
+      </div>
+      <div class="rating-bar"><div class="rating-fill" id="rating-fill" style="width:25%"></div></div>
+    </div>
+
+    <div class="stat-row"><span class="stat-label">CASH</span><span class="stat-value green" id="stat-cash">$0</span></div>
+    <div class="stat-row"><span class="stat-label">SAVINGS</span><span class="stat-value" id="stat-savings">$0</span></div>
+    <div class="stat-row"><span class="stat-label">PORTFOLIO</span><span class="stat-value" style="color:var(--blue)" id="stat-portfolio">$0</span></div>
+    <div class="stat-row"><span class="stat-label">WEEKLY RENT</span><span class="stat-value red" id="stat-rent">NONE</span></div>
+
+    <div class="metro-indicator">
+      <div class="metro-dot" id="metro-dot"></div>
+      <span id="metro-status">No MetroCard</span>
+    </div>
+
+    <div id="wanted-row">
+      <span style="font-size:9px;color:var(--muted);">WANTED</span>
+      <span id="wanted-stars">☆☆☆☆☆</span>
+    </div>
+
+    <div class="section-title">CURRENT JOB</div>
+    <div class="stat-row"><span class="stat-label">POSITION</span><span class="stat-value orange" id="stat-job">NONE</span></div>
+    <div class="stat-row"><span class="stat-label">DAILY PAY</span><span class="stat-value" id="stat-pay">—</span></div>
+    <div class="stat-row"><span class="stat-label">COMMISSION</span><span class="stat-value" id="stat-commission">NONE</span></div>
+    <div class="stat-row"><span class="stat-label">DAYS WORKED</span><span class="stat-value" id="stat-daysworked">0</span></div>
+
+    <div class="section-title">RESUME</div>
+    <div id="resume-panel"><div style="padding:10px 14px;font-size:9px;color:var(--muted)">No work history yet.</div></div>
+
+    <div class="section-title">INVENTORY</div>
+    <div id="inventory-list"><div class="inv-item"><span>Nothing yet</span></div></div>
+  </div>
+
+  <!-- CENTER -->
+  <div id="map-area" style="display:flex;flex-direction:column;">
+    <!-- Time bar -->
+    <div id="time-bar">
+      <div class="time-segment">
+        <span class="time-icon">📅</span>
+        <div><div class="time-val" id="t-day">Day 1</div><div class="time-label">NEW YORK</div></div>
+      </div>
+      <div class="time-segment">
+        <span class="time-icon">🕐</span>
+        <div><div class="time-val" id="t-time">8:00 AM</div><div class="time-label">TIME</div></div>
+      </div>
+      <div class="time-segment">
+        <span class="time-icon">🌡️</span>
+        <div><div class="time-val" id="t-weather">72°F ☀️</div><div class="time-label">WEATHER</div></div>
+      </div>
+      <div class="time-segment" style="margin-left:auto;">
+        <div class="time-val" id="t-location" style="font-size:10px;color:var(--muted);">📍 Penn Station</div>
+      </div>
+    </div>
+
+    <!-- Location context bar -->
+    <div id="loc-context">
+      <div id="loc-ctx-name" style="color:var(--yellow);font-weight:700;font-size:10px;">🚂 PENN STATION</div>
+      <div id="loc-ctx-desc" style="font-size:9px;color:var(--muted);flex:1;">Transit hub. Many subway connections.</div>
+      <div id="loc-ctx-actions" style="display:flex;gap:5px;"></div>
+    </div>
+
+    <!-- Map placeholder / open map prompt -->
+    <div class="map-center-area">
+      <div id="map-placeholder" onclick="openFullMap()">
+        <div style="font-size:64px;opacity:0.3;">🗽</div>
+        <div class="map-placeholder-text">NYC OPEN WORLD MAP</div>
+        <button class="open-map-btn">OPEN MAP [M]</button>
+        <div class="map-placeholder-hint">Click any location on the map to travel there</div>
+      </div>
+
+      <!-- Map overlay buttons (shown when map open) -->
+      <div class="map-overlay-ui" style="bottom:40px;">
+        <button class="map-btn" onclick="openShop()">🛒 SHOP</button>
+        <button class="map-btn" onclick="openJobBoard()">💼 JOBS</button>
+        <button class="map-btn" onclick="doWorkDay()">⚡ WORK</button>
+        <button class="map-btn" onclick="openStockMarket()">📈 STOCKS</button>
+        <button class="map-btn" onclick="advanceDay()">⏭ NEXT DAY</button>
+      </div>
+    </div>
+
+    <!-- Ticker -->
+    <div id="ticker">
+      <div class="ticker-inner" id="ticker-text">
+        🗽 WELCOME TO NYC DREAM 2.0 &nbsp;•&nbsp; UNLIMITED REPUTATION &nbsp;•&nbsp; 30+ JOBS &nbsp;•&nbsp; STOCK MARKET &nbsp;•&nbsp; POLICE CHASES &nbsp;•&nbsp; FULL HOUSING SYSTEM &nbsp;•&nbsp; KAREN ENCOUNTERS &nbsp;•&nbsp; BUY PROPERTY IN ALL 5 BOROUGHS &nbsp;•&nbsp; 🗽
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="panel-right">
+    <div class="section-title">CITY LOG</div>
+    <div id="log-area"></div>
+
+    <div id="action-panel">
+      <div class="action-title">QUICK ACTIONS [SHORTCUTS]</div>
+      <div id="action-buttons">
+        <button class="action-btn primary" onclick="openJobBoard()">💼 JOBS [J]</button>
+        <button class="action-btn" onclick="doWorkDay()">⚡ WORK [W]</button>
+        <button class="action-btn" onclick="openShop()">🏪 SHOP [S]</button>
+        <button class="action-btn" onclick="openStockMarket()">📈 STOCKS [K]</button>
+        <button class="action-btn" onclick="travelSubway()">🚇 SUBWAY</button>
+        <button class="action-btn" onclick="talkToNPC()">👤 NETWORK [N]</button>
+        <button class="action-btn" onclick="saveToBank()">🏦 SAVE [B]</button>
+        <button class="action-btn" onclick="withdrawBank()">💳 WITHDRAW</button>
+        <button class="action-btn" onclick="openHousingMenu()">🏠 HOUSING [H]</button>
+        <button class="action-btn" onclick="openWardrobePanel()">👔 WARDROBE</button>
+        <button class="action-btn" onclick="negotiateCommission()">🤝 COMMISSION [C]</button>
+        <button class="action-btn" onclick="openCharacterPanel()">🧑 CHARACTER</button>
+        <button class="action-btn" onclick="doSleep()">😴 SLEEP [Z]</button>
+        <button class="action-btn primary" onclick="openExplore(G.location)" style="background:#141400;border-color:#FFD100;color:#FFD100;">🚶 EXPLORE [X]</button>
+        <button class="action-btn danger" onclick="quitJob()">🚪 QUIT JOB</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FULL MAP SCREEN ════════════════════════════════════════════════ -->
+<div id="screen-fullmap">
+  <div id="fullmap-bar">
+    <div class="time-segment">
+      <span class="time-icon">📍</span>
+      <div><div class="time-val" id="fullmap-location" style="font-size:11px;color:var(--muted);">Penn Station</div></div>
+    </div>
+    <div class="fullmap-controls">
+      <button class="fmap-btn" onclick="mapZoomIn()">＋ ZOOM</button>
+      <button class="fmap-btn" onclick="mapZoomOut()">－ ZOOM</button>
+      <button class="fmap-btn" onclick="centerOnPlayer()">📍 CENTER</button>
+      <button class="fmap-btn" onclick="closeFullMap()">✕ CLOSE [ESC]</button>
+    </div>
+  </div>
+
+  <div id="fullmap-canvas-wrap">
+    <canvas id="map-canvas"></canvas>
+    <div id="player-marker"><div class="player-dot"></div></div>
+    <div id="location-tooltip" class="location-tooltip" style="display:none;">
+      <div class="loc-name" id="tt-name"></div>
+      <div class="loc-type" id="tt-type"></div>
+      <div class="loc-action" id="tt-action"></div>
+    </div>
+
+    <!-- Subway legend -->
+    <div id="map-legend">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">SUBWAY LINES</div>
+      <div class="legend-item"><div class="legend-line" style="background:#0039A6;"></div>A/C/E</div>
+      <div class="legend-item"><div class="legend-line" style="background:#FF6319;"></div>B/D/F/M</div>
+      <div class="legend-item"><div class="legend-line" style="background:#EE352E;"></div>1/2/3</div>
+      <div class="legend-item"><div class="legend-line" style="background:#00933C;"></div>4/5/6</div>
+      <div class="legend-item"><div class="legend-line" style="background:#FCCC0A;"></div>N/Q/R/W</div>
+      <div class="legend-item"><div class="legend-line" style="background:#A7A9AC;"></div>L</div>
+      <div class="legend-item"><div class="legend-line" style="background:#B933AD;"></div>7</div>
+      <div style="margin-top:6px;font-size:8px;letter-spacing:2px;color:var(--muted);">ROADS</div>
+      <div class="legend-item"><div class="legend-line" style="background:#2255AA;"></div>Highways</div>
+      <div class="legend-item"><div class="legend-line" style="background:#00C853;border-top:1px dashed #00C853;height:0;"></div>Bike Lanes</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EVENT MODAL ════════════════════════════════════════════════════ -->
+<div id="screen-event"></div>
+
+<!-- ══ NOTIFICATIONS ══════════════════════════════════════════════════ -->
+<div id="notif-area"></div>
+
+<!-- ══ SCRIPTS ════════════════════════════════════════════════════════ -->
+<script src="data.js"></script>
+<script src="map.js"></script>
+<script src="game.js"></script>
+<script src="explore.js"></script>
+
+<!-- Mini-map clock sync (lightweight) -->
+<script>
+  setInterval(() => {
+    const cl = document.getElementById('mini-clock');
+    const dy = document.getElementById('mini-day');
+    if (!cl || !G) return;
+    const h = G.hour, ampm = h>=12?'PM':'AM', h12 = h===0?12:h>12?h-12:h;
+    cl.textContent = h12+':00 '+ampm;
+    if (dy) dy.textContent = 'Day '+G.day;
+  }, 1000);
+</script>
+</body>
+</html>
