@@ -224,7 +224,7 @@
       const key=botId+':'+serverId;
       if (myBotInstalls.has(key)){ picker.remove(); return; }
       const { error } = await sb.from('bot_server_installs').upsert({bot_id:botId,server_id:serverId,installed_by:currentUser.id},{onConflict:'bot_id,server_id'});
-      if (error){ alert('Failed: '+error.message); return; }
+      if (error){ const t=document.createElement('div'); t.style.cssText='position:fixed;bottom:24px;right:24px;background:#7f1d1d;border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:12px 18px;font-size:13px;color:#fca5a5;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);'; t.textContent='Failed: '+error.message; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); return; }
       myBotInstalls.add(key); picker.remove();
       const t=document.createElement('div'); t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1a1b2e;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 18px;font-size:13px;color:#fff;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);';
       t.textContent='&#10003; '+botName+' added!'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);

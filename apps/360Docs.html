@@ -620,6 +620,10 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+    .docs-confirm { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; color: #f1f5f9; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; z-index: 101; opacity: 0; pointer-events: none; transition: .22s; white-space: nowrap; }
+    .docs-confirm.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .docs-confirm .dc-ok { background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .docs-confirm .dc-cancel { background: rgba(255,255,255,.1); color: #f1f5f9; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
 
     @media (max-width: 1000px) {
       .docs-sidebar {
@@ -782,6 +786,11 @@
 </div>
 </div>
 <div class="docs-toast" id="docsToast"></div>
+<div class="docs-confirm" id="docs-confirm">
+  <span id="docs-confirm-msg">Restore this version?</span>
+  <button class="dc-ok" id="docs-confirm-ok">Restore</button>
+  <button class="dc-cancel" id="docs-confirm-cancel">Cancel</button>
+</div>
 <audio id="clickSound" preload="auto" src="click-sound.mp3"></audio>
 <script src="/assets/js/main.js"></script>
 <script src="/assets/js/wide.js"></script>
@@ -824,6 +833,17 @@
       docsToast.textContent = msg;
       docsToast.classList.add('show');
       setTimeout(() => docsToast.classList.remove('show'), dur);
+    }
+
+    let _docsConfirmResolve = null;
+    const _docsConfirmBar = document.getElementById('docs-confirm');
+    document.getElementById('docs-confirm-ok').addEventListener('click', () => { _docsConfirmBar.classList.remove('show'); if (_docsConfirmResolve) { _docsConfirmResolve(true); _docsConfirmResolve = null; } });
+    document.getElementById('docs-confirm-cancel').addEventListener('click', () => { _docsConfirmBar.classList.remove('show'); if (_docsConfirmResolve) { _docsConfirmResolve(false); _docsConfirmResolve = null; } });
+    function docsConfirm(msg, okLabel) {
+      document.getElementById('docs-confirm-msg').textContent = msg;
+      if (okLabel) document.getElementById('docs-confirm-ok').textContent = okLabel;
+      _docsConfirmBar.classList.add('show');
+      return new Promise(res => { _docsConfirmResolve = res; });
     }
 
     async function initAuth() {
@@ -1214,7 +1234,7 @@
           const id = item.dataset.versionId;
           const ver = versions.find(v => v.id === id);
           if (!ver) return;
-          if (!confirm('Restore this version?')) return;
+          if (!await docsConfirm('Restore this version?', 'Restore')) return;
           pages = ver.pages || [{ index: 0, html: '' }];
           renderPages();
           docTitleInput.value = ver.title || '';

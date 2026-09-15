@@ -175,6 +175,10 @@
       font-size: 13px; opacity: 0; pointer-events: none; transition: .25s; z-index: 400;
     }
     .st-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .st-confirm { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; color: #f1f5f9; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; z-index: 401; opacity: 0; pointer-events: none; transition: .22s; white-space: nowrap; }
+    .st-confirm.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .st-confirm .sc-ok { background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .st-confirm .sc-cancel { background: rgba(255,255,255,.1); color: #f1f5f9; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
   </style>
 <meta content="Your content is part of 360 Digital. Explore its features and use it online through the 360 platform." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360Studio" property="og:title"/><meta content="Your content is part of 360 Digital. Explore its features and use it online through the 360 platform." property="og:description"/><meta content="https://360-search.com/apps/360Studio.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360Studio" name="twitter:title"/><meta content="Your content is part of 360 Digital. Explore its features and use it online through the 360 platform." name="twitter:description"/><link href="https://360-search.com/apps/360Studio.html" rel="canonical"/></head>
 <body>
@@ -251,6 +255,11 @@
 </div>
 </div>
 <div class="st-toast" id="stToast"></div>
+<div class="st-confirm" id="st-confirm">
+  <span id="st-confirm-msg"></span>
+  <button class="sc-ok" id="st-confirm-ok">Delete</button>
+  <button class="sc-cancel" id="st-confirm-cancel">Cancel</button>
+</div>
 <script>
     const SUPABASE_URL  = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
@@ -282,6 +291,16 @@
       toast.textContent = msg;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    let _stConfirmResolve = null;
+    const _stConfirmBar = document.getElementById('st-confirm');
+    document.getElementById('st-confirm-ok').addEventListener('click', () => { _stConfirmBar.classList.remove('show'); if (_stConfirmResolve) { _stConfirmResolve(true); _stConfirmResolve = null; } });
+    document.getElementById('st-confirm-cancel').addEventListener('click', () => { _stConfirmBar.classList.remove('show'); if (_stConfirmResolve) { _stConfirmResolve(false); _stConfirmResolve = null; } });
+    function stConfirm(msg) {
+      document.getElementById('st-confirm-msg').textContent = msg;
+      _stConfirmBar.classList.add('show');
+      return new Promise(res => { _stConfirmResolve = res; });
     }
 
     function escHtml(str) {
@@ -536,7 +555,7 @@
 
     async function deleteItem(kind, row) {
       const label = kind === 'videos' ? 'video' : 'track';
-      if (!confirm(`Delete this ${label}? This can't be undone.`)) return;
+      if (!await stConfirm(`Delete this ${label}? This can't be undone.`)) return;
 
       const table  = kind === 'videos' ? 'vids' : 'music_files';
       const bucket = kind === 'videos' ? 'videos' : 'music';

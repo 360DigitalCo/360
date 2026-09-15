@@ -256,6 +256,11 @@
     }
     .ms-toast.show { opacity: 1; }
 
+    .ms-confirm-bar { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; color: #f1f5f9; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; z-index: 300; opacity: 0; pointer-events: none; transition: .22s; white-space: nowrap; }
+    .ms-confirm-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .ms-confirm-bar .cb-ok { background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .ms-confirm-bar .cb-cancel { background: rgba(255,255,255,.1); color: #f1f5f9; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
     .ms-spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: msspin .7s linear infinite; }
     @keyframes msspin { to { transform: rotate(360deg); } }
 
@@ -271,13 +276,13 @@
 <a class="ms-logo" href="/apps.html">
 <div class="ms-logo-mark">360</div>
 <div>
-<div class="ms-logo-text">Anchor/div&gt;
+<div class="ms-logo-text">Anchor</div>
           <div class="ms-logo-sub">Manage your site on 360 Search</div>
 </div>
 </div></a>
 <div class="ms-topbar-spacer"></div>
 <button class="ms-icon-btn" id="theme-toggle" title="Toggle theme">
-<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"></path></svg>
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="16"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"></path></svg>
 </button>
 <div id="auth-slot"></div>
 </div>
@@ -286,6 +291,11 @@
 </div>
 </div>
 <div class="ms-toast" id="toast"></div>
+<div class="ms-confirm-bar" id="ms-confirm-bar">
+  <span id="ms-confirm-msg"></span>
+  <button class="cb-ok" id="ms-confirm-ok">Confirm</button>
+  <button class="cb-cancel" id="ms-confirm-cancel">Cancel</button>
+</div>
 <script>
     const SUPABASE_URL  = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
@@ -319,6 +329,17 @@
       el.classList.add('show');
       clearTimeout(toast._t);
       toast._t = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    let _confirmResolve = null;
+    const _confirmBar = document.getElementById('ms-confirm-bar');
+    document.getElementById('ms-confirm-ok').addEventListener('click', () => { _confirmBar.classList.remove('show'); if (_confirmResolve) { _confirmResolve(true); _confirmResolve = null; } });
+    document.getElementById('ms-confirm-cancel').addEventListener('click', () => { _confirmBar.classList.remove('show'); if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; } });
+    function msConfirm(msg, okLabel = 'Confirm') {
+      document.getElementById('ms-confirm-msg').textContent = msg;
+      document.getElementById('ms-confirm-ok').textContent = okLabel;
+      _confirmBar.classList.add('show');
+      return new Promise(res => { _confirmResolve = res; });
     }
 
     function escHtml(s) {
@@ -758,7 +779,7 @@
         loadDnsRecords(site);
       }));
       box.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
-        if (!confirm('Remove this DNS record from tracking?')) return;
+        if (!await msConfirm('Remove this DNS record from tracking?', 'Remove')) return;
         await sb.from('dns_records').delete().eq('id', b.dataset.del);
         loadDnsRecords(site);
       }));
@@ -886,7 +907,7 @@
     }
 
     async function removeSite(site) {
-      if (!confirm(`Remove ${site.domain}? This only removes it from your dashboard — already-indexed pages stay in Search.`)) return;
+      if (!await msConfirm(`Remove ${site.domain}? Already-indexed pages stay in Search.`, 'Remove')) return;
       const { error } = await sb.from('site_submissions').delete().eq('id', site.id);
       if (error) { toast(error.message); return; }
       sites = sites.filter(s => s.id !== site.id);

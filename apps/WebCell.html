@@ -6,92 +6,888 @@
   <title>360 — WebCell</title>
   <meta name="theme-color" content="#3b82f6" />
   <link rel="icon" type="image/png" href="/favicon-32x32.png" />
-  <link rel="stylesheet" href="/assets/css/main.css" />
-  <link rel="stylesheet" href="/assets/css/wide.css" />
-  <link rel="stylesheet" href="/assets/css/gallium.css" />
-  <link rel="stylesheet" href="/assets/css/responsive.css" />
-  <link rel="stylesheet" href="/assets/css/cursor.css" />
-  <link rel="stylesheet" href="/assets/css/webcell.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #05060a;
+      --surface:  #0f1119;
+      --border:   rgba(255,255,255,.08);
+      --txt:      #f1f5f9;
+      --mut:      #64748b;
+      --accent:   #3b82f6;
+      --accent2:  #6366f1;
+      --good:     #10b981;
+      --danger:   #ef4444;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--txt);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+    /* ── Topbar ── */
+    .wc-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(5,6,10,.88); backdrop-filter: blur(14px);
+    }
+    .wc-logo { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+    .wc-logo span { background: linear-gradient(120deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .wc-topbar-space { flex: 1; }
+    .wc-status-dot { width: 8px; height: 8px; border-radius: 50%;
+      background: var(--mut); flex-shrink: 0; transition: background .3s; }
+    .wc-status-dot.online { background: var(--good); }
+    .wc-status-label { font-size: 12px; color: var(--mut); }
+    .wc-auth-btn {
+      padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: rgba(255,255,255,.04); color: var(--txt); font-size: 13px;
+      font-family: inherit; cursor: pointer;
+    }
+    .wc-auth-btn:hover { background: rgba(255,255,255,.08); }
+    .wc-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff; cursor: pointer;
+      border: none; flex-shrink: 0;
+    }
+
+    /* ── Shell ── */
+    .wc-shell { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    .wc-hero { margin-bottom: 28px; }
+    .wc-hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -.03em; margin-bottom: 6px; }
+    .wc-hero h1 span { background: linear-gradient(120deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .wc-hero p { font-size: 14px; color: var(--mut); }
+
+    /* ── Gate ── */
+    .wc-gate {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px; text-align: center; max-width: 420px; margin: 0 auto;
+    }
+    .wc-gate h2 { font-size: 18px; margin-bottom: 8px; }
+    .wc-gate p { font-size: 13px; color: var(--mut); margin-bottom: 20px; line-height: 1.6; }
+
+    /* ── Grid ── */
+    .wc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 14px;
+    }
+    @media (max-width: 620px) { .wc-grid { grid-template-columns: 1fr; } }
+
+    .wc-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px;
+    }
+    .wc-card-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--mut); margin-bottom: 12px;
+    }
+    .wc-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+
+    /* Dial card */
+    .dial-card { grid-column: 1 / 2; }
+    .dial-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
+    .dial-at { font-size: 18px; color: var(--mut); flex-shrink: 0; }
+    .dial-input {
+      flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--txt);
+      font-family: inherit; outline: none;
+    }
+    .dial-input:focus { border-color: var(--accent); }
+    .call-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: none; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .call-btn:hover { opacity: .88; }
+    .call-btn:disabled { opacity: .4; cursor: default; }
+    .call-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .wc-hint { font-size: 12px; color: var(--mut); }
+
+    /* Identity card */
+    .identity-card { grid-column: 2 / 3; }
+    @media (max-width: 620px) { .dial-card, .identity-card { grid-column: 1; } }
+    .identity-id {
+      font-size: 15px; font-weight: 700; margin-bottom: 4px;
+      font-variant-numeric: tabular-nums; letter-spacing: .01em;
+    }
+    .identity-sub { font-size: 12px; color: var(--mut); margin-bottom: 14px; }
+    .copy-btn {
+      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--txt); font-size: 12px;
+      font-family: inherit; cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.06); }
+
+    /* Contacts card */
+    .contacts-card { grid-column: 1 / 2; }
+    .contacts-head {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .icon-btn {
+      width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--txt); font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.06); }
+    .contact-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid var(--border);
+    }
+    .contact-row:last-child { border-bottom: none; }
+    .contact-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+    }
+    .contact-name { flex: 1; font-size: 13px; min-width: 0; }
+    .contact-id { font-size: 11px; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .contact-call-btn {
+      width: 30px; height: 30px; border-radius: 50%; border: none; flex-shrink: 0;
+      background: rgba(59,130,246,.15); color: var(--accent); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .contact-call-btn:hover { background: rgba(59,130,246,.28); }
+    .contact-call-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .contact-del-btn {
+      width: 26px; height: 26px; border-radius: 6px; border: none;
+      background: transparent; color: var(--mut); font-size: 13px; cursor: pointer;
+    }
+    .contact-del-btn:hover { color: var(--danger); }
+    .wc-empty { font-size: 13px; color: var(--mut); padding: 8px 0; }
+
+    /* Recent card */
+    .recent-card { grid-column: 2 / 3; }
+    @media (max-width: 620px) { .contacts-card, .recent-card { grid-column: 1; } }
+    .recent-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .recent-row:last-child { border-bottom: none; }
+    .recent-dir { font-size: 16px; flex-shrink: 0; }
+    .recent-peer { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-meta { font-size: 11px; color: var(--mut); flex-shrink: 0; }
+
+    /* ── Incoming call overlay ── */
+    .incoming-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .incoming-overlay.show { display: flex; }
+    .incoming-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px 28px; text-align: center; width: min(340px,90vw);
+    }
+    .incoming-orb {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,.5); }
+      50%      { box-shadow: 0 0 0 18px rgba(59,130,246,0); }
+    }
+    .incoming-label { font-size: 12px; color: var(--mut); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+    .incoming-peer { font-size: 20px; font-weight: 700; margin-bottom: 24px; }
+    .incoming-btns { display: flex; gap: 16px; justify-content: center; }
+    .btn-answer {
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: var(--good); color: #fff; font-size: 22px; cursor: pointer;
+    }
+    .btn-decline {
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: var(--danger); color: #fff; font-size: 22px; cursor: pointer;
+    }
+
+    /* ── Active call overlay ── */
+    .call-overlay {
+      position: fixed; inset: 0; background: var(--bg);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; z-index: 100;
+    }
+    .call-overlay.show { display: flex; }
+    .call-orb {
+      width: 96px; height: 96px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    .call-orb.ringing { animation: pulse 1.4s ease-in-out infinite; }
+    .call-state { font-size: 13px; color: var(--mut); text-transform: uppercase; letter-spacing: .08em; }
+    .call-peer-label { font-size: 22px; font-weight: 700; }
+    .call-timer { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+    .call-actions { display: flex; gap: 20px; margin-top: 8px; }
+    .round-btn {
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.1); color: var(--txt); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .round-btn:hover { background: rgba(255,255,255,.18); }
+    .round-btn.active { background: rgba(59,130,246,.25); color: var(--accent); }
+    .round-btn.hangup { background: var(--danger); color: #fff; }
+    .round-btn.hangup:hover { background: #dc2626; }
+    .round-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ── Add contact modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 22px; width: 100%; max-width: 360px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; }
+    .modal label { font-size: 12px; color: var(--mut); display: block; margin-bottom: 5px; }
+    .modal input {
+      width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: 10px; padding: 9px 12px; font-size: 13px; color: var(--txt);
+      font-family: inherit; outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+    .modal-btns button { padding: 8px 16px; border-radius: 9px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-cancel { background: rgba(255,255,255,.07); color: var(--txt); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+
+    /* ── Toast ── */
+    .wc-toast {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(14px);
+      background: #1e293b; color: var(--txt); border: 1px solid var(--border);
+      border-radius: 10px; padding: 9px 16px; font-size: 13px;
+      opacity: 0; pointer-events: none; transition: .22s; z-index: 300; white-space: nowrap;
+    }
+    .wc-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
 </head>
 <body>
-  <div class="cursor-dot"></div><div class="cursor-trail"></div><div class="cursor-crosshair"></div><div class="cursor-blob"></div>
 
-  <div class="auth-top-right">
-    <button class="auth-btn" id="signInBtn">Sign In</button>
-    <button class="auth-btn" id="signUpBtn">Sign Up</button>
-    <button class="auth-btn" id="signOutBtn" style="display:none">Sign Out</button>
+  <!-- Topbar -->
+  <div class="wc-topbar">
+    <a href="/apps" style="color:var(--mut);font-size:13px;text-decoration:none;">← Apps</a>
+    <div class="wc-logo">Web<span>Cell</span></div>
+    <div class="wc-topbar-space"></div>
+    <div class="wc-status-dot" id="statusDot"></div>
+    <div class="wc-status-label" id="statusLabel">Offline</div>
+    <button class="wc-auth-btn" id="authBtn" style="display:none">Sign In</button>
+    <button class="wc-avatar" id="avatarBtn" style="display:none" title="Sign out">?</button>
   </div>
-  <button class="sidebar-toggle" id="sidebarToggle">☰ Menu</button>
-  <aside class="sidebar" id="sidebar">
-    <nav class="nav-list">
-      <a class="nav-item" href="/" data-href="/">Home</a>
-      <a class="nav-item" href="/ai" data-href="/ai">AI</a>
-      <div class="nav-item active">WebCell</div>
-      <a class="nav-item" href="/chat" data-href="/chat">Chat</a>
-      <a class="nav-item" href="/apps" data-href="/apps">Apps</a>
-    </nav>
-  </aside>
-  <div class="overlay" id="overlay"></div>
 
-  <main class="webcell-shell">
-    <section class="webcell-hero">
-      <div>
-        <div class="eyebrow">360 / COMMUNICATION</div>
-        <h1>Web<span>Cell</span></h1>
-        <p>Private browser-to-browser calling. No phone number required.</p>
-      </div>
-      <div class="cell-status"><i></i><span id="statusText">Ready</span></div>
-    </section>
+  <div class="wc-shell">
+    <div class="wc-hero">
+      <h1>Web<span>Cell</span></h1>
+      <p>Browser-to-browser audio calls. No app, no phone number.</p>
+    </div>
+    <div id="appRoot"></div>
+  </div>
 
-    <section class="cell-grid">
-      <div class="cell-card dial-card">
-        <div class="card-label">CALL SOMEONE</div>
-        <div class="dial-row">
-          <span class="at">@</span>
-          <input id="peerId" autocomplete="off" spellcheck="false" placeholder="WebCell ID" maxlength="40" />
-          <button id="callBtn" class="primary-btn" type="button" aria-label="Start call">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"/></svg>
-          </button>
-        </div>
-        <div class="hint">Calls stay on the web using WebRTC audio.</div>
-      </div>
-
-      <div class="cell-card identity-card">
-        <div class="card-label">YOUR WEBCELL</div>
-        <div class="identity-id" id="myId">Not signed in</div>
-        <div class="identity-name" id="myName">Sign in to create your WebCell identity.</div>
-        <button class="secondary-btn" id="copyIdBtn" type="button">Copy ID</button>
-      </div>
-
-      <div class="cell-card contacts-card">
-        <div class="card-heading"><div><div class="card-label">CONTACTS</div><h2>Your people</h2></div><button id="addContactBtn" class="icon-btn" type="button">+</button></div>
-        <div id="contactsList" class="contacts-list"><div class="empty">No contacts yet.</div></div>
-      </div>
-
-      <div class="cell-card recent-card">
-        <div class="card-label">RECENT CALLS</div>
-        <div id="recentList" class="recent-list"><div class="empty">No calls yet.</div></div>
-      </div>
-    </section>
-  </main>
-
-  <section class="call-overlay" id="callOverlay" aria-hidden="true">
-    <div class="call-panel">
-      <div class="call-orb" id="callOrb"><span></span></div>
-      <div class="call-state" id="callState">Calling</div>
-      <div class="call-peer" id="callPeer">@—</div>
-      <div class="call-timer" id="callTimer">0:00</div>
-      <div class="call-actions">
-        <button class="round-btn" id="muteBtn" type="button" title="Mute microphone"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v5M8 23h8"/></svg></button>
-        <button class="round-btn hangup" id="hangupBtn" type="button" title="End call"><svg viewBox="0 0 24 24"><path d="M4.9 15.1a14.8 14.8 0 0 1 14.2 0"/><path d="M2 12.5a17.9 17.9 0 0 1 20 0"/></svg></button>
-        <button class="round-btn" id="speakerBtn" type="button" title="Speaker"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+  <!-- Incoming call -->
+  <div class="incoming-overlay" id="incomingOverlay">
+    <div class="incoming-panel">
+      <div class="incoming-orb"></div>
+      <div class="incoming-label">Incoming call</div>
+      <div class="incoming-peer" id="incomingPeer">@—</div>
+      <div class="incoming-btns">
+        <button class="btn-answer" id="answerBtn" title="Answer">📞</button>
+        <button class="btn-decline" id="declineBtn" title="Decline">✕</button>
       </div>
     </div>
-  </section>
+  </div>
+
+  <!-- Active call -->
+  <div class="call-overlay" id="callOverlay">
+    <div class="call-orb" id="callOrb"></div>
+    <div class="call-state" id="callState">Connecting</div>
+    <div class="call-peer-label" id="callPeerLabel">@—</div>
+    <div class="call-timer" id="callTimer">0:00</div>
+    <div class="call-actions">
+      <button class="round-btn" id="muteBtn" title="Mute">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v5M8 23h8"/></svg>
+      </button>
+      <button class="round-btn hangup" id="hangupBtn" title="Hang up">
+        <svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-3-2.31M2 2l20 20"/></svg>
+      </button>
+      <button class="round-btn" id="speakerBtn" title="Speaker">
+        <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add contact modal -->
+  <div class="modal-overlay" id="addContactModal">
+    <div class="modal">
+      <h3>Add contact</h3>
+      <div>
+        <label>Name</label>
+        <input id="contactNameIn" placeholder="Friend's name" maxlength="40" />
+      </div>
+      <div>
+        <label>WebCell ID</label>
+        <input id="contactIdIn" placeholder="their-webcell-id" maxlength="80" />
+      </div>
+      <div id="addContactErr" style="font-size:12px;color:var(--danger);min-height:16px;"></div>
+      <div class="modal-btns">
+        <button class="btn-cancel" id="cancelContactBtn">Cancel</button>
+        <button class="btn-primary" id="saveContactBtn">Add</button>
+      </div>
+    </div>
+  </div>
 
   <audio id="remoteAudio" autoplay playsinline></audio>
-  <script src="/assets/js/main.js"></script>
-  <script src="/assets/js/webcell.js"></script>
+  <audio id="ringtone" loop>
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" />
+  </audio>
+
+  <div class="wc-toast" id="wcToast"></div>
+
+<script>
+const SUPABASE_URL  = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let currentUser = null;
+let myWebcellId = null;     // user's webcell id (email prefix or custom)
+let contacts = [];          // [{name, webcellId}]
+let recentCalls = [];       // [{peer, dir, ts}]
+
+let pc = null;              // RTCPeerConnection
+let localStream = null;
+let sigChannel = null;      // Supabase realtime channel for signaling
+let callState = 'idle';     // idle | calling | ringing | active
+let remotePeerId = null;
+let callTimer = null;
+let callSeconds = 0;
+let muted = false;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+function toast(msg, dur = 3000) {
+  const el = $('wcToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), dur);
+}
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function timeAgo(ts) {
+  const d = (Date.now() - ts) / 1000;
+  if (d < 60) return 'just now';
+  if (d < 3600) return Math.floor(d/60) + 'm ago';
+  if (d < 86400) return Math.floor(d/3600) + 'h ago';
+  return Math.floor(d/86400) + 'd ago';
+}
+function fmtTimer(s) {
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+function saveLocal() {
+  if (!myWebcellId) return;
+  localStorage.setItem('wc_contacts_' + myWebcellId, JSON.stringify(contacts));
+  localStorage.setItem('wc_recent_' + myWebcellId, JSON.stringify(recentCalls.slice(0,30)));
+}
+function loadLocal() {
+  contacts   = JSON.parse(localStorage.getItem('wc_contacts_'  + myWebcellId) || '[]');
+  recentCalls = JSON.parse(localStorage.getItem('wc_recent_'   + myWebcellId) || '[]');
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user ?? null;
+  onAuthChange();
+  sb.auth.onAuthStateChange((_e, sess) => {
+    currentUser = sess?.user ?? null;
+    onAuthChange();
+  });
+}
+
+function onAuthChange() {
+  const authBtn   = $('authBtn');
+  const avatarBtn = $('avatarBtn');
+  if (currentUser) {
+    myWebcellId = currentUser.email?.split('@')[0] ?? currentUser.id.slice(0,8);
+    authBtn.style.display   = 'none';
+    avatarBtn.style.display = '';
+    avatarBtn.textContent   = (currentUser.email || 'U')[0].toUpperCase();
+    avatarBtn.title         = currentUser.email + ' — click to sign out';
+    loadLocal();
+    subscribeSignaling();
+  } else {
+    myWebcellId = null;
+    authBtn.style.display   = '';
+    avatarBtn.style.display = 'none';
+    if (sigChannel) { sb.removeChannel(sigChannel); sigChannel = null; }
+    setStatus('offline');
+  }
+  renderApp();
+}
+
+$('authBtn').addEventListener('click', () => {
+  sb.auth.signInWithOAuth({ provider: 'google',
+    options: { redirectTo: window.location.href } }).catch(() => {
+    // fallback: redirect to accounts page
+    location.href = '/accounts.html?from=' + encodeURIComponent(location.href);
+  });
+});
+$('avatarBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+// ── Status indicator ───────────────────────────────────────────────────────
+function setStatus(s) {
+  const dot   = $('statusDot');
+  const label = $('statusLabel');
+  if (s === 'online')  { dot.className = 'wc-status-dot online'; label.textContent = 'Online'; }
+  else if (s === 'busy') { dot.className = 'wc-status-dot'; dot.style.background='var(--danger)'; label.textContent = 'In a call'; }
+  else                 { dot.className = 'wc-status-dot'; dot.style.background=''; label.textContent = 'Offline'; }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderApp() {
+  const root = $('appRoot');
+  if (!currentUser) {
+    root.innerHTML = `
+      <div class="wc-gate">
+        <h2>Sign in to use WebCell</h2>
+        <p>WebCell uses your 360 account to give you a unique caller ID and remember your contacts.</p>
+        <button class="btn-primary" id="gateSignInBtn" style="padding:10px 22px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Sign in with 360</button>
+      </div>`;
+    $('gateSignInBtn').addEventListener('click', () => $('authBtn').click());
+    return;
+  }
+  root.innerHTML = `
+    <div class="wc-grid">
+      <div class="wc-card dial-card">
+        <div class="wc-card-label">Call someone</div>
+        <div class="dial-row">
+          <span class="dial-at">@</span>
+          <input class="dial-input" id="peerIdInput" placeholder="webcell-id" autocomplete="off" spellcheck="false" maxlength="80" />
+          <button class="call-btn" id="callBtn" title="Start call">
+            <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"/></svg>
+          </button>
+        </div>
+        <div class="wc-hint">Enter a WebCell ID and press call.</div>
+      </div>
+
+      <div class="wc-card identity-card">
+        <div class="wc-card-label">Your WebCell</div>
+        <div class="identity-id">@${escHtml(myWebcellId)}</div>
+        <div class="identity-sub">${escHtml(currentUser.email)}</div>
+        <button class="copy-btn" id="copyIdBtn">Copy ID</button>
+      </div>
+
+      <div class="wc-card contacts-card">
+        <div class="contacts-head">
+          <div>
+            <div class="wc-card-label">Contacts</div>
+            <h2>Your people</h2>
+          </div>
+          <button class="icon-btn" id="addContactBtn" title="Add contact">+</button>
+        </div>
+        <div id="contactsList">${renderContacts()}</div>
+      </div>
+
+      <div class="wc-card recent-card">
+        <div class="wc-card-label">Recent calls</div>
+        <div id="recentList">${renderRecent()}</div>
+      </div>
+    </div>`;
+
+  $('callBtn').addEventListener('click', () => startCall($('peerIdInput').value.trim()));
+  $('peerIdInput').addEventListener('keydown', e => { if (e.key === 'Enter') startCall($('peerIdInput').value.trim()); });
+  $('copyIdBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText(myWebcellId).then(() => toast('✓ Copied your WebCell ID'));
+  });
+  $('addContactBtn').addEventListener('click', openAddContact);
+  $('contactsList').addEventListener('click', onContactsClick);
+}
+
+function renderContacts() {
+  if (!contacts.length) return '<div class="wc-empty">No contacts yet. Press + to add one.</div>';
+  return contacts.map((c, i) => `
+    <div class="contact-row" data-idx="${i}">
+      <div class="contact-avatar">${escHtml((c.name||'?')[0].toUpperCase())}</div>
+      <div class="contact-name">
+        <div>${escHtml(c.name)}</div>
+        <div class="contact-id">@${escHtml(c.webcellId)}</div>
+      </div>
+      <button class="contact-call-btn" data-call="${i}" title="Call">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"/></svg>
+      </button>
+      <button class="contact-del-btn" data-del="${i}" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+function renderRecent() {
+  if (!recentCalls.length) return '<div class="wc-empty">No calls yet.</div>';
+  return recentCalls.slice(0,10).map(r => `
+    <div class="recent-row">
+      <span class="recent-dir">${r.dir === 'in' ? '📥' : '📤'}</span>
+      <span class="recent-peer">@${escHtml(r.peer)}</span>
+      <span class="recent-meta">${r.dur ? fmtTimer(r.dur) + ' · ' : ''}${timeAgo(r.ts)}</span>
+    </div>`).join('');
+}
+
+function onContactsClick(e) {
+  const callIdx = e.target.closest('[data-call]')?.dataset.call;
+  const delIdx  = e.target.closest('[data-del]')?.dataset.del;
+  if (callIdx !== undefined) {
+    const c = contacts[+callIdx];
+    if (c) startCall(c.webcellId);
+  } else if (delIdx !== undefined) {
+    contacts.splice(+delIdx, 1);
+    saveLocal();
+    $('contactsList').innerHTML = renderContacts();
+    $('contactsList').addEventListener('click', onContactsClick);
+  }
+}
+
+// ── Add contact modal ──────────────────────────────────────────────────────
+function openAddContact() {
+  $('contactNameIn').value = '';
+  $('contactIdIn').value = '';
+  $('addContactErr').textContent = '';
+  $('addContactModal').classList.add('show');
+  setTimeout(() => $('contactNameIn').focus(), 50);
+}
+function closeAddContact() { $('addContactModal').classList.remove('show'); }
+
+$('cancelContactBtn').addEventListener('click', closeAddContact);
+$('addContactModal').addEventListener('click', e => { if (e.target === $('addContactModal')) closeAddContact(); });
+$('saveContactBtn').addEventListener('click', () => {
+  const name = $('contactNameIn').value.trim();
+  const wid  = $('contactIdIn').value.trim().replace(/^@/, '');
+  const err  = $('addContactErr');
+  if (!name) { err.textContent = 'Enter a name.'; return; }
+  if (!wid)  { err.textContent = 'Enter a WebCell ID.'; return; }
+  if (contacts.find(c => c.webcellId === wid)) { err.textContent = 'Already in contacts.'; return; }
+  contacts.push({ name, webcellId: wid });
+  saveLocal();
+  closeAddContact();
+  if ($('contactsList')) {
+    $('contactsList').innerHTML = renderContacts();
+    $('contactsList').addEventListener('click', onContactsClick);
+  }
+  toast('✓ Contact added');
+});
+
+// ── Signaling via Supabase Realtime ────────────────────────────────────────
+function subscribeSignaling() {
+  if (sigChannel) { sb.removeChannel(sigChannel); sigChannel = null; }
+  if (!myWebcellId) return;
+
+  sigChannel = sb.channel('webcell:' + myWebcellId, {
+    config: { broadcast: { self: false }, presence: { key: myWebcellId } }
+  });
+
+  sigChannel
+    .on('broadcast', { event: 'offer' }, ({ payload }) => handleOffer(payload))
+    .on('broadcast', { event: 'answer' }, ({ payload }) => handleAnswer(payload))
+    .on('broadcast', { event: 'ice' }, ({ payload }) => handleIce(payload))
+    .on('broadcast', { event: 'hangup' }, ({ payload }) => handleRemoteHangup(payload))
+    .on('broadcast', { event: 'decline' }, ({ payload }) => handleDecline(payload))
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') setStatus('online');
+    });
+}
+
+function sendSignal(toPeerId, event, data) {
+  const ch = sb.channel('webcell:' + toPeerId);
+  ch.subscribe(s => {
+    if (s === 'SUBSCRIBED') {
+      ch.send({ type: 'broadcast', event, payload: { from: myWebcellId, ...data } });
+      // brief cleanup after send
+      setTimeout(() => sb.removeChannel(ch), 2000);
+    }
+  });
+}
+
+// ── WebRTC ─────────────────────────────────────────────────────────────────
+function createPeerConnection(peerId) {
+  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+  pc.onicecandidate = e => {
+    if (e.candidate) sendSignal(peerId, 'ice', { candidate: e.candidate });
+  };
+
+  pc.ontrack = e => {
+    $('remoteAudio').srcObject = e.streams[0];
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected') {
+      $('callOrb').classList.remove('ringing');
+      $('callState').textContent = 'Connected';
+      startCallTimer();
+      setStatus('busy');
+    } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      endCall(true);
+    }
+  };
+}
+
+async function getMic() {
+  if (localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  return localStream;
+}
+
+async function startCall(peerId) {
+  if (!peerId) { toast('Enter a WebCell ID first.'); return; }
+  if (peerId === myWebcellId) { toast("You can't call yourself."); return; }
+  if (callState !== 'idle') { toast('Already in a call.'); return; }
+
+  try {
+    await getMic();
+  } catch {
+    toast('Microphone access denied.'); return;
+  }
+
+  callState = 'calling';
+  remotePeerId = peerId;
+  showCallOverlay(peerId, 'Calling…', true);
+
+  createPeerConnection(peerId);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  sendSignal(peerId, 'offer', { sdp: offer, from: myWebcellId });
+
+  addRecent(peerId, 'out');
+}
+
+async function handleOffer({ sdp, from }) {
+  if (callState !== 'idle') {
+    sendSignal(from, 'decline', { reason: 'busy' });
+    return;
+  }
+  callState = 'ringing';
+  remotePeerId = from;
+  showIncoming(from);
+}
+
+$('answerBtn').addEventListener('click', async () => {
+  if (callState !== 'ringing') return;
+  hideIncoming();
+
+  try {
+    await getMic();
+  } catch {
+    toast('Microphone access denied.');
+    sendSignal(remotePeerId, 'decline', { reason: 'no-mic' });
+    callState = 'idle'; return;
+  }
+
+  // Re-fetch the offer (stored in lastOffer)
+  callState = 'active';
+  createPeerConnection(remotePeerId);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  await pc.setRemoteDescription(new RTCSessionDescription(window._lastOffer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  sendSignal(remotePeerId, 'answer', { sdp: answer });
+  addRecent(remotePeerId, 'in');
+  showCallOverlay(remotePeerId, 'Connecting…', false);
+});
+
+$('declineBtn').addEventListener('click', () => {
+  if (callState !== 'ringing') return;
+  sendSignal(remotePeerId, 'decline', {});
+  hideIncoming();
+  callState = 'idle';
+  remotePeerId = null;
+});
+
+async function handleAnswer({ sdp }) {
+  if (!pc) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  callState = 'active';
+}
+
+async function handleIce({ candidate }) {
+  if (pc && candidate) {
+    try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+  }
+}
+
+function handleRemoteHangup() { endCall(true); }
+function handleDecline() {
+  toast('Call declined.');
+  endCall(false);
+}
+
+// Patch handleOffer to stash the SDP before showing incoming UI
+const _origHandleOffer = handleOffer;
+// reassign to store lastOffer
+window.handleOffer = async function({ sdp, from }) {
+  window._lastOffer = sdp;
+  await _origHandleOffer({ sdp, from });
+};
+// re-wire the channel to use the patched version
+function rewireChannel() {
+  if (!sigChannel) return;
+  // already wired via closure — _lastOffer is set in broadcast handler below
+}
+
+// ── Call UI ────────────────────────────────────────────────────────────────
+function showCallOverlay(peerId, state, ringing) {
+  $('callPeerLabel').textContent = '@' + peerId;
+  $('callState').textContent = state;
+  $('callTimer').textContent = '0:00';
+  $('callOrb').className = 'call-orb' + (ringing ? ' ringing' : '');
+  $('callOverlay').classList.add('show');
+}
+
+function showIncoming(from) {
+  $('incomingPeer').textContent = '@' + from;
+  $('incomingOverlay').classList.add('show');
+}
+function hideIncoming() { $('incomingOverlay').classList.remove('show'); }
+
+function startCallTimer() {
+  callSeconds = 0;
+  clearInterval(callTimer);
+  callTimer = setInterval(() => {
+    callSeconds++;
+    $('callTimer').textContent = fmtTimer(callSeconds);
+  }, 1000);
+}
+
+function endCall(notify) {
+  clearInterval(callTimer);
+  callTimer = null;
+
+  if (notify && remotePeerId) sendSignal(remotePeerId, 'hangup', {});
+
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  $('remoteAudio').srcObject = null;
+
+  // Update recent call duration
+  if (recentCalls[0] && !recentCalls[0].dur && callSeconds > 0) {
+    recentCalls[0].dur = callSeconds;
+    saveLocal();
+  }
+
+  $('callOverlay').classList.remove('show');
+  hideIncoming();
+  callState = 'idle';
+  remotePeerId = null;
+  setStatus('online');
+
+  if ($('recentList')) $('recentList').innerHTML = renderRecent();
+}
+
+// ── Mute / speaker ────────────────────────────────────────────────────────
+$('muteBtn').addEventListener('click', () => {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  $('muteBtn').classList.toggle('active', muted);
+  $('muteBtn').title = muted ? 'Unmute' : 'Mute';
+});
+
+$('speakerBtn').addEventListener('click', () => {
+  const audio = $('remoteAudio');
+  // toggle between speaker and earpiece on mobile where setSinkId is available
+  if (audio.setSinkId) {
+    toast('Speaker routing not available in this browser.');
+  } else {
+    toast('Speaker mode active by default.');
+  }
+  $('speakerBtn').classList.toggle('active');
+});
+
+$('hangupBtn').addEventListener('click', () => endCall(true));
+
+// ── Recent calls ──────────────────────────────────────────────────────────
+function addRecent(peer, dir) {
+  recentCalls.unshift({ peer, dir, ts: Date.now() });
+  saveLocal();
+}
+
+// ── Re-wire signaling to use window._lastOffer ─────────────────────────────
+// Override the original subscription to capture SDP before showing incoming UI
+function subscribeSignalingFixed() {
+  if (sigChannel) { sb.removeChannel(sigChannel); sigChannel = null; }
+  if (!myWebcellId) return;
+
+  sigChannel = sb.channel('webcell:' + myWebcellId, {
+    config: { broadcast: { self: false } }
+  });
+
+  sigChannel
+    .on('broadcast', { event: 'offer' }, ({ payload }) => {
+      window._lastOffer = payload.sdp;
+      handleOffer(payload);
+    })
+    .on('broadcast', { event: 'answer' }, ({ payload }) => handleAnswer(payload))
+    .on('broadcast', { event: 'ice' }, ({ payload }) => handleIce(payload))
+    .on('broadcast', { event: 'hangup' }, ({ payload }) => handleRemoteHangup(payload))
+    .on('broadcast', { event: 'decline' }, ({ payload }) => handleDecline(payload))
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') setStatus('online');
+    });
+}
+
+// Patch onAuthChange to use fixed subscribe
+const _origOnAuthChange = onAuthChange;
+// eslint-disable-next-line no-global-assign
+window.__patchedSubscribe = true;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+// Replace subscribeSignaling with fixed version
+(function boot() {
+  // override the function defined above
+  window.subscribeSignaling = subscribeSignalingFixed;
+
+  // patch onAuthChange to call fixed version
+  const origOnAuthChange = onAuthChange;
+  window.onAuthChange = function() {
+    const authBtn   = $('authBtn');
+    const avatarBtn = $('avatarBtn');
+    if (currentUser) {
+      myWebcellId = currentUser.email?.split('@')[0] ?? currentUser.id.slice(0,8);
+      authBtn.style.display   = 'none';
+      avatarBtn.style.display = '';
+      avatarBtn.textContent   = (currentUser.email || 'U')[0].toUpperCase();
+      avatarBtn.title         = currentUser.email + ' — click to sign out';
+      loadLocal();
+      subscribeSignalingFixed();
+    } else {
+      myWebcellId = null;
+      authBtn.style.display   = '';
+      avatarBtn.style.display = 'none';
+      if (sigChannel) { sb.removeChannel(sigChannel); sigChannel = null; }
+      setStatus('offline');
+    }
+    renderApp();
+  };
+
+  initAuth().then(() => {});
+})();
+</script>
 </body>
 </html>

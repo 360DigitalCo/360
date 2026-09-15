@@ -458,6 +458,12 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+    .notes-confirm-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; color: #f1f5f9; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; z-index: 110; opacity: 0; pointer-events: none; transition: .22s; white-space: nowrap; }
+    .notes-confirm-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .notes-confirm-bar .nc-ok { background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .notes-confirm-bar .nc-cancel { background: rgba(255,255,255,.1); color: #f1f5f9; border: none; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .notes-trash-restore { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(59,130,246,.1); color: var(--notes-accent); border: none; cursor: pointer; font-family: inherit; font-weight: 600; }
+    .notes-card.trashed { opacity: .6; }
 
     @media (max-width: 900px) {
       .notes-sidebar {
@@ -522,7 +528,7 @@
 <div class="notes-sidebar-section-label" style="margin-top:10px;">Other</div>
 <div class="notes-nav-item" data-view="trash">
 <span class="icon">🗑️</span>
-<span>Trash (future)</span>
+<span>Trash</span>
 </div>
 </aside>
 <main class="notes-main">
@@ -566,6 +572,11 @@
 </div>
 </div>
 <div class="notes-toast" id="notesToast"></div>
+<div class="notes-confirm-bar" id="notes-confirm-bar">
+  <span id="notes-confirm-msg"></span>
+  <button class="nc-ok" id="notes-confirm-ok">Delete</button>
+  <button class="nc-cancel" id="notes-confirm-cancel">Cancel</button>
+</div>
 <audio id="clickSound" preload="auto" src="click-sound.mp3"></audio>
 <script src="/assets/js/main.js"></script>
 <script src="/assets/js/wide.js"></script>
@@ -606,6 +617,16 @@
       notesToast.textContent = msg;
       notesToast.classList.add('show');
       setTimeout(() => notesToast.classList.remove('show'), dur);
+    }
+
+    let _notesConfirmResolve = null;
+    const _notesConfirmBar = document.getElementById('notes-confirm-bar');
+    document.getElementById('notes-confirm-ok').addEventListener('click', () => { _notesConfirmBar.classList.remove('show'); if (_notesConfirmResolve) { _notesConfirmResolve(true); _notesConfirmResolve = null; } });
+    document.getElementById('notes-confirm-cancel').addEventListener('click', () => { _notesConfirmBar.classList.remove('show'); if (_notesConfirmResolve) { _notesConfirmResolve(false); _notesConfirmResolve = null; } });
+    function notesConfirm(msg) {
+      document.getElementById('notes-confirm-msg').textContent = msg;
+      _notesConfirmBar.classList.add('show');
+      return new Promise(res => { _notesConfirmResolve = res; });
     }
 
     async function initAuth() {
@@ -664,9 +685,13 @@
       let notes = [...allNotes];
 
       if (activeView === 'favorites') {
-        notes = notes.filter(n => n.is_favorite);
+        notes = notes.filter(n => n.is_favorite && !n.deleted_at);
       } else if (activeView === 'recent') {
-        notes = notes.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+        notes = notes.filter(n => !n.deleted_at).sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+      } else if (activeView === 'trash') {
+        notes = notes.filter(n => !!n.deleted_at);
+      } else {
+        notes = notes.filter(n => !n.deleted_at);
       }
 
       if (searchQuery) {
@@ -713,21 +738,37 @@
           renderNotes();
         });
       });
+      notesGrid.querySelectorAll('[data-restore]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.restore;
+          const { error } = await sb.from('notes').update({ deleted_at: null }).eq('id', id);
+          if (error) { showToast('⚠️ Could not restore note.'); return; }
+          const note = allNotes.find(nn => nn.id === id);
+          if (note) note.deleted_at = null;
+          showToast('↩ Note restored.');
+          renderNotes();
+        });
+      });
     }
 
     function noteCard(n) {
       const snippet = (n.body || '').slice(0, 160);
+      const inTrash = !!n.deleted_at;
       return `
-        <div class="notes-card" data-id="${n.id}">
+        <div class="notes-card${inTrash ? ' trashed' : ''}" data-id="${n.id}">
           <div class="notes-card-title">
             ${escHtml(n.title || 'Untitled')}
-            <span class="notes-card-star" data-star="${n.id}" title="${n.is_favorite ? 'Unfavorite' : 'Favorite'}" style="float:right;cursor:pointer;opacity:${n.is_favorite ? '1' : '.35'};">★</span>
+            ${inTrash
+              ? `<button class="notes-trash-restore" data-restore="${n.id}" title="Restore">↩ Restore</button>`
+              : `<span class="notes-card-star" data-star="${n.id}" title="${n.is_favorite ? 'Unfavorite' : 'Favorite'}" style="float:right;cursor:pointer;opacity:${n.is_favorite ? '1' : '.35'};">★</span>`
+            }
           </div>
           <div class="notes-card-snippet">
             ${escHtml(snippet)}${n.body && n.body.length > 160 ? '…' : ''}
           </div>
           <div class="notes-card-meta">
-            <span>${timeAgo(n.updated_at)}</span>
+            <span>${inTrash ? 'Deleted ' : ''}${timeAgo(inTrash ? n.deleted_at : n.updated_at)}</span>
             <span>${n.is_html ? 'HTML' : 'Text'}</span>
           </div>
         </div>
@@ -882,18 +923,19 @@
         closeModal();
         return;
       }
-      if (!confirm('Delete this note?')) return;
+      if (!await notesConfirm('Move this note to Trash?')) return;
 
       const id = currentNote.id;
-      const { error } = await sb.from('notes').delete().eq('id', id);
+      const now = new Date().toISOString();
+      const { error } = await sb.from('notes').update({ deleted_at: now }).eq('id', id);
       if (error) {
-        console.log(error);
         showToast('⚠️ Failed to delete note.');
         return;
       }
 
-      allNotes = allNotes.filter(n => n.id !== id);
-      showToast('🗑 Note deleted.');
+      const note = allNotes.find(n => n.id === id);
+      if (note) note.deleted_at = now;
+      showToast('🗑 Moved to Trash.');
       closeModal();
       renderNotes();
     }

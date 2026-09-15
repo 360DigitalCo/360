@@ -54,6 +54,11 @@
 
     .draw-toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:#fff; color:#0a0a0a; padding:10px 18px; border-radius:10px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:400; font-weight:600; }
     .draw-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .draw-confirm { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:#1e2433; color:#f1f5f9; padding:12px 16px; border-radius:12px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:401; border:1px solid rgba(255,255,255,.12); display:flex; align-items:center; gap:10px; white-space:nowrap; }
+    .draw-confirm.show { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+    .draw-confirm button { padding:5px 12px; border-radius:8px; border:none; font-size:12px; cursor:pointer; font-family:inherit; font-weight:600; }
+    .draw-confirm .dc-ok { background:#ef4444; color:#fff; }
+    .draw-confirm .dc-cancel { background:rgba(255,255,255,.1); color:#f1f5f9; }
   </style>
 <meta content="360Draw is part of 360 Digital. Explore its features and use it online through the 360 platform." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360Draw" property="og:title"/><meta content="360Draw is part of 360 Digital. Explore its features and use it online through the 360 platform." property="og:description"/><meta content="https://360-search.com/apps/360Draw.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360Draw" name="twitter:title"/><meta content="360Draw is part of 360 Digital. Explore its features and use it online through the 360 platform." name="twitter:description"/><link href="https://360-search.com/apps/360Draw.html" rel="canonical"/></head>
 <body>
@@ -110,6 +115,11 @@
 </div>
 </div>
 <div class="draw-toast" id="draw-toast"></div>
+<div class="draw-confirm" id="draw-confirm">
+  <span id="draw-confirm-msg"></span>
+  <button class="dc-ok" id="draw-confirm-ok">Yes</button>
+  <button class="dc-cancel" id="draw-confirm-cancel">Cancel</button>
+</div>
 <script>
     const SUPABASE_URL  = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
@@ -140,6 +150,13 @@
     let undone = [];
 
     function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2200); }
+
+    const confirmEl = document.getElementById('draw-confirm');
+    const confirmMsg = document.getElementById('draw-confirm-msg');
+    let confirmResolve = null;
+    document.getElementById('draw-confirm-ok').addEventListener('click', () => { confirmEl.classList.remove('show'); if (confirmResolve) { confirmResolve(true); confirmResolve = null; } });
+    document.getElementById('draw-confirm-cancel').addEventListener('click', () => { confirmEl.classList.remove('show'); if (confirmResolve) { confirmResolve(false); confirmResolve = null; } });
+    function drawConfirm(msg) { confirmMsg.textContent = msg; confirmEl.classList.add('show'); return new Promise(res => { confirmResolve = res; }); }
 
     // ── Color swatches ──
     const PALETTE = ['#111111', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#7b5cff', '#ec4899'];
@@ -282,9 +299,9 @@
       actions.push(undone.pop());
       redrawAll();
     });
-    document.getElementById('clear-btn').addEventListener('click', () => {
+    document.getElementById('clear-btn').addEventListener('click', async () => {
       if (!actions.length) return;
-      if (!confirm('Clear the whole canvas? You can still undo after.')) return;
+      if (!await drawConfirm('Clear canvas? You can still undo.')) return;
       undone = [];
       actions = [];
       redrawAll();
@@ -334,7 +351,7 @@
       const delId = e.target.dataset.del;
       if (delId) {
         e.stopPropagation();
-        if (!confirm('Delete this drawing?')) return;
+        if (!await drawConfirm('Delete this drawing?')) return;
         await sb.from('drawings').delete().eq('id', delId).eq('user_id', currentUser.id);
         if (currentDrawingId === delId) { currentDrawingId = null; }
         loadDrawingsList();

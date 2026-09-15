@@ -398,6 +398,23 @@
     .ac-act-row:last-child { border-bottom:none; }
     .ac-act-event { font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .ac-act-time  { font-size:11.5px; color:var(--mut); flex-shrink:0; }
+
+    .ac-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
+    .ac-modal-overlay.show { display:flex; }
+    .ac-modal { background:#fff; border-radius:16px; padding:24px; width:100%; max-width:380px; display:flex; flex-direction:column; gap:14px; }
+    body.dark .ac-modal { background:#111827; border:1px solid rgba(255,255,255,.1); }
+    .ac-modal h3 { font-size:16px; font-weight:700; margin:0; }
+    .ac-modal p { font-size:13px; color:var(--mut); margin:0; line-height:1.55; }
+    body.dark .ac-modal p { color:var(--mutd); }
+    .ac-modal input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--br); background:transparent; color:var(--txt); font-size:14px; font-family:inherit; outline:none; box-sizing:border-box; }
+    body.dark .ac-modal input { color:var(--txtd); border-color:rgba(255,255,255,.15); }
+    .ac-modal input:focus { border-color:var(--a); }
+    .ac-modal-btns { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+    .ac-modal-btns button { padding:8px 16px; border-radius:10px; border:none; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .ac-modal-btns .am-cancel { background:rgba(148,163,184,.15); color:var(--txt); }
+    body.dark .ac-modal-btns .am-cancel { color:var(--txtd); background:rgba(255,255,255,.08); }
+    .ac-modal-btns .am-ok { background:var(--a); color:#fff; }
+    .ac-modal-btns .am-danger { background:#ef4444; color:#fff; }
   </style>
 <meta content="360  Account — part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="360 — Account" property="og:title"/><meta content="360  Account — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/account.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 — Account" name="twitter:title"/><meta content="360  Account — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/account.html" rel="canonical"/></head>
 <body>
@@ -1369,7 +1386,7 @@
 
       // Sign out all sessions
       document.getElementById('signOutAllBtn').onclick = async()=>{
-        if(!confirm('Sign out of all devices?')) return;
+        if(!await acConfirm('Sign out of all devices?', 'You will be signed out everywhere.', 'Sign out all', true)) return;
         await sb.auth.signOut({scope:'global'});
         sessionStorage.removeItem('360_auth_redirect');
         location.href='/';
@@ -1423,10 +1440,10 @@
 
       // Delete account
       document.getElementById('deleteAccountBtn').onclick = async()=>{
-        const conf = prompt('Type DELETE to confirm permanent account deletion:');
+        const conf = await acPrompt('Delete account permanently?', 'This cannot be undone. Type DELETE to confirm.', 'DELETE');
         if(conf !== 'DELETE') return;
         const {error} = await sb.from('profiles').update({account_deleted:true, account_deleted_at:new Date().toISOString()}).eq('id',user.id);
-        if(error){ alert(error.message); return; }
+        if(error){ await acConfirm('Could not delete account', error.message, 'OK', false); return; }
         await sb.auth.signOut();
         location.href='/';
       };
@@ -1455,7 +1472,7 @@
 
       const clearBtn = document.getElementById('clearHistoryBtn');
       if(clearBtn) clearBtn.onclick = async()=>{
-        if(!confirm('Clear all search history?')) return;
+        if(!await acConfirm('Clear all search history?', '', 'Clear', true)) return;
         await sb.from('search_history').delete().eq('user_id',user.id);
         if(histEl) histEl.innerHTML='<span style="color:var(--mut);font-size:13px;">Cleared.</span>';
       };
@@ -1535,7 +1552,7 @@
         } else if(!toggle.checked && activeFactor){
           toggle.checked = true; // stays on until user confirms
           const factorId = activeFactor.id;
-          if(!confirm('Turn off two-factor authentication for your account?')) { toggle.checked = true; return; }
+          if(!await acConfirm('Turn off two-factor authentication?', 'Your account will be less secure without 2FA.', 'Turn off', true)) { toggle.checked = true; return; }
           toggle.disabled = true;
           const { error } = await sb.auth.mfa.unenroll({ factorId });
           toggle.disabled = false;
@@ -1654,5 +1671,53 @@
     })();
   </script>
   <script src="/assets/js/emoji.js" defer></script>
+  <div class="ac-modal-overlay" id="ac-modal-overlay">
+    <div class="ac-modal" id="ac-modal">
+      <h3 id="ac-modal-title"></h3>
+      <p id="ac-modal-body" style="display:none;"></p>
+      <input id="ac-modal-input" style="display:none;" type="text"/>
+      <div class="ac-modal-btns">
+        <button class="am-cancel" id="ac-modal-cancel">Cancel</button>
+        <button class="am-ok" id="ac-modal-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      const overlay   = document.getElementById('ac-modal-overlay');
+      const titleEl   = document.getElementById('ac-modal-title');
+      const bodyEl    = document.getElementById('ac-modal-body');
+      const inputEl   = document.getElementById('ac-modal-input');
+      const okBtn     = document.getElementById('ac-modal-ok');
+      const cancelBtn = document.getElementById('ac-modal-cancel');
+      let _resolve = null;
+
+      function closeModal(val){ overlay.classList.remove('show'); if(_resolve){ _resolve(val); _resolve=null; } }
+      okBtn.addEventListener('click', () => closeModal(inputEl.style.display==='none' ? true : inputEl.value));
+      cancelBtn.addEventListener('click', () => closeModal(null));
+      overlay.addEventListener('click', e => { if(e.target===overlay) closeModal(null); });
+      inputEl.addEventListener('keydown', e => { if(e.key==='Enter') closeModal(inputEl.value); if(e.key==='Escape') closeModal(null); });
+
+      window.acConfirm = function(title, body, okLabel, danger){
+        titleEl.textContent = title;
+        bodyEl.textContent = body || ''; bodyEl.style.display = body ? '' : 'none';
+        inputEl.style.display = 'none';
+        okBtn.textContent = okLabel || 'Confirm';
+        okBtn.className = danger ? 'am-danger' : 'am-ok';
+        overlay.classList.add('show');
+        return new Promise(res => { _resolve = res; });
+      };
+      window.acPrompt = function(title, body, placeholder){
+        titleEl.textContent = title;
+        bodyEl.textContent = body || ''; bodyEl.style.display = body ? '' : 'none';
+        inputEl.value = ''; inputEl.placeholder = placeholder || '';
+        inputEl.style.display = '';
+        okBtn.textContent = 'Confirm'; okBtn.className = 'am-danger';
+        overlay.classList.add('show');
+        setTimeout(() => inputEl.focus(), 50);
+        return new Promise(res => { _resolve = res; });
+      };
+    })();
+  </script>
 </body>
 </html>

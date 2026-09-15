@@ -660,6 +660,55 @@
 </div>
 </main>
 </div>
+<!-- ── Manage Playlist Visibility Modal ── -->
+<div class="vids-modal-overlay" id="manageVisOverlay">
+<div class="vids-modal" style="max-width:380px;">
+<h2 id="manageVisTitle">Playlist visibility</h2>
+<p id="manageVisDesc" style="font-size:13px;opacity:.7;margin-bottom:20px;line-height:1.5;"></p>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<button class="vids-upload-btn" id="manageVisPublic" style="padding:10px 20px;font-size:13px;">🌐 Make public</button>
+<button class="vids-action-btn" id="manageVisPrivate" style="padding:10px 16px;font-size:13px;border:1px solid var(--vid-border);">🔒 Keep private</button>
+<button class="vids-action-btn" id="manageVisCancel" style="padding:8px 16px;font-size:13px;opacity:.6;">Cancel</button>
+</div>
+</div>
+</div>
+<!-- ── Playlist Name Modal ── -->
+<div class="vids-modal-overlay" id="playlistNameOverlay">
+<div class="vids-modal" style="max-width:360px;">
+<h2>New Playlist</h2>
+<div class="vids-field">
+<label>Name</label>
+<input id="playlistNameInput" maxlength="80" placeholder="My Playlist" type="text"/>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="vids-action-btn" id="playlistNameCancel" style="padding:8px 16px;">Cancel</button>
+<button class="vids-upload-btn" id="playlistNameOk" style="padding:8px 20px;font-size:13px;">Create</button>
+</div>
+</div>
+</div>
+<!-- ── Collaborators Modal ── -->
+<div class="vids-modal-overlay" id="collabOverlay">
+<div class="vids-modal" style="max-width:400px;">
+<h2>Collaborators</h2>
+<p style="font-size:13px;opacity:.7;margin-bottom:14px;">Comma-separated usernames who can add/remove tracks.</p>
+<div class="vids-field">
+<label>Usernames</label>
+<input id="collabInput" placeholder="alice, bob, carol" type="text"/>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="vids-action-btn" id="collabCancel" style="padding:8px 16px;">Cancel</button>
+<button class="vids-upload-btn" id="collabOk" style="padding:8px 20px;font-size:13px;">Save</button>
+</div>
+</div>
+</div>
+<!-- ── Add to Playlist Modal ── -->
+<div class="vids-modal-overlay" id="addToPlaylistOverlay">
+<div class="vids-modal" style="max-width:360px;">
+<h2>Add to Playlist</h2>
+<div id="addToPlaylistList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;max-height:260px;overflow-y:auto;"></div>
+<button class="vids-action-btn" id="addToPlaylistCancel" style="padding:8px 16px;width:100%;">Cancel</button>
+</div>
+</div>
 <!-- ── Upload Modal ── -->
 <div class="vids-modal-overlay" id="uploadOverlay">
 <div class="vids-modal">
@@ -781,14 +830,14 @@
 <button class="vids-action-btn" id="shareBtn">🔗 Share</button>
 <button class="vids-action-btn" id="downloadBtn">⬇️ Download</button>
 <button class="vids-action-btn" id="moreLikeBtn" title="More like this">
-<svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="13"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"></path></svg>
+<svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="13"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"></path></svg>
             More like this
           </button>
 </div>
 <div class="vids-watch-desc" id="watchDesc"></div>
 <details open="" style="margin-top:12px;">
 <summary style="font-size:13px;font-weight:600;cursor:pointer;color:var(--vid-mut);user-select:none;list-style:none;display:flex;align-items:center;gap:6px;">
-<svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="13"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+<svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="13"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
             Lyrics
           </summary>
 <div id="lyricsPanel" style="max-height:200px;overflow-y:auto;margin-top:6px;padding:4px 0;"></div>
@@ -1688,6 +1737,90 @@
       setTimeout(() => toast.classList.remove('show'), dur);
     }
 
+    // ── Inline modals (replaces prompt/confirm) ───────────────────────────────
+    let _plNameResolve = null;
+    const plNameOverlay = document.getElementById('playlistNameOverlay');
+    const plNameInput   = document.getElementById('playlistNameInput');
+    document.getElementById('playlistNameOk').addEventListener('click', () => {
+      const v = plNameInput.value.trim(); plNameOverlay.classList.remove('open');
+      if (_plNameResolve) { _plNameResolve(v || null); _plNameResolve = null; }
+    });
+    document.getElementById('playlistNameCancel').addEventListener('click', () => {
+      plNameOverlay.classList.remove('open');
+      if (_plNameResolve) { _plNameResolve(null); _plNameResolve = null; }
+    });
+    plNameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('playlistNameOk').click();
+      if (e.key === 'Escape') document.getElementById('playlistNameCancel').click();
+    });
+    function promptPlaylistName(initial) {
+      plNameInput.value = initial || 'My Playlist';
+      plNameOverlay.classList.add('open');
+      setTimeout(() => plNameInput.focus(), 50);
+      return new Promise(res => { _plNameResolve = res; });
+    }
+
+    let _collabResolve = null;
+    const collabOverlay = document.getElementById('collabOverlay');
+    const collabInput   = document.getElementById('collabInput');
+    document.getElementById('collabOk').addEventListener('click', () => {
+      const v = collabInput.value; collabOverlay.classList.remove('open');
+      if (_collabResolve) { _collabResolve(v); _collabResolve = null; }
+    });
+    document.getElementById('collabCancel').addEventListener('click', () => {
+      collabOverlay.classList.remove('open');
+      if (_collabResolve) { _collabResolve(null); _collabResolve = null; }
+    });
+    collabInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('collabOk').click();
+      if (e.key === 'Escape') document.getElementById('collabCancel').click();
+    });
+    function promptCollaborators(initial) {
+      collabInput.value = initial || '';
+      collabOverlay.classList.add('open');
+      setTimeout(() => collabInput.focus(), 50);
+      return new Promise(res => { _collabResolve = res; });
+    }
+
+    let _atpResolve = null;
+    const atpOverlay = document.getElementById('addToPlaylistOverlay');
+    const atpList    = document.getElementById('addToPlaylistList');
+    document.getElementById('addToPlaylistCancel').addEventListener('click', () => {
+      atpOverlay.classList.remove('open');
+      if (_atpResolve) { _atpResolve(null); _atpResolve = null; }
+    });
+    function promptAddToPlaylist(playlists) {
+      atpList.innerHTML = playlists.map((p, i) =>
+        `<button data-idx="${i}" style="text-align:left;padding:10px 14px;border-radius:10px;border:1px solid var(--vid-border);background:var(--vid-bg);color:var(--vid-txt);font-size:14px;cursor:pointer;font-family:inherit;">${p.title}</button>`
+      ).join('') +
+      `<button data-idx="new" style="text-align:left;padding:10px 14px;border-radius:10px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.08);color:var(--vid-accent);font-size:14px;cursor:pointer;font-family:inherit;">+ New playlist</button>`;
+      atpList.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          atpOverlay.classList.remove('open');
+          if (_atpResolve) { _atpResolve(btn.dataset.idx); _atpResolve = null; }
+        });
+      });
+      atpOverlay.classList.add('open');
+      return new Promise(res => { _atpResolve = res; });
+    }
+
+    // visibility modal (replaces the confirm in managePlaylist)
+    let _manageVisResolve = null;
+    const manageVisOverlay = document.getElementById('manageVisOverlay');
+    document.getElementById('manageVisPublic').addEventListener('click', () => { manageVisOverlay.classList.remove('open'); if (_manageVisResolve) { _manageVisResolve(true); _manageVisResolve = null; } });
+    document.getElementById('manageVisPrivate').addEventListener('click', () => { manageVisOverlay.classList.remove('open'); if (_manageVisResolve) { _manageVisResolve(false); _manageVisResolve = null; } });
+    document.getElementById('manageVisCancel').addEventListener('click', () => { manageVisOverlay.classList.remove('open'); if (_manageVisResolve) { _manageVisResolve(null); _manageVisResolve = null; } });
+    function promptVisibility(pl) {
+      document.getElementById('manageVisTitle').textContent = pl.title;
+      document.getElementById('manageVisDesc').textContent = pl.is_public_editable
+        ? 'This playlist is currently public — anyone can add tracks. Switch to private (collaborators only)?'
+        : 'This playlist is currently private. Make it public so anyone can add tracks?';
+      document.getElementById('manageVisPublic').style.display = pl.is_public_editable ? 'none' : '';
+      document.getElementById('manageVisPrivate').textContent = pl.is_public_editable ? '🔒 Make private' : '🔒 Keep private';
+      manageVisOverlay.classList.add('open');
+      return new Promise(res => { _manageVisResolve = res; });
+    }
+
     // ── Card rendering ────────────────────────────────────────────────────────
     function trackCard(t) {
       const ago    = timeAgo(t.created_at);
@@ -1785,15 +1918,19 @@
       });
     }
 
-    async function createPlaylist() {
-      if (!currentUser) { showToast('Sign in to create playlists.'); return; }
-      const title = prompt('Playlist name:', 'My Playlist');
-      if (!title) return;
+    async function _doCreatePlaylist(title) {
       const { data, error } = await sb.from('playlists').insert({ user_id: currentUser.id, title, username: currentUser.email?.split('@')[0] }).select().single();
-      if (error) { showToast('⚠️ ' + error.message); return; }
+      if (error) { showToast('⚠️ ' + error.message); return null; }
       showToast('✅ Playlist created.');
       await fetchPlaylists(); renderPlaylistsGrid();
-      openPlaylist(data.id);
+      return data;
+    }
+    async function createPlaylist() {
+      if (!currentUser) { showToast('Sign in to create playlists.'); return; }
+      const title = await promptPlaylistName('My Playlist');
+      if (!title) return;
+      const pl = await _doCreatePlaylist(title);
+      if (pl) openPlaylist(pl.id);
     }
 
     async function openPlaylist(id) {
@@ -1843,7 +1980,9 @@
     }
 
     async function managePlaylist(pl) {
-      const makePublic = confirm(`"${pl.title}" is currently ${pl.is_public_editable ? 'PUBLIC (anyone can add tracks)' : 'private (only you + collaborators can add tracks)'}.\n\nOK = make it public-editable\nCancel = keep it private (collaborator-only)`);
+      const choice = await promptVisibility(pl);
+      if (choice === null) return; // cancelled
+      const makePublic = choice === true;
       await sb.from('playlists').update({ is_public_editable: makePublic }).eq('id', pl.id);
       if (!makePublic) {
         const { data: existing } = await sb.from('playlist_collaborators').select('user_id').eq('playlist_id', pl.id);
@@ -1851,7 +1990,7 @@
           ? await sb.from('profiles').select('id,username').in('id', existing.map(r => r.user_id))
           : { data: [] };
         const names = (collabProfiles || []).map(p => p.username);
-        const input = prompt('Collaborator usernames (comma separated) who can add/remove tracks:', names.filter(Boolean).join(', '));
+        const input = await promptCollaborators(names.filter(Boolean).join(', '));
         if (input !== null) {
           await sb.from('playlist_collaborators').delete().eq('playlist_id', pl.id);
           for (const un of input.split(',').map(s=>s.trim()).filter(Boolean)) {
@@ -1872,16 +2011,19 @@
       const editableOnes = [];
       for (const p of allPlaylists) if (await canEditPlaylist(p)) editableOnes.push(p);
       if (!editableOnes.length) {
-        if (confirm('You have no editable playlists yet. Create one now?')) { await createPlaylist(); if (currentPlaylistId) await sb.from('playlist_tracks').insert({ playlist_id: currentPlaylistId, track_id: currentTrack.id, added_by: currentUser.id }); }
+        const name = await promptPlaylistName('My Playlist');
+        if (name) { const pl2 = await _doCreatePlaylist(name); if (pl2) await sb.from('playlist_tracks').insert({ playlist_id: pl2.id, track_id: currentTrack.id, added_by: currentUser.id }); }
         return;
       }
-      const list = editableOnes.map((p,i)=>`${i+1}. ${p.title}`).join('\n');
-      const choice = prompt(`Add "${currentTrack.title}" to which playlist?\n${list}\n\nEnter a number, or 0 for a new playlist:`, '1');
+      const choice = await promptAddToPlaylist(editableOnes);
       if (choice === null) return;
-      const idx = parseInt(choice, 10);
-      if (idx === 0) { await createPlaylist(); if (currentPlaylistId) { await sb.from('playlist_tracks').insert({ playlist_id: currentPlaylistId, track_id: currentTrack.id, added_by: currentUser.id }); showToast('✅ Added.'); } return; }
-      const target = editableOnes[idx-1];
-      if (!target) { showToast('Invalid choice.'); return; }
+      if (choice === 'new') {
+        const name = await promptPlaylistName('My Playlist');
+        if (name) { const pl2 = await _doCreatePlaylist(name); if (pl2) { await sb.from('playlist_tracks').insert({ playlist_id: pl2.id, track_id: currentTrack.id, added_by: currentUser.id }); showToast('✅ Added.'); } }
+        return;
+      }
+      const target = editableOnes[parseInt(choice, 10)];
+      if (!target) return;
       const { error } = await sb.from('playlist_tracks').insert({ playlist_id: target.id, track_id: currentTrack.id, added_by: currentUser.id });
       if (error && error.code !== '23505') { showToast('⚠️ ' + error.message); return; }
       showToast(error ? 'Already in that playlist.' : `✅ Added to "${target.title}"`);
