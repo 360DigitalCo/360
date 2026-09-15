@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Current Account</title>
+
+<link rel="stylesheet" href="main.css">
+
+</head>
+
+
+<body>
+
+
+<section class="card glass">
+
+
+<h1>
+Current
+</h1>
+
+
+<p>
+Create your account or sign in.
+</p>
+
+
+
+<input id="username"
+placeholder="Username">
+
+
+
+<input id="email"
+type="email"
+placeholder="Security email">
+
+
+
+<input id="password"
+type="password"
+placeholder="Password">
+
+
+
+<button class="button" id="signup">
+<span>Create account</span>
+</button>
+
+
+
+<button class="button secondary" id="login">
+<span>Sign in</span>
+</button>
+
+
+
+<p id="status"></p>
+
+
+</section>
+
+
+
+
+<script type="module">
+
+
+import {supabase} from "./supabase.js";
+
+
+
+const status =
+document.getElementById("status");
+
+
+
+
+
+async function createProfile(user,username,email){
+
+
+const {error}=await supabase
+.from("current_profiles")
+.insert({
+
+id:user.id,
+
+username,
+
+security_email:email,
+
+display_name:username
+
+});
+
+
+
+if(error){
+
+console.error(error);
+
+}
+
+
+
+await supabase
+.from("current_settings")
+.insert({
+
+user_id:user.id,
+
+theme:"light",
+
+accent:"#18a96b"
+
+});
+
+
+}
+
+
+
+
+
+document
+.getElementById("signup")
+.onclick=async()=>{
+
+
+const username=
+document.getElementById("username").value;
+
+
+const email=
+document.getElementById("email").value;
+
+
+const password=
+document.getElementById("password").value;
+
+
+
+
+// auth.users requires an email internally
+// this email is only for security
+
+const {
+
+data,
+
+error
+
+}=await supabase.auth.signUp({
+
+email,
+
+password,
+
+options:{
+
+data:{
+
+username
+
+}
+
+}
+
+});
+
+
+
+if(error){
+
+status.textContent=
+error.message;
+
+return;
+
+}
+
+
+
+await createProfile(
+data.user,
+username,
+email
+);
+
+
+
+status.textContent=
+"Account created. Check your security email.";
+
+};
+
+
+
+
+
+
+
+document
+.getElementById("login")
+.onclick=async()=>{
+
+
+const username=
+document.getElementById("username").value;
+
+
+
+const {
+
+data:profile
+
+}=await supabase
+.from("current_profiles")
+.select("*")
+.eq(
+"username",
+username
+)
+.single();
+
+
+
+if(!profile){
+
+status.textContent=
+"Account not found.";
+
+return;
+
+}
+
+
+
+
+const {
+
+data,
+
+error
+
+}=await supabase.auth.signInWithPassword({
+
+email:
+profile.security_email,
+
+password:
+document.getElementById("password").value
+
+});
+
+
+
+if(error){
+
+status.textContent=
+error.message;
+
+return;
+
+}
+
+
+
+location.href="main.html";
+
+
+};
+
+
+
+
+</script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Current | Private messaging</title>
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<nav class="glass">
+  <div class="brand"><span>◉</span> Current</div>
+  <div class="nav-actions">
+    <button class="button ghost sm ripple-btn" id="theme"><span>Theme</span></button>
+    <button class="button sm ripple-btn" id="open-signin"><span>Sign in</span></button>
+    <button class="button accent sm ripple-btn" id="open-signup"><span>Create account</span></button>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>Private conversations.<br>Your way.</h1>
+      <p>End-to-end encrypted messaging. No email required. Your keys never leave your device.</p>
+      <div class="e2ee-badge" style="display:inline-flex;margin-bottom:24px;">🔐 E2EE · No email · Open source</div>
+      <div class="actions">
+        <button class="button accent ripple-btn" id="hero-signup"><span>Create account</span></button>
+        <button class="button secondary ripple-btn" id="hero-signin"><span>Sign in</span></button>
+      </div>
+    </div>
+
+    <div class="phone glass">
+      <div class="phone-header">
+        <div class="avatar" style="background:linear-gradient(135deg,#18a96b,#064f32)">A</div>
+        <div><strong>Alex</strong><br><small style="color:var(--muted)">online</small></div>
+        <span class="e2ee-badge" style="margin-left:auto;font-size:10px;">🔐 E2EE</span>
+      </div>
+      <div id="phone-messages"></div>
+      <div id="typing" class="typing" style="margin-top:10px;padding:6px 0;display:none">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="feature-grid">
+    <section class="card glass">
+      <h2>🔐 True E2EE</h2>
+      <p style="color:var(--muted);font-size:14px;margin-top:8px;line-height:1.6">AES-256-GCM messages. Keys derived from ECDH P-256 pairs stored only in your browser. Server never sees plaintext.</p>
+    </section>
+    <section class="card glass">
+      <h2>👤 No email needed</h2>
+      <p style="color:var(--muted);font-size:14px;margin-top:8px;line-height:1.6">Sign up with just a username and password. Account recovery via a one-time code shown at signup — save it somewhere safe.</p>
+    </section>
+    <section class="card glass">
+      <h2>💨 Disappearing messages</h2>
+      <p style="color:var(--muted);font-size:14px;margin-top:8px;line-height:1.6">Set messages to vanish after 5 seconds, 1 minute, 1 hour, or 1 week.</p>
+    </section>
+    <section class="card glass">
+      <h2>🔑 Key backup</h2>
+      <p style="color:var(--muted);font-size:14px;margin-top:8px;line-height:1.6">Export a password-encrypted key backup. Restore on any device without trusting the server.</p>
+    </section>
+  </div>
+</main>
+
+<!-- ── Sign Up Modal ── -->
+<div class="modal-backdrop" id="signup-modal" style="display:none">
+  <div class="modal">
+    <h2>Create account</h2>
+    <p>No email required. Pick a username and password.</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="su-username" placeholder="e.g. alex_p" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="su-password" placeholder="Min 8 characters" autocomplete="new-password">
+    </div>
+    <div id="su-error" class="error-msg"></div>
+    <div class="modal-actions">
+      <button class="button ghost" id="su-cancel"><span>Cancel</span></button>
+      <button class="button accent" id="su-submit"><span>Create account</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Sign In Modal ── -->
+<div class="modal-backdrop" id="signin-modal" style="display:none">
+  <div class="modal">
+    <h2>Sign in</h2>
+    <p>Welcome back.</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="si-username" placeholder="your_username" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="si-password" autocomplete="current-password">
+    </div>
+    <div id="si-error" style="font-size:13px;margin-top:6px;"></div>
+    <div class="modal-actions" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <button class="button ghost sm" id="si-forgot"><span>Forgot password?</span></button>
+      <div style="display:flex;gap:8px">
+        <button class="button ghost" id="si-cancel"><span>Cancel</span></button>
+        <button class="button accent" id="si-submit"><span>Sign in</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recovery Modal ── -->
+<div class="modal-backdrop" id="recovery-modal" style="display:none">
+  <div class="modal">
+    <h2>🔑 Recover account</h2>
+    <p>Enter your username, the recovery code shown at signup, and a new password.</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="rec-username" placeholder="your_username" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="form-group">
+      <label>Recovery code</label>
+      <input type="text" id="rec-code" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="font-family:monospace;letter-spacing:.05em">
+    </div>
+    <div class="form-group">
+      <label>New password</label>
+      <input type="password" id="rec-newpassword" placeholder="Min 8 characters" autocomplete="new-password">
+    </div>
+    <div id="rec-error" style="font-size:13px;margin-top:6px;"></div>
+    <div class="modal-actions">
+      <button class="button ghost" id="rec-cancel"><span>Cancel</span></button>
+      <button class="button accent" id="rec-submit"><span>Recover account</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recovery Code Display (shown once after signup) ── -->
+<div class="modal-backdrop" id="recovery-code-modal" style="display:none">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:40px;margin-bottom:8px">🔑</div>
+    <h2>Save your recovery code</h2>
+    <p>This is shown <strong>once only</strong>. If you forget your password, this is the only way to recover your account. Store it somewhere safe.</p>
+    <div style="background:var(--msg-in);border-radius:14px;padding:18px;margin:16px 0;font-family:monospace;font-size:15px;font-weight:700;letter-spacing:.08em;word-break:break-all;line-height:1.8" id="rc-code"></div>
+    <div class="modal-actions" style="justify-content:center;gap:10px">
+      <button class="button ghost" id="rc-copy"><span>📋 Copy code</span></button>
+      <button class="button accent" id="rc-done"><span>I've saved it →</span></button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="landing.js"></script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Current — Settings</title>
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<nav class="glass">
+  <div class="brand"><span>◉</span> Settings</div>
+  <div class="nav-actions">
+    <a href="main.html" class="button ghost sm"><span>← Back</span></a>
+  </div>
+</nav>
+
+<div class="settings-layout">
+
+  <!-- Account -->
+  <section class="settings-section glass">
+    <h2>Account</h2>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong id="s-username">—</strong>
+        <span id="s-email">—</span>
+      </div>
+      <div class="avatar" id="s-avatar" style="width:46px;height:46px;font-size:18px"></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Display name</strong>
+        <span>Shown to contacts</span>
+      </div>
+      <input type="text" id="display-name-input" style="width:160px;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:13px;outline:none;text-align:right">
+    </div>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Phone number</strong>
+        <span>Optional · Used for account recovery</span>
+      </div>
+      <input type="tel" id="phone-input" style="width:180px;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:13px;outline:none;text-align:right" placeholder="+1 555 000 0000">
+    </div>
+    <div style="text-align:right;margin-top:12px">
+      <button class="button accent sm" id="save-profile"><span>Save changes</span></button>
+    </div>
+  </section>
+
+  <!-- Privacy -->
+  <section class="settings-section glass">
+    <h2>Privacy</h2>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Read receipts</strong>
+        <span>Let others know you've seen their messages</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-receipts" checked>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Last seen</strong>
+        <span>Show when you were last online</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-lastseen" checked>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Online status</strong>
+        <span>Show when you're currently active</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-online" checked>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Typing indicators</strong>
+        <span>Let others see when you're typing</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-typing" checked>
+        <div class="toggle-track"></div>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Default disappearing messages</strong>
+        <span>Auto-delete for all new conversations</span>
+      </div>
+      <select id="default-disappear" style="padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:13px;outline:none">
+        <option value="">Off</option>
+        <option value="5">5 seconds</option>
+        <option value="60">1 minute</option>
+        <option value="3600">1 hour</option>
+        <option value="86400">24 hours</option>
+        <option value="604800">1 week</option>
+      </select>
+    </div>
+
+    <div style="text-align:right;margin-top:12px">
+      <button class="button accent sm" id="save-privacy"><span>Save privacy settings</span></button>
+    </div>
+  </section>
+
+  <!-- E2EE / Key management -->
+  <section class="settings-section glass">
+    <h2>🔐 Encryption</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+      Current uses ECDH P-256 key exchange + AES-256-GCM encryption. Your private key is stored only in this browser's IndexedDB and never transmitted to the server.
+    </p>
+
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Your public identity key</strong>
+        <span id="pubkey-display" style="font-family:monospace;font-size:10px;word-break:break-all">Loading…</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="button accent sm" id="export-key"><span>📤 Export key backup</span></button>
+      <button class="button ghost sm" id="import-key"><span>📥 Restore key backup</span></button>
+      <button class="button danger sm" id="regen-key"><span>🔁 Regenerate keys</span></button>
+    </div>
+
+    <!-- Export -->
+    <div id="export-section" style="display:none;margin-top:16px;padding:16px;background:rgba(24,169,107,.06);border-radius:14px;border:1px solid rgba(24,169,107,.2)">
+      <div class="form-group">
+        <label>Backup password</label>
+        <input type="password" id="export-pw" placeholder="Strong password to encrypt backup">
+      </div>
+      <button class="button accent sm" id="do-export"><span>Generate backup</span></button>
+      <textarea id="export-output" style="display:none;width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-family:monospace;font-size:11px;resize:vertical;min-height:100px" readonly></textarea>
+      <button id="copy-backup" style="display:none" class="button ghost sm"><span>Copy backup</span></button>
+    </div>
+
+    <!-- Import -->
+    <div id="import-section" style="display:none;margin-top:16px;padding:16px;background:rgba(24,169,107,.06);border-radius:14px;border:1px solid rgba(24,169,107,.2)">
+      <div class="form-group">
+        <label>Backup JSON</label>
+        <textarea id="import-json" placeholder="Paste backup JSON here" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-family:monospace;font-size:11px;resize:vertical;min-height:80px;outline:none"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Backup password</label>
+        <input type="password" id="import-pw" placeholder="Password used when exporting">
+      </div>
+      <button class="button accent sm" id="do-import"><span>Restore backup</span></button>
+      <div id="import-result" class="success-msg" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- Appearance -->
+  <section class="settings-section glass">
+    <h2>Appearance</h2>
+    <div class="setting-row">
+      <div class="setting-row-label"><strong>Theme</strong></div>
+      <div class="theme-grid">
+        <button class="button ghost sm theme-choice" data-theme="light"><span>☀️ Light</span></button>
+        <button class="button ghost sm theme-choice" data-theme="dark"><span>🌙 Dark</span></button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Accent color</strong>
+        <span>Customize the app's highlight color</span>
+      </div>
+      <input type="color" id="accent-color" value="#18a96b" style="width:44px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none">
+    </div>
+  </section>
+
+  <!-- Danger zone -->
+  <section class="settings-section glass" style="border-color:rgba(229,62,62,.3)">
+    <h2 style="color:var(--danger)">Danger zone</h2>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Sign out</strong>
+        <span>You'll need to sign in again</span>
+      </div>
+      <button class="button danger sm" id="signout"><span>Sign out</span></button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-row-label">
+        <strong>Clear local keys</strong>
+        <span>Removes your private key from this device. Old messages will be unreadable until you restore a backup.</span>
+      </div>
+      <button class="button danger sm" id="clear-keys"><span>Clear keys</span></button>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module" src="settings.js"></script>
+</body>
+</html>
