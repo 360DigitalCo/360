@@ -175,7 +175,7 @@ async function installBot(botId){
     if(btn) btn.textContent='Add to Server';
   } else {
     const{error}=await sb.from('bot_server_installs').insert({bot_id:botId,server_id:serverId,installed_by:session.user.id});
-    if(error){alert('Error: '+error.message);return;}
+    if(error){{ const e=document.querySelector('.mp-error,.error-msg');if(e){e.textContent='Error: '+error.message;}else{console.error(error.message);} return;}
     myInstalls.add(key);
     if(btn) btn.textContent='Remove from Server';
     await sb.from('bots').update({install_count:(allBots.find(b=>b.id===botId)?.install_count||0)+1}).eq('id',botId);
