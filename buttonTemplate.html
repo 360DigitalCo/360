@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUTTON TEMPLATE</title>
+  <style>
+    /* Document Setup (Ignore for implementation) */
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      justify-content: center;
+      align-items: center;
+      background-color: #0b0f19; /* High-end dark aesthetic */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+
+    /* ==========================================================================
+       COMPONENT: Ripple Button Framework (BEM Architecture)
+       ========================================================================== */
+    
+    .c-ripple-btn {
+      --btn-color-primary: #f8fafc;       /* Default text/border color */
+      --btn-color-hover-bg: #f8fafc;      /* Background color on hover fill */
+      --btn-color-hover-text: #0b0f19;    /* Text color when background fills */
+      --btn-ripple-color: rgba(255, 255, 255, 0.35);
+      --btn-transition-curve: cubic-bezier(0.25, 1, 0.5, 1); /* Premium "Quint" easing */
+      --btn-transition-speed: 0.45s;
+
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--btn-color-primary);
+      background-color: transparent;
+      border: 1px solid rgba(248, 250, 252, 0.3); /* Subtle premium border border */
+      border-radius: 6px; /* Elegant micro-radius over soft pills */
+      cursor: pointer;
+      overflow: hidden; 
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      
+      /* Hardware acceleration optimization */
+      transform: translateZ(0);
+      will-change: transform, color;
+      transition: 
+        color var(--btn-transition-speed) var(--btn-transition-curve),
+        border-color var(--btn-transition-speed) var(--btn-transition-curve),
+        transform 0.15s var(--btn-transition-curve);
+    }
+
+    /* Core Sliding Layer Setup */
+    .c-ripple-btn::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--btn-color-hover-bg);
+      z-index: -1; 
+      top: 100%; /* Primed below layout bounds */
+      will-change: top;
+    }
+
+    /* State: Hover - Slide In Upwards */
+    .c-ripple-btn:hover {
+      color: var(--btn-color-hover-text);
+      border-color: var(--btn-color-hover-bg);
+    }
+    .c-ripple-btn:hover::before {
+      top: 0;
+      transition: top var(--btn-transition-speed) var(--btn-transition-curve);
+    }
+
+    /* State: Blur/Mouseleave - Continuously Exit Upwards */
+    .c-ripple-btn.is-sliding-away::before {
+      top: -100%;
+      transition: top var(--btn-transition-speed) var(--btn-transition-curve);
+    }
+
+    /* State: Pure Mechanical Press Feedback */
+    .c-ripple-btn:active {
+      transform: scale(0.98) translateZ(0);
+    }
+
+    /* Dynamic Injector: Precise Positional Ripple Core */
+    .c-ripple-btn__ripple {
+      position: absolute;
+      background: var(--btn-ripple-color);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      animation: rippleBurst 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+      pointer-events: none; 
+      z-index: 2;
+    }
+
+    @keyframes rippleBurst {
+      to {
+        transform: translate(-50%, -50%) scale(2.3);
+        opacity: 0;
+      }
+    }
+
+    /* ==========================================================================
+       THEME MODIFIERS: Easily tweak styles down below
+       ========================================================================== */
+    .c-ripple-btn--emerald {
+      --btn-color-primary: #34d399;
+      --btn-color-hover-bg: #34d399;
+      --btn-color-hover-text: #064e3b;
+      --btn-ripple-color: rgba(255, 255, 255, 0.5);
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+
+    .c-ripple-btn--violet {
+      --btn-color-primary: #a78bfa;
+      --btn-color-hover-bg: #a78bfa;
+      --btn-color-hover-text: #2e1065;
+      --btn-ripple-color: rgba(255, 255, 255, 0.5);
+      border-color: rgba(167, 139, 250, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Templates you can easily copy/paste -->
+  <button class="c-ripple-btn js-ripple-trigger" data-action="submit-form">
+    Classic Premium Accent
+  </button>
+
+  <button class="c-ripple-btn c-ripple-btn--emerald js-ripple-trigger" data-action="success-toast">
+    Mint Emerald Theme
+  </button>
+
+  <button class="c-ripple-btn c-ripple-btn--violet js-ripple-trigger" data-action="open-modal">
+    Royal Violet Theme
+  </button>
+
+  <!-- ==========================================================================
+       JAVASCRIPT ENGINE: Plug-and-Play Component Class
+       ========================================================================== */ -->
+  <script>
+    class RippleButtonComponent {
+      constructor(element) {
+        if (!element) return;
+        this.btn = element;
+        this.speed = parseFloat(getComputedStyle(this.btn).getPropertyValue('--btn-transition-speed')) * 1000 || 450;
+        
+        this.initListeners();
+      }
+
+      initListeners() {
+        // Slide out control logic
+        this.btn.addEventListener('mouseleave', () => this.handleMouseLeave());
+        
+        // Exact input touch-down logic
+        this.btn.addEventListener('mousedown', (e) => {
+          if (e.button === 0) this.spawnRipple(e);
+        });
+
+        // Held cursor boundary tracking
+        this.btn.addEventListener('mouseenter', (e) => {
+          if (e.buttons === 1) this.spawnRipple(e);
+        });
+      }
+
+      handleMouseLeave() {
+        this.btn.classList.add('is-sliding-away');
+        setTimeout(() => {
+          this.btn.classList.remove('is-sliding-away');
+        }, this.speed);
+      }
+
+      spawnRipple(e) {
+        const rect = this.btn.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const rippleNode = document.createElement('span');
+        rippleNode.classList.add('c-ripple-btn__ripple');
+
+        const size = Math.max(rect.width, rect.height) * 2;
+        rippleNode.style.width = rippleNode.style.height = `${size}px`;
+        rippleNode.style.left = `${x}px`;
+        rippleNode.style.top = `${y}px`;
+
+        this.btn.appendChild(rippleNode);
+
+        rippleNode.addEventListener('animationend', () => {
+          rippleNode.remove();
+        });
+      }
+    }
+
+    // --- HOOKING IT UP IS AN ABSOLUTE BREEZE ---
+    // User Implementation Step: Just select your selector nodes and map the class logic!
+    document.querySelectorAll('.js-ripple-trigger').forEach(element => {
+      // 1. Instantiates the beautiful visual mechanics instantly
+      new RippleButtonComponent(element);
+
+      // 2. Easily bind your custom features directly using click events like normal!
+      element.addEventListener('click', (e) => {
+        const action = e.currentTarget.getAttribute('data-action');
+        console.log(`Action triggered smoothly: ${action}`);
+        
+        // Your custom business logic lives safely right here :):
+        if (action === 'submit-form') { /* do something cool */ }
+      });
+    });
+  </script>
+
+</body>
+</html>
