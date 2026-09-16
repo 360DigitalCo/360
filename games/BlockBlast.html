@@ -574,14 +574,122 @@
     /* =====================================================
        PIECE TRAY
     ===================================================== */
-    function randomPiece() {
-      const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+    // Board-aware piece generation. Pieces are scored against the current board
+    // so the tray stays useful instead of being blindly random. We sample a
+    // healthy variety of shapes, evaluate their best legal placements, and
+    // strongly prefer moves that preserve open space while creating clears.
+    function randomPieceFromShape(shape) {
       const color = COLORS[Math.floor(Math.random() * COLORS.length)];
       return { shape, color, used: false };
     }
 
+    function placementQuality(shape, baseR, baseC) {
+      if (!canPlacePiece(shape, baseR, baseC)) return -Infinity;
+
+      const occupied = new Set();
+      shape.forEach(([dr, dc]) => occupied.add(`${baseR + dr},${baseC + dc}`));
+
+      let local = shape.length * 3;
+      let rowFill = 0;
+      let colFill = 0;
+      let holes = 0;
+      const touchedRows = new Set();
+      const touchedCols = new Set();
+
+      shape.forEach(([dr, dc]) => {
+        const r = baseR + dr, c = baseC + dc;
+        touchedRows.add(r);
+        touchedCols.add(c);
+        for (const [rr, cc] of [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
+          if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc]) local += 1.5;
+        }
+      });
+
+      touchedRows.forEach(r => {
+        let filled = 0;
+        for (let c = 0; c < SIZE; c++) if (board[r][c] || occupied.has(`${r},${c}`)) filled++;
+        rowFill += filled;
+      });
+      touchedCols.forEach(c => {
+        let filled = 0;
+        for (let r = 0; r < SIZE; r++) if (board[r][c] || occupied.has(`${r},${c}`)) filled++;
+        colFill += filled;
+      });
+
+      const virtual = board.map(row => row.slice());
+      shape.forEach(([dr, dc]) => { virtual[baseR + dr][baseC + dc] = '#'; });
+      for (let r = 0; r < SIZE; r++) {
+        const filled = virtual[r].filter(Boolean).length;
+        if (filled === SIZE) local += 90;
+        else if (filled >= SIZE - 1) local += 18;
+      }
+      for (let c = 0; c < SIZE; c++) {
+        let filled = 0;
+        for (let r = 0; r < SIZE; r++) if (virtual[r][c]) filled++;
+        if (filled === SIZE) local += 90;
+        else if (filled >= SIZE - 1) local += 18;
+      }
+
+      // Penalize creating isolated one-cell pockets and reward compact placement.
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (virtual[r][c]) continue;
+          let neighbors = 0;
+          if (r > 0 && virtual[r-1][c]) neighbors++;
+          if (r < SIZE-1 && virtual[r+1][c]) neighbors++;
+          if (c > 0 && virtual[r][c-1]) neighbors++;
+          if (c < SIZE-1 && virtual[r][c+1]) neighbors++;
+          if (neighbors === 4) holes += 1;
+        }
+      }
+
+      local += rowFill + colFill;
+      local -= holes * 5;
+      return local;
+    }
+
+    function bestPlacementScore(shape) {
+      let bestPlacement = -Infinity;
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          bestPlacement = Math.max(bestPlacement, placementQuality(shape, r, c));
+        }
+      }
+      return bestPlacement;
+    }
+
+    function choosePiece() {
+      const candidates = [];
+      SHAPES.forEach(shape => {
+        const score = bestPlacementScore(shape);
+        if (Number.isFinite(score)) candidates.push({ shape, score });
+      });
+
+      if (!candidates.length) return randomPieceFromShape(SHAPES[0]);
+
+      // Keep some variety, but stay inside the useful upper portion of the
+      // candidate pool so choices are both playable and strategically relevant.
+      candidates.sort((a, b) => b.score - a.score);
+      const poolSize = Math.min(candidates.length, Math.max(5, Math.ceil(candidates.length * 0.45)));
+      const pool = candidates.slice(0, poolSize);
+      const weighted = pool.map((entry, i) => ({ ...entry, weight: Math.max(1, poolSize - i) }));
+      const total = weighted.reduce((sum, e) => sum + e.weight, 0);
+      let pick = Math.random() * total;
+      for (const entry of weighted) {
+        pick -= entry.weight;
+        if (pick <= 0) return randomPieceFromShape(entry.shape);
+      }
+      return randomPieceFromShape(weighted[0].shape);
+    }
+
     function refillTray() {
-      tray = [randomPiece(), randomPiece(), randomPiece()];
+      tray = [choosePiece(), choosePiece(), choosePiece()];
+
+      // Hard guarantee: at least one tray piece must have a legal move. On
+      // crowded boards, replace any dead piece with the best fitting candidate.
+      if (!tray.some(piece => bestPlacementScore(piece.shape) > -Infinity)) {
+        tray[0] = choosePiece();
+      }
       renderTray();
     }
 
