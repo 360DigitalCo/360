@@ -1,118 +1,1503 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <title>360Fish</title>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<link href="assets/css/360fish.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<meta content="Play 360Fish on 360. Explore this free browser game and discover more games on 360." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360Fish" property="og:title"/><meta content="Play 360Fish on 360. Explore this free browser game and discover more games on 360." property="og:description"/><meta content="https://360-search.com/games/360Fish.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360Fish" name="twitter:title"/><meta content="Play 360Fish on 360. Explore this free browser game and discover more games on 360." name="twitter:description"/><link href="https://360-search.com/games/360Fish.html" rel="canonical"/></head>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+/* ═══════════════════════════════════════════
+   RESET + BASE
+═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #02040d;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #e8eeff;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════ */
+#root { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+
+#topbar {
+  height: 44px; flex-shrink: 0;
+  background: rgba(4,6,18,0.96);
+  border-bottom: 1px solid rgba(80,140,255,0.12);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; z-index: 500;
+  backdrop-filter: blur(16px);
+}
+#topbar-left { display: flex; align-items: center; gap: 10px; }
+#logo {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: radial-gradient(circle at 30% 30%, #5aadff, #7b5cff);
+  box-shadow: 0 0 10px #5aadff55;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+#game-title { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; }
+#topbar-right { display: flex; gap: 16px; font-size: 12px; opacity: 0.8; }
+.top-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.top-stat span:first-child { font-size: 10px; opacity: 0.55; }
+.top-stat span:last-child { font-weight: 600; color: #a8d4ff; }
+
+#main-area { flex: 1; display: flex; overflow: hidden; }
+
+/* ═══════════════════════════════════════════
+   GAME WORLD
+═══════════════════════════════════════════ */
+#game-world {
+  flex: 1; position: relative; overflow: hidden;
+  background: linear-gradient(to bottom, #06101e 0%, #0a1828 50%, #0d2040 100%);
+}
+
+/* sky */
+#sky-gradient {
+  position: absolute; inset: 0;
+  pointer-events: none; transition: background 3s ease;
+}
+
+/* stars */
+#star-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 40%;
+  pointer-events: none;
+}
+
+/* sun / moon */
+#sun, #moon {
+  position: absolute; top: 8%; left: 50%;
+  width: 70px; height: 70px; border-radius: 50%;
+  transform: translateX(-50%);
+  pointer-events: none; transition: opacity 3s ease;
+}
+#sun { background: radial-gradient(circle, #fff5a0 20%, #ffaa33); box-shadow: 0 0 60px #ffaa3388; opacity: 0; }
+#moon { background: radial-gradient(circle, #f0f4ff, #8890bb); box-shadow: 0 0 30px #8890bb66; opacity: 0; }
+
+/* horizon glow */
+#horizon-glow {
+  position: absolute; bottom: 38%; left: 0; width: 100%; height: 80px;
+  background: linear-gradient(to bottom, transparent, rgba(14,40,90,0.4));
+  pointer-events: none;
+}
+
+/* water canvases */
+#water-back, #water-mid, #water-front {
+  position: absolute; bottom: 0; width: 100%;
+  pointer-events: none;
+}
+
+/* fish layer */
+#fish-canvas {
+  position: absolute; bottom: 0; width: 100%; height: 45%;
+  pointer-events: none;
+}
+
+/* particle layer */
+#particle-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* line + bobber canvas */
+#line-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* boat */
+#boat {
+  position: absolute; bottom: 40%; left: 50%;
+  transform: translateX(-50%);
+  width: 160px; pointer-events: none;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.6));
+}
+#boat svg { width: 100%; height: auto; }
+
+/* weather */
+#rain-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+#fog-layer { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 3s ease; background: radial-gradient(ellipse at center, rgba(180,200,240,0.12), transparent 70%); }
+#storm-flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; }
+
+/* event banner */
+#event-banner {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  padding: 8px 20px; border-radius: 20px;
+  background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.1);
+  font-size: 13px; opacity: 0; pointer-events: none;
+  transition: opacity 0.5s; white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+/* loot popup */
+#loot-popup {
+  position: absolute; top: 35%; left: 50%; transform: translate(-50%,-50%);
+  padding: 8px 18px; border-radius: 30px;
+  background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
+  font-size: 15px; font-weight: 600; opacity: 0;
+  pointer-events: none; transition: opacity 0.3s, transform 0.3s;
+  text-align: center;
+}
+
+/* cast zone indicator */
+#cast-zone {
+  position: absolute; bottom: 36%; left: 50%;
+  width: 4px; height: 0; background: rgba(255,255,255,0.15);
+  transform: translateX(-50%);
+  pointer-events: none; display: none;
+}
+
+/* biome overlay */
+#biome-overlay {
+  position: absolute; bottom: 42%; left: 50%; transform: translateX(-50%);
+  font-size: 11px; opacity: 0.4; letter-spacing: 0.12em; pointer-events: none;
+}
+
+/* depth label */
+#depth-label {
+  position: absolute; bottom: 43%; right: 12px;
+  font-size: 11px; opacity: 0.5; pointer-events: none;
+}
+
+/* fish escape overlay */
+#escape-msg {
+  position: absolute; top: 28%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 28px; opacity: 0; pointer-events: none;
+}
+
+/* XP bar at bottom of world */
+#xp-bar-wrap {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: rgba(255,255,255,0.06);
+}
+#xp-bar-fill { height: 100%; background: linear-gradient(to right, #4a90ff, #a855f7); transition: width 0.4s ease; }
+
+/* ═══════════════════════════════════════════
+   HUD (RIGHT PANEL)
+═══════════════════════════════════════════ */
+#hud {
+  width: 270px; flex-shrink: 0;
+  background: rgba(4,8,22,0.98);
+  border-left: 1px solid rgba(80,130,255,0.1);
+  display: flex; flex-direction: column; gap: 0;
+  overflow-y: auto; overflow-x: hidden;
+}
+#hud::-webkit-scrollbar { width: 4px; }
+#hud::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.hud-section { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 12px 14px; }
+.hud-section:last-child { border-bottom: none; }
+.section-label { font-size: 10px; letter-spacing: 0.1em; opacity: 0.4; margin-bottom: 10px; text-transform: lowercase; }
+
+/* STATUS */
+#status-main { font-size: 13px; margin-bottom: 8px; min-height: 18px; color: #c8daff; }
+#cast-power-wrap { display: none; margin-bottom: 8px; }
+#cast-power-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+#cast-power-fill { height: 100%; width: 0; background: linear-gradient(to right, #4a90ff, #a855f7); transition: width 0.05s; }
+#tension-wrap { display: none; margin-bottom: 6px; }
+#tension-bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+#tension-fill { height: 100%; width: 0; border-radius: 4px; transition: width 0.1s; }
+#reel-prompt { font-size: 11px; opacity: 0.7; display: none; }
+#depth-hud { font-size: 11px; opacity: 0.6; margin-top: 4px; display: none; }
+
+/* LEVEL */
+.level-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.level-badge {
+  font-size: 11px; font-weight: 700;
+  background: linear-gradient(135deg, #4a90ff, #a855f7);
+  padding: 2px 8px; border-radius: 10px; color: white;
+}
+.level-label { font-size: 11px; opacity: 0.6; }
+.xp-bar-hud { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.xp-bar-hud-fill { height: 100%; background: linear-gradient(to right, #4a90ff, #a855f7); transition: width 0.4s; }
+
+/* RESOURCES */
+.res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.res-cell {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.res-name { font-size: 9px; opacity: 0.5; }
+.res-val { font-size: 14px; font-weight: 600; color: #a8d4ff; }
+
+/* UPGRADES */
+.up-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.up-row:last-child { border-bottom: none; }
+.up-info { display: flex; flex-direction: column; gap: 1px; }
+.up-name { font-size: 12px; }
+.up-cost { font-size: 10px; opacity: 0.5; }
+.up-btn {
+  padding: 4px 12px; border-radius: 20px;
+  border: 1px solid rgba(80,130,255,0.3);
+  background: rgba(80,130,255,0.08);
+  color: #a8d4ff; font-size: 11px; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.up-btn:hover { background: rgba(80,130,255,0.2); border-color: rgba(80,130,255,0.5); }
+.up-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.up-lv { font-size: 10px; opacity: 0.5; }
+
+/* INVENTORY / FISH LOG */
+#fish-log { display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; }
+#fish-log::-webkit-scrollbar { width: 3px; }
+#fish-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+.fish-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: 8px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+  animation: slideIn 0.3s ease;
+}
+.fish-entry .f-icon { font-size: 16px; }
+.fish-entry .f-info { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+.fish-entry .f-name { font-weight: 600; }
+.fish-entry .f-sub { opacity: 0.5; font-size: 10px; }
+.fish-entry .f-rarity { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* TOAST */
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px);
+  padding: 9px 20px; border-radius: 30px;
+  background: rgba(10,15,30,0.95); border: 1px solid rgba(80,130,255,0.3);
+  font-size: 13px; color: #c8daff;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  z-index: 9999; white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* MINIGAME overlay */
+#minigame-overlay {
+  position: absolute; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#minigame-panel {
+  background: rgba(4,10,28,0.92); border: 1px solid rgba(80,130,255,0.25);
+  border-radius: 16px; padding: 20px 24px;
+  min-width: 280px; pointer-events: all;
+  backdrop-filter: blur(16px);
+}
+#minigame-title { font-size: 14px; margin-bottom: 12px; text-align: center; opacity: 0.8; }
+#minigame-track {
+  position: relative; height: 24px;
+  background: rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden;
+  margin-bottom: 12px; cursor: pointer;
+}
+#reel-zone { position: absolute; top: 0; height: 100%; background: rgba(80,200,100,0.25); border-radius: 12px; transition: left 0.08s, width 0.08s; }
+#reel-cursor { position: absolute; top: 2px; bottom: 2px; width: 6px; background: #fff; border-radius: 3px; }
+#minigame-hint { font-size: 11px; text-align: center; opacity: 0.55; }
+#minigame-catches { font-size: 11px; text-align: center; margin-top: 6px; }
+
+/* level-up splash */
+#levelup-splash {
+  position: fixed; inset: 0; z-index: 2000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+}
+#levelup-card {
+  background: linear-gradient(135deg, #0c1a3a, #14103a);
+  border: 1px solid rgba(120,80,255,0.4);
+  border-radius: 20px; padding: 36px 48px;
+  text-align: center;
+  animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+#levelup-card .lu-emoji { font-size: 48px; margin-bottom: 8px; }
+#levelup-card .lu-title { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #a855f7, #4a90ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+#levelup-card .lu-sub { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+#levelup-card .lu-reward { font-size: 13px; margin-top: 12px; color: #88ffcc; }
+#levelup-close { margin-top: 20px; padding: 10px 28px; border-radius: 30px; border: 1px solid rgba(120,80,255,0.5); background: rgba(120,80,255,0.15); color: #c8daff; cursor: pointer; font-size: 14px; }
+
+@keyframes popIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* start screen */
+#start-screen {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, #07101e 0%, #020408 100%);
+}
+#start-card {
+  text-align: center; max-width: 360px; padding: 20px;
+}
+#start-card .s-logo { font-size: 64px; margin-bottom: 16px; filter: drop-shadow(0 0 24px #5aadffaa); }
+#start-card h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+#start-card p { font-size: 14px; opacity: 0.6; line-height: 1.6; margin-bottom: 24px; }
+#start-btn {
+  display: inline-block; padding: 14px 40px;
+  background: linear-gradient(135deg, #4a90ff, #a855f7);
+  border: none; border-radius: 30px; color: white;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 24px #4a90ff44;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#start-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px #4a90ff66; }
+.s-hint { font-size: 12px; opacity: 0.4; margin-top: 12px; }
+
+/* responsive: hide HUD on small screens */
+@media (max-width: 600px) {
+  #hud { width: 220px; }
+  .res-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 450px) {
+  #hud { display: none; }
+}
+</style>
+</head>
 <body>
-<div id="topbar">
-<div class="left">
-<div id="logo"></div>
-<span id="game-title">360Fish</span>
+
+<!-- START SCREEN -->
+<div id="start-screen">
+  <div id="start-card">
+    <div class="s-logo">🎣</div>
+    <h1>360Fish</h1>
+    <p>Cast your line, master the reel, discover rare creatures in the deep. Progress from coastal shallows to the forgotten trench.</p>
+    <button id="start-btn">Start Fishing</button>
+    <div class="s-hint">click · hold · reel</div>
+  </div>
 </div>
-<div class="right">
-<span id="day-counter">Day 1</span>
-<span id="distance-counter">0m</span>
-<span id="biome-label">coastal shallows</span>
+
+<!-- LEVEL UP SPLASH -->
+<div id="levelup-splash">
+  <div id="levelup-card">
+    <div class="lu-emoji">⬆️</div>
+    <div class="lu-title">Level Up!</div>
+    <div class="lu-sub" id="lu-sub-text">You reached level 2</div>
+    <div class="lu-reward" id="lu-reward-text"></div>
+    <button id="levelup-close">Keep Fishing</button>
+  </div>
 </div>
+
+<!-- MAIN UI -->
+<div id="root">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="topbar-left">
+      <div id="logo">🐟</div>
+      <span id="game-title">360Fish</span>
+    </div>
+    <div id="topbar-right">
+      <div class="top-stat"><span>day</span><span id="tb-day">1</span></div>
+      <div class="top-stat"><span>distance</span><span id="tb-dist">0m</span></div>
+      <div class="top-stat"><span>biome</span><span id="tb-biome">shallows</span></div>
+      <div class="top-stat"><span>caught</span><span id="tb-caught">0</span></div>
+    </div>
+  </div>
+
+  <div id="main-area">
+    <!-- GAME WORLD -->
+    <div id="game-world">
+      <div id="sky-gradient"></div>
+      <canvas id="star-canvas"></canvas>
+      <div id="sun"></div>
+      <div id="moon"></div>
+      <div id="horizon-glow"></div>
+
+      <canvas id="water-back"></canvas>
+      <canvas id="water-mid"></canvas>
+      <canvas id="water-front"></canvas>
+      <canvas id="fish-canvas"></canvas>
+      <canvas id="rain-canvas"></canvas>
+      <div id="fog-layer"></div>
+      <div id="storm-flash"></div>
+
+      <canvas id="particle-canvas"></canvas>
+      <canvas id="line-canvas"></canvas>
+
+      <div id="boat">
+        <svg viewBox="0 0 160 70" xmlns="http://www.w3.org/2000/svg">
+          <!-- hull -->
+          <path d="M10 42 Q80 52 150 42 L145 58 Q80 68 15 58 Z" fill="#5a3a1a"/>
+          <path d="M12 42 Q80 50 148 42 L145 52 Q80 62 15 52 Z" fill="#7a5228"/>
+          <!-- cabin -->
+          <rect x="30" y="20" width="62" height="26" rx="5" fill="#d0d8f0"/>
+          <rect x="30" y="20" width="62" height="8" rx="5" fill="#b0badc"/>
+          <!-- windows -->
+          <rect x="38" y="27" width="14" height="12" rx="3" fill="#7ab8f5"/>
+          <rect x="58" y="27" width="14" height="12" rx="3" fill="#7ab8f5"/>
+          <!-- mast -->
+          <line x1="112" y1="42" x2="112" y2="8" stroke="#6a4a2a" stroke-width="3"/>
+          <!-- flag -->
+          <path d="M112 8 L130 14 L112 20 Z" fill="#4a90ff" opacity="0.8"/>
+          <!-- antenna -->
+          <line x1="100" y1="20" x2="100" y2="6" stroke="#4a6a8a" stroke-width="1.5"/>
+          <circle cx="100" cy="6" r="2" fill="#ff5c7b"/>
+          <!-- engine detail -->
+          <rect x="136" y="38" width="18" height="10" rx="4" fill="#3a3a4a"/>
+          <circle cx="145" cy="43" r="3" fill="#6a6a7a"/>
+          <!-- rod holder -->
+          <line x1="120" y1="42" x2="138" y2="28" stroke="#8a6a3a" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <div id="biome-overlay"></div>
+      <div id="depth-label"></div>
+
+      <div id="event-banner"></div>
+      <div id="loot-popup"></div>
+      <div id="escape-msg">💨</div>
+
+      <!-- MINIGAME PANEL -->
+      <div id="minigame-overlay">
+        <div id="minigame-panel">
+          <div id="minigame-title">🎣 Reel it in!</div>
+          <div id="minigame-track">
+            <div id="reel-zone"></div>
+            <div id="reel-cursor"></div>
+          </div>
+          <div id="minigame-hint">Click / tap inside the green zone</div>
+          <div id="minigame-catches"></div>
+        </div>
+      </div>
+
+      <div id="xp-bar-wrap"><div id="xp-bar-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <!-- STATUS -->
+      <div class="hud-section">
+        <div class="section-label">status</div>
+        <div id="status-main">Click + hold to cast</div>
+        <div id="cast-power-wrap">
+          <div id="cast-power-bar"><div id="cast-power-fill"></div></div>
+        </div>
+        <div id="tension-wrap">
+          <div id="tension-bar"><div id="tension-fill"></div></div>
+        </div>
+        <div id="reel-prompt">🖱 Click in the green zone!</div>
+        <div id="depth-hud"></div>
+      </div>
+
+      <!-- LEVEL -->
+      <div class="hud-section">
+        <div class="section-label">fisher</div>
+        <div class="level-row">
+          <span class="level-badge" id="lv-badge">Lv 1</span>
+          <span class="level-label" id="lv-title">Rookie Angler</span>
+        </div>
+        <div class="xp-bar-hud"><div class="xp-bar-hud-fill" id="xp-hud-fill" style="width:0%"></div></div>
+        <div style="font-size:10px;opacity:0.4;margin-top:4px;" id="xp-text">0 / 50 XP</div>
+      </div>
+
+      <!-- RESOURCES -->
+      <div class="hud-section">
+        <div class="section-label">resources</div>
+        <div class="res-grid">
+          <div class="res-cell"><span class="res-name">🪙 coins</span><span class="res-val" id="r-coins">0</span></div>
+          <div class="res-cell"><span class="res-name">🐟 fish</span><span class="res-val" id="r-fish">0</span></div>
+          <div class="res-cell"><span class="res-name">⚙️ metal</span><span class="res-val" id="r-metal">0</span></div>
+          <div class="res-cell"><span class="res-name">⛽ fuel</span><span class="res-val" id="r-fuel">0</span></div>
+          <div class="res-cell"><span class="res-name">💎 gems</span><span class="res-val" id="r-gems">0</span></div>
+          <div class="res-cell"><span class="res-name">📦 storage</span><span class="res-val" id="r-storage">0/20</span></div>
+        </div>
+      </div>
+
+      <!-- UPGRADES -->
+      <div class="hud-section">
+        <div class="section-label">upgrades</div>
+        <div id="upgrade-list"></div>
+      </div>
+
+      <!-- FISH LOG -->
+      <div class="hud-section">
+        <div class="section-label">catch log</div>
+        <div id="fish-log"><div style="font-size:11px;opacity:0.3;text-align:center;padding:12px 0;">No catches yet — cast your line!</div></div>
+      </div>
+    </div>
+  </div>
 </div>
-<div id="game-shell">
-<div id="game-world">
-<!-- sky -->
-<div class="sky-layer" id="sky-layer-1"></div>
-<div class="sky-layer" id="sky-layer-2"></div>
-<div class="sky-layer" id="sky-layer-3"></div>
-<div id="sun"></div>
-<div id="moon"></div>
-<div class="cloud-layer" id="cloud-layer-1"></div>
-<div class="cloud-layer" id="cloud-layer-2"></div>
-<div class="cloud-layer" id="cloud-layer-3"></div>
-<!-- weather -->
-<div id="rain-layer"></div>
-<div id="fog-layer"></div>
-<div id="storm-flash"></div>
-<!-- water -->
-<canvas id="water-back"></canvas>
-<canvas id="water-mid"></canvas>
-<canvas id="water-front"></canvas>
-<!-- particles -->
-<canvas id="particle-layer"></canvas>
-<!-- boat -->
-<div id="boat">
-<div id="boat-hull"></div>
-<div id="boat-cabin"></div>
-<div id="boat-window"></div>
-<div id="boat-engine"></div>
-<div id="boat-net"></div>
-<div id="boat-sonar"></div>
-</div>
-<!-- fishing -->
-<canvas id="line-layer"></canvas>
-<div id="bobber"></div>
-<div id="splash"></div>
-<div id="loot-popup"></div>
-<!-- rare events -->
-<div id="event-banner"></div>
-<div id="leviathan-shadow"></div>
-<div id="whale-surface"></div>
-<div id="ghost-ship"></div>
-</div>
-</div>
-<!-- HUD -->
-<div id="hud">
-<div class="hud-card" id="resources-card">
-<div class="hud-title">resources</div>
-<div class="res-row"><span>food</span><span id="res-food">0</span></div>
-<div class="res-row"><span>wood</span><span id="res-wood">0</span></div>
-<div class="res-row"><span>metal</span><span id="res-metal">0</span></div>
-<div class="res-row"><span>fuel</span><span id="res-fuel">0</span></div>
-<div class="res-row"><span>cloth</span><span id="res-cloth">0</span></div>
-<div class="res-row"><span>rope</span><span id="res-rope">0</span></div>
-<div class="res-row"><span>artifacts</span><span id="res-artifacts">0</span></div>
-</div>
-<div class="hud-card" id="upgrades-card">
-<div class="hud-title">upgrades</div>
-<div class="upgrade-row">
-<span>hull lv.<span id="up-hull-lv">1</span></span>
-<button class="upgrade-btn" data-up="hull">upgrade</button>
-</div>
-<div class="upgrade-row">
-<span>engine lv.<span id="up-engine-lv">1</span></span>
-<button class="upgrade-btn" data-up="engine">upgrade</button>
-</div>
-<div class="upgrade-row">
-<span>storage lv.<span id="up-storage-lv">1</span></span>
-<button class="upgrade-btn" data-up="storage">upgrade</button>
-</div>
-<div class="upgrade-row">
-<span>rod lv.<span id="up-rod-lv">1</span></span>
-<button class="upgrade-btn" data-up="rod">upgrade</button>
-</div>
-<div class="upgrade-row">
-<span>sonar lv.<span id="up-sonar-lv">0</span></span>
-<button class="upgrade-btn" data-up="sonar">install</button>
-</div>
-<div class="upgrade-row">
-<span>auto‑reel</span>
-<button class="upgrade-btn" data-up="autoreel">install</button>
-</div>
-</div>
-<div class="hud-card" id="inventory-card">
-<div class="hud-title">inventory</div>
-<div id="inventory-grid"></div>
-</div>
-<div class="hud-card" id="status-card">
-<div class="hud-title">status</div>
-<div id="status-text">click and hold to cast…</div>
-<div id="tension-bar"><div id="tension-fill"></div></div>
-<div id="depth-meter">depth: 0m</div>
-</div>
-</div>
-<script src="assets/js/360fish.js"></script>
-<script src="assets/js/game-rewards.js"></script>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════
+   360FISH — COMPLETE GAME ENGINE
+   A real progressive fishing game with:
+   - Cast power mechanic
+   - Depth-based fish spawning
+   - Skill-check reel minigame
+   - Tension / snap line system
+   - 5 biomes × 3+ fish tiers each
+   - Upgrade tree (rod, boat, sonar, auto-reel)
+   - Level progression with XP + titles
+   - Day/night cycle + dynamic weather
+   - Persistent save (localStorage)
+═══════════════════════════════════════════════════════════════ */
+
+/* ─── CONSTANTS ─────────────────────────────────────── */
+const SAVE_KEY = '360fish_v3';
+const FISH_DB = [
+  // biome: shallows (0–300m)
+  { name:'Sardine',      icon:'🐟', rarity:'common',    xp:4,  coins:5,  biomes:[0],     depthMin:0,   depthMax:8  },
+  { name:'Mackerel',     icon:'🐠', rarity:'common',    xp:6,  coins:8,  biomes:[0],     depthMin:2,   depthMax:12 },
+  { name:'Sea Bass',     icon:'🐡', rarity:'uncommon',  xp:12, coins:18, biomes:[0,1],   depthMin:5,   depthMax:18 },
+  { name:'Flounder',     icon:'🫧', rarity:'uncommon',  xp:10, coins:15, biomes:[0,1],   depthMin:4,   depthMax:14 },
+  { name:'Blue Crab',    icon:'🦀', rarity:'rare',      xp:20, coins:35, biomes:[0],     depthMin:0,   depthMax:10 },
+  { name:'Sea Turtle',   icon:'🐢', rarity:'epic',      xp:45, coins:80, biomes:[0,1],   depthMin:6,   depthMax:16, metal:2 },
+  // biome: open sea (1)
+  { name:'Tuna',         icon:'🐟', rarity:'common',    xp:8,  coins:12, biomes:[1,2],   depthMin:8,   depthMax:20 },
+  { name:'Mahi-Mahi',    icon:'🐠', rarity:'uncommon',  xp:18, coins:28, biomes:[1],     depthMin:10,  depthMax:24 },
+  { name:'Swordfish',    icon:'🗡️', rarity:'rare',      xp:30, coins:55, biomes:[1,2],   depthMin:14,  depthMax:30 },
+  { name:'Giant Squid',  icon:'🦑', rarity:'rare',      xp:35, coins:60, biomes:[1,2],   depthMin:18,  depthMax:35, metal:1 },
+  { name:'Barracuda',    icon:'🫧', rarity:'uncommon',  xp:14, coins:22, biomes:[1],     depthMin:8,   depthMax:22 },
+  { name:'Marlin',       icon:'🐟', rarity:'epic',      xp:60, coins:120,biomes:[1,2],   depthMin:20,  depthMax:40, gems:1 },
+  // biome: deep blue (2)
+  { name:'Lanternfish',  icon:'🔦', rarity:'common',    xp:10, coins:14, biomes:[2,3],   depthMin:20,  depthMax:40 },
+  { name:'Anglerfish',   icon:'😈', rarity:'uncommon',  xp:22, coins:38, biomes:[2,3],   depthMin:28,  depthMax:50 },
+  { name:'Oarfish',      icon:'🐍', rarity:'rare',      xp:40, coins:75, biomes:[2,3],   depthMin:35,  depthMax:60, metal:3 },
+  { name:'Colossal Squid',icon:'🦑',rarity:'epic',      xp:70, coins:140,biomes:[2,3],   depthMin:40,  depthMax:65, gems:2 },
+  { name:'Vampire Squid',icon:'🦑', rarity:'rare',      xp:38, coins:70, biomes:[2],     depthMin:30,  depthMax:55, metal:2 },
+  // biome: storm belt (3)
+  { name:'Storm Eel',    icon:'⚡', rarity:'uncommon',  xp:25, coins:40, biomes:[3,4],   depthMin:20,  depthMax:50 },
+  { name:'Thunder Ray',  icon:'🫧', rarity:'rare',      xp:45, coins:85, biomes:[3],     depthMin:28,  depthMax:56, metal:3 },
+  { name:'Leviathan Pup',icon:'🐋', rarity:'epic',      xp:90, coins:180,biomes:[3,4],   depthMin:40,  depthMax:70, gems:3, metal:2 },
+  { name:'Phantom Shark',icon:'🦈', rarity:'legendary', xp:150,coins:300,biomes:[3,4],   depthMin:50,  depthMax:80, gems:5 },
+  // biome: forgotten trench (4)
+  { name:'Trench Wraith',icon:'👻', rarity:'rare',      xp:55, coins:100,biomes:[4],     depthMin:55,  depthMax:90 },
+  { name:'Deep One',     icon:'👁️', rarity:'epic',      xp:100,coins:200,biomes:[4],     depthMin:65,  depthMax:95, gems:4, metal:4 },
+  { name:'Abyssal Titan',icon:'🌑', rarity:'legendary', xp:200,coins:500,biomes:[4],     depthMin:80,  depthMax:100,gems:8, metal:6 },
+  { name:'Crystal Koi',  icon:'✨', rarity:'mythic',    xp:500,coins:1000,biomes:[0,1,2,3,4],depthMin:0,depthMax:100,gems:15,metal:10 },
+];
+
+const RARITY_COLOR = { common:'#9ab', uncommon:'#4fc', rare:'#6af', epic:'#c66ff9', legendary:'#ffaa33', mythic:'#ff66cc' };
+const RARITY_CHANCE = { common:0.5, uncommon:0.28, rare:0.14, epic:0.055, legendary:0.02, mythic:0.005 };
+
+const UPGRADES = [
+  { id:'rod',      name:'Fishing Rod',  icon:'🎣', desc:'Deeper casts, bigger fish', maxLv:5,
+    cost: lv => ({ coins: [0,40,100,220,500,1100][lv], metal: [0,0,2,5,10,20][lv] }),
+    effect: lv => ({ depthBonus: lv*15, tensionSlack: lv*0.08 }) },
+  { id:'engine',   name:'Engine',       icon:'⚙️', desc:'Move between biomes faster', maxLv:4,
+    cost: lv => ({ coins: [0,60,150,350,800][lv], metal: [0,3,8,18,35][lv] }),
+    effect: lv => ({ speedBonus: lv*0.3 }) },
+  { id:'hull',     name:'Hull',         icon:'🛡️', desc:'Survive storms, hold more fish', maxLv:4,
+    cost: lv => ({ coins: [0,80,200,450,1000][lv], metal: [0,5,12,25,50][lv] }),
+    effect: lv => ({ storageBonus: lv*10, stormResist: lv*0.2 }) },
+  { id:'sonar',    name:'Sonar',        icon:'📡', desc:'See fish depth before casting', maxLv:3,
+    cost: lv => ({ coins: [0,120,300,700][lv], metal: [0,8,18,40][lv] }),
+    effect: lv => ({ sonarRange: lv }) },
+  { id:'net',      name:'Net',          icon:'🕸️', desc:'Chance to catch 2 fish at once', maxLv:3,
+    cost: lv => ({ coins: [0,200,500,1200][lv], metal: [0,10,22,50][lv] }),
+    effect: lv => ({ doubleChance: lv*0.12 }) },
+  { id:'autoreel', name:'Auto-Reel',    icon:'🔄', desc:'Reduces minigame difficulty', maxLv:2,
+    cost: lv => ({ coins: [0,400,900][lv], metal: [0,15,35][lv] }),
+    effect: lv => ({ zoneWidth: lv*15, zoneSlow: lv*0.35 }) },
+];
+
+const LEVEL_TITLES = [
+  'Rookie Angler','Apprentice Fisher','Salt Sailor','Deep Caster',
+  'Ocean Scout','Storm Rider','Trench Diver','Leviathan Seeker',
+  'Mythic Hunter','Deep Sea Legend'
+];
+function xpForLevel(lv) { return Math.floor(50 * Math.pow(1.7, lv - 1)); }
+
+const BIOMES = ['coastal shallows','open sea','deep blue','storm belt','forgotten trench'];
+const BIOME_DIST = [0, 300, 900, 2000, 4000];
+const BIOME_COLORS = [
+  { back:'#0a2a45', mid:'#0c3a60', front:'#0e4a7a', sky1:'#1b3b7a', sky2:'#0a1220', horizon:'rgba(30,100,200,0.25)' },
+  { back:'#082035', mid:'#0a2d50', front:'#0c3a6a', sky1:'#0d2240', sky2:'#050e20', horizon:'rgba(10,60,140,0.3)' },
+  { back:'#040d20', mid:'#060f2a', front:'#080f38', sky1:'#050e28', sky2:'#020408', horizon:'rgba(0,20,80,0.4)' },
+  { back:'#180410', mid:'#20050e', front:'#280608', sky1:'#1a0408', sky2:'#080204', horizon:'rgba(80,10,20,0.5)' },
+  { back:'#04040f', mid:'#060608', front:'#080810', sky1:'#040408', sky2:'#020204', horizon:'rgba(20,0,60,0.6)' },
+];
+
+/* ─── STATE ─────────────────────────────────────────── */
+let S = {
+  // progression
+  level: 1, xp: 0,
+  day: 1, distance: 0,
+  biomeIdx: 0,
+  totalCaught: 0,
+  // resources
+  coins: 0, fish: 0, metal: 0, fuel: 50, gems: 0, storageUsed: 0,
+  // upgrades (all start at 0 = not bought; rod/hull/engine start effectively at 0)
+  upgrades: { rod:0, engine:0, hull:0, sonar:0, net:0, autoreel:0 },
+  // misc
+  time: 0.25, // 0=midnight 0.5=noon
+  weather: 'clear', weatherTimer: 0,
+  waveOffset: 0,
+  particles: [],
+  // fishing state
+  phase: 'idle', // idle | charging | cast | sinking | minigame | reeling | caught | escaped
+  castPower: 0, castDir: 1,
+  bobberX: 0, bobberY: 0,
+  sinkDepth: 0, targetDepth: 0,
+  tension: 0, tensionMax: 100,
+  currentFish: null,
+  reelPos: 0, zoneLeft: 30, zoneWidth: 30, zoneDir: 1, zoneSpeed: 0.4,
+  caughtCount: 0, // catches within current minigame
+  catchLog: [],
+  saveKey: SAVE_KEY,
+};
+
+/* ─── DOM REFS ──────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const D = {
+  world: $('game-world'),
+  skyGradient: $('sky-gradient'),
+  starCanvas: $('star-canvas'),
+  sun: $('sun'), moon: $('moon'),
+  waterBack: $('water-back'), waterMid: $('water-mid'), waterFront: $('water-front'),
+  fishCanvas: $('fish-canvas'),
+  rainCanvas: $('rain-canvas'),
+  fogLayer: $('fog-layer'),
+  flash: $('storm-flash'),
+  particleCanvas: $('particle-canvas'),
+  lineCanvas: $('line-canvas'),
+  biomeOverlay: $('biome-overlay'),
+  depthLabel: $('depth-label'),
+  eventBanner: $('event-banner'),
+  lootPopup: $('loot-popup'),
+  escapemsg: $('escape-msg'),
+  xpBarFill: $('xp-bar-fill'),
+  // hud
+  statusMain: $('status-main'),
+  castPowerWrap: $('cast-power-wrap'), castPowerFill: $('cast-power-fill'),
+  tensionWrap: $('tension-wrap'), tensionFill: $('tension-fill'),
+  reelPrompt: $('reel-prompt'), depthHud: $('depth-hud'),
+  lvBadge: $('lv-badge'), lvTitle: $('lv-title'),
+  xpHudFill: $('xp-hud-fill'), xpText: $('xp-text'),
+  rCoins: $('r-coins'), rFish: $('r-fish'), rMetal: $('r-metal'),
+  rFuel: $('r-fuel'), rGems: $('r-gems'), rStorage: $('r-storage'),
+  upgradeList: $('upgrade-list'),
+  fishLog: $('fish-log'),
+  // topbar
+  tbDay: $('tb-day'), tbDist: $('tb-dist'), tbBiome: $('tb-biome'), tbCaught: $('tb-caught'),
+  // minigame
+  minigameOverlay: $('minigame-overlay'),
+  reelZone: $('reel-zone'), reelCursor: $('reel-cursor'),
+  minigameCatches: $('minigame-catches'),
+  // misc
+  toast: $('toast'),
+  levelupSplash: $('levelup-splash'), luSub: $('lu-sub-text'), luReward: $('lu-reward-text'),
+  levelupClose: $('levelup-close'),
+  startScreen: $('start-screen'), startBtn: $('start-btn'),
+};
+
+/* ─── CANVAS SETUP ──────────────────────────────────── */
+const ctxs = {};
+function setupCanvas(el, key) {
+  const ctx = el.getContext('2d');
+  ctxs[key] = ctx;
+  return ctx;
+}
+const ctxBack = setupCanvas(D.waterBack, 'back');
+const ctxMid  = setupCanvas(D.waterMid,  'mid');
+const ctxFront= setupCanvas(D.waterFront,'front');
+const ctxFish = setupCanvas(D.fishCanvas,'fish');
+const ctxRain = setupCanvas(D.rainCanvas,'rain');
+const ctxPart = setupCanvas(D.particleCanvas,'part');
+const ctxLine = setupCanvas(D.lineCanvas,'line');
+const ctxStar = setupCanvas(D.starCanvas, 'star');
+
+let W = 0, H = 0;
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  [D.waterBack, D.waterMid, D.waterFront].forEach(c => { c.width = W; c.height = Math.round(H * 0.5); });
+  D.fishCanvas.width = W; D.fishCanvas.height = Math.round(H * 0.45);
+  D.rainCanvas.width = W; D.rainCanvas.height = H;
+  D.particleCanvas.width = W; D.particleCanvas.height = H;
+  D.lineCanvas.width = W; D.lineCanvas.height = H;
+  D.starCanvas.width = W; D.starCanvas.height = Math.round(H * 0.55);
+  drawStars();
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* ─── STARS ─────────────────────────────────────────── */
+const STARS = [];
+function buildStars() {
+  STARS.length = 0;
+  for (let i = 0; i < 180; i++) {
+    STARS.push({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3, t: Math.random() * Math.PI * 2 });
+  }
+}
+buildStars();
+function drawStars() {
+  const sw = D.starCanvas.width, sh = D.starCanvas.height;
+  ctxStar.clearRect(0, 0, sw, sh);
+  STARS.forEach(s => {
+    const blink = 0.6 + 0.4 * Math.sin(s.t + Date.now() * 0.001);
+    ctxStar.globalAlpha = blink;
+    ctxStar.fillStyle = '#ffffff';
+    ctxStar.beginPath();
+    ctxStar.arc(s.x * sw, s.y * sh, s.r, 0, Math.PI * 2);
+    ctxStar.fill();
+  });
+  ctxStar.globalAlpha = 1;
+}
+
+/* ─── SAVE / LOAD ───────────────────────────────────── */
+function save() {
+  const toSave = Object.assign({}, S);
+  toSave.particles = [];
+  toSave.currentFish = null;
+  toSave.phase = 'idle';
+  localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    Object.assign(S, d);
+  } catch(e) { /* corrupted, ignore */ }
+}
+
+/* ─── HELPERS ───────────────────────────────────────── */
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+function toast(msg, duration = 2500) {
+  D.toast.textContent = msg;
+  D.toast.classList.add('show');
+  clearTimeout(D.toast._t);
+  D.toast._t = setTimeout(() => D.toast.classList.remove('show'), duration);
+}
+
+function showEvent(msg, color = '#fff', duration = 3000) {
+  D.eventBanner.textContent = msg;
+  D.eventBanner.style.color = color;
+  D.eventBanner.style.opacity = 1;
+  clearTimeout(D.eventBanner._t);
+  D.eventBanner._t = setTimeout(() => D.eventBanner.style.opacity = 0, duration);
+}
+
+function showLoot(text, color, x, y) {
+  D.lootPopup.innerHTML = text;
+  D.lootPopup.style.color = color;
+  D.lootPopup.style.left = `${x}px`;
+  D.lootPopup.style.top = `${y}px`;
+  D.lootPopup.style.opacity = 1;
+  D.lootPopup.style.transform = 'translate(-50%,-50%) scale(1.1)';
+  clearTimeout(D.lootPopup._t1);
+  D.lootPopup._t1 = setTimeout(() => {
+    D.lootPopup.style.opacity = 0;
+    D.lootPopup.style.transform = 'translate(-50%,-120%) scale(0.9)';
+  }, 1500);
+}
+
+/* ─── PARTICLE SYSTEM ───────────────────────────────── */
+function spawnParticles(x, y, color, count = 8) {
+  for (let i = 0; i < count; i++) {
+    const angle = rand(0, Math.PI * 2);
+    const speed = rand(0.5, 2.5);
+    S.particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 1, life: 1, color, size: rand(2,5) });
+  }
+}
+function updateParticles(dt) {
+  ctxPart.clearRect(0, 0, W, H);
+  for (let i = S.particles.length - 1; i >= 0; i--) {
+    const p = S.particles[i];
+    p.x += p.vx * dt * 0.06;
+    p.y += p.vy * dt * 0.06;
+    p.vy += 0.01 * dt;
+    p.life -= dt * 0.0006;
+    if (p.life <= 0) { S.particles.splice(i, 1); continue; }
+    ctxPart.globalAlpha = p.life;
+    ctxPart.fillStyle = p.color;
+    ctxPart.beginPath();
+    ctxPart.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctxPart.fill();
+  }
+  ctxPart.globalAlpha = 1;
+}
+
+/* ─── RAIN ──────────────────────────────────────────── */
+const DROPS = [];
+function buildDrops() {
+  DROPS.length = 0;
+  for (let i = 0; i < 300; i++) {
+    DROPS.push({ x: Math.random() * W, y: Math.random() * H, speed: rand(8, 18), len: rand(10, 22) });
+  }
+}
+buildDrops();
+window.addEventListener('resize', buildDrops);
+function drawRain(dt) {
+  ctxRain.clearRect(0, 0, W, H);
+  if (S.weather !== 'storm') { D.rainCanvas.style.opacity = 0; return; }
+  D.rainCanvas.style.opacity = 0.7;
+  ctxRain.strokeStyle = 'rgba(180,210,255,0.5)';
+  ctxRain.lineWidth = 1;
+  for (const d of DROPS) {
+    d.y += d.speed * dt * 0.1;
+    d.x -= d.speed * 0.3 * dt * 0.1;
+    if (d.y > H) { d.y = -d.len; d.x = Math.random() * W; }
+    ctxRain.beginPath();
+    ctxRain.moveTo(d.x, d.y);
+    ctxRain.lineTo(d.x - d.len * 0.3, d.y + d.len);
+    ctxRain.stroke();
+  }
+}
+
+/* ─── WAVES ─────────────────────────────────────────── */
+function drawWave(ctx, offset, speed, height, color) {
+  const cw = ctx.canvas.width, ch = ctx.canvas.height;
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, ch);
+  for (let x = 0; x <= cw; x += 2) {
+    const y = ch * 0.3 + Math.sin((x + offset * speed) * 0.015) * height
+            + Math.sin((x + offset * speed * 1.3) * 0.008) * (height * 0.5);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(cw, ch);
+  ctx.closePath();
+  ctx.fill();
+}
+function updateWaves(dt) {
+  S.waveOffset += dt * 0.08;
+  const bc = BIOME_COLORS[S.biomeIdx];
+  drawWave(ctxBack,  S.waveOffset, 0.4, 8,  bc.back);
+  drawWave(ctxMid,   S.waveOffset, 0.7, 12, bc.mid);
+  drawWave(ctxFront, S.waveOffset, 1.0, 16, bc.front);
+}
+
+/* ─── FISH SILHOUETTES IN WATER ─────────────────────── */
+const AMBIENT_FISH = [];
+function buildAmbient() {
+  AMBIENT_FISH.length = 0;
+  const count = 6 + S.biomeIdx * 2;
+  for (let i = 0; i < count; i++) {
+    AMBIENT_FISH.push({ x: Math.random() * W, y: rand(0.2, 0.8), speed: rand(0.3, 1.2) * (Math.random()>0.5?1:-1), depth: rand(0.2, 0.8) });
+  }
+}
+buildAmbient();
+function drawAmbientFish(dt) {
+  const ch = D.fishCanvas.height;
+  ctxFish.clearRect(0, 0, W, ch);
+  for (const f of AMBIENT_FISH) {
+    f.x += f.speed * dt * 0.05;
+    if (f.x > W + 30) f.x = -30;
+    if (f.x < -30) f.x = W + 30;
+    const y = f.y * ch;
+    const sz = 8 + f.depth * 12;
+    ctxFish.save();
+    ctxFish.globalAlpha = 0.18 + f.depth * 0.12;
+    ctxFish.fillStyle = BIOME_COLORS[S.biomeIdx].mid;
+    ctxFish.translate(f.x, y);
+    if (f.speed < 0) ctxFish.scale(-1, 1);
+    ctxFish.beginPath();
+    ctxFish.ellipse(0, 0, sz, sz * 0.4, 0, 0, Math.PI * 2);
+    ctxFish.fill();
+    ctxFish.beginPath();
+    ctxFish.moveTo(-sz, 0);
+    ctxFish.lineTo(-sz - sz * 0.5, -sz * 0.3);
+    ctxFish.lineTo(-sz - sz * 0.5, sz * 0.3);
+    ctxFish.closePath();
+    ctxFish.fill();
+    ctxFish.restore();
+  }
+}
+
+/* ─── DAY/NIGHT + SKY ───────────────────────────────── */
+function updateDayNight(dt) {
+  S.time += dt * 0.000025;
+  if (S.time >= 1) { S.time = 0; S.day++; D.tbDay.textContent = S.day; save(); }
+  const t = S.time;
+  // sky gradient
+  let skyTop, skyBot;
+  if (t < 0.22 || t > 0.78) { // night
+    skyTop = '#020408'; skyBot = '#04060e';
+  } else if (t < 0.3 || t > 0.7) { // dawn/dusk
+    skyTop = '#1a0a08'; skyBot = '#2a1204';
+  } else { // day
+    skyTop = '#0a1828'; skyBot = '#0e2240';
+  }
+  D.skyGradient.style.background = `linear-gradient(to bottom, ${skyTop}, ${skyBot})`;
+  // sun/moon
+  const sunO = t > 0.25 && t < 0.75 ? 1 - Math.abs(t - 0.5) * 5 + 0.5 : 0;
+  D.sun.style.opacity = clamp(sunO, 0, 1);
+  const moonO = t < 0.2 || t > 0.8 ? 1 : 0;
+  D.moon.style.opacity = clamp(moonO, 0, 1);
+  // stars twinkle
+  drawStars();
+  D.starCanvas.style.opacity = t < 0.25 || t > 0.75 ? 1 : 0;
+}
+
+/* ─── WEATHER ───────────────────────────────────────── */
+function updateWeather(dt) {
+  S.weatherTimer -= dt;
+  if (S.weatherTimer <= 0) {
+    const roll = Math.random();
+    if (roll < 0.6) { S.weather = 'clear'; S.weatherTimer = rand(20000, 60000); }
+    else if (roll < 0.85) { S.weather = 'storm'; S.weatherTimer = rand(8000, 20000); showEvent('⛈ Storm incoming!', '#f4a', 3000); }
+    else { S.weather = 'fog'; S.weatherTimer = rand(10000, 25000); showEvent('🌫 Dense fog rolls in…', '#aac', 3000); }
+  }
+  if (S.weather === 'storm') {
+    D.fogLayer.style.opacity = 0;
+    if (Math.random() < 0.003) {
+      D.flash.style.opacity = 0.7;
+      setTimeout(() => D.flash.style.opacity = 0, 80);
+    }
+  } else {
+    D.flash.style.opacity = 0;
+  }
+  if (S.weather === 'fog') {
+    D.fogLayer.style.opacity = 0.6;
+  } else if (S.weather !== 'storm') {
+    D.fogLayer.style.opacity = 0;
+  }
+}
+
+/* ─── BIOME ─────────────────────────────────────────── */
+function updateBiome() {
+  let b = 0;
+  for (let i = BIOME_DIST.length - 1; i >= 0; i--) {
+    if (S.distance >= BIOME_DIST[i]) { b = i; break; }
+  }
+  if (b !== S.biomeIdx) {
+    S.biomeIdx = b;
+    buildAmbient();
+    showEvent(`🗺 Entered: ${BIOMES[b]}`, '#88ccff', 4000);
+    toast(`Welcome to the ${BIOMES[b]}!`, 3000);
+  }
+  D.tbBiome.textContent = BIOMES[S.biomeIdx].split(' ')[0];
+  D.biomeOverlay.textContent = BIOMES[S.biomeIdx];
+}
+
+/* ─── UPGRADE HELPERS ───────────────────────────────── */
+function upEffect(id) { const u = UPGRADES.find(x=>x.id===id); return u ? u.effect(S.upgrades[id]) : {}; }
+function storageMax() { return 20 + (upEffect('hull').storageBonus || 0); }
+function maxDepth() { return 15 + (upEffect('rod').depthBonus || 0); }
+function tensionSlack() { return 0.3 + (upEffect('rod').tensionSlack || 0); }
+function doubleChance() { return upEffect('net').doubleChance || 0; }
+function zoneBonus() { const e = upEffect('autoreel'); return { width: e.zoneWidth||0, slow: e.zoneSlow||0 }; }
+
+/* ─── LEVEL SYSTEM ──────────────────────────────────── */
+function addXP(amount) {
+  S.xp += amount;
+  let didLevel = false;
+  while (S.xp >= xpForLevel(S.level)) {
+    S.xp -= xpForLevel(S.level);
+    S.level++;
+    didLevel = true;
+    // level rewards
+    const reward = [];
+    if (S.level % 2 === 0) { S.coins += S.level * 20; reward.push(`+${S.level*20} coins`); }
+    if (S.level % 3 === 0) { S.metal += S.level * 2; reward.push(`+${S.level*2} metal`); }
+    if (S.level % 5 === 0) { S.gems += 1; reward.push('+1 gem'); }
+    showLevelUp(reward.join(' · '));
+  }
+  refreshLevelHUD();
+  save();
+}
+
+function showLevelUp(rewardText) {
+  D.luSub.textContent = `You reached Level ${S.level}!`;
+  D.luReward.textContent = rewardText || 'Keep fishing to unlock new biomes and fish!';
+  D.levelupSplash.style.display = 'flex';
+  const title = LEVEL_TITLES[Math.min(S.level - 1, LEVEL_TITLES.length - 1)];
+  D.lvTitle.textContent = title;
+}
+D.levelupClose.addEventListener('click', () => { D.levelupSplash.style.display = 'none'; });
+
+function refreshLevelHUD() {
+  const needed = xpForLevel(S.level);
+  const pct = Math.min(100, (S.xp / needed) * 100);
+  D.xpBarFill.style.width = pct + '%';
+  D.xpHudFill.style.width = pct + '%';
+  D.xpText.textContent = `${S.xp} / ${needed} XP`;
+  D.lvBadge.textContent = `Lv ${S.level}`;
+  const title = LEVEL_TITLES[Math.min(S.level - 1, LEVEL_TITLES.length - 1)];
+  D.lvTitle.textContent = title;
+}
+
+/* ─── RESOURCE HUD ──────────────────────────────────── */
+function refreshResources() {
+  D.rCoins.textContent = S.coins;
+  D.rFish.textContent = S.fish;
+  D.rMetal.textContent = S.metal;
+  D.rFuel.textContent = S.fuel;
+  D.rGems.textContent = S.gems;
+  D.rStorage.textContent = `${S.storageUsed}/${storageMax()}`;
+}
+
+/* ─── UPGRADE HUD ───────────────────────────────────── */
+function buildUpgradeUI() {
+  D.upgradeList.innerHTML = '';
+  for (const u of UPGRADES) {
+    const lv = S.upgrades[u.id];
+    const isMax = lv >= u.maxLv;
+    const cost = !isMax ? u.cost(lv) : null;
+    const row = document.createElement('div');
+    row.className = 'up-row';
+    const costStr = cost ? Object.entries(cost).filter(([,v])=>v>0).map(([k,v])=>`${v} ${k}`).join(', ') : '';
+    row.innerHTML = `
+      <div class="up-info">
+        <span class="up-name">${u.icon} ${u.name}</span>
+        <span class="up-cost">${isMax ? '★ max level' : costStr}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="up-lv">${lv}/${u.maxLv}</span>
+        <button class="up-btn" data-id="${u.id}" ${isMax?'disabled':''}>
+          ${isMax ? '✓' : lv === 0 ? 'buy' : 'up'}
+        </button>
+      </div>`;
+    D.upgradeList.appendChild(row);
+  }
+  D.upgradeList.querySelectorAll('.up-btn').forEach(btn => {
+    btn.addEventListener('click', () => tryUpgrade(btn.dataset.id));
+  });
+}
+
+function tryUpgrade(id) {
+  const u = UPGRADES.find(x => x.id === id);
+  const lv = S.upgrades[id];
+  if (lv >= u.maxLv) return;
+  const cost = u.cost(lv);
+  if (S.coins < (cost.coins||0)) { toast('Not enough coins! 🪙'); return; }
+  if (S.metal < (cost.metal||0)) { toast('Not enough metal! ⚙️'); return; }
+  S.coins -= (cost.coins||0);
+  S.metal -= (cost.metal||0);
+  S.upgrades[id]++;
+  refreshResources();
+  buildUpgradeUI();
+  toast(`${u.icon} ${u.name} → Level ${S.upgrades[id]}!`, 3000);
+  save();
+}
+
+/* ─── FISH SELECTION ────────────────────────────────── */
+function pickFish(depth) {
+  // filter by biome and depth
+  const pool = FISH_DB.filter(f => {
+    if (!f.biomes.includes(S.biomeIdx)) return false;
+    if (depth < f.depthMin || depth > f.depthMax) return false;
+    return true;
+  });
+  if (!pool.length) return FISH_DB[0]; // fallback
+
+  // weight by rarity
+  const total = pool.reduce((acc, f) => acc + RARITY_CHANCE[f.rarity], 0);
+  let roll = Math.random() * total;
+  for (const f of pool) {
+    roll -= RARITY_CHANCE[f.rarity];
+    if (roll <= 0) return f;
+  }
+  return pool[pool.length - 1];
+}
+
+/* ─── FISHING STATE MACHINE ─────────────────────────── */
+let chargeTimer = null;
+
+function setPhase(p) {
+  S.phase = p;
+  // visibility toggles
+  D.castPowerWrap.style.display = p === 'charging' ? 'block' : 'none';
+  D.tensionWrap.style.display = p === 'minigame' ? 'block' : 'none';
+  D.reelPrompt.style.display = p === 'minigame' ? 'block' : 'none';
+  D.depthHud.style.display = (p === 'sinking' || p === 'minigame') ? 'block' : 'none';
+  D.minigameOverlay.style.display = p === 'minigame' ? 'flex' : 'none';
+
+  if (p === 'idle') {
+    D.statusMain.textContent = 'Click + hold to cast';
+    D.castPowerFill.style.width = '0%';
+  }
+  if (p === 'sinking') {
+    D.statusMain.textContent = '⏳ Sinking…';
+  }
+  if (p === 'minigame') {
+    D.statusMain.textContent = '🎣 Fish on!';
+    S.tension = 50;
+    S.caughtCount = 0;
+    // init reel zone
+    const zb = zoneBonus();
+    S.zoneWidth = 28 + zb.width + (S.upgrades.sonar * 3);
+    S.zoneSpeed = 0.55 - zb.slow - (S.upgrades.autoreel * 0.12);
+    S.zoneLeft = rand(5, 95 - S.zoneWidth);
+    S.reelPos = 50;
+    D.minigameCatches.textContent = '';
+  }
+  if (p === 'caught') {
+    D.statusMain.textContent = '✅ Fish caught!';
+    handleCatch();
+  }
+  if (p === 'escaped') {
+    D.statusMain.textContent = '❌ It got away…';
+    setTimeout(() => setPhase('idle'), 1500);
+  }
+}
+
+function startCharge() {
+  if (S.phase !== 'idle') return;
+  S.castPower = 0; S.castDir = 1;
+  setPhase('charging');
+  D.statusMain.textContent = 'Hold… ↑ Power';
+}
+
+function releaseCharge() {
+  if (S.phase !== 'charging') return;
+  // cast!
+  const power = S.castPower; // 0–100
+  const depth = Math.min(maxDepth(), 2 + power * 0.18 * (1 + S.upgrades.rod * 0.2));
+  S.targetDepth = Math.round(depth * 10) / 10;
+  S.sinkDepth = 0;
+  // bobber position based on power
+  const worldLeft = D.world.offsetWidth / 2;
+  S.bobberX = worldLeft + (power - 50) * 1.8;
+  S.bobberY = D.world.offsetHeight * 0.42;
+  S.currentFish = null;
+  setPhase('cast');
+  setTimeout(() => setPhase('sinking'), 400);
+}
+
+function updateCharging(dt) {
+  if (S.phase !== 'charging') return;
+  S.castPower += S.castDir * dt * 0.12;
+  if (S.castPower >= 100) { S.castPower = 100; S.castDir = -1; }
+  if (S.castPower <= 0)   { S.castPower = 0;   S.castDir = 1; }
+  D.castPowerFill.style.width = S.castPower + '%';
+}
+
+function updateSinking(dt) {
+  if (S.phase !== 'sinking') return;
+  S.sinkDepth += dt * 0.004;
+  S.bobberY += dt * 0.08;
+  D.depthHud.textContent = `depth: ${Math.min(S.sinkDepth, S.targetDepth).toFixed(1)}m`;
+  if (S.sinkDepth >= S.targetDepth) {
+    S.sinkDepth = S.targetDepth;
+    // pick fish
+    S.currentFish = pickFish(S.targetDepth);
+    // sonar hint
+    if (S.upgrades.sonar >= 1) {
+      toast(`📡 Sonar: ${S.currentFish.rarity} fish nearby!`, 2500);
+    }
+    // wait 1–4s for bite
+    const biteWait = rand(1000, 4000);
+    setTimeout(() => {
+      if (S.phase === 'sinking') setPhase('minigame');
+    }, biteWait);
+    setPhase('sinking'); // keep sinking phase, just stop moving
+    D.statusMain.textContent = `🎣 Waiting for bite… (${S.targetDepth.toFixed(1)}m)`;
+  }
+}
+
+/* ─── MINIGAME ──────────────────────────────────────── */
+const CATCHES_NEEDED = 3; // clicks in zone needed to land fish
+
+function updateMinigame(dt) {
+  if (S.phase !== 'minigame') return;
+
+  // move zone
+  S.zoneLeft += S.zoneDir * S.zoneSpeed * dt * 0.06;
+  if (S.zoneLeft < 2 || S.zoneLeft + S.zoneWidth > 98) {
+    S.zoneDir *= -1;
+    S.zoneSpeed = clamp(S.zoneSpeed + 0.01, 0.1, 1.2); // accelerates!
+  }
+
+  // tension drains over time
+  S.tension -= dt * 0.015;
+  if (S.tension <= 0) {
+    S.tension = 0;
+    // fish escapes
+    triggerEscape();
+    return;
+  }
+
+  // update visuals
+  const tPct = S.tension;
+  D.tensionFill.style.width = tPct + '%';
+  const tensionColor = tPct > 60 ? '#44ee88' : tPct > 30 ? '#ffcc33' : '#ff5544';
+  D.tensionFill.style.background = tensionColor;
+  D.reelZone.style.left = S.zoneLeft + '%';
+  D.reelZone.style.width = S.zoneWidth + '%';
+  D.reelCursor.style.left = S.reelPos + '%';
+  D.depthHud.textContent = `depth: ${S.targetDepth.toFixed(1)}m`;
+}
+
+function reelClick() {
+  if (S.phase !== 'minigame') return;
+  const cursor = S.reelPos;
+  const inZone = cursor >= S.zoneLeft && cursor <= (S.zoneLeft + S.zoneWidth);
+
+  if (inZone) {
+    // good hit
+    S.tension = Math.min(100, S.tension + 28);
+    S.caughtCount++;
+    spawnParticles(S.bobberX, S.bobberY - 20, '#44ff88', 6);
+    D.minigameCatches.textContent = `✅ ${S.caughtCount} / ${CATCHES_NEEDED}`;
+    if (S.caughtCount >= CATCHES_NEEDED) {
+      setPhase('caught');
+    }
+  } else {
+    // miss
+    S.tension = Math.max(0, S.tension - 20);
+    spawnParticles(S.bobberX, S.bobberY - 20, '#ff5544', 4);
+    D.minigameCatches.textContent = `❌ Miss!`;
+    setTimeout(() => { if (S.phase === 'minigame') D.minigameCatches.textContent = `${S.caughtCount} / ${CATCHES_NEEDED}`; }, 600);
+  }
+}
+
+function triggerEscape() {
+  D.escapemsg.style.opacity = 1;
+  D.escapemsg.style.transition = 'opacity 0.3s';
+  setTimeout(() => { D.escapemsg.style.opacity = 0; }, 1200);
+  setPhase('escaped');
+  toast('The fish escaped! Try again.', 2000);
+}
+
+/* ─── HANDLE CATCH ──────────────────────────────────── */
+function handleCatch() {
+  const f = S.currentFish;
+  if (!f) { setPhase('idle'); return; }
+
+  const gained = [];
+  const applyFish = (fish) => {
+    S.fish += 1;
+    S.storageUsed = Math.min(storageMax(), S.storageUsed + 1);
+    S.coins += fish.coins;
+    if (fish.metal) S.metal += fish.metal;
+    if (fish.gems)  S.gems  += fish.gems;
+    S.totalCaught++;
+    gained.push(`${fish.icon} ${fish.name} (${fish.rarity})`);
+
+    // XP
+    addXP(fish.xp);
+
+    // add to catch log
+    const entry = { ...fish, ts: Date.now() };
+    S.catchLog.unshift(entry);
+    if (S.catchLog.length > 20) S.catchLog.pop();
+    addFishLogEntry(entry);
+
+    // rare events
+    if (fish.rarity === 'legendary' || fish.rarity === 'mythic') {
+      showEvent(`🌟 LEGENDARY CATCH: ${fish.icon} ${fish.name}!`, '#ffaa33', 6000);
+    } else if (fish.rarity === 'epic') {
+      showEvent(`💜 Epic catch: ${fish.icon} ${fish.name}!`, '#c66ff9', 4000);
+    }
+
+    // particles
+    spawnParticles(S.bobberX, S.bobberY, RARITY_COLOR[fish.rarity] || '#fff', 14);
+  };
+
+  applyFish(f);
+
+  // double catch (net upgrade)
+  if (Math.random() < doubleChance()) {
+    const bonus = pickFish(S.targetDepth);
+    applyFish(bonus);
+    toast(`🕸️ Net bonus! Caught ${bonus.icon} ${bonus.name} too!`, 3000);
+  }
+
+  // loot popup
+  const mainGain = `${f.icon} +${f.coins} coins`;
+  showLoot(mainGain, RARITY_COLOR[f.rarity] || '#fff', S.bobberX, S.bobberY - 30);
+
+  // distance from engine
+  S.distance += 10 + S.upgrades.engine * 8;
+  D.tbDist.textContent = Math.round(S.distance) + 'm';
+  D.tbCaught.textContent = S.totalCaught;
+
+  refreshResources();
+  updateBiome();
+  buildUpgradeUI();
+  save();
+
+  setTimeout(() => setPhase('idle'), 800);
+}
+
+/* ─── FISH LOG UI ───────────────────────────────────── */
+function addFishLogEntry(fish) {
+  // remove empty placeholder
+  const placeholder = D.fishLog.querySelector('[data-placeholder]');
+  if (placeholder) placeholder.remove();
+
+  const el = document.createElement('div');
+  el.className = 'fish-entry';
+  const extras = [fish.metal ? `+${fish.metal}⚙️` : null, fish.gems ? `+${fish.gems}💎` : null].filter(Boolean).join(' ');
+  el.innerHTML = `
+    <span class="f-icon">${fish.icon}</span>
+    <div class="f-info">
+      <span class="f-name">${fish.name}</span>
+      <span class="f-sub">+${fish.coins}🪙 +${fish.xp}xp ${extras}</span>
+    </div>
+    <span class="f-rarity" style="background:${RARITY_COLOR[fish.rarity]}22;color:${RARITY_COLOR[fish.rarity]}">${fish.rarity}</span>`;
+  D.fishLog.prepend(el);
+
+  // cap at 15 entries
+  while (D.fishLog.children.length > 15) D.fishLog.lastChild.remove();
+}
+
+function buildFishLogFromSave() {
+  D.fishLog.innerHTML = '';
+  if (!S.catchLog || S.catchLog.length === 0) {
+    D.fishLog.innerHTML = '<div style="font-size:11px;opacity:0.3;text-align:center;padding:12px 0;" data-placeholder>No catches yet — cast your line!</div>';
+    return;
+  }
+  for (const f of S.catchLog) addFishLogEntry(f);
+}
+
+/* ─── BOAT BOBBING ──────────────────────────────────── */
+let boatBob = 0;
+function updateBoat(dt) {
+  boatBob += dt * 0.001;
+  const bob = Math.sin(boatBob) * 5;
+  const rock = Math.sin(boatBob * 0.7) * 1.5;
+  const boat = document.getElementById('boat');
+  boat.style.transform = `translateX(-50%) translateY(${bob}px) rotate(${rock}deg)`;
+}
+
+/* ─── DRAW LINE + BOBBER ────────────────────────────── */
+function drawLine() {
+  ctxLine.clearRect(0, 0, W, H);
+  if (S.phase === 'idle' || S.phase === 'charging') return;
+
+  // rod tip position (approximate from boat position)
+  const boatEl = document.getElementById('boat');
+  const rect = boatEl.getBoundingClientRect();
+  const rodTipX = rect.left + rect.width * 0.82;
+  const rodTipY = rect.top + rect.height * 0.22;
+
+  const bx = S.bobberX;
+  const by = S.phase === 'sinking' ? S.bobberY + S.sinkDepth * 6 : S.bobberY + S.targetDepth * 6;
+
+  // line
+  ctxLine.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctxLine.lineWidth = 1.5;
+  ctxLine.beginPath();
+  ctxLine.moveTo(rodTipX, rodTipY);
+  // catenary-ish
+  const mx = (rodTipX + bx) / 2;
+  const my = Math.max(rodTipY, by) - 30;
+  ctxLine.quadraticCurveTo(mx, my, bx, by);
+  ctxLine.stroke();
+
+  // bobber
+  if (S.phase !== 'caught') {
+    ctxLine.fillStyle = '#ff5c7b';
+    ctxLine.beginPath();
+    ctxLine.arc(bx, by, 7, 0, Math.PI * 2);
+    ctxLine.fill();
+    ctxLine.fillStyle = '#fff';
+    ctxLine.beginPath();
+    ctxLine.arc(bx, by - 2, 3, 0, Math.PI * 2);
+    ctxLine.fill();
+    // splash ring if minigame
+    if (S.phase === 'minigame') {
+      const r = 12 + Math.sin(Date.now() * 0.006) * 4;
+      ctxLine.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctxLine.lineWidth = 1;
+      ctxLine.beginPath();
+      ctxLine.arc(bx, by, r, 0, Math.PI * 2);
+      ctxLine.stroke();
+    }
+  }
+}
+
+/* ─── INPUT HANDLING ────────────────────────────────── */
+let holdTimer = null;
+
+function onWorldPointerDown(e) {
+  if (S.phase === 'minigame') {
+    reelClick();
+    return;
+  }
+  if (S.phase !== 'idle') return;
+  startCharge();
+}
+
+function onWorldPointerUp(e) {
+  if (S.phase === 'charging') releaseCharge();
+}
+
+D.world.addEventListener('pointerdown', onWorldPointerDown);
+D.world.addEventListener('pointerup', onWorldPointerUp);
+D.world.addEventListener('touchstart', e => { e.preventDefault(); onWorldPointerDown(e); }, { passive: false });
+D.world.addEventListener('touchend',   e => { e.preventDefault(); onWorldPointerUp(e); }, { passive: false });
+
+// Reel zone: also click on the track itself
+$('minigame-track').addEventListener('pointerdown', e => { e.stopPropagation(); reelClick(); });
+
+// keyboard: space to charge/release, R to reel
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (S.phase === 'idle') startCharge();
+    else if (S.phase === 'charging') releaseCharge();
+    else if (S.phase === 'minigame') reelClick();
+  }
+});
+
+/* ─── MAIN LOOP ─────────────────────────────────────── */
+let last = performance.now();
+let started = false;
+
+function loop(now) {
+  const dt = Math.min(now - last, 50); // cap dt at 50ms (20fps min)
+  last = now;
+
+  if (!started) { requestAnimationFrame(loop); return; }
+
+  updateDayNight(dt);
+  updateWeather(dt);
+  updateWaves(dt);
+  drawAmbientFish(dt);
+  drawRain(dt);
+  updateParticles(dt);
+  updateBoat(dt);
+  drawLine();
+  updateCharging(dt);
+  updateSinking(dt);
+  updateMinigame(dt);
+
+  // distance from engine ticking (slow idle movement)
+  if (S.phase === 'idle' && S.fuel > 0) {
+    S.distance += dt * 0.001 * (1 + S.upgrades.engine * 0.2);
+    D.tbDist.textContent = Math.round(S.distance) + 'm';
+    updateBiome();
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ─── BOOT ──────────────────────────────────────────── */
+D.startBtn.addEventListener('click', () => {
+  D.startScreen.style.display = 'none';
+  started = true;
+  toast('🎣 Click + Hold in the water to cast!', 4000);
+});
+
+function init() {
+  load();
+  // ensure phase is idle on boot
+  S.phase = 'idle';
+  S.particles = [];
+  S.currentFish = null;
+
+  refreshResources();
+  refreshLevelHUD();
+  buildUpgradeUI();
+  buildFishLogFromSave();
+
+  D.tbDay.textContent = S.day;
+  D.tbDist.textContent = Math.round(S.distance) + 'm';
+  D.tbCaught.textContent = S.totalCaught;
+}
+
+init();
+
+/* ─── AUTO-SAVE every 30s ───────────────────────────── */
+setInterval(save, 30000);
+</script>
 </body>
 </html>
