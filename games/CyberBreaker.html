@@ -1,13 +1,390 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cyberbreaker</title><link rel="icon" href="../favicon-32x32.png"><style>:root{--bg:#05070a;--panel:#0b1016;--line:#1e303d;--text:#e8f4f2;--muted:#78909b;--accent:#45f3b1;--accent2:#56a6ff;--bad:#ff6b79}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:radial-gradient(circle at 50% 10%,#102019,#040609 58%);color:var(--text);font-family:"SFMono-Regular",Consolas,monospace}body{display:grid;place-items:center;overflow:auto;padding:20px}.app{width:min(1040px,96vw);min-height:min(760px,94vh);background:#070b10ed;border:1px solid #ffffff14;border-radius:24px;box-shadow:0 30px 100px #000;display:flex;flex-direction:column;overflow:hidden}.top{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid #ffffff0d}.brand{font-weight:900;letter-spacing:.13em}.badge{font-size:11px;color:var(--accent);border:1px solid #45f3b133;padding:5px 9px;border-radius:999px}.content{display:grid;grid-template-columns:1.2fr .8fr;gap:0;flex:1}.board{position:relative;min-height:560px;border-right:1px solid #ffffff0d;padding:26px;display:grid;place-items:center}.nodes{position:relative;width:min(670px,90%);aspect-ratio:1.45}.node{position:absolute;width:74px;height:74px;border-radius:18px;border:1px solid #ffffff1d;background:#0d151c;display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 24px #0006;transition:.18s transform,.18s border-color,.18s box-shadow}.node:hover{transform:translateY(-2px);border-color:#45f3b188}.node.active{background:#0d241c;border-color:#45f3b1;box-shadow:0 0 0 4px #45f3b114,0 0 30px #45f3b122}.node.source{border-color:#56a6ff88}.node.target{border-color:#ffd36a66}.node small{font-size:10px;color:var(--muted);display:block}.side{padding:26px;display:flex;flex-direction:column;gap:16px}.terminal{background:#05080c;border:1px solid #ffffff10;border-radius:16px;padding:16px;min-height:180px;line-height:1.55;color:#9adcc3;font-size:12px}.stat{display:flex;justify-content:space-between;padding:10px 12px;border:1px solid #ffffff0d;border-radius:12px;background:#ffffff03}.actions{display:flex;gap:8px;flex-wrap:wrap}button{background:#ffffff06;color:#eaf5f2;border:1px solid #ffffff18;padding:10px 13px;border-radius:10px;font:inherit;font-weight:800;cursor:pointer}button.primary{background:linear-gradient(135deg,#45f3b1,#56a6ff);color:#04100a;border:0}.notice{color:#93a9b1;font-size:12px;line-height:1.6}.success{color:var(--accent)}.fail{color:var(--bad)}@media(max-width:820px){.content{grid-template-columns:1fr}.board{border-right:0;border-bottom:1px solid #ffffff0d;min-height:430px}.side{padding:20px}.nodes{width:94%}.node{width:62px;height:62px}}
-</style></head><body><main class="app"><div class="top"><div class="brand">CYBERBREAKER // 360</div><div class="badge" id="level">NODE 01</div></div><div class="content"><section class="board"><div class="nodes" id="nodes"><svg id="links" viewBox="0 0 100 70" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><g fill="none" stroke="#23424a" stroke-width=".7" stroke-linecap="round" id="baseLinks"></g><g fill="none" stroke="#45f3b1" stroke-width="1.1" stroke-linecap="round" id="activeLinks"></g></svg></div></section><aside class="side"><div class="stat"><span>Packets</span><b id="packets">0 / 0</b></div><div class="stat"><span>Time</span><b id="timer">00:00</b></div><div class="terminal" id="terminal">[360-sec] session initialized...<br>[route] waiting for uplink...<br>[hint] connect SOURCE to CORE, then CORE to TARGET.<br></div><div class="notice">This is a fictional logic puzzle. Build a valid signal path by clicking adjacent nodes. Backtracking is allowed. Every level generates a new network.</div><div class="actions"><button class="primary" id="check">VERIFY ROUTE</button><button id="reset">RESET</button><button id="next" style="display:none">NEXT NODE</button></div></aside></div></main>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CyberBreaker // 360</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#020a0f;color:#d6fff2;font-family:ui-monospace,Consolas,'Cascadia Code',monospace;overflow:hidden}
+body{display:flex;flex-direction:column}
+/* TOP */
+#top{height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #1a3a32;background:#030e13}
+#logo{font-weight:900;font-size:13px;letter-spacing:.14em;color:#2dffc0}
+#top-stats{display:flex;gap:18px;font-size:11px;align-items:center}
+.ts{display:flex;flex-direction:column;align-items:center;gap:1px}
+.ts-label{font-size:9px;opacity:.45;letter-spacing:.1em}
+.ts-val{font-weight:800;color:#7fffd8;font-size:14px}
+/* LAYOUT */
+#layout{flex:1;display:grid;grid-template-columns:1fr 300px;min-height:0}
+/* BOARD */
+#board{position:relative;background:radial-gradient(ellipse at 50% 42%,#061822,#020c11 72%);overflow:hidden}
+#board-title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.25em;opacity:.25;pointer-events:none}
+#svg-layer{position:absolute;inset:0;width:100%;height:100%}
+.edge{stroke:#1e3d4a;stroke-width:2;fill:none;transition:stroke .25s,stroke-width .25s}
+.edge.active{stroke:#2dffc0;stroke-width:3;filter:drop-shadow(0 0 6px #2dffc099)}
+.edge.near{stroke:#1f5e4e;stroke-width:2}
+/* NODE BUTTONS */
+.node{position:absolute;transform:translate(-50%,-50%);width:68px;height:68px;border-radius:14px;border:2px solid #1e3d4a;background:#07161f;font:800 11px ui-monospace;color:#c8ffe8;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:border-color .2s,background .2s,box-shadow .2s}
+.node:hover{border-color:#2dffc055;background:#0c2030}
+.node.source{border-color:#40a8ff;background:#071b2e;color:#a0d8ff}
+.node.target{border-color:#ffc94e;background:#1a1207;color:#ffd980}
+.node.active{border-color:#2dffc0;background:#082e20;box-shadow:0 0 22px #2dffc055;color:#2dffc0}
+.node.reached{border-color:#2dffc088;background:#061e14}
+.node .nicon{font-size:18px;line-height:1}
+.node .nlabel{font-size:9px;opacity:.7}
+/* sonar pulse */
+@keyframes sonar{0%{box-shadow:0 0 0 0 #2dffc066}100%{box-shadow:0 0 0 24px #2dffc000}}
+.node.ping{animation:sonar .6s ease-out}
+/* SIDEBAR */
+#side{border-left:1px solid #0f2a22;display:flex;flex-direction:column;gap:0;background:#030f14}
+.panel{border-bottom:1px solid #0f2a22;padding:14px 16px}
+.panel-label{font-size:9px;letter-spacing:.15em;opacity:.38;margin-bottom:10px}
+/* STATUS */
+#status-bar{height:6px;border-radius:3px;background:#0f2a22;overflow:hidden;margin-bottom:10px}
+#status-fill{height:100%;width:0;background:linear-gradient(90deg,#2dffc0,#45aaff);border-radius:3px;transition:width .4s}
+#status-text{font-size:12px;line-height:1.5;color:#9ce8c8;min-height:36px}
+/* STATS GRID */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-box{padding:9px 10px;border:1px solid #0f2a22;border-radius:10px;background:#060f15}
+.stat-box .sv{font-size:20px;font-weight:900;color:#2dffc0}
+.stat-box .sl{font-size:9px;opacity:.5;margin-top:2px}
+/* ROUTE DISPLAY */
+#route-display{display:flex;flex-wrap:wrap;gap:4px;min-height:28px;align-items:center}
+.rb{padding:2px 8px;border-radius:6px;background:#0f2a22;border:1px solid #1e4a36;font-size:10px;color:#7fffd8}
+.rb.arrow{background:transparent;border:none;opacity:.4;padding:0 2px}
+/* TERMINAL */
+#term{flex:1;overflow-y:auto;padding:12px 14px;font-size:11px;line-height:1.7;color:#7ccfac;min-height:0}
+#term::-webkit-scrollbar{width:4px}
+#term::-webkit-scrollbar-thumb{background:#1e3d4a;border-radius:2px}
+.lg{display:block}.good{color:#2dffc0}.bad{color:#ff7080}.info{color:#45aaff}.warn{color:#ffc94e}
+/* BUTTONS */
+#btns{display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+button{font:inherit;font-weight:800;border-radius:9px;padding:10px 14px;cursor:pointer;font-size:12px;transition:opacity .15s,filter .15s}
+#btn-verify{border:none;background:linear-gradient(135deg,#2dffc0,#45aaff);color:#020e0a}
+#btn-reset{border:1px solid #1e3d4a;background:#060f15;color:#7fffd8}
+#btn-next{display:none;border:none;background:linear-gradient(135deg,#ffc94e,#ff8066);color:#160800}
+#btn-help{border:1px solid #1e3d4a;background:transparent;color:#4a7a68;font-size:11px}
+button:hover{filter:brightness(1.12)}
+button:active{filter:brightness(.9)}
+/* DIFFICULTY BADGE */
+#diff-badge{padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:.1em;border:1px solid currentColor}
+.diff-easy{color:#2dffc0;border-color:#2dffc055}
+.diff-med{color:#ffc94e;border-color:#ffc94e55}
+.diff-hard{color:#ff7080;border-color:#ff708055}
+/* TUTORIAL */
+#tut{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#01060bc8;backdrop-filter:blur(6px)}
+#tpanel{width:min(740px,93vw);padding:30px;border-radius:18px;background:#060f16f8;border:2px solid #2dffc055;box-shadow:0 40px 120px #000}
+#tpanel h2{font-size:28px;margin:8px 0 14px;letter-spacing:-.02em}
+#tpanel p{color:#8ecebb;line-height:1.65;font-size:13px}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.tc{padding:14px;border:1px solid #1e3d4a;border-radius:10px;background:#050d13;text-align:center;font-size:11px}
+.tc .ticon{font-size:28px;margin-bottom:6px}
+.tc b{display:block;margin-bottom:4px;color:#d6fff2}
+.tc span{color:#6aac90;font-size:10px}
+.tfoot{display:flex;justify-content:space-between;align-items:center;margin-top:20px;gap:10px}
+#tprogress{font-size:10px;opacity:.4}
+/* SCORE FLASH */
+#score-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:32px;font-weight:900;pointer-events:none;opacity:0;transition:opacity .3s}
+/* MEDALS */
+#medal{font-size:28px;display:inline;margin-left:6px}
+/* responsive */
+@media(max-width:740px){#layout{grid-template-columns:1fr}#side{border-left:none;border-top:1px solid #0f2a22;max-height:44vh}}
+</style></head><body>
+
+<!-- TUTORIAL -->
+<div id="tut">
+<div id="tpanel">
+  <div style="font-size:9px;letter-spacing:.2em;color:#2dffc0" id="tstep">TUTORIAL · 1 / 3</div>
+  <h2 id="ttitle">Route a packet from SOURCE to TARGET</h2>
+  <p id="tbody"></p>
+  <div class="tgrid" id="tgrid"></div>
+  <p style="font-size:10px;color:#4a7a68" id="thint"></p>
+  <div class="tfoot">
+    <div id="tprogress"></div>
+    <div style="display:flex;gap:10px">
+      <button id="tskip" style="border:1px solid #1e3d4a;background:transparent;color:#4a7a68">SKIP</button>
+      <button id="tnext" style="border:none;background:linear-gradient(135deg,#2dffc0,#45aaff);color:#020e0a">NEXT</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MAIN UI -->
+<div id="top">
+  <span id="logo">CYBERBREAKER // 360</span>
+  <div id="top-stats">
+    <div class="ts"><span class="ts-label">NODE</span><span class="ts-val" id="ts-node">01</span></div>
+    <div class="ts"><span class="ts-label">SOLVED</span><span class="ts-val" id="ts-solved">0</span></div>
+    <div class="ts"><span class="ts-label">CREDITS</span><span class="ts-val" id="ts-credits">0</span></div>
+    <div class="ts"><span class="ts-label">STREAK</span><span class="ts-val" id="ts-streak">0🔥</span></div>
+  </div>
+</div>
+
+<div id="layout">
+  <div id="board">
+    <div id="board-title">NETWORK TOPOLOGY</div>
+    <svg id="svg-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="score-flash"></div>
+  </div>
+
+  <div id="side">
+    <div class="panel">
+      <div class="panel-label">STATUS</div>
+      <div id="status-bar"><div id="status-fill"></div></div>
+      <div id="status-text">Click SOURCE to begin routing</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">METRICS</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="sv" id="hops">0</div><div class="sl">HOPS</div></div>
+        <div class="stat-box"><div class="sv" id="timer-disp">0:00</div><div class="sl">TIME</div></div>
+        <div class="stat-box"><div class="sv" id="eff">—</div><div class="sl">EFFICIENCY</div></div>
+        <div class="stat-box"><div id="diff-badge" class="diff-easy">EASY</div><div class="sl">DIFFICULTY</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">ACTIVE ROUTE</div>
+      <div id="route-display"></div>
+    </div>
+
+    <div id="term" class="panel" style="border-bottom:1px solid #0f2a22"></div>
+
+    <div id="btns">
+      <button id="btn-verify">▶ VERIFY ROUTE</button>
+      <div style="display:flex;gap:8px">
+        <button id="btn-reset" style="flex:1">↺ RESET</button>
+        <button id="btn-next">NEXT NODE →</button>
+      </div>
+      <button id="btn-help">? TUTORIAL</button>
+    </div>
+  </div>
+</div>
+
 <script>
-(()=>{'use strict';const root=document.getElementById('nodes'),base=document.getElementById('baseLinks'),active=document.getElementById('activeLinks'),pack=document.getElementById('packets'),timer=document.getElementById('timer'),terminal=document.getElementById('terminal'),levelEl=document.getElementById('level'),check=document.getElementById('check'),resetBtn=document.getElementById('reset'),next=document.getElementById('next');let level=1,nodes=[],route=[],elapsed=0,tick=null;
-const layouts=[[[12,50],[35,25],[55,50],[80,20],[88,58],[63,80],[34,73]],[[10,50],[28,16],[48,33],[43,72],[68,20],[72,83],[90,50],[63,53]],[[8,20],[8,72],[26,50],[47,19],[49,80],[70,38],[77,66],[94,25],[92,78]]];
-function startTimer(){clearInterval(tick);elapsed=0;tick=setInterval(()=>{elapsed++;timer.textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`},1000)}
-function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}function build(){clearInterval(tick);startTimer();root.querySelectorAll('.node').forEach(n=>n.remove());base.innerHTML='';active.innerHTML='';route=[];const raw=layouts[(level-1)%layouts.length];nodes=[];for(let i=0;i<raw.length;i+=2)nodes.push({x:raw[i],y:raw[i+1]});const edges=[];for(let i=0;i<nodes.length;i++){let near=nodes.map((n,j)=>({j,d:dist(nodes[i],n)})).filter(v=>v.j!==i).sort((a,b)=>a.d-b.d).slice(0,2);near.forEach(v=>{const exists=edges.some(e=>(e[0]===i&&e[1]===v.j)||(e[0]===v.j&&e[1]===i));if(!exists)edges.push([i,v.j])})}
-// The index chain is always present, so every generated level has at least one valid SOURCE→TARGET route.
-for(let i=0;i<nodes.length-1;i++){if(!edges.some(e=>(e[0]===i&&e[1]===i+1)||(e[0]===i+1&&e[1]===i)))edges.push([i,i+1])}for(const [a,b] of edges){const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',nodes[a].x);l.setAttribute('y1',nodes[a].y);l.setAttribute('x2',nodes[b].x);l.setAttribute('y2',nodes[b].y);base.appendChild(l)}nodes.forEach((n,i)=>{const el=document.createElement('button');el.className='node'+(i===0?' source':i===nodes.length-1?' target':'');el.style.left=`${n.x}%`;el.style.top=`${n.y}%`;el.style.transform='translate(-50%,-50%)';el.innerHTML=`<div><b>${i===0?'SRC':i===nodes.length-1?'TARGET':String(i).padStart(2,'0')}</b><small>NODE</small></div>`;el.onclick=()=>select(i,edges);root.appendChild(el)});pack.textContent=`0 / ${nodes.length+level}`;levelEl.textContent=`NODE ${String(level).padStart(2,'0')}`;terminal.innerHTML='[360-sec] secure channel online...<br>[route] select SOURCE, then connected nodes.<br>[hint] the shortest route is not always the cleanest one.';next.style.display='none';check.style.display='inline-block'}
-function connected(a,b,edges){return edges.some(e=>(e[0]===a&&e[1]===b)||(e[0]===b&&e[1]===a))}function select(i,edges){if(route.length===0){if(i!==0){terminal.innerHTML+='<br><span class="fail">[deny] start at SOURCE.</span>';return}route=[0]}else if(i===route[route.length-1])return;else if(route.length>1&&i===route[route.length-2])route.pop();else if(connected(route[route.length-1],i,edges)&&!route.includes(i))route.push(i);else{terminal.innerHTML+='<br><span class="fail">[deny] link unavailable.</span>';return}renderRoute();pack.textContent=`${Math.max(0,route.length-1)} / ${nodes.length+level}`}
-function renderRoute(){root.querySelectorAll('.node').forEach((e,i)=>e.classList.toggle('active',route.includes(i)));active.innerHTML='';for(let i=1;i<route.length;i++){const a=nodes[route[i-1]],b=nodes[route[i]],l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',a.x);l.setAttribute('y1',a.y);l.setAttribute('x2',b.x);l.setAttribute('y2',b.y);active.appendChild(l)}}
-function verify(){if(route.at(-1)!==nodes.length-1){terminal.innerHTML+='<br><span class="fail">[verify] route does not terminate at TARGET.</span>';return}const score=Math.max(100,1000-elapsed*12-(route.length-1)*28);terminal.innerHTML+=`<br><span class="success">[verify] packet delivered. +${score} credits.</span>`;check.style.display='none';next.style.display='inline-block';clearInterval(tick)}resetBtn.onclick=build;check.onclick=verify;next.onclick=()=>{level++;build()};build();})();
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ── TUTORIAL ─────────────────────────────────────── */
+const STEPS=[
+  {title:'Route a packet from SOURCE to TARGET',
+   body:'CyberBreaker is a network path puzzle. Your job: connect the glowing blue SOURCE node to the yellow TARGET node by clicking nodes in sequence along the drawn links.',
+   grid:[{icon:'🔵',b:'SOURCE',s:'Your start node — click here first'},{icon:'⚪',b:'Relay',s:'Intermediate nodes you hop through'},{icon:'🟡',b:'TARGET',s:'Destination — end your route here'}],
+   hint:'You can only travel along visible links. Clicking a non-linked node does nothing.'},
+  {title:'Navigate links — backtrack freely',
+   body:'Only nodes directly connected to your current position are reachable. Green lines show your route so far. Click your previous node to step back and try a different path.',
+   grid:[{icon:'🟢',b:'Active link',s:'Your current route path'},{icon:'⚫',b:'Unused link',s:'Available but not yet used'},{icon:'↩️',b:'Backtrack',s:'Click previous node to undo last hop'}],
+   hint:'Shorter routes score higher. Aim for the minimum number of hops possible.'},
+  {title:'Score big — chain fast clears',
+   body:'Press VERIFY ROUTE when you reach TARGET. Bonus credits for speed, efficiency, and hitting the minimum hop count. Clear nodes back-to-back to build a streak multiplier.',
+   grid:[{icon:'⚡',b:'Speed bonus',s:'Faster solutions earn extra credits'},{icon:'📍',b:'Min hops',s:'Optimal path gives efficiency bonus'},{icon:'🔥',b:'Streak',s:'Chain clears to multiply your score'}],
+   hint:'Hard nodes have more relays and trickier topologies. Efficiency matters more at higher levels.'},
+];
+let tstep=0;
+function showTut(){
+  $('tut').style.display='grid';
+  const s=STEPS[tstep];
+  $('tstep').textContent=`TUTORIAL · ${tstep+1} / ${STEPS.length}`;
+  $('ttitle').textContent=s.title;
+  $('tbody').textContent=s.body;
+  $('tgrid').innerHTML=s.grid.map(g=>`<div class="tc"><div class="ticon">${g.icon}</div><b>${g.b}</b><span>${g.s}</span></div>`).join('');
+  $('thint').textContent='💡 '+s.hint;
+  $('tprogress').textContent=`Step ${tstep+1} of ${STEPS.length}`;
+  $('tnext').textContent=tstep===STEPS.length-1?'START HACKING':'NEXT →';
+}
+$('tnext').onclick=()=>{ if(tstep<STEPS.length-1){tstep++;showTut()}else{$('tut').style.display='none';startTimer()} };
+$('tskip').onclick=()=>{ $('tut').style.display='none';startTimer() };
+
+/* ── GAME STATE ───────────────────────────────────── */
+let level=1,totalCredits=+localStorage.getItem('cb-credits')||0,solved=+localStorage.getItem('cb-solved')||0,streak=0;
+let nodes=[],edges=[],route=[],optimalHops=0;
+let timerSec=0,timerInt=null,running=false;
+
+/* ── LEVEL DEFINITIONS ─────────────────────────────
+   Each level: {positions (% of board), adjacency list} ── */
+function genLevel(lv){
+  // build a procedural graph seeded by level
+  const rng=(()=>{let s=lv*7919+13;return()=>{s=(s^(s<<13))>>>0;s=(s^(s>>17))>>>0;s=(s^(s<<5))>>>0;return s/0xffffffff}})();
+  const diff=lv<=3?'easy':lv<=8?'medium':'hard';
+  const nodeCount=diff==='easy'?6:diff==='medium'?8:10;
+  // place nodes avoiding overlap
+  const pts=[];const tries=500;
+  while(pts.length<nodeCount&&tries>0){
+    const x=12+rng()*76,y=12+rng()*76;
+    if(pts.every(p=>Math.hypot(p.x-x,p.y-y)>13)){pts.push({x,y})}
+  }
+  // ensure path src→tgt exists: build spanning chain first
+  const order=[...pts.keys()].sort((a,b)=>pts[a].x-pts[b].x);
+  const src=order[0],tgt=order[order.length-1];
+  const adj=Array.from({length:nodeCount},()=>new Set());
+  // guaranteed path
+  const pathLen=2+Math.floor(rng()*(nodeCount-3));
+  const path=[src];
+  const mid=order.slice(1,-1).sort(()=>rng()-.5).slice(0,pathLen-2);
+  path.push(...mid,tgt);
+  for(let i=0;i<path.length-1;i++){adj[path[i]].add(path[i+1]);adj[path[i+1]].add(path[i])}
+  optimalHops=path.length-1;
+  // add random extra edges
+  const extras=diff==='easy'?2:diff==='medium'?4:6;
+  for(let e=0;e<extras*3&&e<500;e++){
+    const a=Math.floor(rng()*nodeCount),b=Math.floor(rng()*nodeCount);
+    if(a!==b&&!adj[a].has(b)&&Math.hypot(pts[a].x-pts[b].x,pts[a].y-pts[b].y)<38){
+      adj[a].add(b);adj[b].add(a);if(Object.values(adj).reduce((s,v)=>s+v.size,0)/2>nodeCount+extras)break;
+    }
+  }
+  return{pts,adj,src,tgt,nodeCount,diff};
+}
+
+/* ── BUILD BOARD ──────────────────────────────────── */
+function build(){
+  const svg=$('svg-layer');svg.innerHTML='';
+  document.querySelectorAll('.node').forEach(n=>n.remove());
+  route=[];running=false;
+  const {pts,adj,src,tgt,diff}=genLevel(level);
+  nodes=pts;edges=[];
+  for(let i=0;i<nodes.length;i++)for(const j of adj[i])if(j>i)edges.push([i,j]);
+
+  // draw edges
+  const board=$('board');
+  edges.forEach(([a,b],idx)=>{
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',nodes[a].x+'%');line.setAttribute('y1',nodes[a].y+'%');
+    line.setAttribute('x2',nodes[b].x+'%');line.setAttribute('y2',nodes[b].y+'%');
+    line.setAttribute('class','edge');line.setAttribute('data-edge',idx);
+    svg.appendChild(line);
+  });
+
+  // draw nodes
+  const icons=['🖥','📡','🔌','💾','🌐','🔒','📶','⚡','🛡','🔍'];
+  nodes.forEach((n,i)=>{
+    const btn=document.createElement('button');
+    btn.className='node'+(i===src?' source':'')+(i===tgt?' target':'');
+    btn.style.left=n.x+'%';btn.style.top=n.y+'%';
+    btn.innerHTML=`<span class="nicon">${i===src?'📡':i===tgt?'🎯':icons[i%icons.length]}</span><span class="nlabel">${i===src?'SRC':i===tgt?'GOAL':String(i).padStart(2,'0')}</span>`;
+    btn.dataset.idx=i;
+    btn.onclick=()=>pick(i);
+    board.appendChild(btn);
+  });
+
+  // difficulty badge + label
+  const bd=$('diff-badge');
+  bd.className='diff-badge diff-'+diff.slice(0,3);
+  bd.textContent=diff.toUpperCase();
+  $('ts-node').textContent=String(level).padStart(2,'0');
+  $('btn-next').style.display='none';
+  $('btn-verify').style.display='';
+  $('status-fill').style.width='0%';
+  $('eff').textContent='—';
+  updateRouteDisplay();
+  log('<span class="info">[NET]</span> Node '+String(level).padStart(2,'0')+' online. Optimal route: <b>'+optimalHops+'</b> hops.');
+  log('<span class="good">[SYS]</span> Click SOURCE to begin.');
+}
+
+/* ── PICK NODE ────────────────────────────────────── */
+function pick(i){
+  const src=genLevel(level).src,tgt=genLevel(level).tgt;
+  if(!route.length){
+    if(i!==src){log('<span class="bad">[DENY]</span> Must start at SOURCE.');return}
+    route=[src];
+    if(!running){running=true;if($('tut').style.display==='none')startTimer()}
+  }else if(i===route.at(-1)){return}
+  else if(route.length>=2&&i===route.at(-2)){route.pop()}
+  else{
+    const adj=genLevel(level).adj;
+    if(!adj[route.at(-1)].has(i)){log('<span class="bad">[DENY]</span> No direct link.');return}
+    if(route.includes(i)){log('<span class="bad">[DENY]</span> Node already in route — backtrack first.');return}
+    route.push(i);
+  }
+  renderBoard();
+  // ping animation
+  const btns=document.querySelectorAll('.node');
+  btns[i].classList.add('ping');
+  setTimeout(()=>btns[i].classList.remove('ping'),700);
+  if(i===tgt)log('<span class="warn">[ROUTE]</span> TARGET reached — press VERIFY.');
+}
+
+/* ── RENDER BOARD STATE ───────────────────────────── */
+function renderBoard(){
+  const svg=$('svg-layer');
+  const {adj}=genLevel(level);
+  // nodes
+  document.querySelectorAll('.node').forEach((btn,i)=>{
+    const inRoute=route.includes(i);
+    const isLast=route.at(-1)===i;
+    btn.classList.toggle('active',isLast);
+    btn.classList.toggle('reached',inRoute&&!isLast);
+  });
+  // edges
+  svg.querySelectorAll('.edge').forEach(line=>{
+    const idx=+line.dataset.edge;
+    const [a,b]=edges[idx];
+    const routeIdx=route.indexOf(a);
+    const active=routeIdx>=0&&route[routeIdx+1]===b||route.indexOf(b)>=0&&route[route.indexOf(b)+1]===a;
+    line.classList.toggle('active',active);
+    // near highlight
+    const cur=route.at(-1)??-1;
+    const near=(cur===a||cur===b)&&!active;
+    line.classList.toggle('near',near);
+  });
+  $('hops').textContent=Math.max(0,route.length-1);
+  $('status-fill').style.width=Math.min(100,route.length/genLevel(level).nodeCount*100)+'%';
+  updateRouteDisplay();
+}
+
+function updateRouteDisplay(){
+  const {src,tgt}=genLevel(level);
+  if(!route.length){$('route-display').innerHTML='<span style="opacity:.3;font-size:10px">no route yet</span>';return}
+  const names=i=>i===src?'SRC':i===tgt?'GOAL':String(i).padStart(2,'0');
+  $('route-display').innerHTML=route.map((n,i)=>`<span class="rb">${names(n)}</span>${i<route.length-1?'<span class="rb arrow">→</span>':''}`).join('');
+}
+
+/* ── LOG ──────────────────────────────────────────── */
+function log(html){const t=$('term');const span=document.createElement('span');span.className='lg';span.innerHTML=html;t.appendChild(span);t.scrollTop=t.scrollHeight}
+
+/* ── TIMER ────────────────────────────────────────── */
+function startTimer(){clearInterval(timerInt);timerSec=0;timerInt=setInterval(()=>{timerSec++;const m=Math.floor(timerSec/60),s=timerSec%60;$('timer-disp').textContent=m+':'+(s<10?'0':'')+s},1000)}
+
+/* ── VERIFY ───────────────────────────────────────── */
+$('btn-verify').onclick=()=>{
+  const {tgt}=genLevel(level);
+  if(route.at(-1)!==tgt){log('<span class="bad">[VERIFY]</span> TARGET not reached.');return}
+  clearInterval(timerInt);running=false;
+  const hops=route.length-1;
+  const eff=Math.round((optimalHops/hops)*100);
+  const timePen=Math.max(0,timerSec-optimalHops*6);
+  const base=500+optimalHops*120;
+  const effBonus=eff===100?400:eff>80?200:0;
+  const timeBonus=Math.max(0,300-timePen*8);
+  const streakMult=1+streak*0.15;
+  const pts=Math.round((base+effBonus+timeBonus)*streakMult);
+  totalCredits+=pts;solved++;streak++;
+  localStorage.setItem('cb-credits',totalCredits);
+  localStorage.setItem('cb-solved',solved);
+  $('ts-credits').textContent=totalCredits;
+  $('ts-solved').textContent=solved;
+  $('ts-streak').textContent=streak+'🔥';
+  $('eff').textContent=eff+'%';
+  const medal=eff===100&&timerSec<=optimalHops*8?'🥇':eff>80?'🥈':'🥉';
+  log(`<span class="good">[OK]</span> Delivered in ${hops} hops (optimal: ${optimalHops}). Efficiency: ${eff}%.`);
+  log(`<span class="good">[SCORE]</span> +${pts} credits ${medal} ${streak>1?'(x'+streakMult.toFixed(1)+' streak)':''}`);
+  flashScore('+'+pts+' '+medal);
+  $('btn-verify').style.display='none';
+  $('btn-next').style.display='';
+};
+
+function flashScore(txt){const f=$('score-flash');f.textContent=txt;f.style.opacity=1;f.style.color='#2dffc0';setTimeout(()=>{f.style.transition='opacity 1s';f.style.opacity=0;setTimeout(()=>f.style.transition='',1100)},400)}
+
+/* ── CONTROLS ─────────────────────────────────────── */
+$('btn-reset').onclick=()=>{streak=0;$('ts-streak').textContent='0🔥';build()};
+$('btn-next').onclick=()=>{level++;build();startTimer()};
+$('btn-help').onclick=()=>{tstep=0;showTut()};
+
+/* ── BOOT ─────────────────────────────────────────── */
+$('ts-credits').textContent=totalCredits;
+$('ts-solved').textContent=solved;
+$('ts-streak').textContent='0🔥';
+showTut();
+build();
+$('term').innerHTML='';
+log('<span class="good">[BOOT]</span> CyberBreaker v3.0 initialised.');
+log('<span class="info">[SYS]</span> Complete the tutorial or click SKIP to start.');
+})();
 </script></body></html>
