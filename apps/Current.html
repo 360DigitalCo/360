@@ -374,9 +374,9 @@ async function onAuth(){
     await loadConvs();
     subscribePresence();
   } else {
-    $('gate').style.display='flex';
-    $('emptyState').style.display='none';
-    convs=[]; renderConvList();
+    // Require 360 account — send to accounts page
+    location.replace('/accounts?from='+encodeURIComponent(location.href));
+    return;
   }
   renderChip();
 }
@@ -766,6 +766,11 @@ async function startDM(oid,name){
   const {data,error}=await sb.from('msg_conversations')
     .insert({participant_ids:[me.id,oid],updated_at:new Date().toISOString()}).select().single();
   if(error){toast('Could not start conversation: '+error.message);return;}
+  // Add each other to contacts bridge (shared with WebCell)
+  await sb.from('msg_contacts').upsert([
+    {user_id:me.id,contact_id:oid},
+    {user_id:oid,contact_id:me.id},
+  ],{onConflict:'user_id,contact_id'}).then(()=>{}).catch(()=>{});
   await loadConvs();openConv(data.id);
 }
 
