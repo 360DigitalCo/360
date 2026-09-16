@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>APEX RUNNER — Circuit Racer</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0a0b0d; overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    color: #d7ffd9; user-select: none;
+  }
+  #game { display: block; background: #1b1d1f; cursor: crosshair; }
+
+  #hud {
+    position: fixed; top: 10px; left: 10px; z-index: 5;
+    background: rgba(10,14,10,0.72); border: 1px solid #2c5a2c;
+    padding: 10px 14px; border-radius: 6px; min-width: 220px;
+    box-shadow: 0 0 12px rgba(57,255,20,0.15);
+  }
+  #hud .row { display:flex; justify-content:space-between; font-size:13px; margin:3px 0; letter-spacing:0.5px; }
+  #hud .label { color:#7fd07f; }
+  #hud .val { color:#39ff14; font-weight:bold; text-shadow:0 0 6px rgba(57,255,20,0.6); }
+  #hud .val.danger { color:#ff3131; text-shadow:0 0 8px rgba(255,49,49,0.8); }
+  #hud .val.warn { color:#ffd23f; text-shadow:0 0 6px rgba(255,210,63,0.6);}
+  #hud .bar-bg { width:100%; height:8px; background:#222; border:1px solid #333; border-radius:3px; margin-top:2px; overflow:hidden;}
+  #hud .bar-fill { height:100%; background:#5c9ded; transition: width 0.15s linear, background 0.3s; }
+
+  #controlsHint {
+    position: fixed; bottom: 10px; right: 10px; z-index:5;
+    background: rgba(10,14,10,0.6); border:1px solid #2c5a2c; border-radius:6px;
+    padding:6px 10px; font-size:11px; color:#7fd07f; line-height:1.5;
+  }
+
+  .overlay {
+    position: fixed; inset:0; z-index: 20;
+    background: radial-gradient(circle at 50% 40%, #131a13 0%, #06070a 100%);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .hidden { display:none !important; }
+
+  .panel {
+    background: rgba(15,20,15,0.92); border:1px solid #2c5a2c; border-radius:10px;
+    padding:28px 34px; max-width:960px; width:92%; max-height:88vh; overflow-y:auto;
+    box-shadow: 0 0 40px rgba(57,255,20,0.12);
+  }
+  .panel h1 { color:#39ff14; text-shadow:0 0 14px rgba(57,255,20,0.7); letter-spacing:3px; margin-top:0; font-size:30px;}
+  .panel h2 { color:#39ff14; letter-spacing:2px; font-size:18px; border-bottom:1px solid #2c5a2c; padding-bottom:6px;}
+  .subtext { color:#9fcf9f; font-size:13px; line-height:1.6; }
+
+  .vehicleGrid { display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; }
+  .vCard {
+    flex:1; min-width:230px; background: rgba(30,40,30,0.6); border:1px solid #2c5a2c;
+    border-radius:8px; padding:14px; cursor:pointer; transition: 0.15s;
+  }
+  .vCard:hover { border-color:#39ff14; box-shadow:0 0 14px rgba(57,255,20,0.25); }
+  .vCard.locked { opacity: 0.55; cursor:not-allowed; }
+  .vCard.selected { border-color:#39ff14; background: rgba(57,255,20,0.08); }
+  .vCard h3 { margin:4px 0; color:#eafff0; font-size:16px;}
+  .vCard .stat { font-size:12px; color:#9fcf9f; display:flex; justify-content:space-between; margin:2px 0;}
+  .vCard .price { color:#ffd23f; font-size:13px; margin-top:6px; }
+  .vSwatch { width:100%; height:46px; border-radius:5px; margin-bottom:8px; }
+
+  button.gameBtn {
+    background: linear-gradient(#1d3d1d, #122812); color:#39ff14; border:1px solid #39ff14;
+    padding:10px 20px; font-family:inherit; font-size:14px; letter-spacing:1px; border-radius:5px;
+    cursor:pointer; margin-top:16px; transition:0.15s;
+  }
+  button.gameBtn:hover { background: linear-gradient(#2c5a2c,#1d3d1d); box-shadow:0 0 14px rgba(57,255,20,0.4); }
+  button.gameBtn:disabled { opacity:0.4; cursor:not-allowed; }
+  button.smallBtn {
+    background:#182a18; color:#a9ffb0; border:1px solid #3a6a3a; padding:5px 10px; font-size:12px;
+    border-radius:4px; cursor:pointer; font-family:inherit;
+  }
+  button.smallBtn:hover:not(:disabled){ border-color:#39ff14; color:#39ff14; }
+  button.smallBtn:disabled { opacity:0.35; cursor:not-allowed; }
+
+  .garageGrid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:14px;}
+  .upRow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #223822;}
+  .upRow .lvl { color:#ffd23f; font-size:12px; }
+  .moneyLine { font-size:18px; color:#ffd23f; text-shadow:0 0 8px rgba(255,210,63,0.5); margin:10px 0;}
+  .closeRow { text-align:center; }
+
+  #saveButton {
+    position: fixed; bottom: 10px; left: 10px; z-index:5;
+    background: rgba(10,14,10,0.75); border:1px solid #2c5a2c; border-radius:6px;
+    padding:8px 14px; font-family:inherit; font-size:12px; letter-spacing:1px;
+    color:#39ff14; cursor:pointer;
+  }
+  #saveButton:hover { border-color:#39ff14; box-shadow:0 0 10px rgba(57,255,20,0.3); }
+  #saveToast {
+    position: fixed; bottom: 46px; left: 10px; z-index:5;
+    background: rgba(10,14,10,0.85); border:1px solid #39ff14; border-radius:6px;
+    padding:6px 12px; font-size:11px; color:#39ff14; letter-spacing:1px;
+    opacity:0; pointer-events:none; transition: opacity 0.3s;
+  }
+  #saveToast.show { opacity:1; }
+
+  .trackCard.locked .price { color:#ff8a8a; }
+  .standingsRow {
+    display:flex; align-items:center; gap:12px; padding:8px 10px; border-bottom:1px dashed #223822;
+  }
+  .standingsRow .pos { width:34px; font-weight:bold; color:#ffd23f; font-size:15px; }
+  .standingsRow.me { background: rgba(57,255,20,0.08); border-left:3px solid #39ff14; }
+  .standingsRow .swatch { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+  .standingsRow .nm { flex:1; font-size:13px; color:#eafff0; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="row"><span class="label">POSITION</span><span class="val" id="hudPos">1 / 6</span></div>
+  <div class="row"><span class="label">LAP</span><span class="val" id="hudLap">1 / 3</span></div>
+  <div class="row"><span class="label">SPEED</span><span class="val" id="hudSpeed">0 MPH</span></div>
+  <div class="row"><span class="label">TIME</span><span class="val" id="hudTime">00:00.0</span></div>
+  <div class="row" style="margin-top:6px;"><span class="label">NITRO</span></div>
+  <div class="bar-bg"><div class="bar-fill" id="hudNitroBar" style="width:100%;"></div></div>
+  <div class="row" style="margin-top:6px;"><span class="label">MONEY</span><span class="val" id="hudMoney">$0</span></div>
+</div>
+<div id="controlsHint" class="hidden">
+  WASD / ARROWS — drive &amp; brake&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — nitro boost&nbsp;&nbsp;|&nbsp;&nbsp;M — expand track map
+</div>
+<button id="saveButton" title="Save progress">💾 SAVE</button>
+<div id="saveToast">PROGRESS SAVED</div>
+
+<!-- Title -->
+<div class="overlay" id="titleScreen">
+  <div class="panel" style="text-align:center;">
+    <h1 style="font-size:48px; letter-spacing:6px;">🏁 APEX RUNNER</h1>
+    <p class="subtext">Race the circuit. Beat the pack. Build your fleet.</p>
+    <button class="gameBtn" id="titlePlayBtn" style="font-size:18px; padding:14px 40px;">▶ PLAY</button>
+  </div>
+</div>
+
+<!-- Start / vehicle pick -->
+<div class="overlay hidden" id="startScreen">
+  <div class="panel">
+    <h1>🏁 APEX RUNNER</h1>
+    <p class="subtext">Pick a car to start with. You'll earn money from race finishes to unlock better
+    cars, upgrades, and new tracks.</p>
+    <p class="subtext" id="saveStatusNote"></p>
+    <h2>🚗 Street Cars</h2>
+    <div class="vehicleGrid" id="startStreetGrid"></div>
+    <h2 style="margin-top:18px;">🏁 Race Cars</h2>
+    <div class="vehicleGrid" id="startRaceGrid"></div>
+    <div class="closeRow"><button class="gameBtn" id="beginBtn">ENTER THE GARAGE</button></div>
+  </div>
+</div>
+
+<!-- Hub: track select + quick garage access -->
+<div class="overlay hidden" id="hubScreen">
+  <div class="panel">
+    <h1>🏆 CIRCUIT HUB</h1>
+    <div class="moneyLine">Balance: $<span id="hubMoney">0</span></div>
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px;">
+      <div class="vSwatch" id="hubVehicleSwatch" style="width:60px; height:40px; margin:0;"></div>
+      <div style="flex:1;">
+        <div style="color:#eafff0; font-size:15px;" id="hubVehicleName">—</div>
+        <div class="subtext" id="hubVehicleStats"></div>
+      </div>
+      <button class="gameBtn" id="openGarageBtn" style="margin-top:0;">🔧 GARAGE</button>
+    </div>
+
+    <h2 style="margin-top:20px;">Select a Track</h2>
+    <div class="vehicleGrid" id="trackGrid"></div>
+
+    <div class="closeRow">
+      <button class="smallBtn" id="resetSaveBtn" style="margin-top:20px; border-color:#5a2c2c; color:#ff8a8a;">⚠ Reset Save Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- Garage -->
+<div class="overlay hidden" id="garageScreen">
+  <div class="panel">
+    <h1>🔧 GARAGE</h1>
+    <div class="moneyLine">Balance: $<span id="garageMoney">0</span></div>
+
+    <h2>🚗 Street Cars</h2>
+    <div class="vehicleGrid" id="garageStreetGrid"></div>
+    <h2 style="margin-top:18px;">🏁 Race Cars</h2>
+    <div class="vehicleGrid" id="garageRaceGrid"></div>
+
+    <h2 style="margin-top:22px;">Upgrades — <span id="garageActiveVehicle"></span></h2>
+    <div class="garageGrid" id="garageUpgrades"></div>
+
+    <div class="closeRow">
+      <button class="gameBtn" id="closeGarageBtn">CLOSE &amp; RETURN TO HUB</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="overlay hidden" id="resultsScreen">
+  <div class="panel" style="max-width:560px; text-align:center;">
+    <h1 id="resultsTitle">RACE COMPLETE</h1>
+    <p class="subtext" id="resultsSub"></p>
+    <div id="standingsList" style="text-align:left; margin-top:14px;"></div>
+    <div class="moneyLine" id="resultsMoney"></div>
+    <button class="gameBtn" id="resultsContinueBtn" style="font-size:16px; padding:12px 34px;">CONTINUE</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================================================================
+   VEHICLES
+====================================================================== */
+const VEHICLES = {
+  compact:   { key:"compact",   name:"Compact",      category:"street", desc:"Reliable starter. Easy to handle, not much punch.",
+    cost:0,     color:"#4fc3f7", topSpeed:660, accel:900, handling:1.6, nitro:900, mass:0.80 },
+  hatchback: { key:"hatchback", name:"Hatchback",     category:"street", desc:"Quick off the line, playful in the corners.",
+    cost:2200,  color:"#64d8cb", topSpeed:365, accel:280, handling:2.8, nitro:2.6, mass:0.75 },
+  sedan:     { key:"sedan",     name:"Sport Sedan",   category:"street", desc:"Stable all-rounder with room to grow.",
+    cost:5200,  color:"#9ccc65", topSpeed:385, accel:270, handling:2.5, nitro:2.6, mass:0.95 },
+  muscle:    { key:"muscle",    name:"Muscle Car",    category:"street", desc:"Brutal in a straight line, a handful in the corners.",
+    cost:10500, color:"#e57373", topSpeed:430, accel:310, handling:2.1, nitro:2.9, mass:1.20 },
+  coupe:     { key:"coupe",     name:"Sport Coupe",   category:"street", desc:"Balanced, tossable, a great daily racer.",
+    cost:18000, color:"#ba68c8", topSpeed:410, accel:320, handling:2.9, nitro:3.0, mass:0.90 },
+  gt:        { key:"gt",        name:"GT Racer",      category:"race",   desc:"Your first real track weapon.",
+    cost:32000, color:"#ffb74d", topSpeed:460, accel:360, handling:3.3, nitro:3.3, mass:1.00 },
+  rally:     { key:"rally",     name:"Rally Special", category:"race",   desc:"Built for grip and instant direction changes.",
+    cost:48000, color:"#4db6ac", topSpeed:445, accel:400, handling:3.7, nitro:3.2, mass:0.95 },
+  prototype: { key:"prototype", name:"LMP Prototype", category:"race",   desc:"Le Mans-style prototype. Fast everywhere.",
+    cost:70000, color:"#f06292", topSpeed:495, accel:420, handling:3.5, nitro:3.7, mass:1.05 },
+  openwheel: { key:"openwheel", name:"Open-Wheel",    category:"race",   desc:"Formula-style single-seater. Razor sharp.",
+    cost:100000,color:"#fff176", topSpeed:520, accel:460, handling:4.1, nitro:3.9, mass:0.85 },
+  hypercar:  { key:"hypercar",  name:"Hypercar",      category:"race",   desc:"The flagship. Fastest thing on the roster.",
+    cost:140000,color:"#ffd700", topSpeed:560, accel:500, handling:4.3, nitro:4.4, mass:1.10 }
+};
+const STREET_KEYS = ["compact","hatchback","sedan","muscle","coupe"];
+const RACE_KEYS = ["gt","rally","prototype","openwheel","hypercar"];
+const ALL_VEHICLE_KEYS = STREET_KEYS.concat(RACE_KEYS);
+
+const UPGRADE_COST_BASE = { engine:1500, tires:1300, nitro:1100, weight:1400 };
+const MAX_UPGRADE_LEVEL = 10;
+const UPGRADE_LABELS = {
+  engine:"Engine (+Top Speed & Accel)",
+  tires:"Tires (+Handling & Grip)",
+  nitro:"Nitro (+Boost Capacity)",
+  weight:"Weight Reduction (+Accel & Handling)"
+};
+
+function computedStats(vehKey, upgrades){
+  const v = VEHICLES[vehKey];
+  const u = upgrades[vehKey];
+  return {
+    topSpeed: v.topSpeed * (1 + u.engine*0.030),
+    accel: v.accel * (1 + u.engine*0.030 + u.weight*0.018),
+    handling: v.handling * (1 + u.tires*0.045 + u.weight*0.015),
+    nitroCapacity: v.nitro * (1 + u.nitro*0.07),
+    mass: Math.max(0.5, v.mass * (1 - u.weight*0.02))
+  };
+}
+
+/* ======================================================================
+   TRACK BUILDER (turtle-graphics style, guaranteed closed loops)
+====================================================================== */
+function buildTrack(cx, cy, startHeadingDeg, segments, sampleStep){
+  let x = cx, y = cy, heading = startHeadingDeg*Math.PI/180;
+  const pts = [{x,y}];
+  segments.forEach(seg=>{
+    if (seg.type === "straight"){
+      const steps = Math.max(1, Math.round(seg.length/sampleStep));
+      const dx = Math.cos(heading)*seg.length/steps, dy = Math.sin(heading)*seg.length/steps;
+      for (let i=0;i<steps;i++){ x+=dx; y+=dy; pts.push({x,y}); }
+    } else if (seg.type === "arc"){
+      const angleRad = seg.angleDeg*Math.PI/180;
+      const r = seg.radius;
+      const steps = Math.max(2, Math.round(Math.abs(angleRad)*r/sampleStep));
+      const turnDir = angleRad >= 0 ? 1 : -1;
+      const centerAngle = heading + turnDir*Math.PI/2;
+      const ccx = x + Math.cos(centerAngle)*r, ccy = y + Math.sin(centerAngle)*r;
+      const a0 = Math.atan2(y-ccy, x-ccx);
+      for (let i=1;i<=steps;i++){
+        const t = i/steps;
+        const a = a0 + turnDir*Math.abs(angleRad)*t;
+        x = ccx + Math.cos(a)*r; y = ccy + Math.sin(a)*r;
+        pts.push({x,y});
+      }
+      heading += angleRad;
+    }
+  });
+  // Force-close the loop: distribute any small closure error smoothly across
+  // every point so the path always joins up perfectly with no visible kink.
+  const start = pts[0], end = pts[pts.length-1];
+  const ex = start.x-end.x, ey = start.y-end.y;
+  const n = pts.length;
+  for (let i=0;i<n;i++){
+    const t = i/(n-1);
+    pts[i].x += ex*t; pts[i].y += ey*t;
+  }
+  pts.pop();
+  return pts;
+}
+
+function buildOvalWaypoints(cx, cy, rx, ry, n){
+  const pts = [];
+  for (let i=0;i<n;i++){
+    const t = (i/n)*Math.PI*2;
+    pts.push({x: cx+Math.cos(t)*rx, y: cy+Math.sin(t)*ry});
+  }
+  return pts;
+}
+
+function finalizeTrack(def){
+  const N = def.waypoints.length;
+  def.N = N;
+  def.halfWidth = def.trackWidth/2;
+  // handful of evenly spaced checkpoint indices, purely for HUD granularity
+  const cpCount = Math.max(6, Math.floor(N/10));
+  def.checkpointCount = cpCount;
+  return def;
+}
+
+const TRACKS = {
+  oval: finalizeTrack({
+    id:"oval", name:"Silverton Oval", theme:{bg:"#1e2420", road:"#6b6f74", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
+    waypoints: buildOvalWaypoints(0,0,1100,600,90),
+    trackWidth:190, laps:3, npcCount:5, rewardBase:1200, unlockCost:0,
+    desc:"A wide, forgiving oval. Perfect for learning the ropes."
+  }),
+  wakita: finalizeTrack({
+    id:"wakita", name:"Wakita Circuit", theme:{bg:"#1a2018", road:"#6b6f74", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
+    waypoints: buildTrack(0,0,0,[
+      {type:"straight", length:700},
+      {type:"arc", radius:200, angleDeg:90},
+      {type:"straight", length:500},
+      {type:"arc", radius:90, angleDeg:40},
+      {type:"arc", radius:90, angleDeg:-40},
+      {type:"straight", length:300},
+      {type:"arc", radius:200, angleDeg:90},
+      {type:"straight", length:900},
+      {type:"arc", radius:200, angleDeg:90},
+      {type:"straight", length:500},
+      {type:"arc", radius:200, angleDeg:90}
+    ], 45),
+    trackWidth:150, laps:3, npcCount:5, rewardBase:2000, unlockCost:3000,
+    desc:"A technical road course with a nasty chicane on the back straight."
+  }),
+  dodge: finalizeTrack({
+    id:"dodge", name:"Dodge City Technical", theme:{bg:"#241f16", road:"#736657", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
+    waypoints: buildTrack(0,0,0,[
+      {type:"straight", length:400},
+      {type:"arc", radius:140, angleDeg:60},
+      {type:"straight", length:300},
+      {type:"arc", radius:80, angleDeg:150},
+      {type:"straight", length:250},
+      {type:"arc", radius:60, angleDeg:30},
+      {type:"arc", radius:60, angleDeg:-30},
+      {type:"straight", length:200},
+      {type:"arc", radius:160, angleDeg:60},
+      {type:"straight", length:350},
+      {type:"arc", radius:160, angleDeg:90}
+    ], 35),
+    trackWidth:125, laps:4, npcCount:6, rewardBase:3200, unlockCost:9000,
+    desc:"Tight, technical, and unforgiving — including a brutal hairpin."
+  }),
+  coastal: finalizeTrack({
+    id:"coastal", name:"Coastal Circuit", theme:{bg:"#132028", road:"#5f6a72", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
+    waypoints: buildTrack(0,0,0,[
+      {type:"straight", length:750}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:500}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:650}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:450}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:700}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:500}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:600}, {type:"arc", radius:380, angleDeg:45},
+      {type:"straight", length:450}, {type:"arc", radius:380, angleDeg:45}
+    ], 55),
+    trackWidth:210, laps:3, npcCount:7, rewardBase:5000, unlockCost:20000,
+    desc:"A sprawling, high-speed coastal loop with wide sweeping corners."
+  })
+};
+const TRACK_ORDER = ["oval","wakita","dodge","coastal"];
+
+function trackTangent(track, idx){
+  const a = track.waypoints[idx], b = track.waypoints[(idx+1)%track.N];
+  const dx = b.x-a.x, dy = b.y-a.y;
+  const len = Math.hypot(dx,dy) || 1;
+  return {x:dx/len, y:dy/len};
+}
+function angleFromTangent(t){ return Math.atan2(t.x, -t.y); }
+function normAngle(a){ return ((a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2) - Math.PI; }
+
+/* ======================================================================
+   CANVAS
+====================================================================== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener("resize", resize);
+resize();
+
+/* ======================================================================
+   GAME STATE + SAVE
+====================================================================== */
+function freshUpgrades(){
+  const u = {};
+  ALL_VEHICLE_KEYS.forEach(k=>{ u[k] = {engine:0, tires:0, nitro:0, weight:0}; });
+  return u;
+}
+let state = {
+  money: 6000,
+  ownedVehicles: { compact:true },
+  currentVehicleKey: "compact",
+  upgrades: freshUpgrades(),
+  unlockedTracks: { oval:true },
+  bestTimes: {},
+  racesFinished: 0
+};
+
+const SAVE_KEY = "apexRunnerSaveV1";
+let localSaveAvailable = true;
+function saveGame(){
+  if (!localSaveAvailable) return;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      money: state.money, ownedVehicles: state.ownedVehicles, currentVehicleKey: state.currentVehicleKey,
+      upgrades: state.upgrades, unlockedTracks: state.unlockedTracks, bestTimes: state.bestTimes,
+      racesFinished: state.racesFinished, savedAt: Date.now()
+    }));
+  } catch(e){ localSaveAvailable = false; }
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (typeof d.money === "number") state.money = d.money;
+    if (d.ownedVehicles) Object.assign(state.ownedVehicles, d.ownedVehicles);
+    if (d.currentVehicleKey && VEHICLES[d.currentVehicleKey]) state.currentVehicleKey = d.currentVehicleKey;
+    if (d.upgrades) Object.keys(state.upgrades).forEach(k=>{ if (d.upgrades[k]) Object.assign(state.upgrades[k], d.upgrades[k]); });
+    if (d.unlockedTracks) Object.assign(state.unlockedTracks, d.unlockedTracks);
+    if (d.bestTimes) Object.assign(state.bestTimes, d.bestTimes);
+    if (typeof d.racesFinished === "number") state.racesFinished = d.racesFinished;
+    return true;
+  } catch(e){ localSaveAvailable = false; return false; }
+}
+function resetSaveData(){
+  try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
+  state.money = 6000;
+  state.ownedVehicles = { compact:true };
+  state.currentVehicleKey = "compact";
+  state.upgrades = freshUpgrades();
+  state.unlockedTracks = { oval:true };
+  state.bestTimes = {};
+  state.racesFinished = 0;
+}
+const hasSave = loadGame();
+
+let keys = {};
+window.addEventListener("keydown", e=>{ keys[e.code]=true; if (e.code==="Space") e.preventDefault(); });
+window.addEventListener("keyup", e=>{ keys[e.code]=false; });
+window.addEventListener("beforeunload", saveGame);
+
+/* ======================================================================
+   RACE STATE
+====================================================================== */
+let race = null; // built by setupRace()
+let camera = { x:0, y:0, angle:0 };
+let radarFullscreen = false;
+let radarBounds = { x:0,y:0,size:0 };
+
+const RIVAL_NAMES = ["Team Vortex","Storm Trackers","Squall Squad","Cyclone Crew","Twister Trackers","Squall Line","Maelstrom Media","Ridgeline Racing"];
+
+function makeCar(vehKey, opts){
+  return Object.assign({
+    vehKey, x:0, y:0, angle:0, vx:0, vy:0,
+    lapCount:0, closestIdx:0, offtrack:false, finished:false, finishTime:0,
+    nitroFuel: computedStats(vehKey, state.upgrades).nitroCapacity,
+    isPlayer:false, name:"", color: VEHICLES[vehKey].color,
+    aiSkill: 0.95 + Math.random()*0.12, aiLateral:0, wpTargetLookahead: 4
+  }, opts||{});
+}
+
+function nearestIdx(track, x, y){
+  let best = 0, bestD = Infinity;
+  const wp = track.waypoints;
+  for (let i=0;i<track.N;i++){
+    const dx = wp[i].x-x, dy = wp[i].y-y;
+    const d = dx*dx+dy*dy;
+    if (d < bestD){ bestD = d; best = i; }
+  }
+  return { idx: best, dist: Math.sqrt(bestD) };
+}
+
+function gridSpawn(track, row){
+  const idx = ((track.N - row*3) % track.N + track.N) % track.N;
+  const tan = trackTangent(track, idx);
+  const lateral = (row % 2 === 0) ? -track.halfWidth*0.42 : track.halfWidth*0.42;
+  const perp = { x:-tan.y, y:tan.x };
+  const wp = track.waypoints[idx];
+  return {
+    x: wp.x + perp.x*lateral, y: wp.y + perp.y*lateral,
+    angle: angleFromTangent(tan)
+  };
+}
+
+function setupRace(trackId){
+  const track = TRACKS[trackId];
+  const npcPool = ALL_VEHICLE_KEYS;
+  const total = track.npcCount + 1;
+  const player = makeCar(state.currentVehicleKey, { isPlayer:true, name:"YOU" });
+  const spawn0 = gridSpawn(track, total-1); // player starts at the back of the grid
+  player.x = spawn0.x; player.y = spawn0.y; player.angle = spawn0.angle;
+
+  const cars = [player];
+  for (let i=0;i<track.npcCount;i++){
+    const vk = npcPool[Math.floor(Math.random()*npcPool.length)];
+    const team = RIVAL_NAMES[Math.floor(Math.random()*RIVAL_NAMES.length)];
+    const npc = makeCar(vk, { name: team + " — " + VEHICLES[vk].name });
+    npc.aiLateral = (Math.random()-0.5)*track.halfWidth*0.7;
+    const s = gridSpawn(track, i);
+    npc.x = s.x; npc.y = s.y; npc.angle = s.angle;
+    cars.push(npc);
+  }
+
+  camera.x = player.x; camera.y = player.y; camera.angle = player.angle;
+
+  race = {
+    track, cars, laps: track.laps,
+    countdown: 3.999, timer: 0, running:false, done:false,
+    finishOrder: []
+  };
+  document.getElementById("hud").classList.remove("hidden");
+  document.getElementById("controlsHint").classList.remove("hidden");
+  hideAllOverlays();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+/* ======================================================================
+   PHYSICS
+====================================================================== */
+function updateCarPhysics(car, dt, control, stats, track){
+  const turnRate = stats.handling;
+  car.angle += control.turn * turnRate * dt;
+  const fx = Math.sin(car.angle), fy = -Math.cos(car.angle);
+  const boosting = control.boost && car.nitroFuel > 0;
+  const offMult = car.offtrack ? 0.55 : 1.0;
+  const targetTopSpeed = stats.topSpeed * (boosting ? 1.35 : 1) * offMult;
+  const accel = stats.accel * (boosting ? 1.25 : 1) * (car.offtrack ? 0.6 : 1);
+
+  if (control.throttle > 0){
+    car.vx += fx*accel*control.throttle*dt; car.vy += fy*accel*control.throttle*dt;
+  } else if (control.throttle < 0){
+    car.vx += fx*accel*control.throttle*0.7*dt; car.vy += fy*accel*control.throttle*0.7*dt;
+  }
+
+  const fric = car.offtrack ? 0.93 : 0.976;
+  car.vx *= Math.pow(fric, dt*60);
+  car.vy *= Math.pow(fric, dt*60);
+
+  const spd = Math.hypot(car.vx, car.vy);
+  if (spd > targetTopSpeed*1.05 && spd > 0){
+    const over = Math.min(1, (spd-targetTopSpeed*1.05)*dt*3);
+    car.vx -= (car.vx/spd)*over*spd*0.4;
+    car.vy -= (car.vy/spd)*over*spd*0.4;
+  }
+
+  car.x += car.vx*dt; car.y += car.vy*dt;
+
+  if (boosting){ car.nitroFuel = Math.max(0, car.nitroFuel - dt); }
+  else { car.nitroFuel = Math.min(stats.nitroCapacity, car.nitroFuel + dt*0.12); }
+
+  const near = nearestIdx(track, car.x, car.y);
+  const prevIdx = car.closestIdx;
+  car.closestIdx = near.idx;
+  car.offtrack = near.dist > track.halfWidth;
+
+  if (!car.finished){
+    if (prevIdx > track.N*0.75 && near.idx < track.N*0.25){
+      car.lapCount++;
+      if (car.lapCount >= race.laps && !car.finished){
+        car.finished = true;
+        car.finishTime = race.timer;
+        race.finishOrder.push(car);
+      }
+    }
+  }
+}
+
+function progressScore(car, track){
+  return car.lapCount*track.N + car.closestIdx;
+}
+
+function updateAIControl(car, track, playerScore){
+  const target = track.waypoints[(car.closestIdx + car.wpTargetLookahead) % track.N];
+  const tan = trackTangent(track, car.closestIdx);
+  const perp = { x:-tan.y, y:tan.x };
+  const aimX = target.x + perp.x*car.aiLateral*0.4;
+  const aimY = target.y + perp.y*car.aiLateral*0.4;
+  const dx = aimX - car.x, dy = aimY - car.y;
+  const desiredAngle = Math.atan2(dx, -dy);
+  const diff = normAngle(desiredAngle - car.angle);
+
+  const myScore = progressScore(car, track);
+  const diffScore = playerScore - myScore;
+  let skillMult = car.aiSkill;
+  if (diffScore > track.N*0.6) skillMult *= 1.08;
+  else if (diffScore < -track.N*0.6) skillMult *= 0.93;
+
+  return {
+    turn: Math.max(-1, Math.min(1, diff / 0.6)),
+    throttle: Math.max(0.35, Math.min(1, 1 - Math.abs(diff)*0.55)) * skillMult,
+    boost: Math.abs(diff) < 0.15 && car.nitroFuel > track.laps*0.3 && Math.random() < 0.02
+  };
+}
+
+function resolveCollisions(cars){
+  for (let i=0;i<cars.length;i++){
+    for (let j=i+1;j<cars.length;j++){
+      const a=cars[i], b=cars[j];
+      const dx=b.x-a.x, dy=b.y-a.y;
+      const d = Math.hypot(dx,dy) || 0.001;
+      const minD = 26;
+      if (d < minD){
+        const push = (minD-d)/2;
+        const nx=dx/d, ny=dy/d;
+        a.x -= nx*push; a.y -= ny*push;
+        b.x += nx*push; b.y += ny*push;
+      }
+    }
+  }
+}
+
+function updateRace(dt){
+  if (!race || race.done) return;
+  if (race.countdown > 0){
+    race.countdown -= dt;
+    return;
+  }
+  race.running = true;
+  race.timer += dt;
+
+  const track = race.track;
+  const player = race.cars[0];
+  const playerScore = progressScore(player, track);
+
+  race.cars.forEach(car=>{
+    if (car.finished) return;
+    const stats = computedStats(car.vehKey, car.isPlayer ? state.upgrades : freshUpgrades());
+    let control;
+    if (car.isPlayer){
+      const turn = (keys["KeyA"]||keys["ArrowLeft"] ? -1:0) + (keys["KeyD"]||keys["ArrowRight"] ? 1:0);
+      const throttle = (keys["KeyW"]||keys["ArrowUp"]) ? 1 : (keys["KeyS"]||keys["ArrowDown"] ? -0.6 : 0);
+      control = { turn, throttle, boost: !!keys["Space"] };
+    } else {
+      control = updateAIControl(car, track, playerScore);
+    }
+    updateCarPhysics(car, dt, control, stats, track);
+  });
+
+  resolveCollisions(race.cars);
+
+  if (player.finished && !race.done){
+    race.done = true;
+    finishRace();
+  }
+}
+
+function currentStandings(){
+  const track = race.track;
+  const finished = race.finishOrder;
+  const unfinished = race.cars.filter(c=>!c.finished)
+    .sort((a,b)=> progressScore(b,track) - progressScore(a,track));
+  return finished.concat(unfinished);
+}
+
+function finishRace(){
+  const standings = currentStandings();
+  const playerRank = standings.indexOf(race.cars[0]) + 1;
+  const rewardMult = [1.0, 0.7, 0.5, 0.35][playerRank-1] || 0.2;
+  const reward = Math.round(race.track.rewardBase * rewardMult);
+  state.money += reward;
+  state.racesFinished++;
+  const prevBest = state.bestTimes[race.track.id];
+  let newBest = false;
+  if (!prevBest || race.timer < prevBest){ state.bestTimes[race.track.id] = race.timer; newBest = true; }
+  saveGame();
+  showResults(standings, playerRank, reward, newBest);
+}
+
+/* ======================================================================
+   UI: overlays
+====================================================================== */
+function hideAllOverlays(){
+  ["titleScreen","startScreen","hubScreen","garageScreen","resultsScreen"].forEach(id=>{
+    document.getElementById(id).classList.add("hidden");
+  });
+}
+
+function sectionHeader(text){
+  const h = document.createElement("h2");
+  h.style.width = "100%"; h.style.margin = "14px 0 4px";
+  h.textContent = text;
+  return h;
+}
+
+function vehicleCard(vk, opts){
+  const v = VEHICLES[vk];
+  const owned = !!state.ownedVehicles[vk];
+  const active = state.currentVehicleKey === vk;
+  const card = document.createElement("div");
+  card.className = "vCard" + (active && opts.showActive ? " selected":"") + (opts.lockIfUnowned && !owned ? " locked":"");
+  card.innerHTML = `
+    <div class="vSwatch" style="background:${v.color}"></div>
+    <h3>${v.name}</h3>
+    <div class="stat"><span>${v.desc}</span></div>
+    <div class="stat"><span>Top Speed</span><span>${Math.round(v.topSpeed)}</span></div>
+    <div class="stat"><span>Accel</span><span>${Math.round(v.accel)}</span></div>
+    <div class="stat"><span>Handling</span><span>${v.handling.toFixed(1)}</span></div>
+    <div class="price">${owned ? (active ? "IN USE" : "OWNED — click to select") : "$"+v.cost.toLocaleString()}</div>
+  `;
+  card.onclick = ()=>{
+    if (owned){
+      state.currentVehicleKey = vk;
+      opts.onChange && opts.onChange();
+    } else if (state.money >= v.cost){
+      state.money -= v.cost;
+      state.ownedVehicles[vk] = true;
+      state.currentVehicleKey = vk;
+      opts.onChange && opts.onChange();
+    }
+  };
+  return card;
+}
+
+/* ---- Title / Start ---- */
+document.getElementById("titlePlayBtn").onclick = ()=>{
+  hideAllOverlays();
+  buildStartScreen();
+  document.getElementById("startScreen").classList.remove("hidden");
+};
+
+function buildStartScreen(){
+  const note = document.getElementById("saveStatusNote");
+  if (hasSave){ note.textContent = "💾 Save data loaded — welcome back."; note.style.color = "#39ff14"; }
+  else if (!localSaveAvailable){ note.textContent = "⚠ Local storage isn't available here — progress won't be saved between visits."; note.style.color = "#ff8a8a"; }
+  else { note.textContent = "Progress auto-saves to this browser as you play."; note.style.color = "#9fcf9f"; }
+
+  const streetGrid = document.getElementById("startStreetGrid");
+  const raceGrid = document.getElementById("startRaceGrid");
+  streetGrid.innerHTML = ""; raceGrid.innerHTML = "";
+  STREET_KEYS.forEach(k=> streetGrid.appendChild(vehicleCard(k, { showActive:true, lockIfUnowned:true, onChange:buildStartScreen })));
+  RACE_KEYS.forEach(k=> raceGrid.appendChild(vehicleCard(k, { showActive:true, lockIfUnowned:true, onChange:buildStartScreen })));
+}
+document.getElementById("beginBtn").onclick = ()=>{
+  hideAllOverlays();
+  buildHubScreen();
+  document.getElementById("hubScreen").classList.remove("hidden");
+  saveGame();
+};
+
+/* ---- Hub ---- */
+function buildHubScreen(){
+  document.getElementById("hubMoney").textContent = Math.floor(state.money).toLocaleString();
+  const v = VEHICLES[state.currentVehicleKey];
+  document.getElementById("hubVehicleSwatch").style.background = v.color;
+  document.getElementById("hubVehicleName").textContent = v.name;
+  const stats = computedStats(state.currentVehicleKey, state.upgrades);
+  document.getElementById("hubVehicleStats").textContent =
+    `Top Speed ${Math.round(stats.topSpeed)}  ·  Handling ${stats.handling.toFixed(1)}  ·  Nitro ${stats.nitroCapacity.toFixed(1)}s`;
+
+  const grid = document.getElementById("trackGrid");
+  grid.innerHTML = "";
+  TRACK_ORDER.forEach(id=>{
+    const t = TRACKS[id];
+    const unlocked = !!state.unlockedTracks[id];
+    const best = state.bestTimes[id];
+    const card = document.createElement("div");
+    card.className = "vCard trackCard" + (unlocked ? "" : " locked");
+    card.innerHTML = `
+      <div class="vSwatch" style="background:${t.theme.road}"></div>
+      <h3>${t.name}</h3>
+      <div class="stat"><span>${t.desc}</span></div>
+      <div class="stat"><span>Laps</span><span>${t.laps}</span></div>
+      <div class="stat"><span>Opponents</span><span>${t.npcCount}</span></div>
+      <div class="stat"><span>Best Time</span><span>${best ? fmtTime(best) : "—"}</span></div>
+      <div class="price">${unlocked ? "$"+t.rewardBase.toLocaleString()+" to win" : "🔒 $"+t.unlockCost.toLocaleString()+" to unlock"}</div>
+    `;
+    card.onclick = ()=>{
+      if (unlocked){
+        setupRace(id);
+      } else if (state.money >= t.unlockCost){
+        state.money -= t.unlockCost;
+        state.unlockedTracks[id] = true;
+        saveGame();
+        buildHubScreen();
+      }
+    };
+    grid.appendChild(card);
+  });
+}
+document.getElementById("openGarageBtn").onclick = ()=>{
+  hideAllOverlays();
+  buildGarageScreen();
+  document.getElementById("garageScreen").classList.remove("hidden");
+};
+document.getElementById("resetSaveBtn").onclick = ()=>{
+  if (confirm("Reset all saved progress? This wipes your money, fleet, upgrades and unlocked tracks permanently.")){
+    resetSaveData();
+    buildHubScreen();
+  }
+};
+
+/* ---- Garage ---- */
+function buildGarageScreen(){
+  document.getElementById("garageMoney").textContent = Math.floor(state.money).toLocaleString();
+  document.getElementById("garageActiveVehicle").textContent = VEHICLES[state.currentVehicleKey].name;
+
+  const streetGrid = document.getElementById("garageStreetGrid");
+  const raceGrid = document.getElementById("garageRaceGrid");
+  streetGrid.innerHTML = ""; raceGrid.innerHTML = "";
+  STREET_KEYS.forEach(k=> streetGrid.appendChild(vehicleCard(k, { showActive:true, lockIfUnowned:false, onChange:buildGarageScreen })));
+  RACE_KEYS.forEach(k=> raceGrid.appendChild(vehicleCard(k, { showActive:true, lockIfUnowned:false, onChange:buildGarageScreen })));
+
+  const up = document.getElementById("garageUpgrades");
+  up.innerHTML = "";
+  const u = state.upgrades[state.currentVehicleKey];
+  Object.keys(UPGRADE_LABELS).forEach(key=>{
+    const lvl = u[key];
+    const cost = Math.round(UPGRADE_COST_BASE[key] * (lvl+1) * 1.35);
+    const maxed = lvl >= MAX_UPGRADE_LEVEL;
+    const row = document.createElement("div");
+    row.className = "upRow";
+    row.innerHTML = `
+      <div>
+        <div>${UPGRADE_LABELS[key]}</div>
+        <div class="lvl">Level ${lvl} / ${MAX_UPGRADE_LEVEL}${maxed ? " (MAX)" : "  —  $"+cost.toLocaleString()}</div>
+      </div>
+      <button class="smallBtn" ${maxed || state.money<cost ? "disabled":""}>UPGRADE</button>
+    `;
+    row.querySelector("button").onclick = ()=>{
+      if (maxed || state.money < cost) return;
+      state.money -= cost; u[key]++;
+      saveGame();
+      buildGarageScreen();
+    };
+    up.appendChild(row);
+  });
+  saveGame();
+}
+document.getElementById("closeGarageBtn").onclick = ()=>{
+  hideAllOverlays();
+  buildHubScreen();
+  document.getElementById("hubScreen").classList.remove("hidden");
+};
+
+/* ---- Results ---- */
+function fmtTime(sec){
+  const m = Math.floor(sec/60), s = sec-m*60;
+  return String(m).padStart(2,"0") + ":" + s.toFixed(1).padStart(4,"0");
+}
+function showResults(standings, playerRank, reward, newBest){
+  document.getElementById("hud").classList.add("hidden");
+  document.getElementById("controlsHint").classList.add("hidden");
+  const ord = ["1st","2nd","3rd","4th","5th","6th","7th","8th"][playerRank-1] || (playerRank+"th");
+  document.getElementById("resultsTitle").textContent = playerRank===1 ? "🏆 YOU WON!" : "RACE COMPLETE";
+  document.getElementById("resultsSub").textContent = `You finished ${ord} on ${race.track.name} in ${fmtTime(race.timer)}` + (newBest ? " — new best time!" : ".");
+  const list = document.getElementById("standingsList");
+  list.innerHTML = "";
+  standings.forEach((car,i)=>{
+    const row = document.createElement("div");
+    row.className = "standingsRow" + (car.isPlayer ? " me":"");
+    row.innerHTML = `<span class="pos">${i+1}</span><span class="swatch" style="background:${car.color}"></span><span class="nm">${car.isPlayer?"YOU":car.name}</span><span class="subtext">${car.finished ? fmtTime(car.finishTime) : "—"}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById("resultsMoney").textContent = "+ $" + reward.toLocaleString();
+  hideAllOverlays();
+  document.getElementById("resultsScreen").classList.remove("hidden");
+}
+document.getElementById("resultsContinueBtn").onclick = ()=>{
+  race = null;
+  hideAllOverlays();
+  buildHubScreen();
+  document.getElementById("hubScreen").classList.remove("hidden");
+};
+
+/* ---- Save button ---- */
+let saveToastTimer = null;
+document.getElementById("saveButton").onclick = ()=>{
+  saveGame();
+  const toast = document.getElementById("saveToast");
+  toast.classList.add("show");
+  clearTimeout(saveToastTimer);
+  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); }, 1600);
+};
+
+/* ---- Map toggle ---- */
+window.addEventListener("keydown", e=>{
+  if (!race) return;
+  if (e.code === "KeyM"){ radarFullscreen = !radarFullscreen; }
+  if (e.code === "Escape" && radarFullscreen){ radarFullscreen = false; }
+});
+canvas.addEventListener("click", (e)=>{
+  if (!race) return;
+  if (radarFullscreen){ radarFullscreen = false; return; }
+  const mx=e.clientX, my=e.clientY;
+  if (mx>=radarBounds.x && mx<=radarBounds.x+radarBounds.size && my>=radarBounds.y && my<=radarBounds.y+radarBounds.size){
+    radarFullscreen = true;
+  }
+});
+
+/* ======================================================================
+   RENDERING
+====================================================================== */
+function worldToScreen(x,y){
+  const dx=x-camera.x, dy=y-camera.y;
+  const theta=-camera.angle, cosT=Math.cos(theta), sinT=Math.sin(theta);
+  const rx=dx*cosT-dy*sinT, ry=dx*sinT+dy*cosT;
+  return { x: rx+canvas.width/2, y: ry+canvas.height/2 };
+}
+
+function drawBackground(theme){
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const R = Math.hypot(canvas.width,canvas.height)/2 + 200;
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+  ctx.lineWidth = 1;
+  const step = 120;
+  const startX = Math.floor((camera.x-R)/step)*step, startY = Math.floor((camera.y-R)/step)*step;
+  for (let x=startX;x<camera.x+R;x+=step){
+    const p1=worldToScreen(x,camera.y-R), p2=worldToScreen(x,camera.y+R);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  }
+  for (let y=startY;y<camera.y+R;y+=step){
+    const p1=worldToScreen(camera.x-R,y), p2=worldToScreen(camera.x+R,y);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  }
+}
+
+function trackPath(track){
+  ctx.beginPath();
+  const wp = track.waypoints;
+  const p0 = worldToScreen(wp[0].x, wp[0].y);
+  ctx.moveTo(p0.x,p0.y);
+  for (let i=1;i<=track.N;i++){
+    const p = worldToScreen(wp[i%track.N].x, wp[i%track.N].y);
+    ctx.lineTo(p.x,p.y);
+  }
+}
+
+function drawTrack(track){
+  const t = track.theme;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+  // curb (alternating red/white, two dash-offset passes)
+  ctx.lineWidth = track.trackWidth+16; ctx.setLineDash([30,30]);
+  ctx.strokeStyle = t.curbA; ctx.lineDashOffset = 0; trackPath(track); ctx.stroke();
+  ctx.strokeStyle = t.curbB; ctx.lineDashOffset = 30; trackPath(track); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+
+  // road surface
+  ctx.strokeStyle = t.road; ctx.lineWidth = track.trackWidth;
+  trackPath(track); ctx.stroke();
+
+  // centerline
+  ctx.strokeStyle = t.line; ctx.lineWidth = 3; ctx.setLineDash([18,18]);
+  trackPath(track); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // finish line (checkered, perpendicular to track direction at index 0)
+  const tan = trackTangent(track, 0);
+  const perp = { x:-tan.y, y:tan.x };
+  const wp0 = track.waypoints[0];
+  const squares = 8, sqW = track.trackWidth/squares, sqL = 14;
+  for (let i=0;i<squares;i++){
+    const off = -track.halfWidth + i*sqW;
+    const cx1 = wp0.x + perp.x*off, cy1 = wp0.y + perp.y*off;
+    const cx2 = wp0.x + perp.x*(off+sqW), cy2 = wp0.y + perp.y*(off+sqW);
+    const backX = -tan.x*sqL, backY = -tan.y*sqL;
+    ctx.fillStyle = (i%2===0) ? "#101510" : "#eceff1";
+    const p1 = worldToScreen(cx1,cy1), p2 = worldToScreen(cx2,cy2);
+    const p3 = worldToScreen(cx2+backX,cy2+backY), p4 = worldToScreen(cx1+backX,cy1+backY);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.lineTo(p4.x,p4.y);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawCarShape(car, isPlayer){
+  const s = worldToScreen(car.x, car.y);
+  ctx.save();
+  ctx.translate(s.x,s.y);
+  ctx.rotate(car.angle - camera.angle);
+  ctx.fillStyle = car.color;
+  ctx.strokeStyle = isPlayer ? "#39ff14" : "#0a0a0a";
+  ctx.lineWidth = isPlayer ? 2.5 : 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0,-15); ctx.lineTo(8,9); ctx.lineTo(-8,9); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fff8c9";
+  ctx.fillRect(-4,-14,8,3);
+  ctx.restore();
+  if (!isPlayer){
+    ctx.fillStyle = "rgba(230,240,230,0.7)";
+    ctx.font = "9px Courier New"; ctx.textAlign = "center";
+    ctx.fillText(car.name, s.x, s.y-22);
+  }
+}
+
+function drawCars(){
+  race.cars.forEach(c=>{ if (!c.isPlayer) drawCarShape(c,false); });
+  drawCarShape(race.cars[0], true);
+}
+
+function drawCountdown(){
+  if (race.countdown <= 0) return;
+  ctx.save();
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  const n = Math.ceil(race.countdown);
+  const label = n>0 ? String(n) : "GO!";
+  ctx.font = "bold 90px Courier New";
+  ctx.fillStyle = n>0 ? "#ffd23f" : "#39ff14";
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 30;
+  ctx.fillText(label, canvas.width/2, canvas.height/2 - 40);
+  ctx.restore();
+}
+
+function drawRadarContent(mx,my,size,big){
+  const track = race.track;
+  ctx.fillStyle = "rgba(10,14,10,0.82)"; ctx.strokeStyle = "#2c5a2c"; ctx.lineWidth = big?2:1;
+  ctx.fillRect(mx,my,size,size); ctx.strokeRect(mx,my,size,size);
+
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  track.waypoints.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); });
+  const pad = track.trackWidth;
+  minX-=pad; maxX+=pad; minY-=pad; maxY+=pad;
+  const scale = Math.min(size/(maxX-minX), size/(maxY-minY));
+  const offX = mx + (size-(maxX-minX)*scale)/2, offY = my + (size-(maxY-minY)*scale)/2;
+  function toMap(x,y){ return { x: offX+(x-minX)*scale, y: offY+(y-minY)*scale }; }
+
+  ctx.save(); ctx.beginPath(); ctx.rect(mx,my,size,size); ctx.clip();
+  ctx.strokeStyle = "rgba(200,200,200,0.5)"; ctx.lineWidth = big?4:2;
+  ctx.beginPath();
+  track.waypoints.forEach((p,i)=>{ const m=toMap(p.x,p.y); if(i===0) ctx.moveTo(m.x,m.y); else ctx.lineTo(m.x,m.y); });
+  ctx.closePath(); ctx.stroke();
+
+  const wp0 = toMap(track.waypoints[0].x, track.waypoints[0].y);
+  ctx.fillStyle = "#39ff14";
+  ctx.beginPath(); ctx.arc(wp0.x,wp0.y, big?4:3, 0, Math.PI*2); ctx.fill();
+
+  race.cars.forEach(c=>{
+    if (c.isPlayer) return;
+    const p = toMap(c.x,c.y);
+    ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y, big?3.4:2.2, 0, Math.PI*2); ctx.fill();
+  });
+  const pp = toMap(race.cars[0].x, race.cars[0].y);
+  ctx.fillStyle = "#ff3131";
+  ctx.beginPath(); ctx.arc(pp.x,pp.y, big?5.5:3.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawMinimap(){
+  const size = 170, pad = 14;
+  const mx = canvas.width-size-pad, my = canvas.height-size-pad;
+  radarBounds = { x:mx, y:my, size };
+  drawRadarContent(mx,my,size,false);
+  ctx.fillStyle = "rgba(255,221,51,0.85)"; ctx.font="10px Courier New"; ctx.textAlign="center";
+  ctx.fillText("CLICK TO EXPAND", mx+size/2, my-6);
+}
+function drawFullscreenRadar(){
+  ctx.save();
+  ctx.fillStyle = "rgba(4,6,4,0.88)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const size = Math.min(canvas.width,canvas.height)*0.8;
+  const mx=(canvas.width-size)/2, my=(canvas.height-size)/2-10;
+  radarBounds = { x:mx,y:my,size };
+  drawRadarContent(mx,my,size,true);
+  ctx.fillStyle="#39ff14"; ctx.font="bold 20px Courier New"; ctx.textAlign="center";
+  ctx.fillText(race.track.name.toUpperCase(), canvas.width/2, my-22);
+  ctx.fillStyle="#9fcf9f"; ctx.font="12px Courier New";
+  ctx.fillText("red = you  |  colored dots = rivals  |  click anywhere or M / ESC to close", canvas.width/2, my+size+26);
+  ctx.restore();
+}
+
+function updateHUD(){
+  const player = race.cars[0];
+  const standings = currentStandings();
+  const pos = standings.indexOf(player)+1;
+  document.getElementById("hudPos").textContent = pos + " / " + race.cars.length;
+  document.getElementById("hudLap").textContent = Math.min(player.lapCount+1, race.laps) + " / " + race.laps;
+  const speedMph = Math.round(Math.hypot(player.vx,player.vy)*0.22);
+  const speedEl = document.getElementById("hudSpeed");
+  speedEl.textContent = speedMph + " MPH";
+  speedEl.className = "val" + (player.offtrack ? " warn" : "");
+  document.getElementById("hudTime").textContent = fmtTime(race.timer);
+  const stats = computedStats(player.vehKey, state.upgrades);
+  const nitroPct = Math.max(0, player.nitroFuel/stats.nitroCapacity*100);
+  const bar = document.getElementById("hudNitroBar");
+  bar.style.width = nitroPct+"%";
+  bar.style.background = nitroPct>25 ? "#5c9ded" : "#ff3131";
+  document.getElementById("hudMoney").textContent = "$"+Math.floor(state.money).toLocaleString();
+}
+
+/* ======================================================================
+   MAIN LOOP
+====================================================================== */
+let lastTime = performance.now();
+function loop(now){
+  if (!race || race.done){ return; }
+  requestAnimationFrame(loop);
+  let dt = (now-lastTime)/1000;
+  lastTime = now;
+  dt = Math.min(dt, 0.05);
+
+  updateRace(dt);
+
+  const player = race.cars[0];
+  camera.x += (player.x-camera.x)*Math.min(1,6*dt);
+  camera.y += (player.y-camera.y)*Math.min(1,6*dt);
+  let angleDiff = normAngle(player.angle - camera.angle);
+  camera.angle += angleDiff*Math.min(1,8*dt);
+
+  drawBackground(race.track.theme);
+  drawTrack(race.track);
+  drawCars();
+  drawCountdown();
+  if (radarFullscreen) drawFullscreenRadar(); else drawMinimap();
+  updateHUD();
+}
+
+})();
+</script>
+</body>
+</html>
