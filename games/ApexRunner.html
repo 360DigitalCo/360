@@ -97,7 +97,18 @@
   }
   #saveToast.show { opacity:1; }
 
+  #devToast {
+    position: fixed; top: 10px; left:50%; transform:translateX(-50%); z-index:30;
+    background: rgba(12,6,16,0.92); border:1px solid #ff2fe0; border-radius:8px;
+    padding:10px 20px; font-size:13px; color:#ff8cf0; letter-spacing:1px;
+    opacity:0; pointer-events:none; transition: opacity 0.4s; text-align:center;
+    box-shadow:0 0 20px rgba(255,47,224,0.5);
+  }
+  #devToast.show { opacity:1; }
+
   .trackCard.locked .price { color:#ff8a8a; }
+  .trackCard.devTrack { border-color:#ff2fe0 !important; box-shadow:0 0 16px rgba(255,47,224,0.3); }
+  .trackCard.devTrack .price { color:#ff8cf0; }
   .standingsRow {
     display:flex; align-items:center; gap:12px; padding:8px 10px; border-bottom:1px dashed #223822;
   }
@@ -121,10 +132,11 @@
   <div class="row" style="margin-top:6px;"><span class="label">MONEY</span><span class="val" id="hudMoney">$0</span></div>
 </div>
 <div id="controlsHint" class="hidden">
-  WASD / ARROWS — drive &amp; brake&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — nitro boost&nbsp;&nbsp;|&nbsp;&nbsp;M — expand track map
+  WASD / ARROWS — drive &amp; brake&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — nitro boost&nbsp;&nbsp;|&nbsp;&nbsp;E — toggle infinite nitro&nbsp;&nbsp;|&nbsp;&nbsp;M — expand track map
 </div>
 <button id="saveButton" title="Save progress">💾 SAVE</button>
 <div id="saveToast">PROGRESS SAVED</div>
+<div id="devToast">DEV MODE ACTIVATED</div>
 
 <!-- Title -->
 <div class="overlay" id="titleScreen">
@@ -236,9 +248,10 @@ const VEHICLES = {
 const STREET_KEYS = ["compact","hatchback","sedan","muscle","coupe"];
 const RACE_KEYS = ["gt","rally","prototype","openwheel","hypercar"];
 const ALL_VEHICLE_KEYS = STREET_KEYS.concat(RACE_KEYS);
+const HIGH_TIER_KEYS = ["prototype","openwheel","hypercar"];
 
 const UPGRADE_COST_BASE = { engine:1500, tires:1300, nitro:1100, weight:1400 };
-const MAX_UPGRADE_LEVEL = 10;
+const MAX_UPGRADE_LEVEL = 20;
 const UPGRADE_LABELS = {
   engine:"Engine (+Top Speed & Accel)",
   tires:"Tires (+Handling & Grip)",
@@ -319,62 +332,82 @@ function finalizeTrack(def){
 }
 
 const TRACKS = {
+  // Tracks scaled way up (~2.5x length/radius, ~1.3x width) from the original layouts.
   oval: finalizeTrack({
     id:"oval", name:"Silverton Oval", theme:{bg:"#1e2420", road:"#6b6f74", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
-    waypoints: buildOvalWaypoints(0,0,1100,600,90),
-    trackWidth:190, laps:3, npcCount:5, rewardBase:1200, unlockCost:0,
+    waypoints: buildOvalWaypoints(0,0,2750,1500,90),
+    trackWidth:247, laps:3, npcCount:5, rewardBase:1200, unlockCost:0,
     desc:"A wide, forgiving oval. Perfect for learning the ropes."
   }),
   wakita: finalizeTrack({
     id:"wakita", name:"Wakita Circuit", theme:{bg:"#1a2018", road:"#6b6f74", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
     waypoints: buildTrack(0,0,0,[
-      {type:"straight", length:700},
-      {type:"arc", radius:200, angleDeg:90},
-      {type:"straight", length:500},
-      {type:"arc", radius:90, angleDeg:40},
-      {type:"arc", radius:90, angleDeg:-40},
-      {type:"straight", length:300},
-      {type:"arc", radius:200, angleDeg:90},
-      {type:"straight", length:900},
-      {type:"arc", radius:200, angleDeg:90},
-      {type:"straight", length:500},
-      {type:"arc", radius:200, angleDeg:90}
-    ], 45),
-    trackWidth:150, laps:3, npcCount:5, rewardBase:2000, unlockCost:3000,
+      {type:"straight", length:1750},
+      {type:"arc", radius:500, angleDeg:90},
+      {type:"straight", length:1250},
+      {type:"arc", radius:225, angleDeg:40},
+      {type:"arc", radius:225, angleDeg:-40},
+      {type:"straight", length:750},
+      {type:"arc", radius:500, angleDeg:90},
+      {type:"straight", length:2250},
+      {type:"arc", radius:500, angleDeg:90},
+      {type:"straight", length:1250},
+      {type:"arc", radius:500, angleDeg:90}
+    ], 113),
+    trackWidth:195, laps:3, npcCount:5, rewardBase:2000, unlockCost:3000,
     desc:"A technical road course with a nasty chicane on the back straight."
   }),
   dodge: finalizeTrack({
     id:"dodge", name:"Dodge City Technical", theme:{bg:"#241f16", road:"#736657", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
     waypoints: buildTrack(0,0,0,[
-      {type:"straight", length:400},
-      {type:"arc", radius:140, angleDeg:60},
-      {type:"straight", length:300},
-      {type:"arc", radius:80, angleDeg:150},
-      {type:"straight", length:250},
-      {type:"arc", radius:60, angleDeg:30},
-      {type:"arc", radius:60, angleDeg:-30},
-      {type:"straight", length:200},
-      {type:"arc", radius:160, angleDeg:60},
-      {type:"straight", length:350},
-      {type:"arc", radius:160, angleDeg:90}
-    ], 35),
-    trackWidth:125, laps:4, npcCount:6, rewardBase:3200, unlockCost:9000,
+      {type:"straight", length:1000},
+      {type:"arc", radius:350, angleDeg:60},
+      {type:"straight", length:750},
+      {type:"arc", radius:200, angleDeg:150},
+      {type:"straight", length:625},
+      {type:"arc", radius:150, angleDeg:30},
+      {type:"arc", radius:150, angleDeg:-30},
+      {type:"straight", length:500},
+      {type:"arc", radius:400, angleDeg:60},
+      {type:"straight", length:875},
+      {type:"arc", radius:400, angleDeg:90}
+    ], 88),
+    trackWidth:163, laps:4, npcCount:6, rewardBase:3200, unlockCost:9000,
     desc:"Tight, technical, and unforgiving — including a brutal hairpin."
   }),
   coastal: finalizeTrack({
     id:"coastal", name:"Coastal Circuit", theme:{bg:"#132028", road:"#5f6a72", curbA:"#c94141", curbB:"#eceff1", line:"#e8e340"},
     waypoints: buildTrack(0,0,0,[
-      {type:"straight", length:750}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:500}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:650}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:450}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:700}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:500}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:600}, {type:"arc", radius:380, angleDeg:45},
-      {type:"straight", length:450}, {type:"arc", radius:380, angleDeg:45}
-    ], 55),
-    trackWidth:210, laps:3, npcCount:7, rewardBase:5000, unlockCost:20000,
+      {type:"straight", length:1875}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1250}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1625}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1125}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1750}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1250}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1500}, {type:"arc", radius:950, angleDeg:45},
+      {type:"straight", length:1125}, {type:"arc", radius:950, angleDeg:45}
+    ], 138),
+    trackWidth:273, laps:3, npcCount:7, rewardBase:5000, unlockCost:20000,
     desc:"A sprawling, high-speed coastal loop with wide sweeping corners."
+  }),
+  // Hidden developer-only track. Not listed in TRACK_ORDER — only shown once dev mode is active.
+  secret: finalizeTrack({
+    id:"secret", name:"🕶 DEV OVERRIDE — Nightmare Circuit",
+    theme:{bg:"#0a0014", road:"#3d2a54", curbA:"#ff00ff", curbB:"#00ffff", line:"#ffffff"},
+    waypoints: buildTrack(0,0,0,[
+      {type:"straight", length:3000},
+      {type:"arc", radius:600, angleDeg:90},
+      {type:"straight", length:2000},
+      {type:"arc", radius:300, angleDeg:180},
+      {type:"straight", length:2500},
+      {type:"arc", radius:600, angleDeg:90},
+      {type:"straight", length:3500},
+      {type:"arc", radius:600, angleDeg:90},
+      {type:"straight", length:2000},
+      {type:"arc", radius:600, angleDeg:90}
+    ], 150),
+    trackWidth:320, laps:5, npcCount:7, rewardBase:250000, unlockCost:0,
+    desc:"Hidden developer test circuit, packed with the fastest cars on the roster."
   })
 };
 const TRACK_ORDER = ["oval","wakita","dodge","coastal"];
@@ -412,7 +445,8 @@ let state = {
   upgrades: freshUpgrades(),
   unlockedTracks: { oval:true },
   bestTimes: {},
-  racesFinished: 0
+  racesFinished: 0,
+  devMode: false
 };
 
 const SAVE_KEY = "apexRunnerSaveV1";
@@ -423,7 +457,7 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money: state.money, ownedVehicles: state.ownedVehicles, currentVehicleKey: state.currentVehicleKey,
       upgrades: state.upgrades, unlockedTracks: state.unlockedTracks, bestTimes: state.bestTimes,
-      racesFinished: state.racesFinished, savedAt: Date.now()
+      racesFinished: state.racesFinished, devMode: state.devMode, savedAt: Date.now()
     }));
   } catch(e){ localSaveAvailable = false; }
 }
@@ -439,6 +473,7 @@ function loadGame(){
     if (d.unlockedTracks) Object.assign(state.unlockedTracks, d.unlockedTracks);
     if (d.bestTimes) Object.assign(state.bestTimes, d.bestTimes);
     if (typeof d.racesFinished === "number") state.racesFinished = d.racesFinished;
+    if (typeof d.devMode === "boolean") state.devMode = d.devMode;
     return true;
   } catch(e){ localSaveAvailable = false; return false; }
 }
@@ -451,6 +486,7 @@ function resetSaveData(){
   state.unlockedTracks = { oval:true };
   state.bestTimes = {};
   state.racesFinished = 0;
+  state.devMode = false;
 }
 const hasSave = loadGame();
 
@@ -460,12 +496,52 @@ window.addEventListener("keyup", e=>{ keys[e.code]=false; });
 window.addEventListener("beforeunload", saveGame);
 
 /* ======================================================================
+   DEV MODE — type "dev" while the garage screen is open
+====================================================================== */
+let devToastTimer = null;
+function showDevToast(msg){
+  const el = document.getElementById("devToast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(devToastTimer);
+  devToastTimer = setTimeout(()=>{ el.classList.remove("show"); }, 2800);
+}
+function activateDevMode(){
+  const wasAlreadyOn = state.devMode;
+  state.devMode = true;
+  state.money += 999999999;
+  state.unlockedTracks.secret = true;
+  ALL_VEHICLE_KEYS.forEach(k=>{ state.ownedVehicles[k] = true; });
+  saveGame();
+  if (!document.getElementById("garageScreen").classList.contains("hidden")){
+    buildGarageScreen();
+  }
+  showDevToast(wasAlreadyOn
+    ? "DEV CODE — +$999,999,999 ADDED"
+    : "DEV MODE ACTIVATED — Infinite money, every car & a secret track unlocked");
+}
+let devKeyBuffer = "";
+window.addEventListener("keydown", (e)=>{
+  const garageEl = document.getElementById("garageScreen");
+  const garageVisible = garageEl && !garageEl.classList.contains("hidden");
+  if (!garageVisible) { devKeyBuffer = ""; return; }
+  if (/^[a-zA-Z]$/.test(e.key)){
+    devKeyBuffer = (devKeyBuffer + e.key.toLowerCase()).slice(-3);
+    if (devKeyBuffer === "dev"){
+      activateDevMode();
+      devKeyBuffer = "";
+    }
+  }
+});
+
+/* ======================================================================
    RACE STATE
 ====================================================================== */
 let race = null; // built by setupRace()
 let camera = { x:0, y:0, angle:0 };
 let radarFullscreen = false;
 let radarBounds = { x:0,y:0,size:0 };
+let infiniteNitro = false; // toggled with the E key during a race
 
 const RIVAL_NAMES = ["Team Vortex","Storm Trackers","Squall Squad","Cyclone Crew","Twister Trackers","Squall Line","Maelstrom Media","Ridgeline Racing"];
 
@@ -504,7 +580,8 @@ function gridSpawn(track, row){
 
 function setupRace(trackId){
   const track = TRACKS[trackId];
-  const npcPool = ALL_VEHICLE_KEYS;
+  const isDevTrack = trackId === "secret";
+  const npcPool = isDevTrack ? HIGH_TIER_KEYS : ALL_VEHICLE_KEYS;
   const total = track.npcCount + 1;
   const player = makeCar(state.currentVehicleKey, { isPlayer:true, name:"YOU" });
   const spawn0 = gridSpawn(track, total-1); // player starts at the back of the grid
@@ -516,12 +593,14 @@ function setupRace(trackId){
     const team = RIVAL_NAMES[Math.floor(Math.random()*RIVAL_NAMES.length)];
     const npc = makeCar(vk, { name: team + " — " + VEHICLES[vk].name });
     npc.aiLateral = (Math.random()-0.5)*track.halfWidth*0.7;
+    if (isDevTrack) npc.aiSkill *= 1.15; // dev track rivals are sharper too
     const s = gridSpawn(track, i);
     npc.x = s.x; npc.y = s.y; npc.angle = s.angle;
     cars.push(npc);
   }
 
   camera.x = player.x; camera.y = player.y; camera.angle = player.angle;
+  infiniteNitro = false;
 
   race = {
     track, cars, laps: track.laps,
@@ -655,6 +734,7 @@ function updateRace(dt){
       control = updateAIControl(car, track, playerScore);
     }
     updateCarPhysics(car, dt, control, stats, track);
+    if (car.isPlayer && infiniteNitro){ car.nitroFuel = stats.nitroCapacity; }
   });
 
   resolveCollisions(race.cars);
@@ -770,12 +850,14 @@ function buildHubScreen(){
 
   const grid = document.getElementById("trackGrid");
   grid.innerHTML = "";
-  TRACK_ORDER.forEach(id=>{
+  const idsToShow = TRACK_ORDER.concat((state.devMode && state.unlockedTracks.secret) ? ["secret"] : []);
+  idsToShow.forEach(id=>{
     const t = TRACKS[id];
+    const isDevTrack = id === "secret";
     const unlocked = !!state.unlockedTracks[id];
     const best = state.bestTimes[id];
     const card = document.createElement("div");
-    card.className = "vCard trackCard" + (unlocked ? "" : " locked");
+    card.className = "vCard trackCard" + (unlocked ? "" : " locked") + (isDevTrack ? " devTrack" : "");
     card.innerHTML = `
       <div class="vSwatch" style="background:${t.theme.road}"></div>
       <h3>${t.name}</h3>
@@ -893,11 +975,15 @@ document.getElementById("saveButton").onclick = ()=>{
   saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); }, 1600);
 };
 
-/* ---- Map toggle ---- */
+/* ---- Map toggle + infinite nitro toggle ---- */
 window.addEventListener("keydown", e=>{
   if (!race) return;
   if (e.code === "KeyM"){ radarFullscreen = !radarFullscreen; }
   if (e.code === "Escape" && radarFullscreen){ radarFullscreen = false; }
+  if (e.code === "KeyE"){
+    infiniteNitro = !infiniteNitro;
+    showDevToast(infiniteNitro ? "♾ INFINITE NITRO — ON" : "INFINITE NITRO — OFF");
+  }
 });
 canvas.addEventListener("click", (e)=>{
   if (!race) return;
@@ -1092,10 +1178,10 @@ function updateHUD(){
   speedEl.className = "val" + (player.offtrack ? " warn" : "");
   document.getElementById("hudTime").textContent = fmtTime(race.timer);
   const stats = computedStats(player.vehKey, state.upgrades);
-  const nitroPct = Math.max(0, player.nitroFuel/stats.nitroCapacity*100);
+  const nitroPct = infiniteNitro ? 100 : Math.max(0, player.nitroFuel/stats.nitroCapacity*100);
   const bar = document.getElementById("hudNitroBar");
   bar.style.width = nitroPct+"%";
-  bar.style.background = nitroPct>25 ? "#5c9ded" : "#ff3131";
+  bar.style.background = infiniteNitro ? "#ff2fe0" : (nitroPct>25 ? "#5c9ded" : "#ff3131");
   document.getElementById("hudMoney").textContent = "$"+Math.floor(state.money).toLocaleString();
 }
 
