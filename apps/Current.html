@@ -332,6 +332,24 @@ textarea.msg-in::placeholder{color:var(--mut);}
 const SB_URL  = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
 const sb = supabase.createClient(SB_URL, SB_ANON);
+const B2_PROXY = 'https://360-b2-proxy.YOUR_SUBDOMAIN.workers.dev';
+
+async function uploadToB2(file, path) {
+  const r = await fetch(B2_PROXY+'/sign-upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:path,contentType:file.type})});
+  if(!r.ok) throw new Error('Could not get upload URL');
+  const {uploadUrl,authToken,fileUrl}=await r.json();
+  await new Promise((res,rej)=>{
+    const x=new XMLHttpRequest(); x.open('POST',uploadUrl);
+    x.setRequestHeader('Authorization',authToken);
+    x.setRequestHeader('X-Bz-File-Name',encodeURIComponent(path));
+    x.setRequestHeader('Content-Type',file.type);
+    x.setRequestHeader('X-Bz-Content-Sha1','do_not_verify');
+    x.onload=()=>x.status<300?res():rej(new Error('B2 '+x.status));
+    x.onerror=()=>rej(new Error('Network error'));
+    x.send(file);
+  });
+  return fileUrl;
+}
 
 /* ── State ── */
 let me = null, myProfile = null;
@@ -633,13 +651,12 @@ async function send(){
   let image_url=null,file_url=null,file_name=null;
   if(pendingFile){
     const ext=pendingFile.name.split('.').pop();
-    const path=`msg/${activeId}/${me.id}_${Date.now()}.${ext}`;
-    const bucket=/^image\//.test(pendingFile.type)?'msg-media':'msg-files';
-    const {data:ud,error:ue}=await sb.storage.from(bucket).upload(path,pendingFile,{upsert:false});
-    if(ue){toast('Upload failed: '+ue.message);$('sendBtn').disabled=false;return;}
-    const {data:{publicUrl}}=sb.storage.from(bucket).getPublicUrl(path);
-    if(/^image\//.test(pendingFile.type)) image_url=publicUrl;
-    else{file_url=publicUrl;file_name=pendingFile.name;}
+    const path=`current/${activeId}/${me.id}_${Date.now()}.${ext}`;
+    try {
+      const publicUrl = await uploadToB2(pendingFile, path);
+      if(/^image\//.test(pendingFile.type)) image_url=publicUrl;
+      else{file_url=publicUrl;file_name=pendingFile.name;}
+    } catch(ue){toast('Upload failed: '+ue.message);$('sendBtn').disabled=false;return;}
     pendingFile=null;
     const up=$('upPrev');if(up)up.style.display='none';
   }

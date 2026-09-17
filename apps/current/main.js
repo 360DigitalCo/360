@@ -29,6 +29,85 @@ const initial = n => (n||"?")[0].toUpperCase();
 function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function linkify(t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,"<br>"); }
 
+// ── Inline confirm (replaces all window.confirm dialogs) ──────────────────────
+function currentConfirm(title, body, okLabel="Confirm", danger=true) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("confirm-modal");
+    document.getElementById("confirm-title").textContent = title;
+    document.getElementById("confirm-body").textContent = body || "";
+    const okBtn = document.getElementById("confirm-ok");
+    okBtn.querySelector("span").textContent = okLabel;
+    okBtn.className = danger ? "button danger" : "button accent";
+    modal.style.display = "flex";
+    const ok = () => { modal.style.display="none"; cleanup(); resolve(true); };
+    const cancel = () => { modal.style.display="none"; cleanup(); resolve(false); };
+    const cleanup = () => {
+      document.getElementById("confirm-ok").removeEventListener("click", ok);
+      document.getElementById("confirm-cancel").removeEventListener("click", cancel);
+      modal.removeEventListener("click", bgClick);
+    };
+    const bgClick = e => { if(e.target===modal) cancel(); };
+    okBtn.addEventListener("click", ok);
+    document.getElementById("confirm-cancel").addEventListener("click", cancel);
+    modal.addEventListener("click", bgClick);
+  });
+}
+
+// ── Block / Unblock / Report ──────────────────────────────────────────────────
+async function isBlocked(userId) {
+  const { data } = await supabase.from("current_blocks")
+    .select("id").eq("blocker_id", me.id).eq("blocked_id", userId).maybeSingle();
+  return !!data;
+}
+
+function showBlockModal(name, userId) {
+  document.getElementById("block-modal-name").textContent = name;
+  document.getElementById("block-also-report").checked = false;
+  document.getElementById("report-reason-wrap").style.display = "none";
+  document.getElementById("block-modal").style.display = "flex";
+
+  document.getElementById("block-also-report").onchange = function() {
+    document.getElementById("report-reason-wrap").style.display = this.checked ? "" : "none";
+  };
+
+  const cancel = () => { document.getElementById("block-modal").style.display = "none"; };
+  document.getElementById("block-modal-cancel").onclick = cancel;
+  document.getElementById("block-modal").onclick = e => { if(e.target===document.getElementById("block-modal")) cancel(); };
+
+  document.getElementById("block-modal-confirm").onclick = async () => {
+    document.getElementById("block-modal-confirm").querySelector("span").textContent = "Blocking…";
+    await supabase.from("current_blocks").upsert({blocker_id:me.id, blocked_id:userId}, {onConflict:"blocker_id,blocked_id"});
+    if(document.getElementById("block-also-report").checked) {
+      const reason = document.getElementById("report-reason").value;
+      await supabase.from("current_reports").insert({reporter_id:me.id, reported_id:userId, reason}).catch(()=>{});
+    }
+    document.getElementById("block-modal").style.display = "none";
+    document.getElementById("block-modal-confirm").querySelector("span").textContent = "Block";
+    toast(`${name} blocked.`, "success");
+    // Close conversation
+    document.getElementById("conversation-pane").style.display = "none";
+    document.getElementById("empty-state").style.display = "flex";
+    activeConv = null;
+    loadConversations();
+  };
+}
+
+function showUnblockModal(name, userId) {
+  document.getElementById("unblock-modal-name").textContent = name;
+  document.getElementById("unblock-modal").style.display = "flex";
+
+  const cancel = () => { document.getElementById("unblock-modal").style.display = "none"; };
+  document.getElementById("unblock-modal-cancel").onclick = cancel;
+  document.getElementById("unblock-modal").onclick = e => { if(e.target===document.getElementById("unblock-modal")) cancel(); };
+
+  document.getElementById("unblock-modal-confirm").onclick = async () => {
+    await supabase.from("current_blocks").delete().eq("blocker_id", me.id).eq("blocked_id", userId);
+    document.getElementById("unblock-modal").style.display = "none";
+    toast(`${name} unblocked.`, "success");
+    loadConversations();
+  };
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function getMe() {
   const s = getSession();
@@ -89,6 +168,16 @@ async function loadConversations(filter="") {
     return;
   }
 
+  // Get list of blocked user IDs (both directions)
+  const { data: blockedRows } = await supabase.from("current_blocks")
+    .select("blocked_id").eq("blocker_id", me.id);
+  const { data: blockedByRows } = await supabase.from("current_blocks")
+    .select("blocker_id").eq("blocked_id", me.id);
+  const blockedSet = new Set([
+    ...(blockedRows||[]).map(r=>r.blocked_id),
+    ...(blockedByRows||[]).map(r=>r.blocker_id),
+  ]);
+
   const convIds = memberships.map(m=>m.conversation_id);
   const { data: convs } = await supabase.from("current_conversations").select("*").in("id",convIds);
   const convMap = {};
@@ -118,6 +207,8 @@ async function loadConversations(filter="") {
 
   const sorted = Object.values(convMap)
     .filter(c => {
+      // Hide conversations with blocked users (DMs only)
+      if(c.type==="direct"&&c._otherId&&blockedSet.has(c._otherId)) return false;
       if(!filter) return true;
       const n = c.type==="direct" ? (profileMap[c._otherId]?.username||"") : (c.name||"");
       return n.toLowerCase().includes(filter);
@@ -197,9 +288,15 @@ async function openConversation(conv, otherProfile) {
   };
   document.getElementById("conv-block-btn").onclick = async () => {
     if(!otherProfile||conv.type==="group") { toast("Can only block users in DMs.","error"); return; }
-    if(!confirm(`Block ${name}?`)) return;
-    await supabase.from("current_blocks").upsert({blocker_id:me.id,blocked_id:otherProfile.id});
-    toast("User blocked.","success");
+    const name = otherProfile.display_name||otherProfile.username;
+    const blocked = await isBlocked(otherProfile.id);
+    if(blocked) {
+      showUnblockModal(name, otherProfile.id);
+    } else {
+      showBlockModal(name, otherProfile.id);
+    }
+    // Update button label
+    document.getElementById("conv-block-btn").title = blocked ? "Unblock" : "Block";
   };
   document.getElementById("conv-mute-btn").onclick = async () => {
     const { data:mem } = await supabase.from("current_members").select("muted").eq("conversation_id",conv.id).eq("user_id",me.id).single();
@@ -211,6 +308,15 @@ async function openConversation(conv, otherProfile) {
   document.getElementById("conv-info-btn").onclick = () => showInfoPanel(conv, otherProfile, mems||[]);
   document.getElementById("conv-header-click").onclick = () => showInfoPanel(conv, otherProfile, mems||[]);
   document.getElementById("conv-avatar").onclick = () => showInfoPanel(conv, otherProfile, mems||[]);
+
+  // Update block button icon based on current block state
+  if(otherProfile) {
+    isBlocked(otherProfile.id).then(blocked => {
+      const btn = document.getElementById("conv-block-btn");
+      btn.title = blocked ? "Unblock" : "Block";
+      btn.textContent = blocked ? "🔓" : "🚫";
+    });
+  }
 
   await supabase.from("current_members").update({last_read_at:new Date().toISOString()})
     .eq("conversation_id",conv.id).eq("user_id",me.id);
@@ -275,14 +381,39 @@ function showInfoPanel(conv, otherProfile, mems) {
     </div>
     ${memberList}
     ${conv.type==="direct"&&otherProfile?`
-    <div style="padding:16px 20px">
-      <button class="button danger sm" style="width:100%" onclick="document.getElementById('conv-block-btn').click();document.getElementById('info-panel').remove()"><span>🚫 Block user</span></button>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px" id="block-actions-wrap">
+      <div style="text-align:center;color:var(--muted);font-size:13px">Loading…</div>
     </div>`:""}
   `;
 
   const pane = document.getElementById("conversation-pane");
   pane.style.position="relative";
   pane.appendChild(panel);
+
+  // Populate dynamic block/unblock/report actions
+  if(conv.type==="direct"&&otherProfile) {
+    const wrap = panel.querySelector("#block-actions-wrap");
+    if(wrap) {
+      const blocked = await isBlocked(otherProfile.id);
+      const uname = otherProfile.display_name||otherProfile.username;
+      wrap.innerHTML = blocked
+        ? `<button class="button accent sm" style="width:100%" id="ip-unblock-btn"><span>✅ Unblock ${esc(uname)}</span></button>`
+        : `<button class="button danger sm" style="width:100%" id="ip-block-btn"><span>🚫 Block ${esc(uname)}</span></button>
+           <button class="button ghost sm" style="width:100%" id="ip-report-btn"><span>🚩 Report ${esc(uname)}</span></button>`;
+      panel.querySelector("#ip-block-btn")?.addEventListener("click", () => {
+        panel.remove(); showBlockModal(uname, otherProfile.id);
+      });
+      panel.querySelector("#ip-report-btn")?.addEventListener("click", () => {
+        panel.remove();
+        document.getElementById("block-also-report").checked = true;
+        document.getElementById("report-reason-wrap").style.display = "";
+        showBlockModal(uname, otherProfile.id);
+      });
+      panel.querySelector("#ip-unblock-btn")?.addEventListener("click", () => {
+        panel.remove(); showUnblockModal(uname, otherProfile.id);
+      });
+    }
+  }
 
   // Add member handler
   const addBtn = panel.querySelector("#add-member-btn");
@@ -476,11 +607,11 @@ function showCtx(x,y,msg,text) {
   };
   document.getElementById("ctx-delete").onclick=async()=>{
     if(msg.sender_id!==me.id){toast("Can only delete your own messages.","error");hideCtx();return;}
-    if(!confirm("Delete for everyone?")){ hideCtx(); return; }
+    hideCtx();
+    if(!await currentConfirm("Delete message?","This will delete the message for everyone in this conversation.","Delete")) return;
     await supabase.from("current_messages").update({deleted_for_all:true}).eq("id",msg.id);
     const el=document.getElementById("msg-"+msg.id);
     if(el){ const t=el.querySelector(".msg-text"); if(t) t.textContent="🗑 This message was deleted"; }
-    hideCtx();
   };
 }
 function hideCtx() {
@@ -535,6 +666,18 @@ inp.addEventListener("input",()=>{
 async function sendMsg() {
   if(!activeConv) return;
   const text=inp.value.trim(); if(!text) return;
+
+  // Check if blocked in either direction (DMs only)
+  if(activeConv.type==="direct") {
+    const other = activeMembers.find(m=>m.id!==me.id);
+    if(other) {
+      const { data: blk } = await supabase.from("current_blocks").select("id")
+        .or(`and(blocker_id.eq.${me.id},blocked_id.eq.${other.id}),and(blocker_id.eq.${other.id},blocked_id.eq.${me.id})`)
+        .maybeSingle();
+      if(blk) { toast("You can't message this user.","error"); return; }
+    }
+  }
+
   inp.value=""; inp.style.height="auto";
 
   const recipients=activeMembers.filter(m=>m.identity_key).map(m=>({userId:m.id,publicKeyB64:m.identity_key}));
