@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER — Tornado Intercept</title>
+<title>VORTEX RUNNER ONLINE — Tornado Intercept</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   html, body {
@@ -131,11 +132,61 @@
     opacity:0; pointer-events:none; transition: opacity 0.3s;
   }
   #saveToast.show { opacity:1; }
+
+  /* ---- Online / Leaderboard ---- */
+  #lbPanel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
+    width: 260px; background: rgba(8,12,8,0.94); border-left: 1px solid #2c5a2c;
+    display: flex; flex-direction: column; transform: translateX(100%);
+    transition: transform 0.22s ease; box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+  }
+  #lbPanel.open { transform: translateX(0); }
+  #lbToggle {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+    z-index: 11; background: rgba(8,12,8,0.85); border: 1px solid #2c5a2c;
+    border-right: none; border-radius: 6px 0 0 6px;
+    padding: 10px 7px; cursor: pointer; color: #39ff14; font-family: inherit;
+    font-size: 11px; writing-mode: vertical-rl; letter-spacing: 1px;
+    transition: right 0.22s ease;
+  }
+  #lbToggle.open { right: 260px; }
+  #lbPanel h2 { color:#39ff14; font-size:13px; letter-spacing:2px; padding:12px 14px 6px; border-bottom:1px solid #2c5a2c; margin:0; }
+  #lbTabs { display:flex; border-bottom:1px solid #2c5a2c; }
+  .lbTab { flex:1; padding:7px 4px; text-align:center; font-size:11px; color:#7fd07f; cursor:pointer; border:none; background:none; font-family:inherit; letter-spacing:1px; }
+  .lbTab.active { color:#39ff14; border-bottom:2px solid #39ff14; }
+  #lbList { flex:1; overflow-y:auto; padding:8px 0; }
+  .lbRow { display:flex; align-items:center; gap:6px; padding:5px 12px; font-size:11px; border-bottom:1px dashed #1a2a1a; }
+  .lbRank { color:#ffd23f; min-width:20px; font-weight:bold; }
+  .lbName { flex:1; color:#d7ffd9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbVal { color:#39ff14; font-weight:bold; white-space:nowrap; }
+  #lbFooter { padding:10px 12px; border-top:1px solid #2c5a2c; font-size:10px; color:#7fd07f; }
+  #lbStatus { font-size:10px; color:#7fd07f; padding:6px 12px; }
+
+  #nameInputWrap { margin-top: 16px; display:flex; flex-direction:column; gap:6px; }
+  #nameInputWrap label { font-size: 12px; color:#9fcf9f; }
+  #playerNameInput {
+    background:#182a18; color:#39ff14; border:1px solid #2c5a2c; border-radius:4px;
+    padding:7px 10px; font-family:inherit; font-size:13px; letter-spacing:1px; width:100%;
+  }
+  #playerNameInput:focus { outline:none; border-color:#39ff14; }
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
+
+<!-- Leaderboard Sidebar -->
+<button id="lbToggle">LEADERBOARD</button>
+<div id="lbPanel">
+  <h2>🏆 LEADERBOARD</h2>
+  <div id="lbTabs">
+    <button class="lbTab active" data-tab="storms">Storms</button>
+    <button class="lbTab" data-tab="money">Money</button>
+  </div>
+  <div id="lbStatus">Loading...</div>
+  <div id="lbList"></div>
+  <div id="lbFooter">Updates every 30s · Top 20</div>
+</div>
 
 <!-- HUD -->
 <div id="hud">
@@ -165,8 +216,8 @@
 <!-- Title Screen -->
 <div class="overlay" id="titleScreen">
   <div class="panel" style="text-align:center;">
-    <h1 style="font-size:52px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
-    <p class="subtext">Chase. Anchor. Survive.</p>
+    <h1 style="font-size:46px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
+    <p class="subtext">Chase. Anchor. Survive. <span style="color:#39ff14; font-size:11px;">● ONLINE</span></p>
     <button class="gameBtn" id="titlePlayBtn" style="font-size:18px; padding:14px 40px;">▶ PLAY</button>
   </div>
 </div>
@@ -180,6 +231,10 @@
     torn off the road.</p>
     <h2>Choose Your Vehicle</h2>
     <p class="subtext" id="saveStatusNote"></p>
+    <div id="nameInputWrap">
+      <label for="playerNameInput">CALLSIGN (for online leaderboard)</label>
+      <input id="playerNameInput" maxlength="24" placeholder="Enter your callsign..." spellcheck="false" autocomplete="off"/>
+    </div>
     <div class="vehicleGrid" id="startVehicleGrid"></div>
     <div class="closeRow"><button class="gameBtn" id="beginBtn">START ENGINE</button></div>
   </div>
@@ -2513,6 +2568,106 @@ function loop(now){
   }
   updateHUD();
 }
+
+/* ======================================================================
+   ONLINE — SUPABASE LEADERBOARD
+====================================================================== */
+const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let playerName = "";
+let lbTab = "storms";
+let lbOpen = false;
+
+// Load saved callsign
+try {
+  const saved = localStorage.getItem("vortexPlayerName");
+  if (saved) playerName = saved;
+} catch(e){}
+
+document.getElementById("playerNameInput").value = playerName;
+document.getElementById("playerNameInput").addEventListener("input", e => {
+  playerName = e.target.value.trim();
+  try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
+});
+
+// Leaderboard toggle
+const lbToggleBtn = document.getElementById("lbToggle");
+const lbPanel = document.getElementById("lbPanel");
+lbToggleBtn.addEventListener("click", () => {
+  lbOpen = !lbOpen;
+  lbPanel.classList.toggle("open", lbOpen);
+  lbToggleBtn.classList.toggle("open", lbOpen);
+  if (lbOpen) fetchLeaderboard();
+});
+
+document.querySelectorAll(".lbTab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    lbTab = btn.dataset.tab;
+    fetchLeaderboard();
+  });
+});
+
+async function fetchLeaderboard() {
+  const statusEl = document.getElementById("lbStatus");
+  const listEl = document.getElementById("lbList");
+  statusEl.textContent = "Loading...";
+  listEl.innerHTML = "";
+  try {
+    const col = lbTab === "storms" ? "storms_intercepted" : "money";
+    const label = lbTab === "storms" ? "storms" : "$";
+    const { data, error } = await sb
+      .from("vortex_runner_scores")
+      .select("player_name, money, storms_intercepted, created_at")
+      .order(col, { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    statusEl.textContent = `${data.length} entries`;
+    data.forEach((row, i) => {
+      const div = document.createElement("div");
+      div.className = "lbRow";
+      const val = lbTab === "storms" ? row.storms_intercepted + " storms" : "$" + Number(row.money).toLocaleString();
+      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
+      listEl.appendChild(div);
+    });
+    if (data.length === 0) statusEl.textContent = "No scores yet — be first!";
+  } catch(e) {
+    statusEl.textContent = "Offline";
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function submitScore() {
+  const name = playerName || "Unknown Chaser";
+  try {
+    await sb.from("vortex_runner_scores").insert({
+      player_name: name,
+      money: Math.floor(state.money),
+      storms_intercepted: state.stormsIntercepted
+    });
+    if (lbOpen) fetchLeaderboard();
+  } catch(e){}
+}
+
+// Hook into save — also submit score online
+const origSaveGame = saveGame;
+// Override save button to also submit score
+document.getElementById("saveButton").addEventListener("click", submitScore);
+
+// Also submit when closing the garage
+document.getElementById("closeGarageBtn").addEventListener("click", submitScore);
+
+// Auto-refresh leaderboard every 30s when open
+setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
+
+// Initial fetch so panel has data when first opened
+fetchLeaderboard();
 
 })();
 </script>
