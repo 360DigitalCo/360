@@ -303,33 +303,55 @@ try { playerName = localStorage.getItem('sgName2') || ''; myTeam = localStorage.
 
 const TEAM_COLS = { red:'#ff6b6b', blue:'#60a5fa' };
 
-// --- Multiplayer ---
-let netChannel = null;
+// --- Multiplayer (REST polling — no WebSockets needed) ---
 let remotePlayers = {};
 let teamScores = { red:0, blue:0 };
-let presencePushLast = 0;
+let _pushTimer = 0, _pollTimer = 0;
+const NET_DOT = () => document.getElementById('net-dot');
 
-function connectNet() {
-  if (netChannel) sb.removeChannel(netChannel);
-  netChannel = sb.channel('sg-rm3', { config:{ presence:{ key: myId }}});
-  netChannel.on('presence', { event:'sync' }, () => {
-    const s = netChannel.presenceState();
-    remotePlayers = {};
-    Object.entries(s).forEach(([k,arr]) => { if (k !== myId && arr.length) remotePlayers[k] = arr[arr.length-1]; });
-    renderPlayersList();
-  });
-  netChannel.on('presence', { event:'leave' }, ({ leftPresences }) => {
-    leftPresences.forEach(p => delete remotePlayers[p.id || p.key]);
-    renderPlayersList();
-  });
-  netChannel.on('broadcast', { event:'kill' }, msg => {
-    const { team, pts } = msg.payload || {};
-    if (team && pts) { teamScores[team] = (teamScores[team]||0) + pts; updateHud(); }
-  });
-  netChannel.subscribe(status => {
-    document.getElementById('net-dot').style.color = status === 'SUBSCRIBED' ? '#39ff14' : '#ff4b6e';
-  });
+async function pushPresence() {
+  if (!player) return;
+  try {
+    await sb.from('sg_presence').upsert({
+      id: myId, player_name: playerName, team: myTeam,
+      x: player.x, y: player.y,
+      hp: player.hp, max_hp: player.maxHp,
+      shield: player.shield||0, max_shield: player.maxShield||0,
+      invuln: player.invuln > 0, dashing: player.dashTimer > 0,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+    NET_DOT().style.color = '#39ff14';
+  } catch(e) { NET_DOT().style.color = '#ff4b6e'; }
 }
+
+async function pollPresence() {
+  try {
+    const cutoff = new Date(Date.now() - 5000).toISOString();
+    const { data } = await sb.from('sg_presence')
+      .select('*').neq('id', myId).gte('updated_at', cutoff);
+    remotePlayers = {};
+    (data||[]).forEach(r => {
+      remotePlayers[r.id] = {
+        name: r.player_name, team: r.team,
+        x: r.x, y: r.y, hp: r.hp, maxHp: r.max_hp,
+        shield: r.shield, maxShield: r.max_shield,
+        invuln: r.invuln, dashing: r.dashing
+      };
+    });
+    renderPlayersList();
+  } catch(e) {}
+}
+
+async function removePresence() {
+  try { await sb.from('sg_presence').delete().eq('id', myId); } catch(e) {}
+}
+
+// Push ~1/sec, poll ~1/sec via setInterval
+setInterval(async () => { await pushPresence(); }, 1000);
+setInterval(async () => { await pollPresence(); }, 1000);
+window.addEventListener('beforeunload', removePresence);
+
+function connectNet() {} // no-op, kept for call compatibility
 
 function renderPlayersList() {
   const el = document.getElementById('players-online');
@@ -506,7 +528,6 @@ function applyPickup(pu){
   else if(pu.type==='nuke'){
     enemies.forEach(e=>{burst(e.x,e.y,e.color,10);score+=e.score;player.xp+=e.xp;}); enemies=[];
     if(boss) boss.hp-=30; showCenterMessage('NUKE!',1.5); shake(8,.5);
-    if(netChannel) netChannel.send({type:'broadcast',event:'kill',payload:{team:myTeam,pts:200}});
   }
   else if(pu.type==='overload'){ overloadTimer=3; showCenterMessage('OVERLOAD!'); }
 }
@@ -517,14 +538,12 @@ function killEnemy(e){
   score+=e.score; player.xp+=e.xp; waveKills++;
   if(e.type==='bomber'){ enemies.forEach(t=>{if(Math.hypot(t.x-e.x,t.y-e.y)<30)t.hp-=3;}); if(Math.hypot(player.x-e.x,player.y-e.y)<30)hitPlayer(); shake(6,.4); burst(e.x,e.y,'#fb923c',20,50,.6); }
   if(Math.random()<.12) pickups.push({x:e.x,y:e.y,type:PU[Math.floor(rand(0,PU.length))],life:12,age:0});
-  if(netChannel) netChannel.send({type:'broadcast',event:'kill',payload:{team:myTeam,pts:e.score}});
   if(player.xp>=player.xpToLevel) levelUp();
 }
 function killBoss(){
   burst(boss.x,boss.y,boss.color,30,60,.8); score+=boss.score; player.xp+=boss.xp; shake(10,.6);
   waveKills+=waveTarget;
   for(let i=0;i<4;i++) pickups.push({x:boss.x+rand(-20,20),y:boss.y+rand(-20,20),type:PU[Math.floor(rand(0,PU.length))],life:12,age:0});
-  if(netChannel) netChannel.send({type:'broadcast',event:'kill',payload:{team:myTeam,pts:boss.score}});
   boss=null; bossActive=false; document.getElementById('boss-bar-wrap').style.display='none';
   showCenterMessage('BOSS DEFEATED!',2);
   if(player.xp>=player.xpToLevel) levelUp();
@@ -670,8 +689,6 @@ function update(dt){
   pickups.forEach(pu=>{ if(Math.hypot(player.x-pu.x,player.y-pu.y)<10){applyPickup(pu);pu.life=0;burst(pu.x,pu.y,'#ffd23f',6,20);} });
 
   shakeTime-=dt; if(shakeTime<=0) shakeMag=0;
-
-  pushPresence();
   updateHud();
 }
 
@@ -828,14 +845,14 @@ function loop(ts){
   const delta=(ts-lastTime)/1000||0; lastTime=ts;
   accumulator+=Math.min(delta,.25);
   if(running&&!paused){ while(accumulator>=FIXED_DT){update(FIXED_DT);accumulator-=FIXED_DT;} }
-  else { accumulator=0; pushPresence(); }
+  else accumulator=0;
   render();
   requestAnimationFrame(loop);
 }
 
 // --- Death ---
 function onDeath(){
-  if(netChannel) netChannel.track({id:myId,name:playerName,team:myTeam,x:-999,y:-999,hp:0,maxHp:5,dead:true});
+  removePresence();
   document.getElementById('death-stats').textContent=`Score: ${score.toLocaleString()}  ·  Wave: ${wave}  ·  Level: ${player.level}`;
   document.getElementById('death-overlay').classList.add('show');
   document.getElementById('sub-status').textContent='';
