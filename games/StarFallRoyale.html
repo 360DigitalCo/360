@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
 <title>StarFallRoyale</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2716%27 fill=%27%23070d12%27/%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2719%27 fill=%27none%27 stroke=%27%237be6ff%27 stroke-width=%275%27/%3E%3Cpath d=%27M43 43l11 11%27 stroke=%27%23c995ff%27 stroke-width=%275%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <meta name="theme-color" content="#071018" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.91.0"></script>
 <style>
@@ -238,7 +239,7 @@ function makeProps(){
     const g=new THREE.Group();const c=box(1.2,1,.9,choice([0x5e6d7a,0x88664a,0x647b67]),.95);c.position.y=.5;c.castShadow=c.receiveShadow=true;g.add(c);g.position.set(x,groundY(x,z),z);scene.add(g)}
 }
 function makeStorm(){
-  stormRing=new THREE.Mesh(new THREE.RingGeometry(GAME.stormRadius, GAME.stormRadius+.9,128),new THREE.MeshBasicMaterial({color:0xc995ff,side:THREE.DoubleSide,transparent:true,opacity:.75}));stormRing.rotation.x=-Math.PI/2;stormRing.position.y=.25;scene.add(stormRing);
+  stormRing=new THREE.Mesh(new THREE.RingGeometry(stormRadius, stormRadius+.9,128),new THREE.MeshBasicMaterial({color:0xc995ff,side:THREE.DoubleSide,transparent:true,opacity:.75}));stormRing.rotation.x=-Math.PI/2;stormRing.position.y=.25;scene.add(stormRing);
   stormWall=new THREE.Mesh(new THREE.CylinderGeometry(GAME.mapRadius+.4,GAME.mapRadius+.4,50,128,1,true),new THREE.MeshBasicMaterial({color:0x9c5df3,transparent:true,opacity:.12,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));stormWall.position.y=20;scene.add(stormWall);
 }
 
@@ -280,7 +281,7 @@ function syncMesh(ent){ent.mesh.position.copy(ent.pos);ent.mesh.rotation.y=ent.y
 
 function spawnLoot(){
   loot=[];const types=[];for(let i=0;i<42;i++)types.push(choice(['ammo','ammo','ammo','shield','med','smg','shotgun']));
-  for(const type of types){let x=rand(-110,110),z=rand(-110,110);if(Math.hypot(x,z)>118)continue;const y=groundY(x,z)+.45;let color=type==='ammo'?0xffcf6e:type==='shield'?0x76b7ff:type==='med'?0x59df90:type==='smg'?0xff89cf:0xffc25e;let geo=type==='med'?new THREE.BoxGeometry(.65,.65,.65):new THREE.OctahedronGeometry(.42,.1);const m=new THREE.Mesh(geo,makeMat(color,.55,.15));m.position.set(x,y,z);m.castShadow=true;scene.add(m);loot.push({id:'loot-'+loot.length,type,mesh:m,x,z,taken:false,spin:rand(0,6)})}
+  for(const type of types){let x=rand(-110,110),z=rand(-110,110);if(Math.hypot(x,z)>118)continue;const y=groundY(x,z)+.45;let color=type==='ammo'?0xffcf6e:type==='shield'?0x76b7ff:type==='med'?0x59df90:type==='smg'?0xff89cf:0xffc25e;let geo=type==='med'?new THREE.BoxGeometry(.65,.65,.65):new THREE.OctahedronGeometry(.42,0);const m=new THREE.Mesh(geo,makeMat(color,.55,.15));m.position.set(x,y,z);m.castShadow=true;scene.add(m);loot.push({id:'loot-'+loot.length,type,mesh:m,x,z,taken:false,spin:rand(0,6)})}
 }
 
 function makeMinimap(){const source=document.createElement('canvas');source.width=180;source.height=180;miniCanvas=source;miniCtx=source.getContext('2d');const visible=$('minimap');miniVisibleCtx=visible.getContext('2d')}
@@ -365,7 +366,7 @@ function fireOnlineShot(origin,dir,weaponKey){
 function damageEntity(ent,amount,byPlayer,head){let dmg=amount;const absorb=Math.min(ent.shield||0,dmg);ent.shield=(ent.shield||0)-absorb;dmg-=absorb;ent.health-=dmg;if(byPlayer){damageDone+=Math.round(amount)}else{damageFlash=Math.min(1,damageFlash+.22);if(ent===player)ent.lastAttackerId=ent.lastAttackerId||null}if(head)ent.flash=1;if(ent.health<=0){killEntity(ent,byPlayer)}}
 function killEntity(ent,byPlayer){if(ent.dead)return;ent.dead=true;ent.mesh.visible=false;if(ent===player){feed(`<b>${ent.name}</b> was eliminated`,false);if(onlineMode){sendMatch('eliminated',{targetId:playerId,killerId:player.lastAttackerId||null});trackMatchPresence(true)}endMatch(false);return}if(byPlayer){kills++;dropLoot(ent.pos);feed(`You eliminated <b>${ent.name}</b>`,true)}}
 
-function dropLoot(pos){for(const type of [choice(['ammo','shield','med']),choice(['ammo','ammo','smg'])]){const x=pos.x+rand(-1.8,1.8),z=pos.z+rand(-1.8,1.8);const color=type==='ammo'?0xffcf6e:type==='shield'?0x76b7ff:type==='med'?0x59df90:0xff89cf;const g=new THREE.Mesh(type==='med'?new THREE.BoxGeometry(.65,.65,.65):new THREE.OctahedronGeometry(.42,.1),makeMat(color,.55,.15));g.position.set(x,groundY(x,z)+.45,z);scene.add(g);loot.push({id:'drop-'+Math.random().toString(36).slice(2),type,mesh:g,x,z,taken:false,spin:rand(0,6)})}}
+function dropLoot(pos){for(const type of [choice(['ammo','shield','med']),choice(['ammo','ammo','smg'])]){const x=pos.x+rand(-1.8,1.8),z=pos.z+rand(-1.8,1.8);const color=type==='ammo'?0xffcf6e:type==='shield'?0x76b7ff:type==='med'?0x59df90:0xff89cf;const g=new THREE.Mesh(type==='med'?new THREE.BoxGeometry(.65,.65,.65):new THREE.OctahedronGeometry(.42,0),makeMat(color,.55,.15));g.position.set(x,groundY(x,z)+.45,z);scene.add(g);loot.push({id:'drop-'+Math.random().toString(36).slice(2),type,mesh:g,x,z,taken:false,spin:rand(0,6)})}}
 function showHitmarker(head){const el=$('hitmarker');el.style.opacity='1';el.style.transform=`translate(-50%,-50%) scale(${head?1.15:1})`;hitFlash=1;clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',90)}
 function pickupNearest(){if(!player||player.dead)return;let best=null,bd=2.3;for(const l of loot){if(l.taken)continue;const d=Math.hypot(l.x-player.pos.x,l.z-player.pos.z);if(d<bd){best=l;bd=d}}if(!best)return;best.taken=true;best.mesh.visible=false;if(onlineMode)sendMatch('pickup',{lootId:best.id,playerId,t:Date.now()});applyLoot(best.type);feed(`<b>Picked up</b> ${best.type}`);updateHUD()}
 function applyLoot(type){if(type==='ammo')player.weapon.reserve+=player.weaponKey==='shotgun'?12:35;if(type==='shield')player.shield=clamp(player.shield+25,0,player.maxShield);if(type==='med')player.health=clamp(player.health+30,0,100);if(type==='smg'){player.weapon={...weapons.smg,mag:weapons.smg.mag,reserve:70};player.weaponKey='smg';player.mesh.userData.parts.gun.clear();player.mesh.userData.parts.gun.add(makeWeaponMesh(weapons.smg))}if(type==='shotgun'){player.weapon={...weapons.shotgun,mag:weapons.shotgun.mag,reserve:24};player.weaponKey='shotgun';player.mesh.userData.parts.gun.clear();player.mesh.userData.parts.gun.add(makeWeaponMesh(weapons.shotgun))}}
