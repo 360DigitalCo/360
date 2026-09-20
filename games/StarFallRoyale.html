@@ -25,6 +25,36 @@
 #pause,#result{align-items:center;justify-content:center;background:rgba(3,6,10,.62);backdrop-filter:blur(10px);z-index:20}.modal{width:min(600px,92vw);padding:34px;border:1px solid var(--line);background:rgba(7,12,19,.92);box-shadow:0 30px 120px rgba(0,0,0,.7)}.modal h2{font-family:Rajdhani,sans-serif;font-size:50px;line-height:1;margin:0 0 8px}.modal p{color:#8d99ab;line-height:1.6;margin:0}.modal-grid{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.key{padding:11px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#8794a8}.key b{color:#eaf0f6}.result-kicker{color:var(--accent);font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:.22em;text-transform:uppercase;font-size:12px}.result-place{font-family:Rajdhani,sans-serif;font-size:84px;line-height:.9;font-weight:700;margin-top:8px}.result-place.win{color:var(--gold)}.result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}.result-stat{padding:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}.result-stat .k{font-size:9px;color:#748196;text-transform:uppercase;letter-spacing:.13em}.result-stat .v{font-size:22px;font-weight:900;margin-top:4px}
 #damage-vignette{position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(circle,transparent 45%,rgba(255,35,64,.35));opacity:0;mix-blend-mode:screen}.storm-vignette{position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(circle,transparent 52%,rgba(164,79,255,.16));opacity:0}.loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#05080d}.loading .loader{width:min(520px,80vw)}.loading .line{height:2px;background:#15202d;overflow:hidden}.loading .line i{display:block;width:22%;height:100%;background:linear-gradient(90deg,#73e1f7,#847dff);animation:load 1.1s ease-in-out infinite}.loading p{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#657286;text-align:center;margin-top:12px}@keyframes load{0%{transform:translateX(-120%)}100%{transform:translateX(500%)}}
 #mobile-controls{display:none;position:absolute;inset:0;z-index:9;pointer-events:none}.stick{position:absolute;width:126px;height:126px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.035);pointer-events:auto}.stick.left{left:22px;bottom:22px}.stick.right{right:22px;bottom:22px}.stick i{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);left:50%;top:50%;transform:translate(-50%,-50%)}.mob-btn{position:absolute;pointer-events:auto;width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(7,13,19,.7);color:#fff;font-weight:800}.mob-btn.fire{right:30px;bottom:166px;background:rgba(225,77,95,.42)}.mob-btn.jump{right:105px;bottom:110px}.mob-btn.reload{right:32px;bottom:92px}
+
+:root{--ease:cubic-bezier(.2,.8,.2,1);--ease-spring:cubic-bezier(.16,1,.3,1)}
+.screen{opacity:0;pointer-events:none;transform:scale(1.012);transition:opacity .28s var(--ease),transform .38s var(--ease)}
+.screen.active{opacity:1;pointer-events:auto;transform:scale(1)}
+.menu-card{animation:menuIn .65s var(--ease-spring) both;box-shadow:0 40px 120px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.025) inset}
+@keyframes menuIn{from{opacity:0;transform:translateY(20px) scale(.975)}to{opacity:1;transform:none}}
+.menu-grid{animation:gridDrift 14s linear infinite}
+@keyframes gridDrift{to{transform:perspective(500px) rotateX(63deg) translateY(22%) translateX(-46px)}}
+.orb.a{animation:orbFloatA 11s ease-in-out infinite alternate}.orb.b{animation:orbFloatB 13s ease-in-out infinite alternate}
+@keyframes orbFloatA{to{transform:translate(-3vw,4vh) scale(1.06);opacity:.28}}@keyframes orbFloatB{to{transform:translate(4vw,-3vh) scale(1.08);opacity:.3}}
+.btn{position:relative;overflow:hidden;isolation:isolate;transform:translateZ(0);transition:transform .18s var(--ease),border-color .2s ease,background .2s ease,box-shadow .25s var(--ease),filter .2s ease}
+.btn::before{content:"";position:absolute;inset:-40%;z-index:-1;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.24) 48%,transparent 60%);transform:translateX(-100%) skewX(-14deg);transition:transform .55s var(--ease)}
+.btn:hover::before{transform:translateX(100%) skewX(-14deg)}.btn:hover{transform:translateY(-3px) scale(1.015);filter:saturate(1.08)}.btn:active{transform:translateY(0) scale(.975);transition-duration:.07s}
+.btn.primary{position:relative;box-shadow:0 12px 35px rgba(121,230,255,.16),0 0 0 1px rgba(255,255,255,.08) inset}.btn.primary:hover{box-shadow:0 18px 48px rgba(121,230,255,.28),0 0 0 1px rgba(255,255,255,.14) inset}
+.btn.ripple::after{content:"";position:absolute;left:var(--rx,50%);top:var(--ry,50%);width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.32);transform:translate(-50%,-50%) scale(1);animation:ripple .5s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(24);opacity:0}}
+.menu-row .btn:nth-child(1){animation:buttonIn .55s .08s var(--ease-spring) both}.menu-row .btn:nth-child(2){animation:buttonIn .55s .14s var(--ease-spring) both}.menu-row .btn:nth-child(3){animation:buttonIn .55s .20s var(--ease-spring) both}
+@keyframes buttonIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.info-chip,.queue-state,.statbox,.status,.weapon,.hint,.interaction,.modal{transition:transform .22s var(--ease),border-color .2s ease,box-shadow .25s ease,background .2s ease}.info-chip:hover,.statbox:hover{transform:translateY(-2px);border-color:rgba(121,230,255,.22);box-shadow:0 12px 28px rgba(0,0,0,.18)}
+#game.active .top-left,#game.active .top-right,#game.active .bottom-left,#game.active .bottom-right,#game.active .center-ui,#game.active .killfeed{animation:hudIn .55s var(--ease-spring) both}
+#game.active .top-right{animation-delay:.04s}#game.active .bottom-left{animation-delay:.08s}#game.active .bottom-right{animation-delay:.12s}#game.active .center-ui{animation-delay:.16s}
+@keyframes hudIn{from{opacity:0;transform:translateY(-8px) scale(.985)}to{opacity:1;transform:none}}
+#hitmarker{transition:opacity .08s ease,transform .08s var(--ease-spring)}
+#damage-vignette{transition:opacity .12s ease}
+.weapon.hot{animation:weaponPop .22s var(--ease-spring)}.health.hot,.shield.hot{animation:barPulse .22s ease}.interaction{animation:interactIn .22s var(--ease-spring)}
+@keyframes weaponPop{50%{transform:translateY(-2px) scale(1.02)} }@keyframes barPulse{50%{filter:brightness(1.3)}}@keyframes interactIn{from{opacity:0;transform:translate(-50%,8px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.feed{animation:feedIn .28s var(--ease-spring)}@keyframes feedIn{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
+.loading{background:radial-gradient(circle at 50% 45%,rgba(82,110,148,.14),transparent 42%),#05080d;transition:opacity .28s ease}.loading.hide{opacity:0;pointer-events:none}.loading .loader{animation:loaderIn .45s var(--ease-spring)}.loading .line{border-radius:999px;background:rgba(255,255,255,.065)}.loading .line i{width:30%;box-shadow:0 0 18px rgba(121,230,255,.32)}@keyframes loaderIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.modal{animation:modalIn .4s var(--ease-spring)}@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 @media(max-width:900px){.match-info .statbox:nth-child(3){display:none}.loadout-preview{display:none}.menu-card{padding:28px}.status{width:200px}.weapon{min-width:200px}.killfeed{width:230px}.hint{display:none}}
 @media(pointer:coarse),(max-width:900px){#mobile-controls{display:block}.crosshair{opacity:.75}.top-left{left:10px;top:10px}.top-right{right:10px;top:10px}.bottom-left{left:10px;bottom:10px}.bottom-right{right:10px;bottom:10px}.weapon{min-width:170px;padding:9px 12px}.weapon .weapon-name{font-size:17px}.weapon .ammo{font-size:24px}.match-info{gap:5px}.statbox{min-width:84px;padding:7px 8px}.status{width:190px}.menu-meta{display:none}}
 </style>
@@ -34,7 +64,7 @@
   <section class="screen active" id="menu">
     <div class="menu-bg"><div class="menu-grid"></div><div class="orb a"></div><div class="orb b"></div></div>
     <div class="menu-card">
-      <div class="eyebrow">360 Games · Live Multiplayer Battle Royale</div>
+      <div class="eyebrow">LIVE MULTIPLAYER BATTLE ROYALE</div>
       <div class="logo">STAR<span>FALL</span><br>ROYALE</div>
       <div class="tagline">Drop onto the island with real players, fight through a shrinking storm, build your loadout, and be the last operator standing.</div>
       <div class="menu-row"><button class="btn primary" id="deploy">Play Online</button><button class="btn" id="training">Training Range</button><button class="btn" id="settings">Controls</button></div>
@@ -120,22 +150,22 @@ function cyl(r,h,color,radial=12,rough=1){return new THREE.Mesh(new THREE.Cylind
 function sphere(r,color){return new THREE.Mesh(new THREE.SphereGeometry(r,18,14),makeMat(color,.78))}
 
 function initRenderer(){
-  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;UI.wrap.appendChild(renderer.domElement);
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;UI.wrap.appendChild(renderer.domElement);
   scene=new THREE.Scene();scene.background=new THREE.Color(0x8da9b6);scene.fog=new THREE.FogExp2(0x79929b,.0087);
   camera=new THREE.PerspectiveCamera(63,innerWidth/innerHeight,.05,500);
   clock=new THREE.Clock();
   const hemi=new THREE.HemisphereLight(0xb9dbeb,0x243223,2.1);scene.add(hemi);
-  const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.near=1;sun.shadow.camera.far=340;scene.add(sun);
+  const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.near=1;sun.shadow.camera.far=340;scene.add(sun);
   const fill=new THREE.DirectionalLight(0x70aaff,.8);fill.position.set(-70,45,-60);scene.add(fill);
   addEventListener('resize',onResize);
 }
-function onResize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio||1,2))}
+function onResize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75))}
 
 function terrainHeight(x,z){return 1.1*Math.sin(x*.055)*Math.cos(z*.047)+.7*Math.sin((x+z)*.08)+.34*Math.cos(z*.12-x*.05)}
 function groundY(x,z){return terrainHeight(x,z)}
 
 function buildWorld(){
-  const geo=new THREE.PlaneGeometry(GAME.mapRadius*2,GAME.mapRadius*2,96,96);geo.rotateX(-Math.PI/2);
+  const geo=new THREE.PlaneGeometry(GAME.mapRadius*2,GAME.mapRadius*2,72,72);geo.rotateX(-Math.PI/2);
   const p=geo.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,terrainHeight(x,z)-.05)}geo.computeVertexNormals();terrain=new THREE.Mesh(geo,makeMat(0x304c36,.98));terrain.receiveShadow=true;scene.add(terrain);
   const shore=new THREE.Mesh(new THREE.CircleGeometry(GAME.mapRadius+2,128),makeMat(0x19303b,.95));shore.rotation.x=-Math.PI/2;shore.position.y=-.3;scene.add(shore);
   makeRoads(); makeForest(); makeBuildings(); makeProps(); makeStorm();
@@ -147,7 +177,7 @@ function makeRoads(){
   for(let i=-115;i<116;i+=10){const line=new THREE.Mesh(new THREE.BoxGeometry(3,.04,.22),lineMat);line.position.set(i,groundY(i,0)+.05,0);scene.add(line);const line2=line.clone();line2.position.z=9;scene.add(line2)}
 }
 function makeForest(){
-  for(let i=0;i<170;i++){
+  for(let i=0;i<125;i++){
     let x=rand(-125,125),z=rand(-125,125);if(Math.abs(x)<28||Math.abs(z)<28)continue;if(x*x+z*z>125*125)continue;
     const g=new THREE.Group();const trunk=cyl(rand(.22,.38),rand(2.2,3.6),0x553a25,8,.98);trunk.position.y=1.1;trunk.castShadow=true;g.add(trunk);
     const crown=sphere(rand(1.7,2.7),choice([0x2f6338,0x28592f,0x3d7040,0x254f31]));crown.position.y=3.1;crown.castShadow=true;g.add(crown);g.position.set(x,groundY(x,z),z);scene.add(g);
@@ -215,7 +245,11 @@ function spawnLoot(){
 
 function makeMinimap(){const source=document.createElement('canvas');source.width=180;source.height=180;miniCanvas=source;miniCtx=source.getContext('2d');const visible=$('minimap');miniVisibleCtx=visible.getContext('2d')}
 function drawMinimap(){if(!miniCtx)return;const s=180,ctx=miniCtx;ctx.clearRect(0,0,s,s);ctx.fillStyle='#0c1418';ctx.fillRect(0,0,s,s);ctx.save();ctx.translate(s/2,s/2);const sc=(s-10)/(GAME.mapRadius*2);ctx.scale(sc,sc);ctx.fillStyle='#35563f';ctx.beginPath();ctx.arc(0,0,GAME.mapRadius,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(121,129,140,.7)';for(const b of buildings){ctx.fillRect(b.x-b.w/2,b.z-b.d/2,b.w,b.d)}ctx.strokeStyle='rgba(201,149,255,.8)';ctx.lineWidth=1/sc;ctx.beginPath();ctx.arc(safeCenter.x,safeCenter.y,stormRadius,0,Math.PI*2);ctx.stroke();for(const b of trainingMode?bots:remotePlayers){if(b.dead)continue;ctx.fillStyle=trainingMode?'#ff6678':'#ff9e63';ctx.fillRect(b.pos.x-1.2,b.pos.z-1.2,2.4,2.4)}if(player){ctx.fillStyle='#7be6ff';ctx.beginPath();ctx.arc(player.pos.x,player.pos.z,2.3,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#dffaff';ctx.lineWidth=1/sc;ctx.beginPath();ctx.moveTo(player.pos.x,player.pos.z);ctx.lineTo(player.pos.x+Math.sin(player.yaw)*5,player.pos.z+Math.cos(player.yaw)*5);ctx.stroke()}ctx.restore();return ctx}
+function installUIEffects(){
+  document.querySelectorAll('.btn').forEach(btn=>btn.addEventListener('pointerdown',e=>{const r=btn.getBoundingClientRect();btn.style.setProperty('--rx',`${e.clientX-r.left}px`);btn.style.setProperty('--ry',`${e.clientY-r.top}px`);btn.classList.remove('ripple');void btn.offsetWidth;btn.classList.add('ripple')}));
+}
 function setupInput(){
+  installUIEffects();
   addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys.add(k);if(k==='escape'){e.preventDefault();togglePause()}if(k==='r')reloadRequested=true;if(k===' '){e.preventDefault();jumpRequested=true}if(k==='e')pickupNearest()});
   addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
@@ -246,11 +280,14 @@ function setupInput(){
 function startMatch(training){
   if(onlineMode)leaveNetworkMatch();
   trainingMode=training;onlineMode=false;ended=false;running=false;paused=false;matchTime=0;kills=0;damageDone=0;currentPhase=0;phaseTimer=0;phaseState='wait';stormRadius=GAME.stormPhases[0].radius;safeCenter.set(0,0);reseed(GAME.seed);input.move.set(0,0);input.look.set(0,0);keys.clear();mouseDown=false;aiming=false;reloadRequested=false;jumpRequested=false;
-  resetEntities();showScreen(UI.game);$('player-name').textContent=training?'RANGE OP':playerName;UI.status.textContent='ALIVE';UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='building verdant reach';
-  setTimeout(()=>{buildMatchWorld();running=true;clock.start();UI.loading.style.display='none';renderer.domElement.requestPointerLock?.();startRewardsSession()},40)
+  resetEntities();showScreen(UI.game);$('player-name').textContent=training?'RANGE OP':playerName;UI.status.textContent='ALIVE';UI.loading.classList.remove('hide');UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='building verdant reach';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    try{buildMatchWorld();running=true;clock.start();UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);renderer.domElement.requestPointerLock?.();startRewardsSession()}
+    catch(err){console.error('StarFallRoyale world build failed',err);UI.loading.querySelector('p').textContent='world build failed';setTimeout(()=>{UI.loading.style.display='none';showScreen(UI.menu);UI.queueState.innerHTML='STARTUP ERROR · <b>refresh and retry</b>'},700)}
+  }))
 }
 function resetEntities(){for(const o of [...bots.map(b=>b.mesh),...remotePlayers.map(b=>b.mesh),...loot.map(l=>l.mesh),...shots.map(s=>s.obj),...particles.map(p=>p.obj)])scene?.remove(o);bots=[];remotePlayers=[];loot=[];shots=[];particles=[];buildings=[];if(player){scene.remove(player.mesh);player=null}}
-function buildMatchWorld(){scene.clear();const hemi=new THREE.HemisphereLight(0xb9dbeb,0x243223,2.1);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.far=340;scene.add(sun);const fill=new THREE.DirectionalLight(0x70aaff,.7);fill.position.set(-70,45,-60);scene.add(fill);scene.background=new THREE.Color(0x8da9b6);scene.fog=new THREE.FogExp2(0x79929b,.0087);reseed(onlineMode?matchSeed:GAME.seed);buildWorld();spawnPlayer();if(trainingMode)spawnBots();spawnLoot();makeMinimap();stormRadius=trainingMode?GAME.mapRadius:GAME.stormPhases[0].radius;updateHUD()}
+function buildMatchWorld(){scene.clear();const hemi=new THREE.HemisphereLight(0xb9dbeb,0x243223,2.1);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.far=340;scene.add(sun);const fill=new THREE.DirectionalLight(0x70aaff,.7);fill.position.set(-70,45,-60);scene.add(fill);scene.background=new THREE.Color(0x8da9b6);scene.fog=new THREE.FogExp2(0x79929b,.0087);reseed(onlineMode?matchSeed:GAME.seed);buildWorld();spawnPlayer();if(trainingMode)spawnBots();spawnLoot();makeMinimap();stormRadius=trainingMode?GAME.mapRadius:GAME.stormPhases[0].radius;updateHUD()}
 
 
 function movePlayer(dt){
@@ -304,7 +341,9 @@ function updateStorm(dt){if(trainingMode){stormRadius=GAME.mapRadius;return}cons
 }
 function updateLoot(dt){for(const l of loot){if(l.taken)continue;l.spin+=dt;l.mesh.rotation.y=l.spin;l.mesh.position.y=groundY(l.x,l.z)+.45+Math.sin(l.spin*2)*.08}}
 function updateEffects(dt){for(let i=shots.length-1;i>=0;i--){shots[i].life-=dt;if(shots[i].life<=0){scene.remove(shots[i].obj);shots.splice(i,1)}}damageFlash=Math.max(0,damageFlash-dt*1.9);UI.damage.style.opacity=damageFlash*.85}
-function updateHUD(){if(!player)return;UI.health.style.width=`${clamp(player.health,0,100)}%`;UI.shield.style.width=`${clamp(player.shield,0,100)}%`;UI.hp.textContent=Math.ceil(player.health);UI.sh.textContent=Math.ceil(player.shield);UI.kills.textContent=kills;UI.ammo.innerHTML=`${player.weapon.mag} <span>/ ${player.weapon.reserve}</span>`;UI.weapon.textContent=player.weapon.name;UI.weaponSub.textContent=player.weapon.sub;UI.alive.textContent=trainingMode?1:(remotePlayers.filter(b=>!b.dead).length+1);UI.storm.textContent=trainingMode?'—':Math.max(0,Math.ceil((phaseState==='wait'?GAME.stormPhases[currentPhase]?.wait-phaseTimer:GAME.stormPhases[currentPhase]?.duration-phaseTimer)||0))+'s';UI.stormSub.textContent=trainingMode?'training':`phase ${currentPhase+1}`;UI.elev.textContent=Math.max(0,Math.round(player.pos.y*2+12))+'m';UI.loc.textContent=getLocation(player.pos.x,player.pos.z);const near=nearestLoot();if(near){UI.interaction.style.display='block';UI.interactionName.textContent=near.type.toUpperCase()}else UI.interaction.style.display='none'}
+function pulseUI(el,cls='hot'){if(!el)return;el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls)}
+let lastHUDWeapon='',lastHUDAmmo='',lastHUDHp=-1,lastHUDShield=-1;
+function updateHUD(){if(!player)return;const ammo=`${player.weapon.mag} / ${player.weapon.reserve}`,weapon=player.weapon.name,hp=Math.ceil(player.health),shield=Math.ceil(player.shield);UI.health.style.width=`${clamp(player.health,0,100)}%`;UI.shield.style.width=`${clamp(player.shield,0,100)}%`;UI.hp.textContent=hp;UI.sh.textContent=shield;UI.kills.textContent=kills;UI.ammo.innerHTML=`${player.weapon.mag} <span>/ ${player.weapon.reserve}</span>`;UI.weapon.textContent=weapon;UI.weaponSub.textContent=player.weapon.sub;if(ammo!==lastHUDAmmo) pulseUI(UI.ammo.parentElement);if(weapon!==lastHUDWeapon)pulseUI(UI.weapon);if(hp!==lastHUDHp)pulseUI(UI.health);if(shield!==lastHUDShield)pulseUI(UI.shield);lastHUDAmmo=ammo;lastHUDWeapon=weapon;lastHUDHp=hp;lastHUDShield=shield;UI.alive.textContent=trainingMode?1:(remotePlayers.filter(b=>!b.dead).length+1);UI.storm.textContent=trainingMode?'—':Math.max(0,Math.ceil((phaseState==='wait'?GAME.stormPhases[currentPhase]?.wait-phaseTimer:GAME.stormPhases[currentPhase]?.duration-phaseTimer)||0))+'s';UI.stormSub.textContent=trainingMode?'training':`phase ${currentPhase+1}`;UI.elev.textContent=Math.max(0,Math.round(player.pos.y*2+12))+'m';UI.loc.textContent=getLocation(player.pos.x,player.pos.z);const near=nearestLoot();if(near){if(UI.interaction.style.display!=='block')pulseUI(UI.interaction,'hot');UI.interaction.style.display='block';UI.interactionName.textContent=near.type.toUpperCase()}else UI.interaction.style.display='none'}
 function nearestLoot(){if(!player)return null;let best=null,bd=2.3;for(const l of loot){if(l.taken)continue;const d=Math.hypot(l.x-player.pos.x,l.z-player.pos.z);if(d<bd){bd=d;best=l}}return best}
 function getLocation(x,z){if(Math.hypot(x,z)<20)return 'Verdant Plaza';if(x>55&&z<-35)return 'North Market';if(x<-45&&z>35)return 'Pine Ridge';if(x>55&&z>25)return 'Riverside';if(x<-45&&z<-35)return 'Industrial Yard';return 'Outer Reach'}
 function feed(text,me=false){const el=document.createElement('div');el.className='feed'+(me?' me':'');el.innerHTML=text;UI.feed.prepend(el);while(UI.feed.children.length>5)UI.feed.lastElementChild.remove();setTimeout(()=>el.remove(),4200)}
@@ -351,8 +390,12 @@ async function joinLobby(){
   lobbyChannel.on('presence',{event:'sync'},refreshLobby);
   lobbyChannel.on('presence',{event:'join'},refreshLobby);
   lobbyChannel.on('presence',{event:'leave'},refreshLobby);
-  const status=await new Promise(resolve=>{lobbyChannel.subscribe(s=>{if(s==='SUBSCRIBED'){resolve(s);trackLobby('menu')}else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT')resolve(s)})});
-  if(status!=='SUBSCRIBED')UI.network.textContent='Lobby offline';
+  const status=await new Promise(resolve=>{
+    let settled=false;const finish=s=>{if(settled)return;settled=true;resolve(s)};
+    const timer=setTimeout(()=>finish('TIMED_OUT'),4500);
+    lobbyChannel.subscribe(s=>{if(s==='SUBSCRIBED'){clearTimeout(timer);trackLobby('menu');finish(s)}else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){clearTimeout(timer);finish(s)}});
+  });
+  if(status!=='SUBSCRIBED'){UI.network.textContent='Lobby offline';try{await lobbyChannel?.unsubscribe()}catch(_){}lobbyChannel=null;}
 }
 function refreshLobby(){
   lobbyPlayers=lobbySnapshot();
@@ -395,6 +438,8 @@ function scheduleOnlineMatch(mid,seed,startAt){
 }
 async function queueForMatch(){
   if(trainingMode)trainingMode=false;
+  if(!lobbyChannel){await joinLobby();}
+  if(!lobbyChannel){UI.queueState.innerHTML='ONLINE MATCHMAKING · <b>Realtime unavailable</b>';return;}
   const queued=lobbySnapshot().filter(p=>p.state==='queue');
   if(queued.length>=GAME.maxPlayers&&!queued.some(p=>p.uid===playerId)){UI.queueState.innerHTML='QUEUE FULL · <b>16 players are already in a match</b>';return}
   queueing=true;
@@ -409,8 +454,8 @@ async function beginOnlineMatch(mid,seed,startAt){
   try{await lobbyChannel?.untrack();}catch(_){}
   try{await lobbyChannel?.unsubscribe();}catch(_){}
   lobbyChannel=null;
-  resetEntities();showScreen(UI.game);UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='connecting to live squad';
-  const joined=await joinMatch();if(!joined){UI.network.textContent='Match offline';UI.loading.style.display='none';UI.queueState.innerHTML='ONLINE MATCHMAKING · <b>Realtime connection failed</b>';onlineMode=false;showScreen(UI.menu);await joinLobby();return}buildMatchWorld();
+  resetEntities();showScreen(UI.game);UI.loading.classList.remove('hide');UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='connecting to live squad';
+  const joined=await joinMatch();if(!joined){UI.network.textContent='Match offline';UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);UI.queueState.innerHTML='ONLINE MATCHMAKING · <b>Realtime connection failed</b>';onlineMode=false;showScreen(UI.menu);await joinLobby();return}try{buildMatchWorld();running=true;clock.start();UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);renderer.domElement.requestPointerLock?.();startRewardsSession()}catch(err){console.error('StarFallRoyale online world build failed',err);UI.loading.style.display='none';onlineMode=false;showScreen(UI.menu);UI.queueState.innerHTML='STARTUP ERROR · <b>refresh and retry</b>'}return
   running=true;clock.start();UI.loading.style.display='none';renderer.domElement.requestPointerLock?.();startRewardsSession();
 }
 async function joinMatch(){
@@ -425,7 +470,11 @@ async function joinMatch(){
   matchChannel.on('presence',{event:'sync'},syncMatchPresence);
   matchChannel.on('presence',{event:'join'},syncMatchPresence);
   matchChannel.on('presence',{event:'leave'},syncMatchPresence);
-  const status=await new Promise(resolve=>matchChannel.subscribe(s=>{if(s==='SUBSCRIBED'){resolve(s);trackMatchPresence(false)}else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT')resolve(s)}));
+  const status=await new Promise(resolve=>{
+    let settled=false;const finish=s=>{if(settled)return;settled=true;resolve(s)};
+    const timer=setTimeout(()=>finish('TIMED_OUT'),5000);
+    matchChannel.subscribe(s=>{if(s==='SUBSCRIBED'){clearTimeout(timer);trackMatchPresence(false);finish(s)}else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){clearTimeout(timer);finish(s)}});
+  });
   return status==='SUBSCRIBED';
 }
 async function sendMatch(event,payload){try{await matchChannel?.send({type:'broadcast',event,payload:{...payload,senderId:playerId}})}catch(_){}
@@ -480,7 +529,10 @@ async function finishRewardsSession(){
 
 document.addEventListener('visibilitychange',()=>{rewardVisible=!document.hidden;rewardLastTick=performance.now()});
 setInterval(()=>{if(rewardVisible){const now=performance.now();rewardActiveSeconds+=Math.max(0,Math.min(5,(now-rewardLastTick)/1000));rewardLastTick=now}},5000);
-async function ready(){initRenderer();setupInput();showScreen(UI.menu);scene.add(new THREE.AmbientLight(0x203040,.5));clock=new THREE.Clock();UI.loading.style.display='none';await bootSupabase();gameLoop()}
+async function ready(){
+  initRenderer();setupInput();showScreen(UI.menu);scene.add(new THREE.AmbientLight(0x203040,.5));clock=new THREE.Clock();UI.loading.style.display='none';
+  gameLoop();bootSupabase().catch(err=>console.warn('Supabase boot failed',err));
+}
 ready();
 </script>
 </body>
