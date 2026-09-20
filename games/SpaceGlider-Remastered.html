@@ -229,6 +229,8 @@
 
 <div id="players-online"></div>
 
+<div id="players-online" style="position:absolute;top:32px;right:8px;z-index:2;pointer-events:none;display:flex;flex-direction:column;gap:3px;"></div>
+
 <div id="boss-bar-wrap">
   <div id="boss-label">⚠ BOSS</div>
   <div id="boss-bar-bg"><div id="boss-bar-fill" style="width:100%"></div></div>
@@ -305,11 +307,11 @@ const TEAM_COLS = { red:'#ff6b6b', blue:'#60a5fa' };
 let netChannel = null;
 let remotePlayers = {};
 let teamScores = { red:0, blue:0 };
-let presenceTimer = 0;
+let presencePushLast = 0;
 
 function connectNet() {
   if (netChannel) sb.removeChannel(netChannel);
-  netChannel = sb.channel('sg-rm2', { config:{ presence:{ key: myId }}});
+  netChannel = sb.channel('sg-rm3', { config:{ presence:{ key: myId }}});
   netChannel.on('presence', { event:'sync' }, () => {
     const s = netChannel.presenceState();
     remotePlayers = {};
@@ -331,14 +333,24 @@ function connectNet() {
 
 function renderPlayersList() {
   const el = document.getElementById('players-online');
+  if (!el) return;
   el.innerHTML = '';
   Object.values(remotePlayers).forEach(rp => {
-    const d = document.createElement('div'); d.className = 'player-tag';
-    d.style.borderColor = (TEAM_COLS[rp.team]||'#aaa') + '66';
-    d.style.color = TEAM_COLS[rp.team]||'#aaa';
-    d.textContent = (rp.team==='red'?'🔴':'🔵') + ' ' + (rp.name||'?');
+    if (rp.dead || rp.x < 0) return;
+    const col = TEAM_COLS[rp.team] || '#aaa';
+    const d = document.createElement('div');
+    d.style.cssText = `font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid ${col}66;background:#050814bb;white-space:nowrap;color:${col}`;
+    d.textContent = (rp.team === 'red' ? '🔴' : '🔵') + ' ' + (rp.name || '?');
     el.appendChild(d);
   });
+}
+
+function pushPresence() {
+  if (!netChannel || !player) return;
+  const now = performance.now();
+  if (now - presencePushLast < 1000/15) return;
+  presencePushLast = now;
+  netChannel.track({ id:myId, name:playerName, team:myTeam, x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, shield:player.shield||0, maxShield:player.maxShield||0, invuln:player.invuln>0, dashing:player.dashTimer>0 });
 }
 
 // --- Game state ---
@@ -659,13 +671,7 @@ function update(dt){
 
   shakeTime-=dt; if(shakeTime<=0) shakeMag=0;
 
-  // Network presence
-  presenceTimer-=dt;
-  if(presenceTimer<=0&&netChannel&&running){
-    presenceTimer=1/15;
-    netChannel.track({ id:myId, name:playerName, team:myTeam, x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, shield:player.shield, maxShield:player.maxShield, invuln:player.invuln>0, dashing:player.dashTimer>0 });
-  }
-
+  pushPresence();
   updateHud();
 }
 
@@ -822,7 +828,7 @@ function loop(ts){
   const delta=(ts-lastTime)/1000||0; lastTime=ts;
   accumulator+=Math.min(delta,.25);
   if(running&&!paused){ while(accumulator>=FIXED_DT){update(FIXED_DT);accumulator-=FIXED_DT;} }
-  else accumulator=0;
+  else { accumulator=0; pushPresence(); }
   render();
   requestAnimationFrame(loop);
 }
@@ -866,6 +872,9 @@ document.getElementById('launch-btn').addEventListener('click',()=>{
   connectNet();
   startGame();
 });
+
+// Connect immediately so remote players appear on the start screen too
+connectNet();
 document.getElementById('lb-open-btn').addEventListener('click',showLeaderboard);
 document.getElementById('lb-close-btn').addEventListener('click',()=>document.getElementById('lb-overlay').classList.remove('show'));
 
