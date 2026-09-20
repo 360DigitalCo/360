@@ -683,9 +683,13 @@ const grapple = {
   active: false,
   x: 0,
   y: 0,
-  pullStrength: 185,
-  maxPullSpeed: 260,
-  arriveDistance: 70
+  ropeLength: 0,
+  pullStrength: 520,
+  maxPullSpeed: 760,
+  springStrength: 7.5,
+  tangentialAssist: 155,
+  releaseBoost: 1.08,
+  arriveDistance: 46
 };
 
 /* ======================================================================
@@ -2109,26 +2113,97 @@ function launchGrappleAt(screenX, screenY){
   const target = screenToWorld(screenX, screenY);
   target.x = Math.max(WORLD_MIN + 20, Math.min(WORLD_MAX - 20, target.x));
   target.y = Math.max(WORLD_MIN + 20, Math.min(WORLD_MAX - 20, target.y));
-  if (Math.hypot(target.x-car.x, target.y-car.y) < grapple.arriveDistance) return;
+  const dist = Math.hypot(target.x-car.x, target.y-car.y);
+  if (dist < grapple.arriveDistance) return;
+
   grapple.active = true;
   grapple.x = target.x;
   grapple.y = target.y;
+  grapple.ropeLength = Math.max(120, dist * 0.96);
+
+  // Preserve existing velocity and give the initial pull a slight boost so
+  // the grapple feels like a launch rather than a hard magnetic tug.
+  const nx = (target.x-car.x)/dist, ny = (target.y-car.y)/dist;
+  const toward = car.vx*nx + car.vy*ny;
+  const boost = Math.max(0, 95 - toward) * 0.35;
+  car.vx += nx*boost;
+  car.vy += ny*boost;
+}
+
+function releaseGrapple(boost=true){
+  if (!grapple.active) return;
+  const dx = grapple.x-car.x, dy = grapple.y-car.y;
+  const dist = Math.hypot(dx,dy);
+  if (boost && dist > 0){
+    const nx = dx/dist, ny = dy/dist;
+    const tx = -ny, ty = nx;
+    const tangential = car.vx*tx + car.vy*ty;
+    const outward = car.vx*nx + car.vy*ny;
+    // Preserve the swing direction and add a small outward slingshot kick.
+    car.vx += tx * tangential * (grapple.releaseBoost-1);
+    car.vy += ty * tangential * (grapple.releaseBoost-1);
+    car.vx += nx * Math.max(0, outward) * 0.08;
+    car.vy += ny * Math.max(0, outward) * 0.08;
+  }
+  grapple.active = false;
 }
 
 function updateGrapple(dt){
   if (!grapple.active || car.anchored) return;
+
   const dx = grapple.x-car.x, dy = grapple.y-car.y;
-  const dist = Math.hypot(dx,dy);
-  if (dist <= grapple.arriveDistance){
-    grapple.active = false;
-    return;
-  }
+  const dist = Math.hypot(dx,dy) || 0.001;
   const nx = dx/dist, ny = dy/dist;
-  const desiredSpeed = Math.min(grapple.maxPullSpeed, 70 + dist*0.30);
-  const currentToward = car.vx*nx + car.vy*ny;
-  const accel = Math.min(grapple.pullStrength, Math.max(0, desiredSpeed-currentToward)*2.2);
-  car.vx += nx*accel*dt;
-  car.vy += ny*accel*dt;
+  const tx = -ny, ty = nx;
+
+  // The hook behaves like a tether: velocity is preserved along the rope,
+  // while radial velocity is corrected toward the anchor. This creates a
+  // pendulum/swing effect instead of simply dragging the player in a line.
+  const radialSpeed = car.vx*nx + car.vy*ny;
+  const tangentialSpeed = car.vx*tx + car.vy*ty;
+
+  // Small tangential assist lets the grapple build speed around the anchor.
+  const assist = Math.min(grapple.tangentialAssist, Math.abs(tangentialSpeed)*0.22 + 28);
+  const sign = tangentialSpeed >= 0 ? 1 : -1;
+  car.vx += tx * assist * sign * dt;
+  car.vy += ty * assist * sign * dt;
+
+  const targetLength = grapple.ropeLength;
+  if (dist > targetLength){
+    // Hard rope limit: remove the outward radial velocity, then add a spring
+    // pull proportional to how far beyond the rope the car has travelled.
+    const excess = dist-targetLength;
+    if (radialSpeed > 0){
+      car.vx -= nx*radialSpeed;
+      car.vy -= ny*radialSpeed;
+    }
+    const spring = Math.min(grapple.pullStrength, excess*grapple.springStrength + 120);
+    car.vx += nx*spring*dt;
+    car.vy += ny*spring*dt;
+
+    // Keep the player exactly on the rope boundary.
+    car.x = grapple.x - nx*targetLength;
+    car.y = grapple.y - ny*targetLength;
+  } else {
+    // While the rope is slack, pull gently so the tether can catch and build
+    // momentum rather than immediately freezing the player's motion.
+    const slack = targetLength-dist;
+    const desired = Math.min(grapple.maxPullSpeed, 90 + slack*0.28);
+    if (radialSpeed < desired){
+      const accel = Math.min(grapple.pullStrength*0.35, (desired-radialSpeed)*2.0);
+      car.vx += nx*accel*dt;
+      car.vy += ny*accel*dt;
+    }
+  }
+
+  // Never let the grapple become a teleport. It accelerates the vehicle while
+  // retaining the existing momentum from driving, wind, and previous swings.
+  const speed = Math.hypot(car.vx, car.vy);
+  if (speed > grapple.maxPullSpeed){
+    const scale = grapple.maxPullSpeed/speed;
+    car.vx *= scale;
+    car.vy *= scale;
+  }
 }
 
 function drawGrapple(){
@@ -2564,9 +2639,15 @@ canvas.addEventListener("click",e=>{
   if(e.clientX>=radarBounds.x&&e.clientX<=radarBounds.x+radarBounds.width&&e.clientY>=radarBounds.y&&e.clientY<=radarBounds.y+radarBounds.height){state.radarFullscreen=true;return;}
   launchGrappleAt(e.clientX,e.clientY);
 });
+canvas.addEventListener("contextmenu",e=>{
+  if(!state.running||state.paused||state.radarFullscreen)return;
+  e.preventDefault();
+  releaseGrapple(true);
+});
 canvas.addEventListener("wheel",e=>{if(!state.running||state.paused||!state.radarFullscreen)return;e.preventDefault();mapZoom=clampMapZoom(mapZoom*(e.deltaY>0?.86:1.16));},{passive:false});
 window.addEventListener("keydown",e=>{
   if(!state.running)return;
+  if(e.code==="KeyR"){ releaseGrapple(true); return; }
   if(e.code==="KeyM"){state.radarFullscreen=!state.radarFullscreen;return;}
   if(e.code==="Escape"&&state.radarFullscreen){state.radarFullscreen=false;return;}
   if(!state.radarFullscreen)return;
