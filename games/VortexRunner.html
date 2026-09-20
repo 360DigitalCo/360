@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER - Tornado Intercept</title>
+<title>VORTEX RUNNER ONLINE — Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -1487,6 +1487,7 @@ function closeGarage(){
   document.getElementById("garageScreen").classList.add("hidden");
   state.paused = false;
   saveGame();
+  submitScore();
 }
 
 function refreshGarageUI(){
@@ -1887,14 +1888,18 @@ document.getElementById("titlePlayBtn").onclick = ()=>{
 };
 
 let saveToastTimer = null;
-document.getElementById("saveButton").onclick = ()=>{
+document.getElementById("saveButton").onclick = async ()=>{
   saveGame();
   const toast = document.getElementById("saveToast");
   toast.classList.add("show");
   clearTimeout(saveToastTimer);
-  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); }, 1600);
+  try {
+    await sb.from("vortex_runner_scores").insert({ player_name: playerName||"Unknown Chaser", money: Math.floor(state.money), storms_intercepted: state.stormsIntercepted });
+    toast.textContent = "SAVED u00b7 SCORE SUBMITTED";
+    if (lbOpen) fetchLeaderboard();
+  } catch(e) { toast.textContent = "SAVED (offline)"; }
+  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); toast.textContent = "ud83dudcbe SAVED"; }, 2400);
 };
-
 /* ======================================================================
    RENDERING
 ====================================================================== */
@@ -2587,9 +2592,8 @@ function loop(now){
    CO-OP WORLD RENDER — remote chasers drawn in world space
 ====================================================================== */
 function drawRemoteCarsWorld() {
-  if (!state.running) return;
   Object.values(remoteCars).forEach(rc => {
-    if (!rc.x) return;
+    if (rc.x == null) return;
     const s = worldToScreen(rc.x, rc.y);
     if (s.x < -80 || s.x > canvas.width+80 || s.y < -80 || s.y > canvas.height+80) return;
     ctx.save();
@@ -2699,8 +2703,6 @@ async function submitScore() {
     if (lbOpen) fetchLeaderboard();
   } catch(e){}
 }
-document.getElementById("saveButton").addEventListener("click", submitScore);
-document.getElementById("closeGarageBtn").addEventListener("click", submitScore);
 setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
 fetchLeaderboard();
 
@@ -2734,9 +2736,7 @@ function updateCoopList() {
 }
 
 let _lastCoopPush = 0;
-// Push own position ~15×/sec during gameplay
 function coopTick() {
-  if (!state.running || state.paused) return;
   const now = performance.now();
   if (now - _lastCoopPush < 1000 / 15) return;
   _lastCoopPush = now;
@@ -2747,25 +2747,16 @@ function coopTick() {
     name: playerName || "Chaser",
     x: car.x, y: car.y,
     angle: car.angle,
-    vx: car.vx, vy: car.vy,
     health: car.health, maxHealth: car.maxHealth,
     anchoring: car.anchored,
-    vehicleKey: state.currentVehicleKey,
     color: veh ? veh.color : "#39ff14",
     money: Math.floor(state.money),
     storms: state.stormsIntercepted
   });
 }
 
-// Hook coop into the game loop via the loop function's post-step callback
-// instead of redeclaring updateGame/render (which breaks due to hoisting).
-// We attach a post-render hook that the loop already calls via requestAnimationFrame.
-// drawRemoteCarsWorld is defined just above drawRemoteCarsWorld() call in render()
-// Nothing needed here — push happens via setInterval below.
-
-// Start co-op: connect and push position on a timer
 connectCoop();
-setInterval(() => { if (state.running && !state.paused) coopTick(); }, 1000/15);
+setInterval(coopTick, 1000/15);
 
 })();
 </script>
