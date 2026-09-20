@@ -322,46 +322,66 @@ const ROAD_SPACING = 1800;      // wider city blocks: more space between roads
 const ROAD_WIDTH   = 104;        // wide highways
 const WORLD_MIN = -8000, WORLD_MAX = 8000;
 
+// The world map is geographically anchored to the central Great Plains so
+// landmarks and cities are placed where their real-world counterparts are.
+const GEO_CENTER_LAT = 36.5;
+const GEO_CENTER_LON = -98.0;
+const GEO_SCALE = 1800; // world units per degree
+function geoPoint(lat, lon){
+  return { x:(lon-GEO_CENTER_LON)*GEO_SCALE, y:(GEO_CENTER_LAT-lat)*GEO_SCALE };
+}
+
 const TOWNS = [
-  { name:"Silverton",  x: 0,     y: 0    },
-  { name:"Wakita",     x: 3000,  y: 1000 },
-  { name:"Dodge City", x: -2000, y: 2000 },
-  { name:"Greensburg", x: 1000,  y: -3000},
-  { name:"Cordell",    x: -3000, y: -1000},
+  (()=>{const p=geoPoint(34.4753,-101.3039); return {name:"Silverton", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(36.8837,-97.9067); return {name:"Wakita", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(37.7528,-100.0171); return {name:"Dodge City", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(37.6028,-99.2926); return {name:"Greensburg", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(35.2906,-98.9901); return {name:"Cordell", x:p.x, y:p.y};})()
 ];
 const TOWN_RADIUS = 230;
 
+// Major real cities in the playable Great Plains region.
 const CITIES = [
-  {name:"Blackwater", x:-3400, y:-3000},
-  {name:"Northfield", x:-2200, y:-3200},
-  {name:"Prairie Bend", x:-1000, y:-2200},
-  {name:"Redstone", x:1700, y:-2100},
-  {name:"Clearwater", x:2900, y:-1800},
-  {name:"Windmill", x:3400, y:-500},
-  {name:"Fairview", x:2200, y:700},
-  {name:"Iron Creek", x:800, y:1450},
-  {name:"Riverton", x:-500, y:2500},
-  {name:"Oakridge", x:-3200, y:2800},
-  {name:"Dry Creek", x:-1200, y:3450},
-  {name:"Westhaven", x:-3450, y:1100}
-];
+  ["Oklahoma City",35.4676,-97.5164],
+  ["Norman",35.2226,-97.4395],
+  ["Stillwater",36.1156,-97.0584],
+  ["Enid",36.3956,-97.8784],
+  ["Wichita",37.6872,-97.3301],
+  ["Dodge City",37.7528,-100.0171],
+  ["Greensburg",37.6028,-99.2926],
+  ["Amarillo",35.2220,-101.8313],
+  ["Clinton",35.5156,-98.9670],
+  ["El Reno",35.5323,-97.9553],
+  ["Lawton",34.6037,-98.3959],
+  ["Hutchinson",38.0608,-97.9296],
+  ["Topeka",39.0473,-95.6752]
+].map(([name,lat,lon])=>{const p=geoPoint(lat,lon);return {name,x:p.x,y:p.y};});
 
+// Real, fixed landmarks with real-world locations. Coordinates are derived
+// from the actual places/cities and kept in the same geo-anchored world space.
 const MAP_LANDMARKS = [
-  {name:"Silverton Airport", x:300, y:-180, icon:"A"},
-  {name:"Weather Research Base", x:-1550, y:550, icon:"R"},
-  {name:"Doppler Site", x:1550, y:2650, icon:"D"},
-  {name:"Prairie Observatory", x:-2850, y:-1700, icon:"O"},
-  {name:"Interstate Junction", x:2650, y:2450, icon:"I"},
-  {name:"Storm Lab", x:3500, y:3100, icon:"L"},
-  {name:"Fuel Depot", x:-3650, y:-650, icon:"F"},
-  {name:"Radar Hill", x:1250, y:-3400, icon:"R"}
+  (()=>{const p=geoPoint(35.2050,-97.4419); return {name:"National Weather Center", city:"Norman, OK", x:p.x,y:p.y,icon:"W",kind:"weather"};})(),
+  (()=>{const p=geoPoint(35.2050,-97.4419); return {name:"NOAA NSSL", city:"Norman, OK", x:p.x+34,y:p.y+28,icon:"N",kind:"weather"};})(),
+  (()=>{const p=geoPoint(35.4922,-97.5033); return {name:"Oklahoma State Capitol", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"C",kind:"civic"};})(),
+  (()=>{const p=geoPoint(35.4731,-97.5171); return {name:"Oklahoma City National Memorial", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"M",kind:"historic"};})(),
+  (()=>{const p=geoPoint(35.3931,-97.6007); return {name:"Will Rogers World Airport", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"A",kind:"airport"};})(),
+  (()=>{const p=geoPoint(35.2456,-97.4721); return {name:"Max Westheimer Airport", city:"Norman, OK", x:p.x,y:p.y,icon:"A",kind:"airport"};})(),
+  (()=>{const p=geoPoint(35.5156,-98.9690); return {name:"National Route 66 Museum", city:"Clinton, OK", x:p.x,y:p.y,icon:"6",kind:"historic"};})(),
+  (()=>{const p=geoPoint(37.7520,-100.0220); return {name:"Boot Hill Museum", city:"Dodge City, KS", x:p.x,y:p.y,icon:"H",kind:"historic"};})(),
+  (()=>{const p=geoPoint(38.0608,-97.9296); return {name:"Cosmosphere", city:"Hutchinson, KS", x:p.x,y:p.y,icon:"S",kind:"science"};})(),
+  (()=>{const p=geoPoint(37.7044,-97.3938); return {name:"Old Cowtown Museum", city:"Wichita, KS", x:p.x,y:p.y,icon:"O",kind:"historic"};})(),
+  (()=>{const p=geoPoint(38.4436,-96.5627); return {name:"Tallgrass Prairie National Preserve", city:"Strong City, KS", x:p.x,y:p.y,icon:"P",kind:"park"};})(),
+  (()=>{const p=geoPoint(36.7519,-98.1788); return {name:"Great Salt Plains", city:"Jet, OK", x:p.x,y:p.y,icon:"G",kind:"park"};})(),
+  (()=>{const p=geoPoint(34.9850,-101.6638); return {name:"Palo Duro Canyon State Park", city:"Canyon, TX", x:p.x,y:p.y,icon:"P",kind:"park"};})()
 ];
 
+// Approximate major highway corridors connecting the real locations above.
 const HIGHWAYS = [
-  [{x:WORLD_MIN,y:0},{x:-2400,y:0},{x:-1200,y:500},{x:0,y:0},{x:1600,y:300},{x:WORLD_MAX,y:0}],
-  [{x:0,y:WORLD_MIN},{x:400,y:-1900},{x:0,y:0},{x:-500,y:2100},{x:0,y:WORLD_MAX}],
-  [{x:-3600,y:-2600},{x:-1900,y:-1400},{x:0,y:-900},{x:2100,y:-700},{x:3600,y:-2200}],
-  [{x:-3300,y:2900},{x:-1700,y:2100},{x:200,y:1700},{x:2300,y:2050},{x:3550,y:3000}]
+  [geoPoint(39.0,-97.3),geoPoint(37.6872,-97.3301),geoPoint(35.4676,-97.5164),geoPoint(35.2226,-97.4395),geoPoint(34.6,-97.1)],
+  [geoPoint(35.2220,-101.8313),geoPoint(35.5156,-98.9670),geoPoint(35.4676,-97.5164),geoPoint(35.34,-96.96),geoPoint(36.15,-95.99)],
+  [geoPoint(37.7528,-100.0171),geoPoint(37.6872,-97.3301)],
+  [geoPoint(37.7528,-100.0171),geoPoint(37.6028,-99.2926),geoPoint(37.55,-98.7),geoPoint(37.6872,-97.3301)],
+  [geoPoint(34.4753,-101.3039),geoPoint(35.2220,-101.8313),geoPoint(35.5156,-98.9670)]
 ];
 
 const VEHICLES = {
@@ -2373,6 +2393,7 @@ function drawWorldLocations(){
     ctx.beginPath(); ctx.moveTo(s.x,s.y-14); ctx.lineTo(s.x+12,s.y+10); ctx.lineTo(s.x-12,s.y+10); ctx.closePath(); ctx.stroke();
     ctx.fillStyle="#ffeaa0"; ctx.font="bold 11px Courier New"; ctx.textAlign="center";
     ctx.fillText(l.name.toUpperCase(),s.x,s.y-35);
+    if(l.city){ ctx.fillStyle="rgba(220,225,220,0.62)"; ctx.font="9px Courier New"; ctx.fillText(l.city,s.x,s.y-22); }
     ctx.fillStyle="#ffd23f"; ctx.font="bold 9px Courier New"; ctx.fillText(l.icon||"L",s.x,s.y+4);
     ctx.restore();
   });
@@ -2680,7 +2701,7 @@ function drawRadarContent(mx,my,width,big,height=width){
   MAP_LANDMARKS.forEach(l=>{
     const q=mapProject(l.x,l.y,mx,my,width,range,height);if(q.x<mx-45||q.x>mx+width+45||q.y<my-35||q.y>my+height+35)return;
     ctx.fillStyle="#ffd23f";ctx.strokeStyle="#3b2f00";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q.x,q.y,big?7:4,0,Math.PI*2);ctx.fill();ctx.stroke();
-    if(big)drawLocationLabel(q,l.name.toUpperCase(),"","#ffeaa0",true);
+    if(big)drawLocationLabel(q,l.name.toUpperCase(),l.city||"","#ffeaa0",true);
   });
 
   wildConvoys.forEach(convoy=>{
