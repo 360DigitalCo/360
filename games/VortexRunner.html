@@ -2322,228 +2322,207 @@ function drawWildConvoys(){
   });
 }
 
-// Shared radar renderer used by both the small corner radar and the fullscreen view.
-// Draws towns, the tornado's traveled route + projected heading (yellow), the tornado (blue), wild convoys (purple), and the car (red).
-function drawRadarContent(mx, my, size, big){
-  ctx.fillStyle = "rgba(10,14,10,0.82)";
-  ctx.strokeStyle = "#2c5a2c";
-  ctx.lineWidth = big ? 2 : 1;
-  ctx.fillRect(mx,my,size,size);
-  ctx.strokeRect(mx,my,size,size);
+// Tactical map / radar.
+let mapZoom = 1.0;
+const MAP_ZOOM_MIN = 0.55;
+const MAP_ZOOM_MAX = 2.75;
+let radarBounds = { x:0, y:0, size:0 };
 
-  const scale = size / (WORLD_MAX-WORLD_MIN);
-  function toMap(x,y){ return { x: mx + (x-WORLD_MIN)*scale, y: my + (y-WORLD_MIN)*scale }; }
+function clampMapZoom(v){ return Math.max(MAP_ZOOM_MIN, Math.min(MAP_ZOOM_MAX, v)); }
 
-  // clip everything to the radar square so lines/dots don't spill out
+function mapProject(x,y,mx,my,size,range){
+  const scale=size/range;
+  return {x:mx+size/2+(x-car.x)*scale, y:my+size/2+(y-car.y)*scale};
+}
+
+function drawTacticalGrid(mx,my,size,range,big){
+  const scale=size/range;
+  const left=car.x-range/2, top=car.y-range/2;
   ctx.save();
   ctx.beginPath(); ctx.rect(mx,my,size,size); ctx.clip();
 
-  TOWNS.forEach(t=>{
-    const p = toMap(t.x,t.y);
-    ctx.fillStyle = "rgba(57,255,20,0.6)";
-    ctx.fillRect(p.x-(big?3:2), p.y-(big?3:2), big?6:4, big?6:4);
-    if (big){
-      ctx.fillStyle = "#39ff14";
-      ctx.font = "11px Courier New";
-      ctx.textAlign = "center";
-      ctx.fillText(t.name.toUpperCase(), p.x, p.y-8);
-    }
-  });
-
-  // wild convoys & their individual vehicles — every wild NPC vehicle gets
-  // its own small purple dot, with a team label near the convoy's center
-  wildConvoys.forEach(convoy=>{
-    if (convoy.members.length === 0) return;
-    convoy.members.forEach(m=>{
-      if (m.allied) return;
-      const mp = toMap(m.x, m.y);
-      ctx.fillStyle = "#a855f7";
-      ctx.beginPath(); ctx.arc(mp.x, mp.y, big?2.6:1.7, 0, Math.PI*2); ctx.fill();
-    });
-    if (big){
-      const p = toMap(convoy.x, convoy.y);
-      ctx.fillStyle = "rgba(168,85,247,0.85)";
-      ctx.font = "9px Courier New";
-      ctx.textAlign = "center";
-      ctx.fillText(convoy.team, p.x, p.y-8);
-    }
-  });
-
-  if (tornado){
-    // traveled route
-    if (tornado.pathHistory.length > 1){
-      ctx.strokeStyle = "rgba(255,221,51,0.8)";
-      ctx.lineWidth = big ? 2.5 : 1.5;
-      ctx.setLineDash(big ? [8,5] : [4,3]);
-      ctx.beginPath();
-      tornado.pathHistory.forEach((pt,i)=>{
-        const p = toMap(pt.x, pt.y);
-        if (i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
-      });
-      const cp = toMap(tornado.x, tornado.y);
-      ctx.lineTo(cp.x, cp.y);
-      ctx.stroke();
-    }
-    // projected route
-    const projLen = 1800;
-    const fx = tornado.x + Math.cos(tornado.dirAngle)*projLen;
-    const fy = tornado.y + Math.sin(tornado.dirAngle)*projLen;
-    const p1 = toMap(tornado.x, tornado.y);
-    const p2 = toMap(fx, fy);
-    ctx.strokeStyle = "rgba(255,221,51,0.45)";
-    ctx.lineWidth = big ? 2.5 : 1.5;
-    ctx.setLineDash(big ? [3,6] : [2,4]);
-    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // tornado marker
-    const pulse = (big?4:3) + Math.sin(performance.now()/150)*(big?2:1.5);
-    if (tornado.isMeme){
-      const hue = (performance.now()/4) % 360;
-      ctx.fillStyle = `hsl(${hue},95%,60%)`;
-    } else {
-      ctx.fillStyle = "#3fa9ff";
-    }
-    ctx.beginPath(); ctx.arc(p1.x,p1.y,pulse+(big?3:2),0,Math.PI*2); ctx.fill();
-    if (big){
-      ctx.strokeStyle = tornado.isMeme ? "rgba(255,0,220,0.5)" : "rgba(63,169,255,0.5)";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(p1.x,p1.y, tornado.radius*scale*1.3, 0, Math.PI*2); ctx.stroke();
-    }
+  const grid=big ? (range>5000?500:250) : 500;
+  const firstX=Math.floor(left/grid)*grid;
+  const firstY=Math.floor(top/grid)*grid;
+  ctx.lineWidth=1;
+  for(let x=firstX;x<=left+range;x+=grid){
+    const sx=mx+(x-left)*scale;
+    ctx.strokeStyle=(Math.round(x/grid)%4===0) ? "rgba(57,255,20,0.14)" : "rgba(57,255,20,0.055)";
+    ctx.beginPath();ctx.moveTo(sx,my);ctx.lineTo(sx,my+size);ctx.stroke();
+  }
+  for(let y=firstY;y<=top+range;y+=grid){
+    const sy=my+(y-top)*scale;
+    ctx.strokeStyle=(Math.round(y/grid)%4===0) ? "rgba(57,255,20,0.14)" : "rgba(57,255,20,0.055)";
+    ctx.beginPath();ctx.moveTo(mx,sy);ctx.lineTo(mx+size,sy);ctx.stroke();
   }
 
-  // Remote co-op chasers (smoothed client-side)
-  Object.values(remoteCars).forEach(rc => {
-    if (rc.renderX == null || rc.renderY == null) return;
-    const rp = toMap(rc.renderX, rc.renderY);
-    ctx.fillStyle = rc.color || "#39ff14";
-    ctx.beginPath(); ctx.arc(rp.x, rp.y, big?4:2.5, 0, Math.PI*2); ctx.fill();
-    if (big) {
-      ctx.fillStyle = rc.color || "#39ff14";
-      ctx.font = "9px Courier New"; ctx.textAlign = "center";
-      ctx.fillText((rc.name||"?").slice(0,10), rp.x, rp.y - 8);
-    }
-  });
-
-  const p = toMap(car.x,car.y);
-  ctx.fillStyle = "#ff3131";
-  ctx.beginPath(); ctx.arc(p.x,p.y, big?5:3, 0, Math.PI*2); ctx.fill();
-
-  ctx.restore(); // clip
-}
-
-const COMPASS_DIRS = [
-  {deg:0,   label:"N"}, {deg:45,  label:"NE"}, {deg:90,  label:"E"}, {deg:135, label:"SE"},
-  {deg:180, label:"S"}, {deg:225, label:"SW"}, {deg:270, label:"W"}, {deg:315, label:"NW"}
-];
-
-function drawCompass(){
-  const barW = 340, barH = 30, windowDeg = 100;
-  const cx = canvas.width/2, topY = 14;
-  const left = cx - barW/2;
-
-  const headingDeg = ((car.angle*180/Math.PI) % 360 + 360) % 360;
-
-  ctx.save();
-  ctx.fillStyle = "rgba(10,14,10,0.75)";
-  ctx.strokeStyle = "#2c5a2c";
-  ctx.lineWidth = 1;
-  ctx.fillRect(left, topY, barW, barH);
-  ctx.strokeRect(left, topY, barW, barH);
-
-  ctx.save();
-  ctx.beginPath(); ctx.rect(left, topY, barW, barH); ctx.clip();
-
-  // minor tick marks every 15 degrees
-  for (let d=0; d<360; d+=15){
-    let rel = ((d - headingDeg + 180) % 360 + 360) % 360 - 180;
-    if (Math.abs(rel) > windowDeg) continue;
-    const x = cx + (rel/windowDeg)*(barW/2);
-    const isMajor = d % 45 === 0;
-    ctx.strokeStyle = isMajor ? "#39ff14" : "rgba(57,255,20,0.35)";
-    ctx.lineWidth = isMajor ? 2 : 1;
-    ctx.beginPath();
-    ctx.moveTo(x, topY+barH); ctx.lineTo(x, topY+barH-(isMajor?14:7));
-    ctx.stroke();
+  // Road network.
+  ctx.strokeStyle=big ? "rgba(140,150,140,0.30)" : "rgba(140,150,140,0.16)";
+  ctx.lineWidth=Math.max(1,ROAD_WIDTH*scale*0.38);
+  let rx=Math.floor((left-WORLD_MIN)/ROAD_SPACING)*ROAD_SPACING+WORLD_MIN;
+  let ry=Math.floor((top-WORLD_MIN)/ROAD_SPACING)*ROAD_SPACING+WORLD_MIN;
+  for(let x=rx;x<=left+range;x+=ROAD_SPACING){
+    const sx=mx+(x-left)*scale;ctx.beginPath();ctx.moveTo(sx,my);ctx.lineTo(sx,my+size);ctx.stroke();
+  }
+  for(let y=ry;y<=top+range;y+=ROAD_SPACING){
+    const sy=my+(y-top)*scale;ctx.beginPath();ctx.moveTo(mx,sy);ctx.lineTo(mx+size,sy);ctx.stroke();
   }
 
-  // cardinal / intercardinal labels
-  ctx.font = "bold 13px Courier New";
-  ctx.textAlign = "center";
-  COMPASS_DIRS.forEach(dir=>{
-    let rel = ((dir.deg - headingDeg + 180) % 360 + 360) % 360 - 180;
-    if (Math.abs(rel) > windowDeg) return;
-    const x = cx + (rel/windowDeg)*(barW/2);
-    ctx.fillStyle = dir.label === "N" ? "#ff3131" : "#39ff14";
-    ctx.fillText(dir.label, x, topY+16);
-  });
-  ctx.restore(); // clip
-
-  // fixed center pointer showing exact current heading
-  ctx.strokeStyle = "#ffd23f";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cx, topY-6); ctx.lineTo(cx-6, topY); ctx.lineTo(cx+6, topY); ctx.closePath();
-  ctx.fillStyle = "#ffd23f";
-  ctx.fill();
-
-  // numeric heading readout below the bar
-  ctx.fillStyle = "#ffd23f";
-  ctx.font = "11px Courier New";
-  ctx.textAlign = "center";
-  ctx.fillText(Math.round(headingDeg).toString().padStart(3,"0") + "°", cx, topY+barH+16);
+  // World border.
+  const bx=mx+(WORLD_MIN-left)*scale, by=my+(WORLD_MIN-top)*scale, bw=(WORLD_MAX-WORLD_MIN)*scale;
+  ctx.strokeStyle=big ? "rgba(255,80,80,0.42)" : "rgba(255,80,80,0.20)";
+  ctx.lineWidth=big?2:1;ctx.strokeRect(bx,by,bw,bw);
   ctx.restore();
 }
 
-let radarBounds = { x:0, y:0, size:0 }; // updated each frame for click hit-testing
+function drawMapArrow(x,y,angle,r,fill){
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+  ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(r*.72,r*.72);ctx.lineTo(0,r*.35);ctx.lineTo(-r*.72,r*.72);ctx.closePath();
+  ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle="#071007";ctx.lineWidth=Math.max(1,r*.16);ctx.stroke();ctx.restore();
+}
+
+function drawRadarContent(mx,my,size,big){
+  const range=(big?6200:2700)/mapZoom;
+  const scale=size/range;
+  ctx.fillStyle=big?"rgba(4,8,5,0.97)":"rgba(7,12,8,0.94)";
+  ctx.fillRect(mx,my,size,size);
+  drawTacticalGrid(mx,my,size,range,big);
+  ctx.save();ctx.beginPath();ctx.rect(mx,my,size,size);ctx.clip();
+
+  // Tornado history and projected path.
+  if(tornado){
+    if(tornado.pathHistory && tornado.pathHistory.length>1){
+      ctx.strokeStyle=big?"rgba(255,221,51,.72)":"rgba(255,221,51,.52)";
+      ctx.lineWidth=big?2.5:1.4;ctx.setLineDash(big?[9,6]:[4,4]);ctx.beginPath();
+      tornado.pathHistory.forEach((pt,i)=>{const q=mapProject(pt.x,pt.y,mx,my,size,range);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});
+      const q=mapProject(tornado.x,tornado.y,mx,my,size,range);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);
+    }
+    const q1=mapProject(tornado.x,tornado.y,mx,my,size,range);
+    const fx=tornado.x+Math.cos(tornado.dirAngle)*2200, fy=tornado.y+Math.sin(tornado.dirAngle)*2200;
+    const q2=mapProject(fx,fy,mx,my,size,range);
+    ctx.strokeStyle=big?"rgba(255,221,51,.40)":"rgba(255,221,51,.25)";ctx.lineWidth=big?2:1;ctx.setLineDash([3,7]);
+    ctx.beginPath();ctx.moveTo(q1.x,q1.y);ctx.lineTo(q2.x,q2.y);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  // Towns.
+  TOWNS.forEach(t=>{
+    const q=mapProject(t.x,t.y,mx,my,size,range);
+    if(q.x<mx-40||q.x>mx+size+40||q.y<my-40||q.y>my+40)return;
+    ctx.fillStyle="rgba(57,255,20,.10)";ctx.beginPath();ctx.arc(q.x,q.y,big?15:8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#39ff14";ctx.fillRect(q.x-(big?4:2),q.y-(big?4:2),big?8:4,big?8:4);
+    if(big){
+      ctx.fillStyle="#c7ffcb";ctx.font="bold 11px Courier New";ctx.textAlign="center";ctx.fillText(t.name.toUpperCase(),q.x,q.y-12);
+      ctx.fillStyle="rgba(159,207,159,.72)";ctx.font="9px Courier New";ctx.fillText(`${Math.round(Math.hypot(t.x-car.x,t.y-car.y))} ft`,q.x,q.y+20);
+    }
+  });
+
+  // Wild convoy dots.
+  wildConvoys.forEach(convoy=>{
+    convoy.members.forEach(m=>{
+      if(m.allied)return;const q=mapProject(m.x,m.y,mx,my,size,range);
+      if(q.x<mx-15||q.x>mx+size+15||q.y<my-15||q.y>my+size+15)return;
+      ctx.fillStyle="#a855f7";ctx.beginPath();ctx.arc(q.x,q.y,big?3:2,0,Math.PI*2);ctx.fill();
+    });
+    if(big){const q=mapProject(convoy.x,convoy.y,mx,my,size,range);if(q.x>=mx&&q.x<=mx+size&&q.y>=my&&q.y<=my+size){ctx.fillStyle="#c99cff";ctx.font="9px Courier New";ctx.textAlign="center";ctx.fillText(convoy.team,q.x,q.y-9);}}
+  });
+
+  // Online players.
+  Object.values(remoteCars).forEach(rc=>{
+    if(!Number.isFinite(rc.renderX)||!Number.isFinite(rc.renderY))return;
+    const q=mapProject(rc.renderX,rc.renderY,mx,my,size,range);
+    if(q.x<mx-25||q.x>mx+size+25||q.y<my-25||q.y>my+size+25)return;
+    const c=rc.color||"#39ff14";
+    ctx.strokeStyle="rgba(255,255,255,.28)";ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(q.x,q.y);ctx.lineTo(q.x+Math.sin(rc.renderAngle||0)*13,q.y-Math.cos(rc.renderAngle||0)*13);ctx.stroke();
+    ctx.fillStyle=c;ctx.beginPath();ctx.arc(q.x,q.y,big?5:3,0,Math.PI*2);ctx.fill();
+    if(big){ctx.fillStyle=c;ctx.font="bold 10px Courier New";ctx.textAlign="center";ctx.fillText((rc.name||"CHASER").slice(0,16),q.x,q.y-10);}
+  });
+
+  // Local player is centered and always visible.
+  const pp=mapProject(car.x,car.y,mx,my,size,range);
+  ctx.strokeStyle="rgba(255,49,49,.25)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(pp.x,pp.y,big?19:11,0,Math.PI*2);ctx.stroke();
+  drawMapArrow(pp.x,pp.y,car.angle,big?9:5,"#ff3131");
+
+  if(tornado){
+    const q=mapProject(tornado.x,tornado.y,mx,my,size,range);
+    if(q.x>=mx-40&&q.x<=mx+size+40&&q.y>=my-40&&q.y<=my+size+40){
+      const pulse=(big?7:4)+Math.sin(performance.now()/125)*(big?2:1.2);
+      ctx.fillStyle=tornado.isMeme?`hsl(${(performance.now()/5)%360},95%,60%)`:"#3fa9ff";
+      ctx.beginPath();ctx.arc(q.x,q.y,pulse,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=tornado.isMeme?"rgba(255,0,220,.55)":"rgba(63,169,255,.55)";ctx.lineWidth=big?2:1;
+      ctx.beginPath();ctx.arc(q.x,q.y,Math.max(8,tornado.radius*scale),0,Math.PI*2);ctx.stroke();
+      if(big){ctx.fillStyle="#cbe9ff";ctx.font="bold 10px Courier New";ctx.textAlign="center";ctx.fillText(`EF${Math.round(tornado.category)}`,q.x,q.y+24);}
+    }
+  }
+
+  const ccx=mx+size/2, ccy=my+size/2;
+  ctx.strokeStyle=big?"rgba(255,255,255,.18)":"rgba(255,255,255,.10)";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ccx-8,ccy);ctx.lineTo(ccx+8,ccy);ctx.moveTo(ccx,ccy-8);ctx.lineTo(ccx,ccy+8);ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle=big?"#39ff14":"#2c5a2c";ctx.lineWidth=big?2:1;ctx.strokeRect(mx,my,size,size);
+}
+
+const COMPASS_DIRS=[
+  {deg:0,label:"N"},{deg:45,label:"NE"},{deg:90,label:"E"},{deg:135,label:"SE"},
+  {deg:180,label:"S"},{deg:225,label:"SW"},{deg:270,label:"W"},{deg:315,label:"NW"}
+];
+function drawCompass(){
+  const barW=340,barH=30,windowDeg=100,cx=canvas.width/2,topY=14,left=cx-barW/2;
+  const headingDeg=((car.angle*180/Math.PI)%360+360)%360;
+  ctx.save();ctx.fillStyle="rgba(10,14,10,.75)";ctx.strokeStyle="#2c5a2c";ctx.lineWidth=1;ctx.fillRect(left,topY,barW,barH);ctx.strokeRect(left,topY,barW,barH);
+  ctx.save();ctx.beginPath();ctx.rect(left,topY,barW,barH);ctx.clip();
+  for(let d=0;d<360;d+=15){let rel=((d-headingDeg+180)%360+360)%360-180;if(Math.abs(rel)>windowDeg)continue;const x=cx+(rel/windowDeg)*(barW/2),major=d%45===0;ctx.strokeStyle=major?"#39ff14":"rgba(57,255,20,.35)";ctx.lineWidth=major?2:1;ctx.beginPath();ctx.moveTo(x,topY+barH);ctx.lineTo(x,topY+barH-(major?14:7));ctx.stroke();}
+  ctx.font="bold 13px Courier New";ctx.textAlign="center";COMPASS_DIRS.forEach(dir=>{let rel=((dir.deg-headingDeg+180)%360+360)%360-180;if(Math.abs(rel)>windowDeg)return;const x=cx+(rel/windowDeg)*(barW/2);ctx.fillStyle=dir.label==="N"?"#ff3131":"#39ff14";ctx.fillText(dir.label,x,topY+16);});ctx.restore();
+  ctx.fillStyle="#ffd23f";ctx.beginPath();ctx.moveTo(cx,topY-6);ctx.lineTo(cx-6,topY);ctx.lineTo(cx+6,topY);ctx.closePath();ctx.fill();ctx.fillStyle="#ffd23f";ctx.font="11px Courier New";ctx.textAlign="center";ctx.fillText(Math.round(headingDeg).toString().padStart(3,"0")+"°",cx,topY+barH+16);ctx.restore();
+}
 
 function drawMinimap(){
-  const size = 170, pad = 14;
-  const mx = canvas.width - size - pad, my = canvas.height - size - pad;
-  radarBounds = { x: mx, y: my, size: size };
-  drawRadarContent(mx, my, size, false);
-
-  ctx.fillStyle = "rgba(255,221,51,0.85)";
-  ctx.font = "10px Courier New";
-  ctx.textAlign = "center";
-  ctx.fillText("CLICK TO EXPAND", mx+size/2, my-6);
+  const size=Math.min(224,Math.max(180,Math.floor(Math.min(canvas.width,canvas.height)*.23))),pad=14;
+  const mx=canvas.width-size-pad,my=canvas.height-size-pad;radarBounds={x:mx,y:my,size};
+  drawRadarContent(mx,my,size,false);
+  ctx.fillStyle="rgba(5,10,6,.88)";ctx.fillRect(mx,my+size+6,size,19);ctx.fillStyle="#b7ffbd";ctx.font="10px Courier New";ctx.textAlign="center";ctx.fillText("M / CLICK  ·  TACTICAL MAP",mx+size/2,my+size+19);
 }
 
 function drawFullscreenRadar(){
-  ctx.save();
-  ctx.fillStyle = "rgba(4,6,4,0.88)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.save();ctx.fillStyle="rgba(2,5,3,.96)";ctx.fillRect(0,0,canvas.width,canvas.height);
+  const side=220,size=Math.max(240,Math.min(canvas.width-side-70,canvas.height-125)),mx=28,my=84;
+  radarBounds={x:mx,y:my,size};drawRadarContent(mx,my,size,true);
 
-  const size = Math.min(canvas.width, canvas.height) * 0.82;
-  const mx = (canvas.width-size)/2, my = (canvas.height-size)/2 - 10;
-  radarBounds = { x: mx, y: my, size: size };
-  drawRadarContent(mx, my, size, true);
+  const sx=mx+size+18,sy=my,sw=side;
+  ctx.fillStyle="rgba(8,13,9,.94)";ctx.strokeStyle="#2c5a2c";ctx.lineWidth=1;ctx.fillRect(sx,sy,sw,size);ctx.strokeRect(sx,sy,sw,size);
+  ctx.textAlign="left";ctx.fillStyle="#39ff14";ctx.font="bold 15px Courier New";ctx.fillText("TACTICAL",sx+14,sy+27);ctx.fillText("LEGEND",sx+14,sy+46);
+  const items=[["#ff3131","YOU"],["#39ff14","ONLINE CHASER"],["#3fa9ff","TORNADO"],["#a855f7","WILD CONVOY"],["#ffd23f","STORM ROUTE"],["#9fcf9f","TOWN / ROAD"]];
+  items.forEach((it,i)=>{const yy=sy+75+i*29;ctx.fillStyle=it[0];ctx.beginPath();ctx.arc(sx+20,yy-4,5,0,Math.PI*2);ctx.fill();ctx.fillStyle="#d7ffd9";ctx.font="10px Courier New";ctx.fillText(it[1],sx+34,yy);});
+  const online=Object.keys(remoteCars).length;
+  let nearest=TOWNS[0],best=Infinity;TOWNS.forEach(t=>{const d=Math.hypot(t.x-car.x,t.y-car.y);if(d<best){best=d;nearest=t;}});
+  const infoY=sy+270;ctx.fillStyle="#39ff14";ctx.font="bold 12px Courier New";ctx.fillText("STATUS",sx+14,infoY);ctx.fillStyle="#d7ffd9";ctx.font="10px Courier New";
+  ctx.fillText(`ONLINE  ${online}`,sx+14,infoY+24);ctx.fillText(`STORM  ${tornado?"EF"+Math.round(tornado.category):"NONE"}`,sx+14,infoY+42);ctx.fillText(`TOWN   ${nearest.name}`,sx+14,infoY+60);ctx.fillText(`DIST   ${Math.round(best)} ft`,sx+14,infoY+78);ctx.fillText(`ZOOM   ${mapZoom.toFixed(2)}x`,sx+14,infoY+96);
+  ctx.fillStyle="#9fcf9f";ctx.fillText("WHEEL / + -  ZOOM",sx+14,sy+size-46);ctx.fillText("0  RESET ZOOM",sx+14,sy+size-30);ctx.fillText("M / ESC  CLOSE",sx+14,sy+size-14);
 
-  ctx.fillStyle = "#39ff14";
-  ctx.font = "bold 20px Courier New";
-  ctx.textAlign = "center";
-  ctx.fillText("STORM TRACKING RADAR", canvas.width/2, my - 22);
-  ctx.font = "12px Courier New";
-  ctx.fillStyle = "#9fcf9f";
-  ctx.fillText("yellow = tornado route  |  purple = independent chaser vehicle  |  click anywhere or press M / ESC to close", canvas.width/2, my + size + 26);
+  ctx.textAlign="center";ctx.fillStyle="#39ff14";ctx.font="bold 18px Courier New";ctx.fillText("VORTEX RUNNER · TACTICAL MAP",canvas.width/2,38);ctx.fillStyle="#9fcf9f";ctx.font="11px Courier New";ctx.fillText("Live navigation · towns · storm track · convoys · online chasers",canvas.width/2,58);
   ctx.restore();
 }
 
-canvas.addEventListener("click", (e)=>{
-  if (!state.running || state.paused) return;
-  if (state.radarFullscreen){
-    state.radarFullscreen = false;
+canvas.addEventListener("click",e=>{
+  if(!state.running||state.paused)return;
+  if(state.radarFullscreen){
+    if(e.clientX>canvas.width-190&&e.clientY<70)state.radarFullscreen=false;
     return;
   }
-  const mx = e.clientX, my = e.clientY;
-  if (mx >= radarBounds.x && mx <= radarBounds.x+radarBounds.size &&
-      my >= radarBounds.y && my <= radarBounds.y+radarBounds.size){
-    state.radarFullscreen = true;
-  }
+  if(e.clientX>=radarBounds.x&&e.clientX<=radarBounds.x+radarBounds.size&&e.clientY>=radarBounds.y&&e.clientY<=radarBounds.y+radarBounds.size)state.radarFullscreen=true;
 });
-window.addEventListener("keydown", (e)=>{
-  if (!state.running) return;
-  if (e.code === "KeyM"){ state.radarFullscreen = !state.radarFullscreen; }
-  if (e.code === "Escape" && state.radarFullscreen){ state.radarFullscreen = false; }
+canvas.addEventListener("wheel",e=>{
+  if(!state.running||state.paused||!state.radarFullscreen)return;
+  e.preventDefault();mapZoom=clampMapZoom(mapZoom*(e.deltaY>0?.88:1.14));
+},{passive:false});
+window.addEventListener("keydown",e=>{
+  if(!state.running)return;
+  if(e.code==="KeyM"){state.radarFullscreen=!state.radarFullscreen;return;}
+  if(e.code==="Escape"&&state.radarFullscreen){state.radarFullscreen=false;return;}
+  if(!state.radarFullscreen)return;
+  if(e.code==="Equal"||e.code==="NumpadAdd")mapZoom=clampMapZoom(mapZoom*1.15);
+  if(e.code==="Minus"||e.code==="NumpadSubtract")mapZoom=clampMapZoom(mapZoom/1.15);
+  if(e.code==="Digit0")mapZoom=1;
 });
 
 /* ======================================================================
@@ -2774,9 +2753,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const myCoopId = Math.random().toString(36).slice(2, 10);
 const COOP_SEND_INTERVAL_MS = 1000;
 const COOP_POLL_INTERVAL_MS = 1000;
-const REMOTE_RENDER_DELAY_MS = 120;
 const REMOTE_TIMEOUT_MS = 12000;
-const MAX_REMOTE_SNAPSHOTS = 16;
+const REMOTE_MAX_PREDICTION_MS = 1150;
+const REMOTE_CORRECTION_RATE = 12;
+const REMOTE_HARD_SNAP_DISTANCE = 900;
 
 let playerName = "";
 let lbTab = "storms";
@@ -2873,97 +2853,39 @@ function lerpAngle(a,b,t){
 }
 
 function acceptRemoteSnapshot(id,row){
-  if (!id || id === myCoopId || !row) return;
-  const x = Number(row.x), y = Number(row.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  const now = performance.now();
-  let rc = remoteCars[id];
-
-  if (!rc) {
-    rc = remoteCars[id] = {
-      id, snapshots: [], renderX:x, renderY:y,
-      renderAngle:Number(row.angle) || 0, lastSeen:now, vx:0, vy:0,
-      name:"Chaser", health:0, maxHealth:0, anchoring:false, color:"#39ff14"
-    };
+  if(!id||id===myCoopId||!row)return;
+  const x=Number(row.x),y=Number(row.y);
+  if(!Number.isFinite(x)||!Number.isFinite(y))return;
+  const now=performance.now();
+  let rc=remoteCars[id];
+  if(!rc){
+    rc=remoteCars[id]={id,baseX:x,baseY:y,baseAngle:Number(row.angle)||0,renderX:x,renderY:y,renderAngle:Number(row.angle)||0,snapshotAt:now,vx:0,vy:0,correctionX:0,correctionY:0,lastSeen:now,name:"Chaser",health:0,maxHealth:0,anchoring:false,color:"#39ff14"};
+  }else{
+    const dt=Math.max(.20,Math.min(2.5,(now-(rc.snapshotAt||now))/1000));
+    let vx=(x-rc.baseX)/dt,vy=(y-rc.baseY)/dt;
+    const speed=Math.hypot(vx,vy);
+    if(speed>1400){const sc=1400/speed;vx*=sc;vy*=sc;}
+    rc.vx=rc.vx*.25+vx*.75;rc.vy=rc.vy*.25+vy*.75;
+    const errX=(rc.renderX??x)-x,errY=(rc.renderY??y);
+    const errorY=(rc.renderY??y)-y;
+    if(Math.hypot(errX,errorY)>REMOTE_HARD_SNAP_DISTANCE){rc.renderX=x;rc.renderY=y;rc.correctionX=0;rc.correctionY=0;}
+    else {rc.correctionX=errX;rc.correctionY=errorY;}
+    rc.baseX=x;rc.baseY=y;rc.baseAngle=Number(row.angle)||0;rc.snapshotAt=now;
   }
-
-  const previous = rc.snapshots.length ? rc.snapshots[rc.snapshots.length-1] : null;
-  let vx = 0, vy = 0;
-  if (previous) {
-    const dt = Math.max(0.025,(now - previous.receivedAt)/1000);
-    vx = (x - previous.x) / dt;
-    vy = (y - previous.y) / dt;
-    const speed = Math.hypot(vx,vy);
-    if (speed > 1400) {
-      const scale = 1400 / speed;
-      vx *= scale; vy *= scale;
-    }
-  }
-
-  rc.snapshots.push({
-    receivedAt:now, x, y, vx, vy,
-    angle:Number(row.angle) || 0,
-    name:String(row.player_name || "Chaser").slice(0,24),
-    health:Number(row.health) || 0,
-    maxHealth:Number(row.max_health) || 0,
-    anchoring:!!row.anchoring,
-    color:row.color || "#39ff14"
-  });
-  while (rc.snapshots.length > MAX_REMOTE_SNAPSHOTS) rc.snapshots.shift();
-
-  rc.lastSeen = now;
-  rc.name = String(row.player_name || "Chaser").slice(0,24);
-  rc.health = Number(row.health) || 0;
-  rc.maxHealth = Number(row.max_health) || 0;
-  rc.anchoring = !!row.anchoring;
-  rc.color = row.color || "#39ff14";
-  rc.vx = vx; rc.vy = vy;
+  rc.lastSeen=now;rc.name=String(row.player_name||"Chaser").slice(0,24);rc.health=Number(row.health)||0;rc.maxHealth=Number(row.max_health)||0;rc.anchoring=!!row.anchoring;rc.color=row.color||"#39ff14";
 }
 
 function updateRemoteCarsRender(dt){
-  const now = performance.now();
-  const renderAt = now - REMOTE_RENDER_DELAY_MS;
-  const smoothing = 1 - Math.exp(-24 * Math.max(0,dt));
-
-  Object.keys(remoteCars).forEach(id => {
-    const rc = remoteCars[id];
-    if (!rc || now - rc.lastSeen > REMOTE_TIMEOUT_MS) {
-      delete remoteCars[id];
-      return;
-    }
-    const snapshots = rc.snapshots || [];
-    if (!snapshots.length) return;
-
-    let targetX = snapshots[snapshots.length-1].x;
-    let targetY = snapshots[snapshots.length-1].y;
-    let targetAngle = snapshots[snapshots.length-1].angle;
-
-    for (let i=0; i<snapshots.length-1; i++) {
-      const a=snapshots[i], b=snapshots[i+1];
-      if (a.receivedAt <= renderAt && renderAt <= b.receivedAt) {
-        const span=Math.max(1,b.receivedAt-a.receivedAt);
-        const t=Math.max(0,Math.min(1,(renderAt-a.receivedAt)/span));
-        targetX=a.x+(b.x-a.x)*t;
-        targetY=a.y+(b.y-a.y)*t;
-        targetAngle=lerpAngle(a.angle,b.angle,t);
-        break;
-      }
-    }
-
-    if (renderAt > snapshots[snapshots.length-1].receivedAt) {
-      const latest=snapshots[snapshots.length-1];
-      const ahead=Math.min(0.18,(renderAt-latest.receivedAt)/1000);
-      targetX=latest.x+latest.vx*ahead;
-      targetY=latest.y+latest.vy*ahead;
-      targetAngle=latest.angle;
-    }
-
-    if (rc.renderX == null) rc.renderX=targetX;
-    if (rc.renderY == null) rc.renderY=targetY;
-    if (rc.renderAngle == null) rc.renderAngle=targetAngle;
-    rc.renderX += (targetX-rc.renderX)*smoothing;
-    rc.renderY += (targetY-rc.renderY)*smoothing;
-    rc.renderAngle = lerpAngle(rc.renderAngle,targetAngle,smoothing);
+  const now=performance.now();
+  const decay=Math.exp(-REMOTE_CORRECTION_RATE*Math.max(0,dt));
+  Object.keys(remoteCars).forEach(id=>{
+    const rc=remoteCars[id];
+    if(!rc||now-rc.lastSeen>REMOTE_TIMEOUT_MS){delete remoteCars[id];return;}
+    const elapsed=Math.min(REMOTE_MAX_PREDICTION_MS,Math.max(0,now-(rc.snapshotAt||now)))/1000;
+    const targetX=rc.baseX+rc.vx*elapsed,targetY=rc.baseY+rc.vy*elapsed,targetAngle=rc.baseAngle||0;
+    rc.correctionX*=decay;rc.correctionY*=decay;
+    rc.renderX=targetX+rc.correctionX;rc.renderY=targetY+rc.correctionY;
+    rc.renderAngle=lerpAngle(rc.renderAngle??targetAngle,targetAngle,1-Math.exp(-20*Math.max(0,dt)));
   });
 }
 
