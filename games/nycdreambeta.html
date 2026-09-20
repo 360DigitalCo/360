@@ -1,15 +1,217 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NYC DREAM 2.0 - The American Hustle</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../games/style.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NYC DREAM 2.0 — The American Hustle</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --yellow:#FFD100; --red:#E8001A; --dark:#0A0A0A; --mid:#1A1A1A;
+  --panel:#141414; --border:#2A2A2A; --text:#E8E8E8; --muted:#666;
+  --green:#00C853; --orange:#FF6B00; --blue:#0066FF; --purple:#8B00FF;
+  --subway-blue:#0039A6; --subway-orange:#FF6319; --subway-green:#00933C;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--dark);color:var(--text);font-family:'IBM Plex Mono',monospace;overflow:hidden;height:100vh;width:100vw;}
+
+/* ── SCREENS ── */
+#screen-intro,#screen-game,#screen-event{position:absolute;inset:0;display:none;}
+#screen-intro.active,#screen-game.active,#screen-event.active{display:flex;}
+
+/* ── INTRO ── */
+#screen-intro{flex-direction:column;align-items:center;justify-content:center;background:var(--dark);overflow-y:auto;}
+.skyline-bg{position:absolute;bottom:0;left:0;right:0;height:55vh;background:linear-gradient(to top,#0A0A0A 0%,transparent 60%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400'%3E%3Crect x='0' y='200' width='40' height='200' fill='%23111'/%3E%3Crect x='50' y='150' width='60' height='250' fill='%23131313'/%3E%3Crect x='120' y='80' width='35' height='320' fill='%23111'/%3E%3Crect x='220' y='50' width='80' height='350' fill='%230E0E0E'/%3E%3Crect x='465' y='60' width='90' height='340' fill='%230F0F0F'/%3E%3Crect x='475' y='40' width='25' height='25' fill='%23FFD100' opacity='0.6'/%3E%3Crect x='740' y='50' width='100' height='350' fill='%230D0D0D'/%3E%3Crect x='755' y='30' width='15' height='25' fill='%23E8001A' opacity='0.8'/%3E%3Crect x='910' y='80' width='65' height='320' fill='%23111'/%3E%3C/svg%3E") bottom/cover no-repeat;}
+.intro-content{position:relative;z-index:2;text-align:center;padding:20px;}
+.intro-logo{font-family:'Bebas Neue',cursive;font-size:clamp(56px,11vw,130px);color:var(--yellow);letter-spacing:8px;line-height:.9;text-shadow:4px 4px 0 var(--red),8px 8px 0 rgba(232,0,26,.3);}
+.intro-sub{font-family:'IBM Plex Sans',sans-serif;font-size:13px;letter-spacing:6px;color:var(--muted);margin:10px 0 6px;text-transform:uppercase;}
+.intro-tagline{font-family:'IBM Plex Sans',sans-serif;font-style:italic;font-size:16px;color:var(--text);margin-bottom:28px;opacity:.7;}
+.char-create{background:rgba(20,20,20,.9);border:1px solid var(--border);padding:20px 24px;max-width:520px;width:90vw;margin:0 auto 20px;text-align:left;}
+.cc-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+.cc-row:last-child{border-bottom:none;}
+.cc-label{font-size:9px;letter-spacing:3px;color:var(--muted);min-width:72px;}
+.skin-opt,.style-opt{font-size:22px;cursor:pointer;padding:4px;border:2px solid transparent;border-radius:4px;transition:border-color .15s;}
+.skin-opt.selected,.style-opt.selected{border-color:var(--yellow);}
+.origin-btn{background:var(--dark);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:8px 10px;cursor:pointer;text-align:left;line-height:1.4;transition:border-color .15s;}
+.origin-btn.selected{border-color:var(--yellow);color:var(--yellow);}
+#name-input-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0 20px;}
+#name-input-wrap label{font-size:10px;letter-spacing:4px;color:var(--muted);}
+#player-name{background:transparent;border:none;border-bottom:2px solid var(--yellow);color:var(--yellow);font-family:'Bebas Neue',cursive;font-size:28px;letter-spacing:4px;text-align:center;width:280px;outline:none;padding:6px 0;}
+#player-name::placeholder{color:#333;}
+.btn-start{background:var(--yellow);color:var(--dark);border:none;font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:4px;padding:12px 52px;cursor:pointer;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));transition:transform .1s,background .1s;}
+.btn-start:hover{background:var(--red);transform:scale(1.03);}
+
+/* ── GAME LAYOUT ── */
+#screen-game{flex-direction:row;height:100vh;}
+
+/* LEFT PANEL */
+#panel-left{width:248px;min-width:248px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.player-card{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--mid);}
+.char-portrait-wrap{display:flex;align-items:center;gap:10px;}
+#char-portrait{font-size:32px;}
+.player-name-display{font-family:'Bebas Neue',cursive;font-size:20px;color:var(--yellow);letter-spacing:2px;}
+.player-title{font-size:9px;color:var(--muted);letter-spacing:2px;margin-top:1px;}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;}
+.stat-label{color:var(--muted);letter-spacing:1px;font-size:9px;}
+.stat-value{color:var(--yellow);font-weight:700;font-size:12px;}
+.stat-value.green{color:var(--green);} .stat-value.red{color:var(--red);} .stat-value.orange{color:var(--orange);}
+.rating-bar-wrap{padding:8px 14px;border-bottom:1px solid var(--border);}
+.rating-label{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:5px;}
+.rating-bar{height:5px;background:var(--border);overflow:hidden;}
+.rating-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green));background-size:400%;transition:width .5s;}
+.section-title{font-size:8px;letter-spacing:3px;color:var(--muted);padding:10px 14px 5px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+.metro-indicator{display:flex;align-items:center;gap:6px;padding:5px 14px;border-bottom:1px solid var(--border);font-size:9px;}
+.metro-dot{width:9px;height:9px;border-radius:50%;background:var(--subway-blue);}
+.metro-dot.active{background:var(--green);}
+#wanted-row{display:flex;justify-content:space-between;align-items:center;padding:5px 14px;border-bottom:1px solid var(--border);font-size:9px;}
+#wanted-stars{color:var(--yellow);letter-spacing:2px;}
+#resume-panel{overflow-y:auto;max-height:100px;}
+.resume-entry{padding:6px 14px;border-bottom:1px solid #111;font-size:9px;}
+.resume-entry .job-name{color:var(--text);font-weight:600;font-size:10px;}
+.job-rating{display:inline-block;padding:1px 5px;font-size:8px;margin-top:2px;}
+.job-rating.good{background:var(--green);color:#000;} .job-rating.ok{background:var(--orange);color:#000;} .job-rating.bad{background:var(--red);color:#fff;}
+#inventory-list{padding:6px 0;flex:1;overflow-y:auto;}
+.inv-item{display:flex;justify-content:space-between;padding:4px 14px;font-size:9px;color:var(--muted);}
+
+/* CENTER MAP */
+#map-area{flex:1;position:relative;overflow:hidden;background:#0D0D0D;display:flex;flex-direction:column;}
+#time-bar{background:var(--dark);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;gap:20px;font-size:9px;flex-shrink:0;}
+.time-segment{display:flex;align-items:center;gap:6px;}
+.time-icon{font-size:13px;}
+.time-val{color:var(--yellow);font-weight:700;font-size:12px;}
+.time-label{color:var(--muted);font-size:8px;letter-spacing:1px;}
+
+/* Location context bar */
+#loc-context{background:var(--mid);border-bottom:1px solid var(--border);padding:6px 14px;display:flex;align-items:center;gap:12px;font-size:9px;flex-shrink:0;}
+#loc-ctx-actions{display:flex;gap:5px;}
+.ctx-btn{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 8px;cursor:pointer;letter-spacing:.5px;}
+.ctx-btn:hover{border-color:var(--yellow);color:var(--yellow);}
+
+/* Map canvas area — always visible */
+.map-canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#map-canvas{position:absolute;cursor:grab;}
+#map-canvas:active{cursor:grabbing;}
+.player-marker{position:absolute;width:16px;height:16px;z-index:15;transform:translate(-50%,-50%);pointer-events:none;}
+.player-dot{width:12px;height:12px;background:var(--yellow);border-radius:50%;border:2px solid var(--dark);animation:pulse-p 2s infinite;position:relative;z-index:2;}
+@keyframes pulse-p{0%,100%{box-shadow:0 0 0 0 rgba(255,209,0,.7);}50%{box-shadow:0 0 0 8px rgba(255,209,0,0);}}
+.location-tooltip{position:absolute;background:rgba(10,10,10,.97);border:1px solid var(--yellow);padding:7px 12px;font-size:10px;pointer-events:none;display:none;z-index:20;white-space:nowrap;}
+.location-tooltip .loc-name{color:var(--yellow);font-weight:700;letter-spacing:1px;}
+.location-tooltip .loc-type{color:var(--muted);font-size:8px;}
+.location-tooltip .loc-action{color:var(--green);font-size:8px;margin-top:2px;}
+.map-overlay-ui{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;}
+.map-btn{background:rgba(10,10,10,.92);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:7px 12px;cursor:pointer;letter-spacing:.5px;transition:border-color .2s,color .2s;}
+.map-btn:hover{border-color:var(--yellow);color:var(--yellow);}
+
+/* MINIMAP (in left panel) */
+#minimap-wrap{position:relative;cursor:pointer;flex-shrink:0;background:#050a10;border-bottom:1px solid var(--border);}
+#minimap-canvas{display:block;width:100%;height:90px;}
+.minimap-overlay{position:absolute;inset:0;display:flex;align-items:flex-end;padding:4px 8px;pointer-events:none;}
+.minimap-label{font-size:7px;letter-spacing:2px;color:rgba(255,255,255,.3);}
+.minimap-clock{position:absolute;top:4px;right:8px;font-size:8px;color:var(--yellow);font-weight:700;}
+.minimap-day{position:absolute;top:4px;left:8px;font-size:8px;color:var(--muted);}
+
+/* TICKER */
+#ticker{flex-shrink:0;height:26px;background:var(--yellow);color:var(--dark);overflow:hidden;display:flex;align-items:center;}
+.ticker-inner{display:flex;gap:60px;animation:ticker-scroll 50s linear infinite;white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.5px;}
+@keyframes ticker-scroll{from{transform:translateX(100vw);}to{transform:translateX(-100%);}}
+
+/* RIGHT PANEL */
+#panel-right{width:290px;min-width:290px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+#log-area{flex:1;overflow-y:auto;padding:6px 0;}
+.log-entry{padding:5px 12px;font-size:9px;line-height:1.5;border-bottom:1px solid #111;animation:fadeInLog .3s ease;}
+@keyframes fadeInLog{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:translateX(0);}}
+.log-entry .log-time{color:var(--muted);font-size:8px;margin-bottom:1px;}
+.log-entry.log-good .log-msg{color:var(--green);} .log-entry.log-bad .log-msg{color:var(--red);}
+.log-entry.log-warn .log-msg{color:var(--orange);} .log-entry.log-info .log-msg{color:var(--blue);}
+.log-entry.log-money .log-msg{color:var(--yellow);}
+#action-panel{border-top:1px solid var(--border);padding:10px;background:var(--mid);}
+.action-title{font-size:8px;letter-spacing:3px;color:var(--muted);margin-bottom:8px;}
+#action-buttons{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.action-btn{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:7px 5px;cursor:pointer;letter-spacing:.3px;text-align:center;transition:all .15s;}
+.action-btn:hover{border-color:var(--yellow);color:var(--yellow);background:rgba(255,209,0,.04);}
+.action-btn.primary{border-color:var(--yellow);color:var(--yellow);}
+.action-btn.primary:hover{background:var(--yellow);color:var(--dark);}
+.action-btn.danger{border-color:var(--red);color:var(--red);}
+
+/* EVENT MODAL */
+#screen-event{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#event-modal{background:var(--panel);border:1px solid var(--border);width:min(560px,92vw);max-height:88vh;overflow-y:auto;position:relative;}
+.event-header{background:var(--mid);padding:18px 22px 14px;border-bottom:1px solid var(--border);}
+.event-type-tag{font-size:8px;letter-spacing:3px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;}
+.event-title{font-family:'Bebas Neue',cursive;font-size:28px;color:var(--yellow);letter-spacing:2px;line-height:1;}
+.event-location{font-size:9px;color:var(--muted);margin-top:3px;}
+.event-body{padding:18px 22px;}
+.event-description{font-family:'IBM Plex Sans',sans-serif;font-size:12px;line-height:1.7;color:#CCC;margin-bottom:16px;}
+.event-character{display:flex;align-items:flex-start;gap:10px;background:var(--mid);border:1px solid var(--border);padding:12px;margin-bottom:16px;}
+.char-avatar{font-size:32px;flex-shrink:0;}
+.char-name{font-size:12px;font-weight:700;color:var(--text);}
+.char-desc{font-size:10px;color:var(--muted);margin-top:2px;font-family:'IBM Plex Sans',sans-serif;font-style:italic;}
+.task-box{background:rgba(255,209,0,.04);border:1px solid rgba(255,209,0,.18);padding:12px;margin-bottom:14px;}
+.task-title{font-size:9px;letter-spacing:2px;color:var(--yellow);margin-bottom:6px;}
+.task-desc{font-size:11px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);line-height:1.5;}
+.event-stakes{display:flex;gap:10px;margin-bottom:16px;}
+.stake-item{flex:1;padding:8px;background:var(--mid);border:1px solid var(--border);text-align:center;}
+.stake-val{font-size:14px;font-weight:700;} .stake-val.pos{color:var(--green);} .stake-val.neg{color:var(--red);}
+.stake-label{font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+.event-choices{display:flex;flex-direction:column;gap:7px;}
+.choice-btn{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:10px 14px;cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.choice-btn:hover{border-color:var(--yellow);color:var(--yellow);background:rgba(255,209,0,.04);}
+.choice-key{font-size:8px;border:1px solid currentColor;padding:1px 5px;flex-shrink:0;opacity:.7;}
+/* Minigame */
+#minigame-wrap{padding:0 22px 16px;}
+#minigame-area{background:var(--dark);border:1px solid var(--border);height:150px;position:relative;overflow:hidden;cursor:pointer;user-select:none;}
+.mg-instruction{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:var(--muted);text-align:center;pointer-events:none;}
+.mg-target{position:absolute;width:38px;height:38px;border:2px solid var(--yellow);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;animation:mg-appear .2s ease;}
+@keyframes mg-appear{from{transform:scale(0);}to{transform:scale(1);}}
+.mg-target:hover{background:rgba(255,209,0,.1);}
+.mg-bar-wrap{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:9px;color:var(--muted);}
+.mg-bar{flex:1;height:3px;background:var(--border);}
+.mg-bar-fill{height:100%;background:var(--yellow);transition:width .1s;}
+/* Shop */
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:14px 22px;}
+.shop-item{background:var(--mid);border:1px solid var(--border);padding:10px;cursor:pointer;transition:border-color .2s;}
+.shop-item:hover{border-color:var(--yellow);}
+.shop-item-icon{font-size:22px;margin-bottom:5px;}
+.shop-item-name{font-size:10px;color:var(--text);margin-bottom:2px;}
+.shop-item-desc{font-size:8px;color:var(--muted);margin-bottom:6px;font-family:'IBM Plex Sans',sans-serif;}
+.shop-item-price{font-size:12px;color:var(--yellow);font-weight:700;}
+.shop-item.cant-afford{opacity:.35;pointer-events:none;}
+/* Notifications */
+#notif-area{position:fixed;top:14px;right:300px;z-index:200;display:flex;flex-direction:column;gap:7px;pointer-events:none;}
+.notif{background:var(--mid);border-left:3px solid var(--yellow);padding:9px 12px;font-size:10px;animation:notif-in .3s ease,notif-out .3s ease 2.7s forwards;max-width:240px;}
+.notif.green{border-color:var(--green);} .notif.red{border-color:var(--red);} .notif.orange{border-color:var(--orange);}
+@keyframes notif-in{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}
+@keyframes notif-out{from{opacity:1;}to{opacity:0;}}
+/* Map legend */
+#map-legend{position:absolute;bottom:36px;left:8px;background:rgba(10,10,10,.88);border:1px solid var(--border);padding:8px 10px;font-size:8px;z-index:10;}
+.legend-item{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.legend-line{width:18px;height:3px;border-radius:1px;}
+/* Scrollbars */
+::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-track{background:var(--dark);} ::-webkit-scrollbar-thumb{background:var(--border);}
+/* Explore UI */
+#explore-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:50;display:none;align-items:flex-end;justify-content:flex-end;padding:16px;}
+#explore-panel{background:var(--panel);border:1px solid var(--border);width:340px;max-height:80vh;overflow-y:auto;}
+.explore-header{background:var(--mid);padding:14px 16px;border-bottom:1px solid var(--border);}
+.explore-title{font-family:'Bebas Neue',cursive;font-size:22px;color:var(--yellow);letter-spacing:2px;}
+.explore-desc{font-size:9px;color:var(--muted);margin-top:3px;}
+.explore-action{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.explore-action:hover{background:var(--mid);}
+.explore-action-icon{font-size:18px;margin-right:10px;}
+.explore-action-name{font-size:11px;color:var(--text);}
+.explore-action-cost{font-size:9px;color:var(--muted);margin-top:2px;}
+.explore-result{font-size:10px;color:var(--green);font-weight:700;}
+/* Stock market */
+.stock-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);}
+.stock-name{font-size:10px;color:var(--text);}
+.stock-ticker{font-size:8px;color:var(--muted);}
+.stock-price{font-size:11px;color:var(--yellow);font-weight:700;}
+.stock-change-pos{color:var(--green);font-size:9px;}
+.stock-change-neg{color:var(--red);font-size:9px;}
+</style>
 </head>
 <body>
 
-<!-- ══ INTRO SCREEN ══════════════════════════════════════════════════ -->
+<!-- ══ INTRO SCREEN ══ -->
 <div id="screen-intro" class="active">
   <div class="skyline-bg"></div>
   <div class="intro-content">
@@ -18,10 +220,9 @@
     <div class="intro-tagline">"In New York, every man for himself."</div>
 
     <div class="char-create">
-      <!-- Skin tone -->
       <div class="cc-row">
         <span class="cc-label">SKIN TONE</span>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:5px;">
           <div class="skin-opt selected" data-skin="1" onclick="selectSkin(1)">🧑</div>
           <div class="skin-opt" data-skin="2" onclick="selectSkin(2)">🧑🏽</div>
           <div class="skin-opt" data-skin="3" onclick="selectSkin(3)">🧑🏾</div>
@@ -29,64 +230,58 @@
           <div class="skin-opt" data-skin="5" onclick="selectSkin(5)">👩🏿</div>
         </div>
       </div>
-      <!-- Style -->
       <div class="cc-row">
         <span class="cc-label">STYLE</span>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:5px;">
           <div class="style-opt selected" data-style="casual" onclick="selectStyle('casual')" title="Casual">👕</div>
           <div class="style-opt" data-style="business" onclick="selectStyle('business')" title="Business">👔</div>
           <div class="style-opt" data-style="street" onclick="selectStyle('street')" title="Streetwear">🧢</div>
         </div>
       </div>
-      <!-- Origin -->
       <div class="cc-row" style="align-items:flex-start;">
         <span class="cc-label" style="margin-top:4px;">ORIGIN</span>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1;">
-          <button class="origin-btn selected" data-origin="local"     onclick="selectOrigin('local')">🏙️ NYC LOCAL<br><span style="font-size:8px;opacity:.6;">$200 · 60 rep</span></button>
-          <button class="origin-btn" data-origin="immigrant"          onclick="selectOrigin('immigrant')">🌍 IMMIGRANT<br><span style="font-size:8px;opacity:.6;">$80 · 40 rep</span></button>
-          <button class="origin-btn" data-origin="tourist"            onclick="selectOrigin('tourist')">🗽 TOURIST TURNED RESIDENT<br><span style="font-size:8px;opacity:.6;">$350 · 30 rep</span></button>
-          <button class="origin-btn" data-origin="suburban"           onclick="selectOrigin('suburban')">🚂 JERSEY / SUBURBAN<br><span style="font-size:8px;opacity:.6;">$150 · 45 rep</span></button>
+          <button class="origin-btn selected" data-origin="local" onclick="selectOrigin('local')">🏙️ NYC LOCAL<br><span style="font-size:8px;opacity:.6;">$200 · 60 rep</span></button>
+          <button class="origin-btn" data-origin="immigrant" onclick="selectOrigin('immigrant')">🌍 IMMIGRANT<br><span style="font-size:8px;opacity:.6;">$80 · 40 rep</span></button>
+          <button class="origin-btn" data-origin="tourist" onclick="selectOrigin('tourist')">🗽 TOURIST TURNED RESIDENT<br><span style="font-size:8px;opacity:.6;">$350 · 30 rep</span></button>
+          <button class="origin-btn" data-origin="suburban" onclick="selectOrigin('suburban')">🚂 JERSEY / SUBURBAN<br><span style="font-size:8px;opacity:.6;">$150 · 45 rep</span></button>
         </div>
-      </div>
-      <!-- Name -->
-      <div id="name-input-wrap">
-        <label>YOUR NAME</label>
-        <input id="player-name" type="text" placeholder="ENTER YOUR NAME" maxlength="16" autocomplete="off">
       </div>
     </div>
 
+    <div id="name-input-wrap">
+      <label>YOUR NAME</label>
+      <input id="player-name" type="text" placeholder="ENTER YOUR NAME" maxlength="16" autocomplete="off"/>
+    </div>
     <button class="btn-start" onclick="startGame()">ARRIVE IN NEW YORK</button>
-    <div style="font-size:8px;color:#222;letter-spacing:2px;margin-top:12px;">KEYBOARD SHORTCUTS AVAILABLE IN-GAME</div>
+    <div style="font-size:8px;color:#333;letter-spacing:2px;margin-top:10px;">J JOBS · W WORK · S SHOP · H HOUSING · X EXPLORE · M MAP · ESC CLOSE</div>
   </div>
 </div>
 
-<!-- ══ GAME SCREEN ════════════════════════════════════════════════════ -->
+<!-- ══ GAME SCREEN ══ -->
 <div id="screen-game">
 
   <!-- LEFT PANEL -->
   <div id="panel-left">
-
-    <!-- Minimap (click to open full map) -->
-    <div id="minimap-wrap" onclick="openFullMap()" title="Click to open full map">
+    <!-- Minimap — always visible, click highlights location -->
+    <div id="minimap-wrap" title="Live map preview">
       <canvas id="minimap-canvas"></canvas>
-      <div class="minimap-overlay"><span class="minimap-label">OPEN MAP [M]</span></div>
+      <div class="minimap-overlay"><span class="minimap-label">NYC MAP</span></div>
       <div class="minimap-clock" id="mini-clock">8:00 AM</div>
       <div class="minimap-day" id="mini-day">Day 1</div>
     </div>
 
-    <!-- Player card -->
     <div class="player-card">
       <div class="char-portrait-wrap">
-        <div id="char-portrait" style="font-size:36px;">🧑</div>
+        <div id="char-portrait">🧑</div>
         <div class="player-info">
           <div class="player-name-display" id="display-name">PLAYER</div>
-          <div class="player-title" id="display-title">NEWCOMER • UNEMPLOYED</div>
-          <div id="display-origin" style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:2px;">NYC LOCAL</div>
+          <div class="player-title" id="display-title">NEWCOMER · UNEMPLOYED</div>
+          <div id="display-origin" style="font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:1px;">NYC LOCAL</div>
         </div>
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="rating-bar-wrap">
       <div class="rating-label">
         <span>REPUTATION</span>
@@ -107,7 +302,7 @@
     </div>
 
     <div id="wanted-row">
-      <span style="font-size:9px;color:var(--muted);">WANTED</span>
+      <span style="font-size:8px;color:var(--muted);">WANTED</span>
       <span id="wanted-stars">☆☆☆☆☆</span>
     </div>
 
@@ -118,158 +313,1053 @@
     <div class="stat-row"><span class="stat-label">DAYS WORKED</span><span class="stat-value" id="stat-daysworked">0</span></div>
 
     <div class="section-title">RESUME</div>
-    <div id="resume-panel"><div style="padding:10px 14px;font-size:9px;color:var(--muted)">No work history yet.</div></div>
+    <div id="resume-panel"><div style="padding:8px 14px;font-size:9px;color:var(--muted)">No work history yet.</div></div>
 
     <div class="section-title">INVENTORY</div>
     <div id="inventory-list"><div class="inv-item"><span>Nothing yet</span></div></div>
   </div>
 
-  <!-- CENTER -->
-  <div id="map-area" style="display:flex;flex-direction:column;">
-    <!-- Time bar -->
+  <!-- CENTER — MAP ALWAYS VISIBLE -->
+  <div id="map-area">
     <div id="time-bar">
-      <div class="time-segment">
-        <span class="time-icon">📅</span>
-        <div><div class="time-val" id="t-day">Day 1</div><div class="time-label">NEW YORK</div></div>
-      </div>
-      <div class="time-segment">
-        <span class="time-icon">🕐</span>
-        <div><div class="time-val" id="t-time">8:00 AM</div><div class="time-label">TIME</div></div>
-      </div>
-      <div class="time-segment">
-        <span class="time-icon">🌡️</span>
-        <div><div class="time-val" id="t-weather">72°F ☀️</div><div class="time-label">WEATHER</div></div>
-      </div>
-      <div class="time-segment" style="margin-left:auto;">
-        <div class="time-val" id="t-location" style="font-size:10px;color:var(--muted);">📍 Penn Station</div>
-      </div>
+      <div class="time-segment"><span class="time-icon">📅</span><div><div class="time-val" id="t-day">Day 1</div><div class="time-label">NEW YORK</div></div></div>
+      <div class="time-segment"><span class="time-icon">🕐</span><div><div class="time-val" id="t-time">8:00 AM</div><div class="time-label">TIME</div></div></div>
+      <div class="time-segment"><span class="time-icon">🌡️</span><div><div class="time-val" id="t-weather">72°F ☀️</div><div class="time-label">WEATHER</div></div></div>
+      <div class="time-segment" style="margin-left:auto;"><div class="time-val" id="t-location" style="font-size:10px;color:var(--muted);">📍 Penn Station</div></div>
     </div>
 
     <!-- Location context bar -->
     <div id="loc-context">
       <div id="loc-ctx-name" style="color:var(--yellow);font-weight:700;font-size:10px;">🚂 PENN STATION</div>
-      <div id="loc-ctx-desc" style="font-size:9px;color:var(--muted);flex:1;">Transit hub. Many subway connections.</div>
-      <div id="loc-ctx-actions" style="display:flex;gap:5px;"></div>
+      <div id="loc-ctx-desc" style="font-size:8px;color:var(--muted);flex:1;">Transit hub. Many subway connections. Good place to start.</div>
+      <div id="loc-ctx-actions"></div>
     </div>
 
-    <!-- Map placeholder / open map prompt -->
-    <div class="map-center-area">
-      <div id="map-placeholder" onclick="openFullMap()">
-        <div style="font-size:64px;opacity:0.3;">🗽</div>
-        <div class="map-placeholder-text">NYC OPEN WORLD MAP</div>
-        <button class="open-map-btn">OPEN MAP [M]</button>
-        <div class="map-placeholder-hint">Click any location on the map to travel there</div>
+    <!-- MAP — always rendered, no click-to-open -->
+    <div class="map-canvas-wrap">
+      <canvas id="map-canvas"></canvas>
+      <div class="player-marker" id="player-marker"><div class="player-dot"></div></div>
+      <div class="location-tooltip" id="location-tooltip">
+        <div class="loc-name" id="tt-name"></div>
+        <div class="loc-type" id="tt-type"></div>
+        <div class="loc-action" id="tt-action">Click to travel here</div>
       </div>
-
-      <!-- Map overlay buttons (shown when map open) -->
-      <div class="map-overlay-ui" style="bottom:40px;">
-        <button class="map-btn" onclick="openShop()">🛒 SHOP</button>
-        <button class="map-btn" onclick="openJobBoard()">💼 JOBS</button>
-        <button class="map-btn" onclick="doWorkDay()">⚡ WORK</button>
-        <button class="map-btn" onclick="openStockMarket()">📈 STOCKS</button>
-        <button class="map-btn" onclick="advanceDay()">⏭ NEXT DAY</button>
-      </div>
-    </div>
-
-    <!-- Ticker -->
-    <div id="ticker">
-      <div class="ticker-inner" id="ticker-text">
-        🗽 WELCOME TO NYC DREAM 2.0 &nbsp;•&nbsp; UNLIMITED REPUTATION &nbsp;•&nbsp; 30+ JOBS &nbsp;•&nbsp; STOCK MARKET &nbsp;•&nbsp; POLICE CHASES &nbsp;•&nbsp; FULL HOUSING SYSTEM &nbsp;•&nbsp; KAREN ENCOUNTERS &nbsp;•&nbsp; BUY PROPERTY IN ALL 5 BOROUGHS &nbsp;•&nbsp; 🗽
+      <div id="map-legend">
+        <div style="font-size:7px;letter-spacing:2px;color:var(--muted);margin-bottom:5px;">SUBWAY LINES</div>
+        <div class="legend-item"><div class="legend-line" style="background:#0039A6;"></div>A/C/E</div>
+        <div class="legend-item"><div class="legend-line" style="background:#FF6319;"></div>B/D/F/M</div>
+        <div class="legend-item"><div class="legend-line" style="background:#EE352E;"></div>1/2/3</div>
+        <div class="legend-item"><div class="legend-line" style="background:#00933C;"></div>4/5/6</div>
+        <div class="legend-item"><div class="legend-line" style="background:#FCCC0A;"></div>N/Q/R/W</div>
+        <div class="legend-item"><div class="legend-line" style="background:#A7A9AC;"></div>L</div>
       </div>
     </div>
+
+    <div class="map-overlay-ui">
+      <button class="map-btn" onclick="openShop()">🛒 SHOP</button>
+      <button class="map-btn" onclick="openJobBoard()">💼 JOBS</button>
+      <button class="map-btn" onclick="doWorkDay()">⚡ WORK</button>
+      <button class="map-btn" onclick="openStockMarket()">📈 STOCKS</button>
+      <button class="map-btn" onclick="advanceDay()">⏭ NEXT DAY</button>
+    </div>
+
+    <div id="ticker"><div class="ticker-inner" id="ticker-text">🗽 WELCOME TO NYC DREAM 2.0 &nbsp;•&nbsp; UNLIMITED REPUTATION &nbsp;•&nbsp; 30+ JOBS &nbsp;•&nbsp; STOCK MARKET &nbsp;•&nbsp; POLICE CHASES &nbsp;•&nbsp; FULL HOUSING SYSTEM &nbsp;•&nbsp; KAREN ENCOUNTERS &nbsp;•&nbsp; BUY PROPERTY IN ALL 5 BOROUGHS &nbsp;•&nbsp; 🗽</div></div>
   </div>
 
   <!-- RIGHT PANEL -->
   <div id="panel-right">
     <div class="section-title">CITY LOG</div>
     <div id="log-area"></div>
-
     <div id="action-panel">
       <div class="action-title">QUICK ACTIONS [SHORTCUTS]</div>
       <div id="action-buttons">
         <button class="action-btn primary" onclick="openJobBoard()">💼 JOBS [J]</button>
         <button class="action-btn" onclick="doWorkDay()">⚡ WORK [W]</button>
         <button class="action-btn" onclick="openShop()">🏪 SHOP [S]</button>
-        <button class="action-btn" onclick="openStockMarket()">📈 STOCKS [K]</button>
+        <button class="action-btn" onclick="openStockMarket()">📈 STOCKS</button>
         <button class="action-btn" onclick="travelSubway()">🚇 SUBWAY</button>
         <button class="action-btn" onclick="talkToNPC()">👤 NETWORK [N]</button>
         <button class="action-btn" onclick="saveToBank()">🏦 SAVE [B]</button>
         <button class="action-btn" onclick="withdrawBank()">💳 WITHDRAW</button>
         <button class="action-btn" onclick="openHousingMenu()">🏠 HOUSING [H]</button>
         <button class="action-btn" onclick="openWardrobePanel()">👔 WARDROBE</button>
-        <button class="action-btn" onclick="negotiateCommission()">🤝 COMMISSION [C]</button>
-        <button class="action-btn" onclick="openCharacterPanel()">🧑 CHARACTER</button>
+        <button class="action-btn" onclick="openExplore(G.location)">🚶 EXPLORE [X]</button>
         <button class="action-btn" onclick="doSleep()">😴 SLEEP [Z]</button>
-        <button class="action-btn primary" onclick="openExplore(G.location)" style="background:#141400;border-color:#FFD100;color:#FFD100;">🚶 EXPLORE [X]</button>
+        <button class="action-btn" onclick="negotiateCommission()">🤝 COMMISSION [C]</button>
         <button class="action-btn danger" onclick="quitJob()">🚪 QUIT JOB</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ══ FULL MAP SCREEN ════════════════════════════════════════════════ -->
-<div id="screen-fullmap">
-  <div id="fullmap-bar">
-    <div class="time-segment">
-      <span class="time-icon">📍</span>
-      <div><div class="time-val" id="fullmap-location" style="font-size:11px;color:var(--muted);">Penn Station</div></div>
-    </div>
-    <div class="fullmap-controls">
-      <button class="fmap-btn" onclick="mapZoomIn()">＋ ZOOM</button>
-      <button class="fmap-btn" onclick="mapZoomOut()">－ ZOOM</button>
-      <button class="fmap-btn" onclick="centerOnPlayer()">📍 CENTER</button>
-      <button class="fmap-btn" onclick="closeFullMap()">✕ CLOSE [ESC]</button>
-    </div>
-  </div>
+<!-- EVENT MODAL -->
+<div id="screen-event"></div>
 
-  <div id="fullmap-canvas-wrap">
-    <canvas id="map-canvas"></canvas>
-    <div id="player-marker"><div class="player-dot"></div></div>
-    <div id="location-tooltip" class="location-tooltip" style="display:none;">
-      <div class="loc-name" id="tt-name"></div>
-      <div class="loc-type" id="tt-type"></div>
-      <div class="loc-action" id="tt-action"></div>
+<!-- EXPLORE PANEL -->
+<div id="explore-overlay">
+  <div id="explore-panel">
+    <div class="explore-header">
+      <div class="explore-title" id="explore-title">EXPLORING</div>
+      <div class="explore-desc" id="explore-desc">—</div>
     </div>
-
-    <!-- Subway legend -->
-    <div id="map-legend">
-      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">SUBWAY LINES</div>
-      <div class="legend-item"><div class="legend-line" style="background:#0039A6;"></div>A/C/E</div>
-      <div class="legend-item"><div class="legend-line" style="background:#FF6319;"></div>B/D/F/M</div>
-      <div class="legend-item"><div class="legend-line" style="background:#EE352E;"></div>1/2/3</div>
-      <div class="legend-item"><div class="legend-line" style="background:#00933C;"></div>4/5/6</div>
-      <div class="legend-item"><div class="legend-line" style="background:#FCCC0A;"></div>N/Q/R/W</div>
-      <div class="legend-item"><div class="legend-line" style="background:#A7A9AC;"></div>L</div>
-      <div class="legend-item"><div class="legend-line" style="background:#B933AD;"></div>7</div>
-      <div style="margin-top:6px;font-size:8px;letter-spacing:2px;color:var(--muted);">ROADS</div>
-      <div class="legend-item"><div class="legend-line" style="background:#2255AA;"></div>Highways</div>
-      <div class="legend-item"><div class="legend-line" style="background:#00C853;border-top:1px dashed #00C853;height:0;"></div>Bike Lanes</div>
-    </div>
+    <div id="explore-actions"></div>
+    <div style="padding:10px 14px;"><button class="choice-btn" onclick="closeExplore()">← BACK TO MAP</button></div>
   </div>
 </div>
 
-<!-- ══ EVENT MODAL ════════════════════════════════════════════════════ -->
-<div id="screen-event"></div>
-
-<!-- ══ NOTIFICATIONS ══════════════════════════════════════════════════ -->
+<!-- NOTIFICATIONS -->
 <div id="notif-area"></div>
 
-<!-- ══ SCRIPTS ════════════════════════════════════════════════════════ -->
-<script src="../games/data.js"></script>
-<script src="../games/map.js"></script>
-<script src="../games/game.js"></script>
-<script src="../games/explore.js"></script>
-
-<!-- Mini-map clock sync (lightweight) -->
 <script>
-  setInterval(() => {
-    const cl = document.getElementById('mini-clock');
-    const dy = document.getElementById('mini-day');
-    if (!cl || !G) return;
-    const h = G.hour, ampm = h>=12?'PM':'AM', h12 = h===0?12:h>12?h-12:h;
-    cl.textContent = h12+':00 '+ampm;
-    if (dy) dy.textContent = 'Day '+G.day;
-  }, 1000);
+// ═══════════════════════════════════════════════════════════
+// CHARACTER CREATION
+// ═══════════════════════════════════════════════════════════
+let selectedSkin = 1, selectedStyle = 'casual', selectedOrigin = 'local';
+const SKIN_EMOJIS = { 1:'🧑', 2:'🧑🏽', 3:'🧑🏾', 4:'🧑🏿', 5:'👩🏿' };
+const ORIGIN_CONFIG = {
+  local:     { cash:200, rating:60, label:'NYC LOCAL' },
+  immigrant: { cash:80,  rating:40, label:'IMMIGRANT' },
+  tourist:   { cash:350, rating:30, label:'TOURIST → RESIDENT' },
+  suburban:  { cash:150, rating:45, label:'JERSEY / SUBURBAN' },
+};
+function selectSkin(n) { selectedSkin=n; document.querySelectorAll('.skin-opt').forEach(el=>el.classList.toggle('selected',+el.dataset.skin===n)); }
+function selectStyle(s) { selectedStyle=s; document.querySelectorAll('.style-opt').forEach(el=>el.classList.toggle('selected',el.dataset.style===s)); }
+function selectOrigin(o) { selectedOrigin=o; document.querySelectorAll('.origin-btn').forEach(el=>el.classList.toggle('selected',el.dataset.origin===o)); }
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let G = {
+  name:'PLAYER', cash:120, savings:0, portfolio:0, day:1, hour:8,
+  rating:50, job:null, jobDays:0, jobProgress:0, commission:0,
+  resume:[], inventory:[], hasMetroCard:false, hasMonthlyMetro:false,
+  housing:'shelter', rentPerWeek:0, wantedLevel:0,
+  location:'Penn Station', playerX:480, playerY:520,
+  mapOffsetX:0, mapOffsetY:0, weather:'72°F ☀️', daysRentDue:7,
+  skin:'🧑', style:'casual', origin:'local',
+  stocks:{},
+};
+
+// ═══════════════════════════════════════════════════════════
+// NYC MAP DATA
+// ═══════════════════════════════════════════════════════════
+const NYC_LOCATIONS = [
+  { name:"Penn Station", x:480, y:520, type:"TRANSIT HUB", icon:"🚂", color:"#0039A6",
+    desc:"Transit hub. Many subway connections.", actions:["BUY METROCARD","ASK FOR DIRECTIONS"] },
+  { name:"Times Square", x:510, y:480, type:"ENTERTAINMENT", icon:"🎭", color:"#FF6319",
+    desc:"Tourist central. Overpriced, always crowded.", actions:["BUSKING","SELL SOUVENIRS","SPOT CELEBRITIES"] },
+  { name:"Grand Central", x:570, y:490, type:"TRANSIT HUB", icon:"🚆", color:"#0039A6",
+    desc:"Iconic terminal. Business crowd.", actions:["MEET CONTACT","SHINE SHOES"] },
+  { name:"Rockefeller Center", x:555, y:450, type:"OFFICE / MEDIA", icon:"🏢", color:"#333",
+    desc:"TV studios and corporate offices.", actions:["APPLY AT NBC","LOOK FOR GIGS"] },
+  { name:"5th Avenue", x:580, y:430, type:"LUXURY SHOPPING", icon:"🛍️", color:"#C4A35A",
+    desc:"The most expensive street in America.", actions:["WINDOW SHOP","MEET CLIENTS"] },
+  { name:"Madison Square Garden", x:480, y:510, type:"ARENA / EVENTS", icon:"🏟️", color:"#FF6319",
+    desc:"The world's most famous arena.", actions:["SCALP TICKETS","USHER JOB"] },
+  { name:"Bryant Park", x:535, y:487, type:"PUBLIC PARK", icon:"🌳", color:"#00933C",
+    desc:"Green oasis in Midtown.", actions:["RELAX","CHESS HUSTLE","LUNCH"] },
+  { name:"Central Park", x:560, y:370, type:"PUBLIC PARK", icon:"🌲", color:"#00933C",
+    desc:"840 acres of urban nature.", actions:["BUSKING","JOG","MEET SOMEONE"] },
+  { name:"Upper East Side", x:620, y:360, type:"LUXURY RESIDENTIAL", icon:"🏰", color:"#C4A35A",
+    desc:"Old money. Doormen everywhere.", actions:["DOG WALKING","NANNY JOB","CATERING"] },
+  { name:"Upper West Side", x:500, y:360, type:"RESIDENTIAL", icon:"🏘️", color:"#666",
+    desc:"Families, academics, delis.", actions:["BABYSIT","GROCERY DELIVERY"] },
+  { name:"Harlem", x:560, y:290, type:"RESIDENTIAL / CULTURE", icon:"🎷", color:"#8B4513",
+    desc:"Historic neighborhood. Real New York.", actions:["LIVE MUSIC","COMMUNITY WORK","HUSTLE"] },
+  { name:"Washington Heights", x:530, y:220, type:"RESIDENTIAL", icon:"🏠", color:"#666",
+    desc:"Dominican Republic north of the park.", actions:["FOOD CART","TRANSLATE","CONNECT"] },
+  { name:"Columbia University", x:520, y:270, type:"EDUCATION", icon:"🎓", color:"#004F9E",
+    desc:"Ivy League. Library access.", actions:["APPLY TO COURSES","CAMPUS JOB","TUTORING"] },
+  { name:"Wall Street", x:540, y:660, type:"FINANCE DISTRICT", icon:"📈", color:"#C4A35A",
+    desc:"Where fortunes are made and lost.", actions:["TRADE STOCKS","NETWORK","INTERNSHIP"] },
+  { name:"World Trade Center", x:515, y:660, type:"LANDMARK", icon:"🗽", color:"#333",
+    desc:"Symbol of resilience.", actions:["REFLECTION","TOURIST GUIDE"] },
+  { name:"Brooklyn Bridge", x:580, y:670, type:"LANDMARK", icon:"🌉", color:"#8B4513",
+    desc:"Walk across the bridge.", actions:["PHOTOGRAPHY","SELL PORTRAITS","BUSKING"] },
+  { name:"South Street Seaport", x:570, y:680, type:"TOURIST / MARKET", icon:"⚓", color:"#0039A6",
+    desc:"Historic waterfront marketplace.", actions:["FISH MARKET","TOURIST GUIDE","STREET FOOD"] },
+  { name:"Battery Park", x:520, y:700, type:"PUBLIC PARK", icon:"🌿", color:"#00933C",
+    desc:"Southern tip of Manhattan. Ferry to Statue of Liberty.", actions:["FERRY TICKET","STREET PERFORMANCE","RELAX"] },
+  { name:"Chinatown", x:560, y:635, type:"FOOD / CULTURE", icon:"🏮", color:"#E8001A",
+    desc:"Dense, vibrant. Best cheap food in the city.", actions:["EAT CHEAP","FIND DEALS","TRANSLATE"] },
+  { name:"Little Italy", x:555, y:625, type:"FOOD / CULTURE", icon:"🍕", color:"#009246",
+    desc:"Touristy but the food is real.", actions:["PIZZA","CAFÉ JOB","CONNECTIONS"] },
+  { name:"SoHo", x:540, y:605, type:"SHOPPING / ART", icon:"🎨", color:"#8B00FF",
+    desc:"Galleries, boutiques, cobblestones.", actions:["GALLERY OPENING","STREET ART","MODEL SCOUT"] },
+  { name:"Greenwich Village", x:515, y:585, type:"BOHEMIAN / FOOD", icon:"🎸", color:"#8B4513",
+    desc:"Artists, musicians, NYU students.", actions:["OPEN MIC","BUSKING","FIND ROOMMATES"] },
+  { name:"Chelsea", x:480, y:560, type:"ARTS / RESIDENTIAL", icon:"🖼️", color:"#8B00FF",
+    desc:"Art galleries and the High Line.", actions:["GALLERY WORK","HIGH LINE VENDOR","ART DEAL"] },
+  { name:"Gramercy Park", x:555, y:540, type:"RESIDENTIAL", icon:"🌺", color:"#00933C",
+    desc:"Exclusive gated park. Old money.", actions:["DOG WALKING","NETWORKING"] },
+  { name:"Flatiron Building", x:537, y:522, type:"LANDMARK / OFFICE", icon:"🏗️", color:"#333",
+    desc:"Iconic building. Startup offices.", actions:["STARTUP JOB","PITCH MEETING"] },
+  { name:"Williamsburg", x:660, y:580, type:"HIPSTER / FOOD", icon:"🍺", color:"#8B4513",
+    desc:"Brooklyn's coolest neighborhood.", actions:["INDIE MUSIC","COFFEE SHOP","FOOD TRUCK"] },
+  { name:"DUMBO", x:620, y:640, type:"TECH / ARTS", icon:"💻", color:"#0066FF",
+    desc:"Design studios and tech startups under the bridge.", actions:["TECH INTERNSHIP","PHOTO SHOOT","STUDIO WORK"] },
+  { name:"Downtown Brooklyn", x:630, y:670, type:"BUSINESS", icon:"🏢", color:"#333",
+    desc:"Court buildings, banks, borough hall.", actions:["LEGAL AID","PARALEGAL","CLERK JOB"] },
+  { name:"Coney Island", x:640, y:800, type:"BEACH / AMUSEMENT", icon:"🎡", color:"#FF6319",
+    desc:"Summer escape. Boardwalk hustle.", actions:["RIDE OPERATOR","BEACH VENDOR","BOARDWALK"] },
+  { name:"Park Slope", x:600, y:700, type:"FAMILY / RESIDENTIAL", icon:"🏡", color:"#666",
+    desc:"Strollers and brownstones.", actions:["BABYSIT","HANDYMAN","DOG WALKING"] },
+  { name:"Astoria", x:640, y:440, type:"FOOD / RESIDENTIAL", icon:"🍽️", color:"#8B4513",
+    desc:"Greek diners and good people.", actions:["RESTAURANT WORK","DINER JOB","GREEK FEST"] },
+  { name:"Jackson Heights", x:700, y:500, type:"DIVERSE / FOOD", icon:"🌶️", color:"#E8001A",
+    desc:"Most diverse neighborhood on Earth.", actions:["FOOD CART","TRANSLATE","SEWING WORK"] },
+  { name:"Flushing", x:780, y:460, type:"ASIAN CULTURE", icon:"🥟", color:"#E8001A",
+    desc:"Asian food capital of NYC.", actions:["FOOD STALL","IMPORT SHOP","MAILING WORK"] },
+  { name:"JFK Airport", x:780, y:620, type:"AIRPORT", icon:"✈️", color:"#0066FF",
+    desc:"One of the world's busiest airports.", actions:["SKYCAP JOB","LIMO DRIVER","CUSTOMS WORK"] },
+  { name:"The Bronx", x:620, y:240, type:"BOROUGH", icon:"🏙️", color:"#333",
+    desc:"Birthplace of hip-hop.", actions:["COMMUNITY WORK","HIP HOP EVENT","HUSTLE"] },
+  { name:"Yankee Stadium", x:600, y:270, type:"SPORTS ARENA", icon:"⚾", color:"#003087",
+    desc:"The house that Ruth built.", actions:["SCALP TICKETS","VENDOR JOB","WATCH GAME"] },
+  { name:"Staten Island Ferry", x:490, y:720, type:"TRANSIT / LANDMARK", icon:"⛴️", color:"#0039A6",
+    desc:"Free ferry. Great skyline views.", actions:["TAKE FERRY","PHOTOGRAPHY","FISH"] },
+];
+
+const SUBWAY_LINES = [
+  { color:"#0039A6", points:[[520,700],[530,670],[545,650],[555,620],[535,580],[490,540],[480,520],[480,490],[510,460],[520,380],[520,270],[530,220]] },
+  { color:"#FF6319", points:[[640,800],[640,720],[630,670],[620,640],[580,670],[570,655],[560,635],[540,605],[515,585],[480,560],[480,520]] },
+  { color:"#00933C", points:[[570,490],[560,490],[545,490],[535,490],[520,490],[500,490],[490,490],[490,520],[490,560]] },
+  { color:"#EE352E", points:[[600,270],[590,300],[570,340],[560,370],[555,400],[555,440],[555,480],[555,510],[540,540],[540,560],[540,600],[540,640],[540,660],[540,680],[520,700]] },
+  { color:"#FCCC0A", points:[[780,460],[740,470],[700,480],[680,490],[660,490],[640,490],[620,490],[590,490],[570,490],[555,480]] },
+  { color:"#A7A9AC", points:[[540,500],[560,480],[590,460],[620,450],[660,440],[690,430]] },
+];
+
+// ═══════════════════════════════════════════════════════════
+// JOBS DATABASE
+// ═══════════════════════════════════════════════════════════
+const JOBS = [
+  { id:'dishwasher', title:'DISHWASHER', location:"Little Italy", pay:80, minRating:0, icon:'🍽️', taskDesc:'Keep up with the dinner rush. Click plates before they pile up!' },
+  { id:'delivery', title:'DELIVERY CYCLIST', location:"Greenwich Village", pay:95, minRating:0, icon:'🚴', taskDesc:'Make deliveries across the village. Hit packages before time runs out!' },
+  { id:'hotdog', title:'HOT DOG VENDOR', location:"Central Park", pay:110, minRating:10, icon:'🌭', taskDesc:'Serve Central Park tourists. Click customers before they walk away!' },
+  { id:'barista', title:'BARISTA', location:"SoHo", pay:130, minRating:20, icon:'☕', taskDesc:'Brew coffee for the SoHo crowd. Match drink orders quickly!' },
+  { id:'bodyguard', title:'CLUB BOUNCER', location:"Chelsea", pay:160, minRating:25, icon:'🛡️', taskDesc:'Keep the line moving. Click troublemakers to remove them!' },
+  { id:'retail', title:'RETAIL ASSOCIATE', location:"5th Avenue", pay:180, minRating:35, icon:'🛍️', taskDesc:'Upsell luxury goods. Click customers at the right moment!' },
+  { id:'mailroom', title:'MAILROOM CLERK', location:"Rockefeller Center", pay:200, minRating:40, icon:'📬', taskDesc:'Sort packages fast before the truck leaves!' },
+  { id:'driver', title:'CAB DRIVER', location:"Midtown", pay:240, minRating:40, icon:'🚕', taskDesc:'Pick up fares across the city. React to passenger requests!' },
+  { id:'cook', title:'LINE COOK', location:"Astoria", pay:260, minRating:45, icon:'👨‍🍳', taskDesc:'Prep orders for a full house. Keep the timing tight!' },
+  { id:'stockbroker_jr', title:'JUNIOR BROKER', location:"Wall Street", pay:450, minRating:60, icon:'📊', taskDesc:'Execute trades in volatile markets. React to buy/sell signals!' },
+  { id:'manager', title:'FLOOR MANAGER', location:"Flatiron Building", pay:550, minRating:65, icon:'📋', taskDesc:'Handle customer escalations and staff issues simultaneously!' },
+  { id:'realtor', title:'REAL ESTATE BROKER', location:"Upper East Side", pay:900, minRating:75, icon:'🏠', taskDesc:'Close deals with wealthy clients. Read their interest and move fast!' },
+  { id:'finance', title:'FINANCE ANALYST', location:"Wall Street", pay:1200, minRating:80, icon:'💹', taskDesc:'Analyze market movements under pressure.' },
+  { id:'exec', title:'C-SUITE EXECUTIVE', location:"5th Avenue", pay:2500, minRating:90, icon:'👔', taskDesc:'Lead the boardroom. Handle crises and make power moves!' },
+];
+
+const HOUSING = [
+  { id:'shelter', name:'Homeless Shelter', location:'Bronx', weeklyRent:0, desc:'Free but rough.' },
+  { id:'hostel', name:'Queens Hostel', location:'Jackson Heights', weeklyRent:150, desc:'Shared dorm. Basic.' },
+  { id:'studio_bronx', name:'Bronx Studio', location:'The Bronx', weeklyRent:280, desc:'Small studio, own bathroom.' },
+  { id:'room_brooklyn', name:'Brooklyn Bedroom', location:'Flatbush', weeklyRent:380, desc:'Room in shared house.' },
+  { id:'apt_brooklyn', name:'Williamsburg 1BR', location:'Williamsburg', weeklyRent:580, desc:'Trendy neighborhood.' },
+  { id:'apt_queens', name:'Astoria 1BR', location:'Astoria', weeklyRent:520, desc:'Nice apartment.' },
+  { id:'studio_manhattan', name:'Harlem Studio', location:'Harlem', weeklyRent:650, desc:'Manhattan! Cultural epicenter.' },
+  { id:'apt_manhattan', name:'Upper West Side 1BR', location:'Upper West Side', weeklyRent:950, desc:'Real Manhattan living.' },
+  { id:'luxury', name:'Upper East Side Luxury', location:'Upper East Side', weeklyRent:2000, desc:'Doorman building. You made it.' },
+  { id:'penthouse', name:'Fifth Avenue Penthouse', location:'5th Avenue', weeklyRent:5000, desc:'Top of the city. The dream.' },
+];
+
+const SHOP_ITEMS = [
+  { id:'metrocard_single', name:'Single Ride MetroCard', icon:'🎫', price:2.90, desc:'One subway or bus ride', category:'transit' },
+  { id:'metrocard_30day', name:'30-Day Unlimited Metro', icon:'💳', price:132, desc:'Unlimited rides for 30 days', category:'transit' },
+  { id:'coffee', name:'Bodega Coffee', icon:'☕', price:1.50, desc:'+5 rating for the day', category:'food' },
+  { id:'bagel', name:'Bagel & Lox', icon:'🥯', price:4, desc:'+3 morale', category:'food' },
+  { id:'pizza_slice', name:'Dollar Pizza Slice', icon:'🍕', price:2.50, desc:'Classic NYC fuel', category:'food' },
+  { id:'suit_basic', name:'Basic Business Suit', icon:'👔', price:120, desc:'+10 rating permanently', category:'clothing' },
+  { id:'suit_nice', name:'Brooks Brothers Suit', icon:'🎩', price:450, desc:'+20 rating permanently', category:'clothing' },
+  { id:'sneakers', name:'Nike Sneakers', icon:'👟', price:80, desc:'+2 rating', category:'clothing' },
+  { id:'briefcase', name:'Leather Briefcase', icon:'💼', price:200, desc:'+15 rating permanently', category:'clothing' },
+  { id:'cell_phone', name:'Basic Cell Phone', icon:'📱', price:150, desc:'Get job alerts. +5 rating', category:'gear' },
+  { id:'laptop', name:'Laptop', icon:'💻', price:600, desc:'Unlocks office jobs. +15 rating', category:'gear' },
+  { id:'gym', name:'Gym Membership', icon:'💪', price:50, desc:'+3 rating/week', category:'lifestyle' },
+  { id:'networking_event', name:'Networking Event Ticket', icon:'🤝', price:40, desc:'+8 rating, meet contacts', category:'career' },
+  { id:'resume_service', name:'Resume Writing Service', icon:'📄', price:80, desc:'+12 rating permanently', category:'career' },
+  { id:'night_out', name:'Night Out in the City', icon:'🍾', price:120, desc:'Fun! Morale boost', category:'lifestyle' },
+  { id:'book', name:'Business Book', icon:'📚', price:18, desc:'+5 rating over time', category:'career' },
+];
+
+const STOCKS_DB = [
+  { ticker:'NYCD', name:'NYC Developments Corp', price:42.50, volatility:.12 },
+  { ticker:'MTA', name:'Metro Transit Holdings', price:18.20, volatility:.08 },
+  { ticker:'BRX', name:'Bronx Real Estate Index', price:67.30, volatility:.15 },
+  { ticker:'HDSN', name:'Hudson Media Group', price:94.10, volatility:.18 },
+  { ticker:'WALL', name:'Wall Street Financial', price:214.60, volatility:.22 },
+  { ticker:'BKLN', name:'Brooklyn Creative Fund', price:31.40, volatility:.14 },
+];
+
+const NPC_ENCOUNTERS = [
+  { name:"Marcus Chen", type:"WALL STREET WOLF", emoji:"💼", lines:["Kid, in this city you either eat or get eaten.","My suit costs more than your rent. Focus.","I started in the mailroom at 22. Now? Corner office."], ratingBoost:5 },
+  { name:"Rosa Delgado", type:"BODEGA OWNER", emoji:"🏪", lines:["I came here with $200 and a dream. Thirty years later, I own three bodegas.","The city will test you. Don't let it break you.","Show up early, stay late."], ratingBoost:3 },
+  { name:"Tyler Walsh", type:"HEDGE FUND BRO", emoji:"🍾", lines:["My Hamptons house is bigger than this whole block.","Networking is everything. Get a LinkedIn. Seriously.","Let me tell you about compound interest..."], ratingBoost:4 },
+  { name:"Maya Patel", type:"COLUMBIA GRAD STUDENT", emoji:"🎓", lines:["Education is the great equalizer. But so is hustle.","NYU rejected me too. Now I'm getting a PhD."], ratingBoost:6 },
+  { name:"Darnell Jackson", type:"SANITATION WORKER", emoji:"🗑️", lines:["This city is built on people like us. Don't forget it.","Respect everyone. You never know who knows who."], ratingBoost:2 },
+  { name:"Victoria Sterling", type:"UES SOCIALITE", emoji:"👑", lines:["Darling, your shoes... are they from Target?","Image is everything in this city. Invest in yourself."], ratingBoost:7 },
+  { name:"Raj Anand", type:"TECH STARTUP FOUNDER", emoji:"🚀", lines:["Series A funding just closed. Wild.","The best time to start was yesterday. Second best? Today."], ratingBoost:8 },
+  { name:"Old Man Sal", type:"RETIRED LONGSHOREMAN", emoji:"⚓", lines:["I unloaded ships at Red Hook for 40 years. Honest work.","Young person, the secret is: never stop moving."], ratingBoost:3 },
+];
+
+const RANDOM_EVENTS = [
+  { id:'found_wallet', title:'FOUND WALLET', desc:'You found a wallet on the subway with $45 inside.', choices:[
+    { text:'Keep the cash', effect:()=>{ addCash(45); addRating(-3); addLog('Kept the cash. Quick $45.','warn'); }},
+    { text:'Turn it in to MTA Lost & Found', effect:()=>{ addRating(8); addLog('Turned in the wallet. +8 reputation!','good'); }},
+  ]},
+  { id:'rain', title:'SUDDEN DOWNPOUR', desc:'A classic NYC thunderstorm. Zero warning. Streets flood.', choices:[
+    { text:'Buy umbrella ($8)', effect:()=>{ spendCash(8); addLog('Bought a bodega umbrella.','normal'); }},
+    { text:'Get soaked and keep moving', effect:()=>{ addRating(-4); addLog('Arrived to work SOAKED. -4 rating.','bad'); }},
+    { text:'Wait it out in a coffee shop ($5)', effect:()=>{ spendCash(5); advanceHours(1); addLog('Waited it out. Lost an hour.','normal'); }},
+  ]},
+  { id:'subway_delay', title:'SUBWAY NIGHTMARE', desc:"Signal problems at Jay St. You'll be late.", choices:[
+    { text:'Suffer through it', effect:()=>{ addRating(-5); addLog('45-minute delay. Late. -5 rating.','bad'); }},
+    { text:'Grab a cab ($20)', effect:()=>{ if(G.cash>=20){ spendCash(20); addLog('Took a $20 cab and made it!','good'); } else { addRating(-5); addLog("Can't afford a cab. Stuck.","bad"); }}},
+  ]},
+  { id:'overtime', title:'OVERTIME OFFER', desc:'Your boss asks if you can stay late. Double pay for 4 extra hours.', choices:[
+    { text:'Stay for overtime', effect:()=>{ const b=G.job?G.job.pay:50; addCash(b); addRating(6); addLog(`Worked overtime! +$${b} bonus, +6 rating!`,'good'); }},
+    { text:'Decline, you need rest', effect:()=>{ addLog('Went home. Rest is important.','normal'); }},
+  ]},
+  { id:'invest', title:'SUBWAY STOCK TIP', desc:'A guy on the subway swears a penny stock is "guaranteed to 10x." Very suspicious.', choices:[
+    { text:'Invest $200 (gamble!)', effect:()=>{ if(G.cash>=200){ spendCash(200); if(Math.random()>.6){ addCash(600); addLog('IT WORKED! Up 3x! +$600!','good'); } else { addLog('Lost everything. That guy scammed you.','bad'); } } else { addLog('Not enough cash.','warn'); }}},
+    { text:'Ignore it', effect:()=>{ addLog('Smart. Probably a scam.','normal'); }},
+  ]},
+  { id:'karen', title:'KAREN ENCOUNTER', desc:'A woman demands to speak to your manager because you looked at her wrong.', choices:[
+    { text:'Stay professional and smile', effect:()=>{ addRating(5); addLog('Kept cool. Manager praised your patience. +5 rep.','good'); }},
+    { text:'Clap back', effect:()=>{ addRating(-8); addLog('Felt great for 10 seconds. -8 rep.','bad'); }},
+  ]},
+  { id:'rent_raise', title:'RENT INCREASE', desc:'Your landlord slides a note under the door. Rent going up 15%.', choices:[
+    { text:'Accept it', effect:()=>{ G.rentPerWeek=Math.floor(G.rentPerWeek*1.15); updateUI(); addLog('Rent went up. Welcome to NYC.','bad'); }},
+    { text:'Look for cheaper place', effect:()=>{ openHousingMenu(); }},
+    { text:'Negotiate', effect:()=>{ if(G.rating>=60){ addLog('Your confidence impressed him. Rent stays the same!','good'); } else { G.rentPerWeek=Math.floor(G.rentPerWeek*1.15); addLog('He laughed. Raised it anyway.','bad'); }}},
+  ]},
+];
+
+// ═══════════════════════════════════════════════════════════
+// MAP RENDERER
+// ═══════════════════════════════════════════════════════════
+let mapCanvas, ctx, mapScale = 0.85;
+let isDragging = false, lastMouseX, lastMouseY;
+let hoveredLocation = null;
+let miniCanvas, miniCtx;
+
+function initMap() {
+  mapCanvas = document.getElementById('map-canvas');
+  const wrap = mapCanvas.parentElement;
+  mapCanvas.width = wrap.clientWidth;
+  mapCanvas.height = wrap.clientHeight;
+  ctx = mapCanvas.getContext('2d');
+
+  const start = NYC_LOCATIONS.find(l => l.name === G.location);
+  if (start) { G.playerX = start.x; G.playerY = start.y; }
+  G.mapOffsetX = mapCanvas.width/2 - G.playerX * mapScale;
+  G.mapOffsetY = mapCanvas.height/2 - G.playerY * mapScale;
+
+  mapCanvas.addEventListener('mousemove', onMapMouseMove);
+  mapCanvas.addEventListener('mousedown', e => { isDragging=true; lastMouseX=e.clientX; lastMouseY=e.clientY; mapCanvas.style.cursor='grabbing'; });
+  mapCanvas.addEventListener('mouseup', () => { isDragging=false; mapCanvas.style.cursor='grab'; });
+  mapCanvas.addEventListener('mouseleave', () => { isDragging=false; hideTooltip(); });
+  mapCanvas.addEventListener('click', onMapClick);
+  mapCanvas.addEventListener('wheel', e => { e.preventDefault(); const f=e.deltaY<0?1.12:.9; mapScale=Math.min(Math.max(mapScale*f,.35),3.5); drawMap(); updatePlayerMarker(); }, { passive:false });
+  window.addEventListener('resize', () => { mapCanvas.width=wrap.clientWidth; mapCanvas.height=wrap.clientHeight; drawMap(); updatePlayerMarker(); });
+
+  miniCanvas = document.getElementById('minimap-canvas');
+  miniCtx = miniCanvas.getContext('2d');
+  miniCanvas.width = miniCanvas.offsetWidth || 248;
+  miniCanvas.height = 90;
+
+  drawMap();
+  drawMinimap();
+  updatePlayerMarker();
+}
+
+function worldToScreen(wx, wy) { return { x: wx*mapScale+G.mapOffsetX, y: wy*mapScale+G.mapOffsetY }; }
+function screenToWorld(sx, sy) { return { x:(sx-G.mapOffsetX)/mapScale, y:(sy-G.mapOffsetY)/mapScale }; }
+
+function drawMapBase(c, cx, scale, offsetX, offsetY) {
+  // Water
+  cx.fillStyle='#0A1520'; cx.fillRect(0,0,c.width,c.height);
+  cx.save(); cx.translate(offsetX,offsetY); cx.scale(scale,scale);
+  // Manhattan
+  cx.beginPath();
+  cx.moveTo(490,705);cx.lineTo(500,715);cx.lineTo(510,720);cx.lineTo(520,700);cx.lineTo(515,680);cx.lineTo(510,660);cx.lineTo(515,640);cx.lineTo(530,620);cx.lineTo(540,590);cx.lineTo(520,570);cx.lineTo(470,540);cx.lineTo(460,510);cx.lineTo(465,490);cx.lineTo(485,460);cx.lineTo(490,430);cx.lineTo(495,400);cx.lineTo(500,360);cx.lineTo(510,290);cx.lineTo(525,230);cx.lineTo(535,195);cx.lineTo(545,200);cx.lineTo(565,200);cx.lineTo(575,220);cx.lineTo(580,270);cx.lineTo(590,330);cx.lineTo(600,380);cx.lineTo(610,430);cx.lineTo(615,460);cx.lineTo(610,490);cx.lineTo(600,520);cx.lineTo(585,540);cx.lineTo(580,560);cx.lineTo(585,600);cx.lineTo(590,630);cx.lineTo(585,660);cx.lineTo(570,680);cx.lineTo(560,700);cx.lineTo(540,715);cx.lineTo(510,720);cx.closePath();
+  cx.fillStyle='#1A1A18'; cx.fill(); cx.strokeStyle='#2A2A2A'; cx.lineWidth=1; cx.stroke();
+  // Brooklyn
+  cx.beginPath(); cx.moveTo(580,670);cx.lineTo(600,660);cx.lineTo(640,660);cx.lineTo(690,680);cx.lineTo(720,730);cx.lineTo(720,820);cx.lineTo(580,820);cx.lineTo(560,760);cx.lineTo(570,700);cx.closePath();
+  cx.fillStyle='#181818'; cx.fill(); cx.stroke();
+  // Queens
+  cx.beginPath(); cx.moveTo(620,490);cx.lineTo(640,450);cx.lineTo(700,420);cx.lineTo(820,400);cx.lineTo(840,500);cx.lineTo(820,650);cx.lineTo(700,680);cx.lineTo(650,660);cx.lineTo(620,630);cx.lineTo(620,580);cx.lineTo(630,550);cx.lineTo(625,510);cx.closePath();
+  cx.fillStyle='#171717'; cx.fill(); cx.stroke();
+  // Bronx
+  cx.beginPath(); cx.moveTo(570,200);cx.lineTo(590,180);cx.lineTo(650,160);cx.lineTo(700,180);cx.lineTo(720,240);cx.lineTo(700,300);cx.lineTo(660,340);cx.lineTo(620,360);cx.lineTo(590,360);cx.lineTo(575,320);cx.lineTo(565,260);cx.closePath();
+  cx.fillStyle='#161616'; cx.fill(); cx.stroke();
+  // Staten Island
+  cx.beginPath(); cx.moveTo(380,700);cx.lineTo(420,680);cx.lineTo(460,690);cx.lineTo(490,720);cx.lineTo(470,780);cx.lineTo(420,810);cx.lineTo(370,790);cx.lineTo(360,750);cx.closePath();
+  cx.fillStyle='#151515'; cx.fill(); cx.stroke();
+  // Grid
+  cx.strokeStyle='#1e1e1e'; cx.lineWidth=.5;
+  for(let y=210;y<=700;y+=15){ cx.beginPath();cx.moveTo(470,y);cx.lineTo(620,y);cx.stroke(); }
+  for(let x=480;x<=615;x+=20){ cx.beginPath();cx.moveTo(x,200);cx.lineTo(x,720);cx.stroke(); }
+  // Central Park
+  cx.fillStyle='#0F1F0F'; cx.strokeStyle='#1A3A1A'; cx.lineWidth=1; cx.beginPath(); cx.rect(503,345,110,165); cx.fill(); cx.stroke();
+  // Subway lines
+  SUBWAY_LINES.forEach(line => { cx.beginPath(); cx.strokeStyle=line.color+'80'; cx.lineWidth=2.5; line.points.forEach((p,i)=>i===0?cx.moveTo(p[0],p[1]):cx.lineTo(p[0],p[1])); cx.stroke(); });
+  // Bridges
+  cx.strokeStyle='#8B451380'; cx.lineWidth=3;
+  cx.beginPath();cx.moveTo(580,670);cx.lineTo(635,660);cx.stroke();
+  cx.beginPath();cx.moveTo(575,645);cx.lineTo(630,640);cx.stroke();
+  cx.beginPath();cx.moveTo(615,455);cx.lineTo(640,455);cx.stroke();
+  // Water labels
+  cx.fillStyle='#223344'; cx.font=`${Math.max(9,11*scale)}px IBM Plex Mono`;
+  cx.fillText('HUDSON RIVER',380,450); cx.fillText('EAST RIVER',640,560); cx.fillText('UPPER NEW YORK BAY',400,700);
+  cx.restore();
+}
+
+function drawMap() {
+  if(!mapCanvas||!ctx) return;
+  drawMapBase(mapCanvas,ctx,mapScale,G.mapOffsetX,G.mapOffsetY);
+  ctx.save(); ctx.translate(G.mapOffsetX,G.mapOffsetY); ctx.scale(mapScale,mapScale);
+  // Location dots
+  NYC_LOCATIONS.forEach(loc => {
+    const hov = hoveredLocation && hoveredLocation.name===loc.name;
+    const cur = loc.name===G.location;
+    const r = hov?9:5;
+    ctx.beginPath(); ctx.arc(loc.x,loc.y,r,0,Math.PI*2);
+    ctx.fillStyle = cur?'transparent':(hov?loc.color:loc.color+'88'); ctx.fill();
+    if(hov||cur){ ctx.strokeStyle=cur?'var(--yellow)':'#FFD100'; ctx.lineWidth=2; ctx.stroke(); }
+    if(mapScale>.55||hov||cur){ ctx.font=`${hov?'bold ':''} ${Math.max(8,9*mapScale)}px IBM Plex Mono`; ctx.fillStyle=cur?'#FFD100':(hov?'#FFD100':'#888'); ctx.fillText(loc.name,loc.x+9,loc.y+4); }
+    ctx.font=`${Math.max(10,12*mapScale)}px serif`; ctx.fillText(loc.icon,loc.x-6,loc.y+5);
+  });
+  ctx.restore();
+}
+
+function drawMinimap() {
+  if(!miniCanvas||!miniCtx) return;
+  const mw=miniCanvas.width, mh=miniCanvas.height;
+  const ms=mw/1000*0.9, mox=mw/2-560*ms, moy=mh/2-490*ms;
+  drawMapBase(miniCanvas,miniCtx,ms,mox,moy);
+  // Player dot on minimap
+  miniCtx.save(); miniCtx.translate(mox,moy); miniCtx.scale(ms,ms);
+  miniCtx.beginPath(); miniCtx.arc(G.playerX,G.playerY,8,0,Math.PI*2);
+  miniCtx.fillStyle='#FFD100'; miniCtx.fill();
+  miniCtx.restore();
+}
+
+function onMapMouseMove(e) {
+  const rect=mapCanvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  if(isDragging){ G.mapOffsetX+=e.clientX-lastMouseX; G.mapOffsetY+=e.clientY-lastMouseY; lastMouseX=e.clientX; lastMouseY=e.clientY; drawMap(); updatePlayerMarker(); return; }
+  const world=screenToWorld(mx,my);
+  let found=null;
+  for(const loc of NYC_LOCATIONS){ const dx=world.x-loc.x,dy=world.y-loc.y; if(dx*dx+dy*dy<(14/mapScale)**2){found=loc;break;} }
+  if(found!==hoveredLocation){ hoveredLocation=found; drawMap(); }
+  if(found){
+    const tt=document.getElementById('location-tooltip');
+    tt.style.display='block'; tt.style.left=(mx+14)+'px'; tt.style.top=(my-10)+'px';
+    document.getElementById('tt-name').textContent=found.name;
+    document.getElementById('tt-type').textContent=found.type;
+    document.getElementById('tt-action').textContent=found.name===G.location?'YOU ARE HERE · Press X to Explore':'Click to travel here';
+  } else { hideTooltip(); }
+}
+
+function onMapClick(e) {
+  if(!hoveredLocation) return;
+  const loc=hoveredLocation;
+  if(loc.name===G.location){ openExplore(loc.name); } else { travelTo(loc.name,loc.x,loc.y); }
+}
+
+function hideTooltip(){ document.getElementById('location-tooltip').style.display='none'; }
+
+function updatePlayerMarker() {
+  const s=worldToScreen(G.playerX,G.playerY);
+  const m=document.getElementById('player-marker');
+  m.style.left=s.x+'px'; m.style.top=s.y+'px';
+}
+
+function animateCameraTo(wx,wy,cb) {
+  const tx=mapCanvas.width/2-wx*mapScale, ty=mapCanvas.height/2-wy*mapScale;
+  const sx=G.mapOffsetX, sy=G.mapOffsetY;
+  let step=0; const steps=24;
+  const anim=setInterval(()=>{ step++; const t=step/steps; const ease=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; G.mapOffsetX=sx+(tx-sx)*ease; G.mapOffsetY=sy+(ty-sy)*ease; drawMap(); updatePlayerMarker(); if(step>=steps){ clearInterval(anim); if(cb)cb(); } },16);
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAME START
+// ═══════════════════════════════════════════════════════════
+function startGame() {
+  const ori=ORIGIN_CONFIG[selectedOrigin];
+  G.name=(document.getElementById('player-name').value.trim()||'PLAYER').toUpperCase();
+  G.skin=SKIN_EMOJIS[selectedSkin]||'🧑';
+  G.style=selectedStyle; G.origin=selectedOrigin;
+  G.cash=ori.cash; G.rating=ori.rating;
+  document.getElementById('char-portrait').textContent=G.skin;
+  document.getElementById('display-origin').textContent=ori.label;
+
+  document.getElementById('screen-intro').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+
+  // Init stocks
+  STOCKS_DB.forEach(s=>{ G.stocks[s.ticker]={price:s.price,owned:0}; });
+
+  setTimeout(()=>{
+    initMap();
+    updateUI();
+    addLog(`You step off at Penn Station. It's 8AM on a Monday.`,'info');
+    addLog(`You have $${G.cash} in your pocket and ${G.rating} reputation.`,'info');
+    addLog(`New York City doesn't care about your dreams. Prove yourself.`,'warn');
+    addLog(`Start by finding a job. Hit J or tap JOBS.`,'normal');
+    setInterval(gameLoop,5000);
+    setInterval(()=>{ if(Math.random()>.72) triggerRandomEvent(); },50000);
+    setInterval(tickStocks,8000);
+    setInterval(drawMinimap,3000);
+  },100);
+}
+
+let gameLoopTick=0;
+function gameLoop(){
+  gameLoopTick++;
+  G.hour+=1; if(G.hour>=24)G.hour=0;
+  updateTimeDisplay();
+  updateMiniClock();
+  if(G.housing==='shelter'&&gameLoopTick%10===0){ addRating(-1); addLog('Sleeping at the shelter affects your health and morale.','warn'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRAVEL
+// ═══════════════════════════════════════════════════════════
+function travelTo(name,wx,wy) {
+  if(!G.hasMetroCard&&!G.hasMonthlyMetro){
+    const dist=Math.sqrt(Math.pow(wx-G.playerX,2)+Math.pow(wy-G.playerY,2));
+    if(dist>80){ showNotif('Need a MetroCard to travel far! Buy one in SHOP.','orange'); addLog('Tried to travel but no MetroCard.','warn'); return; }
+  }
+  G.location=name; G.playerX=wx; G.playerY=wy;
+  document.getElementById('t-location').textContent='📍 '+name;
+  const locData=NYC_LOCATIONS.find(l=>l.name===name);
+  if(locData){
+    document.getElementById('loc-ctx-name').textContent=locData.icon+' '+name.toUpperCase();
+    document.getElementById('loc-ctx-desc').textContent=locData.desc||'';
+    const actEl=document.getElementById('loc-ctx-actions');
+    actEl.innerHTML=(locData.actions||[]).map(a=>`<button class="ctx-btn" onclick="doContextAction('${name}','${a}')">${a}</button>`).join('');
+  }
+  animateCameraTo(wx,wy);
+  addLog(`Traveled to ${name}.`,'info');
+  if(G.hasMetroCard&&!G.hasMonthlyMetro){ G.hasMetroCard=false; updateMetroStatus(); addLog('Single-ride MetroCard used.','warn'); }
+  updateUI();
+}
+
+function travelSubway() {
+  if(!G.hasMetroCard&&!G.hasMonthlyMetro){ showNotif('Buy a MetroCard first!','orange'); return; }
+  showLocationPicker('🚇 TAKE THE SUBWAY',loc=>travelTo(loc.name,loc.x,loc.y));
+}
+
+// ═══════════════════════════════════════════════════════════
+// OPENWORLD EXPLORE SYSTEM
+// ═══════════════════════════════════════════════════════════
+const EXPLORE_ACTIONS = {
+  "BUY METROCARD":  { cost:2.90, time:0, rep:0, cash:0, desc:'Purchase a single MetroCard for subway travel.', fn:(){ if(G.cash<2.90){showNotif("Not enough cash!",'red');return;} spendCash(2.90);G.hasMetroCard=true;updateMetroStatus();addLog('Bought a single MetroCard.',  'money');showNotif('MetroCard purchased! 🎫','green');} },
+  "ASK FOR DIRECTIONS":{ cost:0,time:0,rep:1,cash:0,desc:'A friendly tourist helps you figure out the subway.', fn:(){ addRating(1); addLog('Got directions. +1 rep.','good'); } },
+  "BUSKING":        { cost:0,time:2,rep:3,cash:0,desc:'Play music in the subway station. You might make some money.', fn:(){ const earn=Math.floor(Math.random()*35+10); addCash(earn); addRating(2); addLog(`Busked at ${G.location}. Earned $${earn}.`,'money'); advanceHours(2); } },
+  "SELL SOUVENIRS": { cost:15,time:2,rep:0,cash:0,desc:'Buy cheap and sell high to tourists. High-risk, high-reward.',  fn:(){ if(G.cash<15){showNotif("Need $15 for stock!",'red');return;} spendCash(15); const earn=Math.floor(Math.random()*60+20); addCash(earn); addLog(`Sold souvenirs at ${G.location}. +$${earn}.`,'money'); advanceHours(2); } },
+  "SPOT CELEBRITIES":{ cost:0,time:1,rep:2,cash:0,desc:'Keep your eyes open in Times Square. Someone famous might walk by.',fn:(){ if(Math.random()>.5){ addRating(3); addLog('Spotted a celebrity! Great story. +3 rep.','good'); }else{ addLog('No celebs today. Just tourists.','normal'); } advanceHours(1); } },
+  "MEET CONTACT":   { cost:0,time:1,rep:0,cash:0,desc:'Grand Central is full of professionals. Make a connection.',fn:(){ talkToNPC(); advanceHours(1); } },
+  "SHINE SHOES":    { cost:0,time:3,rep:0,cash:0,desc:'Old school hustle. Commuters at Grand Central pay well.',fn:(){ const earn=Math.floor(Math.random()*45+20); addCash(earn); addLog(`Shined shoes at Grand Central. +$${earn}.`,'money'); advanceHours(3); } },
+  "APPLY AT NBC":   { cost:0,time:1,rep:5,cash:0,desc:'Drop off your resume at 30 Rock. You never know.',fn:(){ if(G.rating>=50){ addRating(8); addLog('NBC called. Interview next week! +8 rep.','good'); }else{ addRating(3); addLog('Left a resume. They were polite. +3 rep.','normal'); } advanceHours(1); } },
+  "LOOK FOR GIGS":  { cost:0,time:1,rep:2,cash:0,desc:'Check the bulletin boards for freelance work.',fn:(){ addRating(2); addCash(Math.floor(Math.random()*30)); addLog(`Found a small gig near ${G.location}.`,'good'); advanceHours(1); } },
+  "WINDOW SHOP":    { cost:0,time:1,rep:1,cash:0,desc:'You can\'t afford anything on 5th Avenue. But you can look.',fn:(){ addRating(1); addLog('Walked 5th Avenue. Set a goal.','normal'); advanceHours(1); } },
+  "MEET CLIENTS":   { cost:0,time:2,rep:5,cash:0,desc:'Professional coffee meeting. Expand your network.',fn:(){ if(G.rating>=50){ addRating(7); addCash(Math.floor(Math.random()*100)); addLog('Client meeting went great! Network growing.','good'); }else{ addRating(2); addLog('Meeting was cordial. Room to grow.','normal'); } advanceHours(2); } },
+  "USHER JOB":      { cost:0,time:4,rep:2,cash:0,desc:'Work an event at Madison Square Garden.',fn:(){ const earn=80+Math.floor(Math.random()*40); addCash(earn); addRating(2); addLog(`Worked MSG as an usher. +$${earn}.`,'money'); advanceHours(4); } },
+  "SCALP TICKETS":  { cost:30,time:2,rep:-2,cash:0,desc:'Risky. Illegal. But people do it.',fn:(){ if(G.cash<30){showNotif("Need $30 for tickets!",'red');return;} spendCash(30); if(Math.random()>.35){ const earn=Math.floor(Math.random()*120+50); addCash(earn); addLog(`Scalped tickets. Made $${earn}.`,'warn'); }else{ addRating(-5); addLog('Cop spotted you. -5 rep.','bad'); } advanceHours(2); } },
+  "CHESS HUSTLE":   { cost:0,time:1,rep:0,cash:0,desc:'Challenge people in Bryant Park. $5 a game.',fn:(){ if(Math.random()>.4){ addCash(15); addLog('Won 3 chess games in Bryant Park. +$15.','good'); }else{ spendCash(5); addLog('Lost a chess match. -$5. Humbling.','warn'); } advanceHours(1); } },
+  "RELAX":          { cost:0,time:2,rep:0,cash:0,desc:'Just sit in the park for a bit. You\'ve earned it.',fn:(){ addRating(2); addLog(`Relaxed in ${G.location}. Restored morale.`,'good'); advanceHours(2); } },
+  "JOG":            { cost:0,time:1,rep:3,cash:0,desc:'A run through Central Park. Classic New Yorker move.',fn:(){ addRating(3); addLog('Morning jog around the reservoir. +3 rep.','good'); advanceHours(1); } },
+  "MEET SOMEONE":   { cost:0,time:1,rep:0,cash:0,desc:'Parks are where connections happen.',fn:(){ talkToNPC(); advanceHours(1); } },
+  "DOG WALKING":    { cost:0,time:3,rep:1,cash:0,desc:'Rich neighborhoods have rich dogs. And they tip.',fn:(){ const earn=40+Math.floor(Math.random()*40); addCash(earn); addLog(`Walked dogs in ${G.location}. +$${earn}.`,'money'); advanceHours(3); } },
+  "NANNY JOB":      { cost:0,time:5,rep:0,cash:0,desc:'Watch wealthy children on the Upper East Side.',fn:(){ const earn=80+Math.floor(Math.random()*60); addCash(earn); addLog(`Nannied for a family on the UES. +$${earn}.`,'money'); advanceHours(5); } },
+  "CATERING":       { cost:0,time:4,rep:2,cash:0,desc:'Work a high-end event in the neighborhood.',fn:(){ const earn=100+Math.floor(Math.random()*80); addCash(earn); addRating(2); addLog(`Catered an event. +$${earn}.`,'money'); advanceHours(4); } },
+  "BABYSIT":        { cost:0,time:4,rep:1,cash:0,desc:'Reliable neighborhood babysitting.',fn:(){ const earn=60+Math.floor(Math.random()*40); addCash(earn); addLog(`Babysat in ${G.location}. +$${earn}.`,'money'); advanceHours(4); } },
+  "GROCERY DELIVERY":{ cost:0,time:2,rep:1,cash:0,desc:'Apps are always hiring delivery people.',fn:(){ const earn=30+Math.floor(Math.random()*30); addCash(earn); addLog(`Grocery delivery run. +$${earn}.`,'money'); advanceHours(2); } },
+  "LIVE MUSIC":     { cost:5,time:2,rep:3,cash:0,desc:'See a show at a local Harlem venue.',fn:(){ if(G.cash<5){showNotif("Need $5 cover!",'red');return;} spendCash(5); addRating(4); addLog('Caught live jazz in Harlem. +4 rep.','good'); advanceHours(2); } },
+  "COMMUNITY WORK": { cost:0,time:3,rep:6,cash:0,desc:'Volunteer in the neighborhood. Reputation gold.',fn:(){ addRating(6); addLog(`Volunteered in ${G.location}. +6 rep.`,'good'); advanceHours(3); } },
+  "HUSTLE":         { cost:0,time:2,rep:0,cash:0,desc:'General street hustle. Something will turn up.',fn:(){ const earn=Math.floor(Math.random()*50); addCash(earn); addLog(`Hustled around ${G.location}. Made $${earn}.`,'money'); advanceHours(2); } },
+  "FOOD CART":      { cost:20,time:4,rep:1,cash:0,desc:'Buy supplies and run a food cart for the day.',fn:(){ if(G.cash<20){showNotif("Need $20 for supplies!",'red');return;} spendCash(20); const earn=50+Math.floor(Math.random()*80); addCash(earn); addLog(`Ran a food cart. Net +$${earn-20}.`,'money'); advanceHours(4); } },
+  "TRANSLATE":      { cost:0,time:2,rep:3,cash:0,desc:'Help people who don\'t speak the language. Build bridges.',fn:(){ addRating(3); addCash(20); addLog('Helped translate. +$20 tip, +3 rep.','good'); advanceHours(2); } },
+  "CONNECT":        { cost:0,time:1,rep:2,cash:0,desc:'Chat with locals. This is how NYC really works.',fn:(){ talkToNPC(); addRating(2); advanceHours(1); } },
+  "APPLY TO COURSES":{ cost:200,time:0,rep:8,cash:0,desc:'Take a professional development course at Columbia.',fn:(){ if(G.cash<200){showNotif("Need $200 for tuition!",'red');return;} spendCash(200); addRating(8); addLog('Enrolled in a course at Columbia. +8 rep.','good'); } },
+  "CAMPUS JOB":     { cost:0,time:4,rep:2,cash:0,desc:'Work in the university library or cafeteria.',fn:(){ const earn=60+Math.floor(Math.random()*30); addCash(earn); addRating(2); addLog(`Campus job. +$${earn}.`,'money'); advanceHours(4); } },
+  "TUTORING":       { cost:0,time:2,rep:3,cash:0,desc:'Tutor Columbia students. Good money, good connections.',fn:(){ const earn=50+Math.floor(Math.random()*50); addCash(earn); addRating(3); addLog(`Tutored a student. +$${earn}.`,'money'); advanceHours(2); } },
+  "TRADE STOCKS":   { cost:0,time:1,rep:0,cash:0,desc:'Check the market and make a trade.',fn:(){ openStockMarket(); } },
+  "NETWORK":        { cost:0,time:1,rep:0,cash:0,desc:'Wall Street is all about who you know.',fn:(){ talkToNPC(); advanceHours(1); } },
+  "INTERNSHIP":     { cost:0,time:4,rep:6,cash:0,desc:'Unpaid internship at a finance firm. Worth it for rep.',fn:(){ if(G.rating<40){showNotif("Need 40+ reputation!",'orange');return;} addRating(6); addLog('Interned at a finance firm. +6 rep.','good'); advanceHours(4); } },
+  "TOURIST GUIDE":  { cost:0,time:3,rep:1,cash:0,desc:'Show visitors around. Tips are good.',fn:(){ const earn=30+Math.floor(Math.random()*50); addCash(earn); addLog(`Guided tourists. +$${earn} in tips.`,'money'); advanceHours(3); } },
+  "STREET PERFORMANCE":{ cost:0,time:2,rep:2,cash:0,desc:'Dance, mime, juggle — whatever works.',fn:(){ const earn=Math.floor(Math.random()*40+10); addCash(earn); addRating(2); addLog(`Street performance. +$${earn}.`,'money'); advanceHours(2); } },
+  "FISH":           { cost:0,time:3,rep:1,cash:0,desc:'Cast a line. Meditative. Sometimes tasty.',fn:(){ addRating(1); addLog('Went fishing off the pier. Nice afternoon.','normal'); advanceHours(3); } },
+  "FERRY TICKET":   { cost:0,time:2,rep:2,cash:0,desc:'Take the free Staten Island Ferry. Best skyline view.',fn:(){ addRating(2); addLog('Took the Staten Island Ferry. Stunning views.','good'); advanceHours(2); } },
+  "PHOTOGRAPHY":    { cost:0,time:2,rep:2,cash:0,desc:'Document the city. Maybe sell prints.',fn:(){ const earn=Math.floor(Math.random()*60); addCash(earn); addRating(2); addLog(`Photography session. Made $${earn}.`,'money'); advanceHours(2); } },
+  "SELL PORTRAITS": { cost:0,time:3,rep:2,cash:0,desc:'Draw caricatures for tourists on the bridge.',fn:(){ const earn=20+Math.floor(Math.random()*60); addCash(earn); addLog(`Sold portraits. +$${earn}.`,'money'); advanceHours(3); } },
+  "FISH MARKET":    { cost:0,time:5,rep:1,cash:0,desc:'Early morning work at the Seaport fish market.',fn:(){ const earn=90+Math.floor(Math.random()*40); addCash(earn); addLog(`Fish market shift. +$${earn}.`,'money'); advanceHours(5); } },
+  "STREET FOOD":    { cost:15,time:3,rep:1,cash:0,desc:'Set up a small food operation near the seaport.',fn:(){ if(G.cash<15){showNotif("Need $15!",'red');return;} spendCash(15); const earn=40+Math.floor(Math.random()*70); addCash(earn); addLog(`Street food. Net +$${earn-15}.`,'money'); advanceHours(3); } },
+  "PIZZA":          { cost:4,time:1,rep:1,cash:0,desc:'Real New York slice. You need this.',fn:(){ if(G.cash<4){showNotif("Need $4!",'red');return;} spendCash(4); addRating(2); addLog('Had a proper NYC pizza slice. +2 morale.','good'); advanceHours(1); } },
+  "CAFÉ JOB":       { cost:0,time:4,rep:1,cash:0,desc:'Work a shift at a Little Italy café.',fn:(){ const earn=70+Math.floor(Math.random()*40); addCash(earn); addLog(`Café shift in Little Italy. +$${earn}.`,'money'); advanceHours(4); } },
+  "CONNECTIONS":    { cost:10,time:2,rep:5,cash:0,desc:'Buy dinner for a contact. Investment.',fn:(){ if(G.cash<10){showNotif("Need $10!",'red');return;} spendCash(10); addRating(5); addLog('Built connections over dinner. +5 rep.','good'); advanceHours(2); } },
+  "GALLERY OPENING":{ cost:0,time:2,rep:4,cash:0,desc:'Free wine and networking at an art opening.',fn:(){ addRating(4); addLog('Gallery opening in SoHo. Good vibes, free wine.','good'); advanceHours(2); } },
+  "STREET ART":     { cost:5,time:3,rep:3,cash:0,desc:'Leave your mark. Buy spray paint first.',fn:(){ if(G.cash<5){showNotif("Need $5 for paint!",'red');return;} spendCash(5); addRating(3); addLog('Created street art in SoHo. +3 rep.','good'); advanceHours(3); } },
+  "MODEL SCOUT":    { cost:0,time:1,rep:0,cash:0,desc:'SoHo is full of scouts. Maybe today is your day.',fn:(){ if(Math.random()>.8){ addRating(10); addCash(200); addLog('SCOUTED! Modeling gig landed. +$200, +10 rep!','good'); }else{ addLog('No scout today. Your time will come.','normal'); } advanceHours(1); } },
+  "OPEN MIC":       { cost:3,time:2,rep:3,cash:0,desc:'Perform at a Village open mic.',fn:(){ if(G.cash<3){showNotif("Need $3 cover!",'red');return;} spendCash(3); addRating(3); addLog('Performed at an open mic. +3 rep.','good'); advanceHours(2); } },
+  "FIND ROOMMATES": { cost:0,time:1,rep:1,cash:0,desc:'Check the bulletin boards for roommate listings.',fn:(){ addRating(1); openHousingMenu(); } },
+  "GALLERY WORK":   { cost:0,time:5,rep:4,cash:0,desc:'Work an event at a Chelsea gallery.',fn:(){ const earn=90+Math.floor(Math.random()*60); addCash(earn); addRating(4); addLog(`Gallery work in Chelsea. +$${earn}.`,'money'); advanceHours(5); } },
+  "HIGH LINE VENDOR":{ cost:20,time:4,rep:1,cash:0,desc:'Sell food or crafts on the High Line.',fn:(){ if(G.cash<20){showNotif("Need $20!",'red');return;} spendCash(20); const earn=55+Math.floor(Math.random()*80); addCash(earn); addLog(`High Line vending. Net +$${earn-20}.`,'money'); advanceHours(4); } },
+  "ART DEAL":       { cost:50,time:2,rep:5,cash:0,desc:'Buy art cheap, flip it at another gallery.',fn:(){ if(G.cash<50){showNotif("Need $50!",'red');return;} spendCash(50); if(Math.random()>.45){ const earn=120+Math.floor(Math.random()*200); addCash(earn); addLog(`Art flip! Sold for $${earn}.`,'good'); }else{ addLog('Art didn\'t sell. Lost $50.','bad'); } advanceHours(2); } },
+  "NETWORKING":     { cost:0,time:1,rep:5,cash:0,desc:'Work the room at Gramercy.',fn:(){ if(G.rating>=55){ addRating(7); addLog('Networked at Gramercy. +7 rep.','good'); }else{ addRating(3); addLog('Made some contacts. +3 rep.','normal'); } advanceHours(1); } },
+  "STARTUP JOB":    { cost:0,time:4,rep:3,cash:0,desc:'Work a shift at a Flatiron startup.',fn:(){ const earn=100+Math.floor(Math.random()*80); addCash(earn); addRating(3); addLog(`Startup gig at Flatiron. +$${earn}.`,'money'); advanceHours(4); } },
+  "PITCH MEETING":  { cost:0,time:2,rep:5,cash:0,desc:'Present your idea to a Flatiron VC.',fn:(){ if(G.rating>=60){ addRating(8); addLog('Pitch meeting nailed. +8 rep.','good'); }else{ addRating(3); addLog('Pitch could use work. +3 rep.','normal'); } advanceHours(2); } },
+  "INDIE MUSIC":    { cost:8,time:2,rep:3,cash:0,desc:'See a show at a Williamsburg venue.',fn:(){ if(G.cash<8){showNotif("Need $8!",'red');return;} spendCash(8); addRating(3); addLog('Saw an indie show in Williamsburg. +3 rep.','good'); advanceHours(2); } },
+  "COFFEE SHOP":    { cost:0,time:3,rep:1,cash:0,desc:'Work a shift at a Williamsburg coffee shop.',fn:(){ const earn=65+Math.floor(Math.random()*35); addCash(earn); addLog(`Coffee shop shift. +$${earn}.`,'money'); advanceHours(3); } },
+  "FOOD TRUCK":     { cost:25,time:4,rep:1,cash:0,desc:'Run a food truck in Williamsburg.',fn:(){ if(G.cash<25){showNotif("Need $25!",'red');return;} spendCash(25); const earn=70+Math.floor(Math.random()*100); addCash(earn); addLog(`Food truck in Williamsburg. Net +$${earn-25}.`,'money'); advanceHours(4); } },
+  "TECH INTERNSHIP":{ cost:0,time:5,rep:8,cash:0,desc:'Unpaid internship at a DUMBO tech startup.',fn:(){ if(G.rating<45){showNotif("Need 45+ rep!",'orange');return;} addRating(8); addLog('DUMBO tech internship. +8 rep.','good'); advanceHours(5); } },
+  "PHOTO SHOOT":    { cost:0,time:3,rep:4,cash:0,desc:'DUMBO is the best photo backdrop in NYC.',fn:(){ addRating(4); addCash(Math.floor(Math.random()*80)); addLog('Photo shoot under the Manhattan Bridge.','good'); advanceHours(3); } },
+  "STUDIO WORK":    { cost:0,time:4,rep:3,cash:0,desc:'Freelance work at a design studio.',fn:(){ if(G.rating<35){showNotif("Need 35+ rep!",'orange');return;} const earn=80+Math.floor(Math.random()*80); addCash(earn); addRating(3); addLog(`Studio work in DUMBO. +$${earn}.`,'money'); advanceHours(4); } },
+  "LEGAL AID":      { cost:0,time:2,rep:4,cash:0,desc:'Volunteer at the legal aid clinic.',fn:(){ addRating(4); addLog('Volunteered at legal aid. +4 rep.','good'); advanceHours(2); } },
+  "PARALEGAL":      { cost:0,time:5,rep:3,cash:0,desc:'Paralegal temp work in Downtown Brooklyn.',fn:(){ if(G.rating<40){showNotif("Need 40+ rep!",'orange');return;} const earn=110+Math.floor(Math.random()*50); addCash(earn); addRating(3); addLog(`Paralegal work. +$${earn}.`,'money'); advanceHours(5); } },
+  "CLERK JOB":      { cost:0,time:4,rep:2,cash:0,desc:'File clerk at the municipal building.',fn:(){ const earn=70+Math.floor(Math.random()*40); addCash(earn); addRating(2); addLog(`Clerk job. +$${earn}.`,'money'); advanceHours(4); } },
+  "RIDE OPERATOR":  { cost:0,time:6,rep:1,cash:0,desc:'Work the rides at Coney Island all day.',fn:(){ const earn=100+Math.floor(Math.random()*60); addCash(earn); addRating(1); addLog(`Coney Island rides operator. +$${earn}.`,'money'); advanceHours(6); } },
+  "BEACH VENDOR":   { cost:15,time:4,rep:1,cash:0,desc:'Sell cold drinks and snacks on the beach.',fn:(){ if(G.cash<15){showNotif("Need $15!",'red');return;} spendCash(15); const earn=45+Math.floor(Math.random()*75); addCash(earn); addLog(`Beach vending at Coney. Net +$${earn-15}.`,'money'); advanceHours(4); } },
+  "BOARDWALK":      { cost:5,time:2,rep:2,cash:0,desc:'Enjoy the Coney Island boardwalk.',fn:(){ if(G.cash<5){showNotif("Need $5!",'red');return;} spendCash(5); addRating(2); addLog('Boardwalk at Coney Island. Good vibes.','good'); advanceHours(2); } },
+  "HANDYMAN":       { cost:0,time:3,rep:2,cash:0,desc:'Fix things for neighbors. Cash in hand.',fn:(){ const earn=50+Math.floor(Math.random()*60); addCash(earn); addRating(2); addLog(`Handyman work in ${G.location}. +$${earn}.`,'money'); advanceHours(3); } },
+  "RESTAURANT WORK":{ cost:0,time:5,rep:1,cash:0,desc:'Kitchen or front of house at an Astoria restaurant.',fn:(){ const earn=90+Math.floor(Math.random()*60); addCash(earn); addRating(1); addLog(`Restaurant work in Astoria. +$${earn}.`,'money'); advanceHours(5); } },
+  "DINER JOB":      { cost:0,time:4,rep:1,cash:0,desc:'Classic Greek diner. Great tips from regulars.',fn:(){ const earn=70+Math.floor(Math.random()*50)+20; addCash(earn); addRating(1); addLog(`Diner shift in Astoria. +$${earn} with tips.`,'money'); advanceHours(4); } },
+  "GREEK FEST":     { cost:5,time:2,rep:2,cash:0,desc:'Astoria\'s Greek festival. Food, music, connections.',fn:(){ if(G.cash<5){showNotif("Need $5 entry!",'red');return;} spendCash(5); addRating(2); addCash(Math.floor(Math.random()*30)); addLog('Greek Festival in Astoria. Great food and connections.','good'); advanceHours(2); } },
+  "FOOD STALL":     { cost:20,time:4,rep:1,cash:0,desc:'Set up a stall in the Flushing food hall.',fn:(){ if(G.cash<20){showNotif("Need $20!",'red');return;} spendCash(20); const earn=60+Math.floor(Math.random()*90); addCash(earn); addLog(`Food stall in Flushing. Net +$${earn-20}.`,'money'); advanceHours(4); } },
+  "IMPORT SHOP":    { cost:30,time:3,rep:2,cash:0,desc:'Buy goods from the Flushing mall and resell.',fn:(){ if(G.cash<30){showNotif("Need $30!",'red');return;} spendCash(30); const earn=50+Math.floor(Math.random()*100); addCash(earn); addLog(`Import goods flip. Net +$${earn-30}.`,'money'); advanceHours(3); } },
+  "MAILING WORK":   { cost:0,time:3,rep:1,cash:0,desc:'Help with shipping and mailing for local businesses.',fn:(){ const earn=55+Math.floor(Math.random()*35); addCash(earn); addRating(1); addLog(`Mailing work in Flushing. +$${earn}.`,'money'); advanceHours(3); } },
+  "SKYCAP JOB":     { cost:0,time:5,rep:1,cash:0,desc:'Help travelers with bags at JFK. Tips are strong.',fn:(){ const earn=80+Math.floor(Math.random()*80); addCash(earn); addRating(1); addLog(`JFK skycap shift. +$${earn} with tips.`,'money'); advanceHours(5); } },
+  "LIMO DRIVER":    { cost:0,time:6,rep:2,cash:0,desc:'Drive airport runs. Long hours, steady money.',fn:(){ if(!G.inventory.some(i=>i.name.includes('Car'))){showNotif("Need a car first!",'orange');return;} const earn=150+Math.floor(Math.random()*100); addCash(earn); addRating(2); addLog(`Airport limo runs. +$${earn}.`,'money'); advanceHours(6); } },
+  "CUSTOMS WORK":   { cost:0,time:5,rep:3,cash:0,desc:'Government customs clerk position at JFK.',fn:(){ if(G.rating<55){showNotif("Need 55+ rep!",'orange');return;} const earn=120+Math.floor(Math.random()*60); addCash(earn); addRating(3); addLog(`Customs work at JFK. +$${earn}.`,'money'); advanceHours(5); } },
+  "HIP HOP EVENT":  { cost:5,time:2,rep:3,cash:0,desc:'A free-form event at a Bronx community center.',fn:(){ if(G.cash<5){showNotif("Need $5!",'red');return;} spendCash(5); addRating(3); addLog('Hip hop event in the Bronx. Incredible energy.','good'); advanceHours(2); } },
+  "VENDOR JOB":     { cost:0,time:5,rep:1,cash:0,desc:'Sell programs and snacks at Yankee Stadium.',fn:(){ const earn=80+Math.floor(Math.random()*60); addCash(earn); addRating(1); addLog(`Stadium vendor. +$${earn} tips included.`,'money'); advanceHours(5); } },
+  "WATCH GAME":     { cost:25,time:3,rep:2,cash:0,desc:'Get a nosebleed seat and watch the Yankees.',fn:(){ if(G.cash<25){showNotif("Need $25!",'red');return;} spendCash(25); addRating(2); addLog('Watched the Yankees. Worth every penny.','good'); advanceHours(3); } },
+  "SEWING WORK":    { cost:0,time:3,rep:1,cash:0,desc:'Garment work in the Jackson Heights district.',fn:(){ const earn=50+Math.floor(Math.random()*40); addCash(earn); addRating(1); addLog(`Sewing work in Jackson Heights. +$${earn}.`,'money'); advanceHours(3); } },
+};
+
+function openExplore(locationName) {
+  const loc = NYC_LOCATIONS.find(l=>l.name===locationName);
+  if (!loc) return;
+  const panel = document.getElementById('explore-overlay');
+  document.getElementById('explore-title').textContent = loc.icon + ' ' + locationName.toUpperCase();
+  document.getElementById('explore-desc').textContent = loc.desc || 'Explore what this part of the city has to offer.';
+  const actEl = document.getElementById('explore-actions');
+  actEl.innerHTML = '';
+  (loc.actions || []).forEach(actionName => {
+    const act = EXPLORE_ACTIONS[actionName];
+    if (!act) return;
+    const div = document.createElement('div');
+    div.className = 'explore-action';
+    const costStr = act.cost > 0 ? `Costs $${act.cost} · ` : '';
+    const timeStr = act.time > 0 ? `${act.time}h · ` : '';
+    div.innerHTML = `<span class="explore-action-icon">${getActionIcon(actionName)}</span><div style="flex:1"><div class="explore-action-name">${actionName}</div><div class="explore-action-cost">${costStr}${timeStr}${act.desc}</div></div>`;
+    div.onclick = () => { if(act.fn){ try{act.fn();}catch(e){} } drawMinimap(); };
+    actEl.appendChild(div);
+  });
+  panel.style.display = 'flex';
+}
+
+function getActionIcon(name) {
+  const icons = { "BUY METROCARD":"🎫","BUSKING":"🎵","SELL SOUVENIRS":"🗽","SPOT CELEBRITIES":"⭐","MEET CONTACT":"🤝","SHINE SHOES":"👟","APPLY AT NBC":"📺","LOOK FOR GIGS":"📋","WINDOW SHOP":"👀","MEET CLIENTS":"💼","USHER JOB":"🏟️","SCALP TICKETS":"🎟️","CHESS HUSTLE":"♟️","RELAX":"😌","JOG":"🏃","MEET SOMEONE":"👋","DOG WALKING":"🐕","NANNY JOB":"👶","CATERING":"🍽️","BABYSIT":"🧸","GROCERY DELIVERY":"🛒","LIVE MUSIC":"🎷","COMMUNITY WORK":"🤲","HUSTLE":"💪","FOOD CART":"🌮","TRANSLATE":"🗣️","CONNECT":"🤝","APPLY TO COURSES":"📚","CAMPUS JOB":"🎓","TUTORING":"✏️","TRADE STOCKS":"📈","NETWORK":"👔","INTERNSHIP":"💼","TOURIST GUIDE":"🗺️","STREET PERFORMANCE":"🎪","FISH":"🎣","FERRY TICKET":"⛴️","PHOTOGRAPHY":"📸","SELL PORTRAITS":"🎨","FISH MARKET":"🐟","STREET FOOD":"🌮","PIZZA":"🍕","CAFÉ JOB":"☕","CONNECTIONS":"🤝","GALLERY OPENING":"🖼️","STREET ART":"🎨","MODEL SCOUT":"✨","OPEN MIC":"🎤","FIND ROOMMATES":"🏠","GALLERY WORK":"🖼️","HIGH LINE VENDOR":"🌿","ART DEAL":"💰","NETWORKING":"🤝","STARTUP JOB":"💻","PITCH MEETING":"🚀","INDIE MUSIC":"🎸","COFFEE SHOP":"☕","FOOD TRUCK":"🚚","TECH INTERNSHIP":"💻","PHOTO SHOOT":"📷","STUDIO WORK":"🎨","LEGAL AID":"⚖️","PARALEGAL":"📋","CLERK JOB":"📁","RIDE OPERATOR":"🎡","BEACH VENDOR":"🏖️","BOARDWALK":"🎠","HANDYMAN":"🔧","RESTAURANT WORK":"👨‍🍳","DINER JOB":"🍳","GREEK FEST":"🫒","FOOD STALL":"🥟","IMPORT SHOP":"📦","MAILING WORK":"📬","SKYCAP JOB":"🧳","LIMO DRIVER":"🚗","CUSTOMS WORK":"🛃","HIP HOP EVENT":"🎤","VENDOR JOB":"🌭","WATCH GAME":"⚾","SEWING WORK":"🧵","ASK FOR DIRECTIONS":"🧭","NEGOTIATION":"🤝","LOOK FOR GIGS":"🔍" };
+  return icons[name] || '⚡';
+}
+
+function closeExplore() { document.getElementById('explore-overlay').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════════
+// STOCK MARKET
+// ═══════════════════════════════════════════════════════════
+function tickStocks() {
+  STOCKS_DB.forEach(s => {
+    const change = (Math.random() - .48) * s.volatility * s.price;
+    G.stocks[s.ticker].price = Math.max(.01, G.stocks[s.ticker].price + change);
+  });
+  // Recalculate portfolio value
+  G.portfolio = STOCKS_DB.reduce((sum,s)=>sum+G.stocks[s.ticker].price*G.stocks[s.ticker].owned,0);
+  document.getElementById('stat-portfolio').textContent='$'+G.portfolio.toFixed(2);
+}
+
+function openStockMarket() {
+  let html = `<div class="event-header"><div class="event-type-tag">WALL STREET</div><div class="event-title">STOCK MARKET</div><div class="event-location">Portfolio: $${G.portfolio.toFixed(2)} · Cash: $${G.cash.toFixed(2)}</div></div><div class="event-body"><p class="event-description">Buy low, sell high. Market is live and prices fluctuate.</p>`;
+  STOCKS_DB.forEach(s => {
+    const st = G.stocks[s.ticker];
+    const change = st.price - s.price;
+    const chStr = (change>=0?'+':'')+change.toFixed(2);
+    html += `<div class="stock-row">
+      <div><div class="stock-name">${s.name}</div><div class="stock-ticker">${s.ticker} · Owned: ${st.owned}</div></div>
+      <div style="text-align:right">
+        <div class="stock-price">$${st.price.toFixed(2)}</div>
+        <div class="${change>=0?'stock-change-pos':'stock-change-neg'}">${chStr}</div>
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <button class="map-btn" style="font-size:9px;padding:3px 8px;" onclick="buyStock('${s.ticker}')">BUY</button>
+          <button class="map-btn" style="font-size:9px;padding:3px 8px;" onclick="sellStock('${s.ticker}')">SELL</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += `</div><div style="padding:0 22px 16px;"><button class="choice-btn" onclick="closeEvent()">← BACK TO CITY</button></div>`;
+  showEvent(html);
+}
+
+function buyStock(ticker) {
+  const s = STOCKS_DB.find(s=>s.ticker===ticker);
+  const st = G.stocks[ticker];
+  if(G.cash<st.price){showNotif("Not enough cash!",'red');return;}
+  spendCash(st.price); st.owned++;
+  addLog(`Bought 1 share of ${ticker} @ $${st.price.toFixed(2)}.`,'money');
+  showNotif(`Bought ${ticker}!`,'green');
+  openStockMarket();
+}
+
+function sellStock(ticker) {
+  const st = G.stocks[ticker];
+  if(st.owned<1){showNotif("You don't own any shares!",'orange');return;}
+  st.owned--; addCash(st.price);
+  addLog(`Sold 1 share of ${ticker} @ $${st.price.toFixed(2)}.`,'money');
+  showNotif(`Sold ${ticker}! +$${st.price.toFixed(2)}`,'green');
+  openStockMarket();
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMISSION NEGOTIATION
+// ═══════════════════════════════════════════════════════════
+function negotiateCommission() {
+  if(!G.job){showNotif("You don't have a job!",'orange');return;}
+  if(G.commission>0){showNotif(`Already have ${G.commission}% commission.`,'orange');return;}
+  if(G.rating<55){showNotif("Need 55+ reputation to negotiate.",'orange');return;}
+  const html=`<div class="event-header"><div class="event-type-tag">NEGOTIATION</div><div class="event-title">COMMISSION DEAL</div><div class="event-location">Current Job: ${G.job.title}</div></div>
+  <div class="event-body"><p class="event-description">Your boss has agreed to a performance conversation. Your reputation of ${G.rating} speaks for itself.</p>
+  <div class="event-choices">
+    <button class="choice-btn" onclick="resolveCommission(5)"><span class="choice-key">A</span> Ask for 5% commission on all sales</button>
+    <button class="choice-btn" onclick="resolveCommission(10)"><span class="choice-key">B</span> Push for 10% (higher risk)</button>
+    <button class="choice-btn" onclick="closeEvent()"><span class="choice-key">C</span> Not the right time</button>
+  </div></div>`;
+  showEvent(html);
+}
+
+function resolveCommission(pct) {
+  const chance = G.rating >= 70 ? .8 : G.rating >= 60 ? .6 : .4;
+  if(Math.random()<chance){ G.commission=pct; document.getElementById('stat-commission').textContent=pct+'%'; addLog(`Negotiated ${pct}% commission! Nice work.`,'good'); showNotif(`${pct}% commission secured!`,'green'); }
+  else { addRating(-3); addLog(`Boss said no. -3 rep. Try again when you're stronger.`,'bad'); }
+  closeEvent();
+}
+
+// ═══════════════════════════════════════════════════════════
+// WARDROBE
+// ═══════════════════════════════════════════════════════════
+function openWardrobePanel() {
+  const outfits = G.inventory.filter(i=>['suit','Suit','Sneakers','Hat','coat'].some(k=>i.name.includes(k)));
+  const html=`<div class="event-header"><div class="event-type-tag">YOUR CLOSET</div><div class="event-title">WARDROBE</div></div>
+  <div class="event-body"><p class="event-description">What you wear defines how people perceive you in this city.</p>
+  ${outfits.length?outfits.map(o=>`<div class="stat-row"><span>${o.icon} ${o.name}</span><button class="map-btn" style="font-size:9px;" onclick="wearItem('${o.name}')">WEAR</button></div>`).join(''):'<p style="color:var(--muted);font-size:10px;">No clothes yet. Visit the SHOP.</p>'}
+  </div><div style="padding:0 22px 16px;"><button class="choice-btn" onclick="openShop()"><span class="choice-key">S</span> Go to Shop</button><button class="choice-btn" onclick="closeEvent()">← Back</button></div>`;
+  showEvent(html);
+}
+
+function wearItem(name){ addLog(`Wearing: ${name}. Looking sharp.`,'good'); closeEvent(); }
+
+// ═══════════════════════════════════════════════════════════
+// SLEEP
+// ═══════════════════════════════════════════════════════════
+function doSleep() {
+  const shelter = G.housing==='shelter';
+  G.hour=8; G.day++;
+  advanceHours(0); updateTimeDisplay();
+  updateTicker();
+  if(shelter){ addRating(-1); addLog('Slept at the shelter. Rough night. -1 rep.','warn'); }
+  else { addRating(2); addLog(`Slept at home (${HOUSING.find(h=>h.id===G.housing)?.name||'home'}). +2 rep.`,'good'); }
+  // Weekly rent
+  if(G.day%7===0&&G.rentPerWeek>0){
+    if(G.cash>=G.rentPerWeek){ spendCash(G.rentPerWeek); addLog(`Paid weekly rent: $${G.rentPerWeek}.`,'money'); }
+    else { addLog('⚠️ Missed rent! Landlord is furious.','bad'); addRating(-8); G.wantedLevel=Math.min(5,G.wantedLevel+1); updateWanted(); }
+  }
+  updateUI();
+  showNotif('New day! Stay focused.','green');
+}
+
+// ═══════════════════════════════════════════════════════════
+// JOBS
+// ═══════════════════════════════════════════════════════════
+function openJobBoard() {
+  let html=`<div class="event-header"><div class="event-type-tag">EMPLOYMENT OPPORTUNITIES</div><div class="event-title">JOB BOARD</div><div class="event-location">📍 ${G.location} — Reputation: ${G.rating}/100</div></div><div class="event-body"><p class="event-description">Find work matching your skill level. Higher reputation unlocks better-paying jobs.</p><div style="display:flex;flex-direction:column;gap:7px;">`;
+  JOBS.forEach(job=>{
+    const locked=G.rating<job.minRating;
+    html+=`<div style="background:var(--mid);border:1px solid ${locked?'var(--border)':'var(--border)'};padding:12px;cursor:${locked?'not-allowed':'pointer'};opacity:${locked?.35:1};transition:border-color .2s;" ${!locked?`onclick="applyForJob('${job.id}')" onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)'"`:''}>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><span style="font-size:16px;margin-right:7px;">${job.icon}</span><span style="font-size:12px;font-weight:700;color:${locked?'var(--muted)':'var(--text)'};">${job.title}</span>${G.job&&G.job.id===job.id?'<span style="font-size:8px;background:var(--green);color:#000;padding:1px 5px;margin-left:7px;">CURRENT</span>':''}</div>
+        <div style="text-align:right;"><div style="color:var(--yellow);font-size:13px;font-weight:700;">$${job.pay}/day</div><div style="font-size:8px;color:var(--muted);">Min Rep: ${job.minRating}</div></div>
+      </div><div style="font-size:9px;color:var(--muted);margin-top:3px;">📍 ${job.location}</div>
+    </div>`;
+  });
+  html+=`</div></div><div style="padding:0 22px 16px;"><button class="choice-btn" onclick="closeEvent()">← BACK TO CITY</button></div>`;
+  showEvent(html);
+}
+
+function applyForJob(jobId) {
+  const job=JOBS.find(j=>j.id===jobId); if(!job) return;
+  if(G.job){ G.resume.unshift({title:G.job.title,location:G.job.location,days:G.jobDays,endRating:G.rating}); updateResumePanel(); }
+  G.job=job; G.jobDays=0; G.jobProgress=0; G.commission=0;
+  document.getElementById('stat-job').textContent=job.title;
+  document.getElementById('stat-pay').textContent='$'+job.pay+'/day';
+  document.getElementById('stat-commission').textContent='NONE';
+  addLog(`Hired as ${job.title} at ${job.location}! $${job.pay}/day.`,'good');
+  showNotif(`Hired as ${job.title}! 🎉`,'green');
+  const loc=NYC_LOCATIONS.find(l=>l.name===job.location);
+  if(loc) travelTo(loc.name,loc.x,loc.y);
+  closeEvent(); updateUI();
+}
+
+function quitJob() {
+  if(!G.job){showNotif("You don't have a job!",'orange');return;}
+  addRating(-10);
+  G.resume.unshift({title:G.job.title,location:G.job.location,days:G.jobDays,endRating:G.rating,quit:true});
+  updateResumePanel();
+  G.job=null; G.jobDays=0; G.commission=0;
+  document.getElementById('stat-job').textContent='NONE';
+  document.getElementById('stat-pay').textContent='—';
+  document.getElementById('stat-commission').textContent='NONE';
+  document.getElementById('stat-daysworked').textContent='0';
+  addLog('Quit your job. -10 rep.','bad'); updateUI();
+}
+
+// ═══════════════════════════════════════════════════════════
+// WORK MINIGAME
+// ═══════════════════════════════════════════════════════════
+let mgScore=0,mgTotal=0,mgActive=false,mgInterval;
+function doWorkDay() {
+  if(!G.job){showNotif('Find a job first! Hit J','orange');return;}
+  const job=G.job;
+  let html=`<div class="event-header"><div class="event-type-tag">WORK SHIFT — DAY ${G.jobDays+1}</div><div class="event-title">${job.title}</div><div class="event-location">📍 ${job.location} · Pay: $${job.pay}/day</div></div>
+  <div class="event-body"><div class="event-character"><div class="char-avatar">${job.icon}</div><div class="char-info"><div class="char-name">TODAY'S SHIFT</div><div class="char-desc">${job.taskDesc}</div></div></div>
+  <div class="event-stakes">
+    <div class="stake-item"><div class="stake-val pos">+$${job.pay}</div><div class="stake-label">BASE PAY</div></div>
+    <div class="stake-item"><div class="stake-val pos" id="mg-bonus-preview">+$0</div><div class="stake-label">BONUS</div></div>
+    <div class="stake-item"><div class="stake-val" id="mg-rating-preview" style="color:var(--yellow)">±?</div><div class="stake-label">REP CHANGE</div></div>
+  </div></div>
+  <div id="minigame-wrap">
+    <div id="minigame-area"><div class="mg-instruction" id="mg-instruction">CLICK TO START SHIFT</div></div>
+    <div class="mg-bar-wrap"><span id="mg-timer-label">15s</span><div class="mg-bar"><div class="mg-bar-fill" id="mg-bar-fill" style="width:100%"></div></div><span id="mg-score-label">0/0</span></div>
+  </div>
+  <div style="padding:0 22px 16px;"><button class="choice-btn" id="mg-done-btn" style="display:none" onclick="finishWorkDay()"><span class="choice-key">↵</span> COLLECT PAY & FINISH</button></div>`;
+  showEvent(html);
+  mgScore=0; mgTotal=0; mgActive=false; let mgTime=15;
+  document.getElementById('minigame-area').addEventListener('click',function startMG(){
+    if(mgActive) return; mgActive=true; document.getElementById('mg-instruction').style.display='none';
+    const area=document.getElementById('minigame-area');
+    const emojis=['📦','🍽️','📄','☕','📱','💼','🔧','📊','🗂️','📋'];
+    function spawnTarget(){
+      if(!mgActive) return; mgTotal++;
+      const t=document.createElement('div'); t.className='mg-target';
+      t.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+      t.style.left=(10+Math.random()*(area.offsetWidth-50))+'px';
+      t.style.top=(10+Math.random()*(area.offsetHeight-50))+'px';
+      t.addEventListener('click',e=>{ e.stopPropagation(); mgScore++;
+        document.getElementById('mg-score-label').textContent=mgScore+'/'+mgTotal;
+        document.getElementById('mg-bonus-preview').textContent='+$'+Math.floor(mgScore*(job.pay*.1));
+        const rc=Math.floor((mgScore/Math.max(mgTotal,1)*10)-3);
+        const rEl=document.getElementById('mg-rating-preview'); rEl.textContent=(rc>=0?'+':'')+rc; rEl.style.color=rc>=0?'var(--green)':'var(--red)';
+        t.style.transform='scale(0)'; setTimeout(()=>t.remove(),200);
+      });
+      area.appendChild(t); setTimeout(()=>{if(t.parentNode)t.remove();},2000);
+    }
+    mgInterval=setInterval(spawnTarget,850);
+    const timerInt=setInterval(()=>{
+      mgTime--; const f=document.getElementById('mg-bar-fill');
+      if(f) f.style.width=(mgTime/15*100)+'%';
+      const l=document.getElementById('mg-timer-label'); if(l) l.textContent=mgTime+'s';
+      if(mgTime<=0){ clearInterval(timerInt); clearInterval(mgInterval); mgActive=false; document.querySelectorAll('.mg-target').forEach(t=>t.remove()); const db=document.getElementById('mg-done-btn'); if(db) db.style.display='flex'; const ins=document.getElementById('mg-instruction'); if(ins){ins.style.display='block';const acc=mgTotal>0?Math.round(mgScore/mgTotal*100):0;ins.textContent=`SHIFT DONE! ${mgScore}/${mgTotal} tasks (${acc}% efficiency)`;} }
+    },1000);
+  });
+}
+
+function finishWorkDay() {
+  const acc=mgTotal>0?mgScore/mgTotal:0;
+  const bonus=Math.floor(mgScore*(G.job.pay*.1));
+  const commBonus=G.commission>0?Math.floor((G.job.pay+bonus)*G.commission/100):0;
+  const ratingChange=Math.floor(acc*12)-4;
+  const total=G.job.pay+bonus+commBonus;
+  addCash(total); addRating(ratingChange); G.jobDays++;
+  document.getElementById('stat-daysworked').textContent=G.jobDays;
+  const pct=Math.round(acc*100);
+  if(pct>=80) addLog(`🌟 Excellent! ${pct}% efficiency. +$${total}${commBonus>0?' (+$'+commBonus+' commission)':''}. ${ratingChange>0?'+':''}${ratingChange} rep.`,'good');
+  else if(pct>=50) addLog(`Good shift. ${pct}% efficiency. +$${total}. ${ratingChange>0?'+':''}${ratingChange} rep.`,'normal');
+  else addLog(`Rough shift. ${pct}% efficiency. +$${total}. ${ratingChange} rep.`,'bad');
+  if(G.rating<10&&G.job){ addLog('🚨 FIRED! Rating too low.','bad'); quitJob(); }
+  if(G.jobDays%7===0&&G.rentPerWeek>0){ if(G.cash>=G.rentPerWeek){spendCash(G.rentPerWeek);addLog(`Paid weekly rent: $${G.rentPerWeek}.`,'money');}else{addLog('⚠️ Can\'t afford rent! Landlord threatening eviction.','bad');addRating(-5);} }
+  advanceDay(); closeEvent();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOP
+// ═══════════════════════════════════════════════════════════
+function openShop() {
+  const cats=['transit','food','clothing','gear','lifestyle','career'];
+  const catNames={transit:'🚇 TRANSIT',food:'🍕 FOOD',clothing:'👔 CLOTHING',gear:'⚙️ GEAR',lifestyle:'🍸 LIFESTYLE',career:'📈 CAREER'};
+  let html=`<div class="event-header"><div class="event-type-tag">NEW YORK MARKETPLACE</div><div class="event-title">SPEND YOUR MONEY</div><div class="event-location">💰 Cash: $${G.cash.toFixed(2)}</div></div><div class="event-body" style="padding-bottom:0;"><p class="event-description">Invest in yourself, get around the city, eat, live.</p></div>`;
+  cats.forEach(cat=>{
+    const items=SHOP_ITEMS.filter(i=>i.category===cat); if(!items.length) return;
+    html+=`<div class="section-title" style="padding:10px 22px 7px;">${catNames[cat]}</div><div class="shop-grid">`;
+    items.forEach(item=>{const cant=G.cash<item.price;html+=`<div class="shop-item${cant?' cant-afford':''}" onclick="buyItem('${item.id}')"><div class="shop-item-icon">${item.icon}</div><div class="shop-item-name">${item.name}</div><div class="shop-item-desc">${item.desc}</div><div class="shop-item-price">$${item.price.toFixed(2)}</div></div>`;});
+    html+='</div>';
+  });
+  html+=`<div style="padding:0 22px 16px;margin-top:6px;"><button class="choice-btn" onclick="closeEvent()">← BACK TO CITY</button></div>`;
+  showEvent(html);
+}
+
+function buyItem(itemId) {
+  const item=SHOP_ITEMS.find(i=>i.id===itemId);
+  if(!item||G.cash<item.price){showNotif("Not enough cash!",'red');return;}
+  spendCash(item.price);
+  switch(item.id){
+    case 'metrocard_single':G.hasMetroCard=true;updateMetroStatus();break;
+    case 'metrocard_30day':G.hasMonthlyMetro=true;updateMetroStatus();break;
+    case 'coffee':addRating(5);break; case 'bagel':addRating(3);break;
+    case 'suit_basic':addRating(10);break; case 'suit_nice':addRating(20);break;
+    case 'sneakers':addRating(2);break; case 'briefcase':addRating(15);break;
+    case 'cell_phone':addRating(5);break; case 'laptop':addRating(15);break;
+    case 'gym':addRating(3);break; case 'networking_event':addRating(8);talkToNPC();break;
+    case 'resume_service':addRating(12);break; case 'book':addRating(5);break;
+    case 'night_out':addLog('Had a wild night in the city! Worth it.','good');break;
+  }
+  const keep=['metrocard_30day','suit_basic','suit_nice','briefcase','cell_phone','laptop','sneakers','car'];
+  if(keep.includes(item.id)){ G.inventory.push({icon:item.icon,name:item.name}); updateInventory(); }
+  addLog(`Bought: ${item.name} for $${item.price.toFixed(2)}`,'money');
+  showNotif(`${item.icon} ${item.name} purchased!`,'green');
+  openShop();
+}
+
+// ═══════════════════════════════════════════════════════════
+// HOUSING
+// ═══════════════════════════════════════════════════════════
+function openHousingMenu() {
+  let html=`<div class="event-header"><div class="event-type-tag">HOUSING MARKET</div><div class="event-title">FIND A PLACE TO LIVE</div><div class="event-location">Current: ${HOUSING.find(h=>h.id===G.housing)?.name||'Homeless Shelter'}</div></div><div class="event-body"><p class="event-description">Where you live defines your life in this city.</p><div style="display:flex;flex-direction:column;gap:7px;">`;
+  HOUSING.forEach(h=>{
+    const cur=h.id===G.housing,cant=G.cash<h.weeklyRent*2&&h.weeklyRent>0;
+    html+=`<div style="background:var(--mid);border:1px solid ${cur?'var(--yellow)':'var(--border)'};padding:12px;cursor:${cant?'not-allowed':'pointer'};opacity:${cant?.35:1};" ${!cant&&!cur?`onclick="moveInto('${h.id}')" onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='${cur?'var(--yellow)':'var(--border)'}'"`:''}>
+      <div style="display:flex;justify-content:space-between;"><div><div style="font-size:12px;font-weight:700;color:${cur?'var(--yellow)':'var(--text)'};">${h.name}${cur?' ✓':''}</div><div style="font-size:9px;color:var(--muted);margin-top:2px;">📍 ${h.location} — ${h.desc}</div></div><div style="color:var(--red);font-size:13px;font-weight:700;">${h.weeklyRent===0?'FREE':'$'+h.weeklyRent+'/wk'}</div></div>
+    </div>`;
+  });
+  html+=`</div></div><div style="padding:0 22px 16px;"><button class="choice-btn" onclick="closeEvent()">← BACK TO CITY</button></div>`;
+  showEvent(html);
+}
+
+function moveInto(hId) {
+  const h=HOUSING.find(hh=>hh.id===hId); if(!h) return;
+  G.housing=hId; G.rentPerWeek=h.weeklyRent;
+  document.getElementById('stat-rent').textContent=h.weeklyRent>0?'$'+h.weeklyRent+'/wk':'NONE';
+  addLog(`Moved into: ${h.name}. Weekly rent: $${h.weeklyRent}.`,'money');
+  if(hId!=='shelter') addRating(5);
+  showNotif(`Moved to ${h.name}! 🏠`,'green');
+  closeEvent();
+}
+
+// ═══════════════════════════════════════════════════════════
+// NPC + RANDOM EVENTS
+// ═══════════════════════════════════════════════════════════
+function talkToNPC() {
+  const npc=NPC_ENCOUNTERS[Math.floor(Math.random()*NPC_ENCOUNTERS.length)];
+  const quote=npc.lines[Math.floor(Math.random()*npc.lines.length)];
+  const html=`<div class="event-header"><div class="event-type-tag">STREET ENCOUNTER</div><div class="event-title">MEETING SOMEONE</div><div class="event-location">📍 ${G.location}</div></div>
+  <div class="event-body"><div class="event-character"><div class="char-avatar">${npc.emoji}</div><div class="char-info"><div class="char-name">${npc.name}</div><div class="char-desc">${npc.type}</div></div></div>
+  <div class="task-box"><div class="task-title">💬 THEY SAY...</div><div class="task-desc" style="font-style:italic;font-size:13px;">"${quote}"</div></div>
+  <div class="event-stakes"><div class="stake-item"><div class="stake-val pos">+${npc.ratingBoost}</div><div class="stake-label">REP BOOST</div></div><div class="stake-item"><div class="stake-val" style="color:var(--blue)">📇</div><div class="stake-label">NEW CONTACT</div></div></div>
+  <div class="event-choices">
+    <button class="choice-btn" onclick="npcChat('${npc.name}',${npc.ratingBoost},false)"><span class="choice-key">A</span> Engage the conversation</button>
+    <button class="choice-btn" onclick="npcChat('${npc.name}',0,true)"><span class="choice-key">B</span> Keep moving. No time.</button>
+  </div></div>`;
+  showEvent(html);
+}
+
+function npcChat(name,boost,skip) {
+  if(!skip){ addRating(boost); addLog(`Talked with ${name}. +${boost} rep.`,'good'); showNotif(`+${boost} rep from ${name}`,'green'); }
+  else { addLog(`Brushed past ${name}.`,'normal'); }
+  closeEvent();
+}
+
+function triggerRandomEvent() {
+  const ev=RANDOM_EVENTS[Math.floor(Math.random()*RANDOM_EVENTS.length)];
+  let html=`<div class="event-header"><div class="event-type-tag">CITY EVENT</div><div class="event-title">${ev.title}</div><div class="event-location">📍 ${G.location} — Day ${G.day}</div></div><div class="event-body"><p class="event-description">${ev.desc}</p><div class="event-choices">`;
+  ev.choices.forEach((c,i)=>{ html+=`<button class="choice-btn" onclick="resolveRandomEvent(${i})"><span class="choice-key">${String.fromCharCode(65+i)}</span> ${c.text}</button>`; });
+  html+=`</div></div>`;
+  showEvent(html); window._currentEvent=ev;
+}
+
+function resolveRandomEvent(i) { if(window._currentEvent) window._currentEvent.choices[i].effect(); closeEvent(); }
+
+// ═══════════════════════════════════════════════════════════
+// LOCATION PICKER
+// ═══════════════════════════════════════════════════════════
+function showLocationPicker(title,cb) {
+  let html=`<div class="event-header"><div class="event-type-tag">TRANSIT</div><div class="event-title">${title}</div></div><div class="event-body"><div style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto;">`;
+  NYC_LOCATIONS.forEach(loc=>{ html+=`<button class="choice-btn" onclick="pickLocation('${loc.name}',${loc.x},${loc.y})"><span style="font-size:15px;">${loc.icon}</span><div><div style="font-size:11px;">${loc.name}</div><div style="font-size:8px;color:var(--muted);">${loc.type}</div></div></button>`; });
+  html+=`</div></div><div style="padding:0 22px 14px;"><button class="choice-btn" onclick="closeEvent()">← CANCEL</button></div>`;
+  showEvent(html); window._locationCallback=cb;
+}
+
+function pickLocation(name,x,y) { if(window._locationCallback) window._locationCallback({name,x,y}); closeEvent(); }
+
+// ═══════════════════════════════════════════════════════════
+// BANK
+// ═══════════════════════════════════════════════════════════
+function saveToBank() { if(G.cash<10){showNotif('Not enough cash.','orange');return;} const a=Math.floor(G.cash*.8); G.savings+=a; G.cash-=a; addLog(`Deposited $${a} to savings.`,'money'); updateUI(); showNotif(`$${a} saved! 🏦`,'green'); }
+function withdrawBank() { if(G.savings<1){showNotif('No savings.','orange');return;} G.cash+=G.savings; addLog(`Withdrew $${G.savings.toFixed(2)} from savings.`,'money'); G.savings=0; updateUI(); }
+
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+function addCash(n){ G.cash+=n; updateUI(); }
+function spendCash(n){ G.cash=Math.max(0,G.cash-n); updateUI(); }
+function addRating(d){ G.rating=Math.min(100,Math.max(0,G.rating+d)); document.getElementById('rating-fill').style.width=G.rating+'%'; document.getElementById('rating-fill').style.backgroundPosition=G.rating+'% 0'; document.getElementById('rating-num').textContent=Math.round(G.rating); updatePlayerTitle(); }
+function advanceDay(){ G.day++; G.hour=8; document.getElementById('t-day').textContent='Day '+G.day; updateTimeDisplay(); const ws=['72°F ☀️','58°F 🌧️','45°F 🌬️','81°F 😤','65°F ⛅','38°F ❄️']; G.weather=ws[Math.floor(Math.random()*ws.length)]; document.getElementById('t-weather').textContent=G.weather; updateTicker(); updateMiniClock(); }
+function advanceHours(h){ G.hour=Math.min(23,G.hour+h); updateTimeDisplay(); }
+function updateTimeDisplay(){ const h=G.hour,ampm=h>=12?'PM':'AM',h12=h===0?12:h>12?h-12:h; document.getElementById('t-time').textContent=h12+':00 '+ampm; }
+function updateMiniClock(){ const h=G.hour,ampm=h>=12?'PM':'AM',h12=h===0?12:h>12?h-12:h; const cl=document.getElementById('mini-clock'); if(cl) cl.textContent=h12+':00 '+ampm; const dy=document.getElementById('mini-day'); if(dy) dy.textContent='Day '+G.day; }
+function updateMetroStatus(){ const d=document.getElementById('metro-dot'),s=document.getElementById('metro-status'); if(G.hasMonthlyMetro){d.className='metro-dot active';s.textContent='Unlimited MetroCard ✓';}else if(G.hasMetroCard){d.className='metro-dot';d.style.background='var(--orange)';s.textContent='Single Ride MetroCard';}else{d.className='metro-dot';d.style.background='var(--subway-blue)';s.textContent='No MetroCard';} }
+function updateWanted(){ const stars='★'.repeat(G.wantedLevel)+'☆'.repeat(5-G.wantedLevel); document.getElementById('wanted-stars').textContent=stars; }
+function updatePlayerTitle(){ const r=G.rating; let t='NEWCOMER'; if(r>=90)t='CITY LEGEND';else if(r>=80)t='RISING STAR';else if(r>=70)t='PROFESSIONAL';else if(r>=60)t='RELIABLE';else if(r>=50)t='AVERAGE';else if(r>=35)t='STRUGGLING';else if(r>=20)t='DESPERATE';else t='ROCK BOTTOM'; document.getElementById('display-title').textContent=t+' · '+(G.job?G.job.title:'UNEMPLOYED'); document.getElementById('rating-tier').textContent=t; }
+function updateResumePanel(){ const p=document.getElementById('resume-panel'); if(!G.resume.length){p.innerHTML='<div style="padding:8px 14px;font-size:9px;color:var(--muted)">No work history yet.</div>';return;} p.innerHTML=G.resume.slice(0,5).map(j=>`<div class="resume-entry"><div class="job-name">${j.title}</div><div style="font-size:8px;color:var(--muted);">${j.location} · ${j.days} days</div><span class="job-rating ${j.endRating>=65?'good':j.endRating>=40?'ok':'bad'}">Rating: ${j.endRating}${j.quit?' (QUIT)':''}</span></div>`).join(''); }
+function updateInventory(){ const l=document.getElementById('inventory-list'); if(!G.inventory.length){l.innerHTML='<div class="inv-item"><span>Nothing yet</span></div>';return;} l.innerHTML=G.inventory.map(i=>`<div class="inv-item"><span>${i.icon} ${i.name}</span></div>`).join(''); }
+function updateTicker(){ const h=[`DAY ${G.day} IN NEW YORK`,`REP: ${Math.round(G.rating)}/100`,G.job?`JOB: ${G.job.title}`:'SEEKING EMPLOYMENT',`CASH: $${G.cash.toFixed(2)}`,'RENT IN MANHATTAN UP ANOTHER 3%','MTA ANNOUNCES FARE HIKE','DOLLAR PIZZA STILL THE BEST DEAL IN THE CITY','BODEGA CATS DEMAND PREMIUM TUNA','CONSTRUCTION ON EVERY BLOCK — FOREVER','TOURISTS BLOCKING SUBWAY DOORS — AGAIN']; document.getElementById('ticker-text').textContent=h.join(' \u00a0•\u00a0 ')+' \u00a0•\u00a0 '+h.join(' \u00a0•\u00a0 '); }
+function updateUI(){ document.getElementById('display-name').textContent=G.name; document.getElementById('stat-cash').textContent='$'+G.cash.toFixed(2); document.getElementById('stat-savings').textContent='$'+G.savings.toFixed(2); document.getElementById('stat-rent').textContent=G.rentPerWeek>0?'$'+G.rentPerWeek+'/wk':'NONE'; document.getElementById('stat-job').textContent=G.job?G.job.title:'NONE'; document.getElementById('stat-pay').textContent=G.job?'$'+G.job.pay+'/day':'—'; document.getElementById('stat-commission').textContent=G.commission>0?G.commission+'%':'NONE'; document.getElementById('stat-daysworked').textContent=G.jobDays; updatePlayerTitle(); updateMetroStatus(); updateWanted(); }
+
+// ═══════════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════════
+function addLog(msg,type='normal'){ const log=document.getElementById('log-area'); const e=document.createElement('div'); e.className=`log-entry log-${type}`; const h=G.hour,ampm=h>=12?'PM':'AM',h12=h===0?12:h>12?h-12:h; e.innerHTML=`<div class="log-time">DAY ${G.day} — ${h12}:00 ${ampm}</div><div class="log-msg">${msg}</div>`; log.insertBefore(e,log.firstChild); while(log.children.length>120)log.removeChild(log.lastChild); }
+
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════
+function showNotif(msg,type='yellow'){ const a=document.getElementById('notif-area'); const n=document.createElement('div'); n.className=`notif ${type}`; n.textContent=msg; a.appendChild(n); setTimeout(()=>n.remove(),3200); }
+
+// ═══════════════════════════════════════════════════════════
+// EVENT MODAL
+// ═══════════════════════════════════════════════════════════
+function showEvent(html){ const s=document.getElementById('screen-event'); s.innerHTML=`<div id="event-modal">${html}</div>`; s.classList.add('active'); }
+function closeEvent(){ document.getElementById('screen-event').classList.remove('active'); updateUI(); }
+
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('screen-intro').classList.contains('active')){if(e.key==='Enter')startGame();return;}
+  if(e.key==='Escape'){closeEvent();closeExplore();return;}
+  if(e.key==='j'||e.key==='J') openJobBoard();
+  if(e.key==='s'||e.key==='S') openShop();
+  if(e.key==='w'||e.key==='W') doWorkDay();
+  if(e.key==='n'||e.key==='N') talkToNPC();
+  if(e.key==='h'||e.key==='H') openHousingMenu();
+  if(e.key==='x'||e.key==='X') openExplore(G.location);
+  if(e.key==='z'||e.key==='Z') doSleep();
+  if(e.key==='b'||e.key==='B') saveToBank();
+  if(e.key==='c'||e.key==='C') negotiateCommission();
+  if(e.key==='k'||e.key==='K') openStockMarket();
+});
+
+document.getElementById('player-name').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
+window.onload=()=>{ document.getElementById('screen-intro').classList.add('active'); };
 </script>
 </body>
 </html>
