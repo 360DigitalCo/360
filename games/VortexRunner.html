@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>VORTEX RUNNER - Tornado Intercept</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   html, body {
@@ -132,61 +131,11 @@
     opacity:0; pointer-events:none; transition: opacity 0.3s;
   }
   #saveToast.show { opacity:1; }
-
-  /* ---- Online / Leaderboard ---- */
-  #lbPanel {
-    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
-    width: 260px; background: rgba(8,12,8,0.94); border-left: 1px solid #2c5a2c;
-    display: flex; flex-direction: column; transform: translateX(100%);
-    transition: transform 0.22s ease; box-shadow: -4px 0 24px rgba(0,0,0,0.5);
-  }
-  #lbPanel.open { transform: translateX(0); }
-  #lbToggle {
-    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
-    z-index: 11; background: rgba(8,12,8,0.85); border: 1px solid #2c5a2c;
-    border-right: none; border-radius: 6px 0 0 6px;
-    padding: 10px 7px; cursor: pointer; color: #39ff14; font-family: inherit;
-    font-size: 11px; writing-mode: vertical-rl; letter-spacing: 1px;
-    transition: right 0.22s ease;
-  }
-  #lbToggle.open { right: 260px; }
-  #lbPanel h2 { color:#39ff14; font-size:13px; letter-spacing:2px; padding:12px 14px 6px; border-bottom:1px solid #2c5a2c; margin:0; }
-  #lbTabs { display:flex; border-bottom:1px solid #2c5a2c; }
-  .lbTab { flex:1; padding:7px 4px; text-align:center; font-size:11px; color:#7fd07f; cursor:pointer; border:none; background:none; font-family:inherit; letter-spacing:1px; }
-  .lbTab.active { color:#39ff14; border-bottom:2px solid #39ff14; }
-  #lbList { flex:1; overflow-y:auto; padding:8px 0; }
-  .lbRow { display:flex; align-items:center; gap:6px; padding:5px 12px; font-size:11px; border-bottom:1px dashed #1a2a1a; }
-  .lbRank { color:#ffd23f; min-width:20px; font-weight:bold; }
-  .lbName { flex:1; color:#d7ffd9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .lbVal { color:#39ff14; font-weight:bold; white-space:nowrap; }
-  #lbFooter { padding:10px 12px; border-top:1px solid #2c5a2c; font-size:10px; color:#7fd07f; }
-  #lbStatus { font-size:10px; color:#7fd07f; padding:6px 12px; }
-
-  #nameInputWrap { margin-top: 16px; display:flex; flex-direction:column; gap:6px; }
-  #nameInputWrap label { font-size: 12px; color:#9fcf9f; }
-  #playerNameInput {
-    background:#182a18; color:#39ff14; border:1px solid #2c5a2c; border-radius:4px;
-    padding:7px 10px; font-family:inherit; font-size:13px; letter-spacing:1px; width:100%;
-  }
-  #playerNameInput:focus { outline:none; border-color:#39ff14; }
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
-
-<!-- Leaderboard Sidebar -->
-<button id="lbToggle">LEADERBOARD</button>
-<div id="lbPanel">
-  <h2>🏆 LEADERBOARD</h2>
-  <div id="lbTabs">
-    <button class="lbTab active" data-tab="storms">Storms</button>
-    <button class="lbTab" data-tab="money">Money</button>
-  </div>
-  <div id="lbStatus">Loading...</div>
-  <div id="lbList"></div>
-  <div id="lbFooter">Updates every 30s · Top 20</div>
-</div>
 
 <!-- HUD -->
 <div id="hud">
@@ -216,8 +165,8 @@
 <!-- Title Screen -->
 <div class="overlay" id="titleScreen">
   <div class="panel" style="text-align:center;">
-    <h1 style="font-size:46px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
-    <p class="subtext">Chase. Anchor. Survive. <span style="color:#39ff14; font-size:11px;">● ONLINE</span></p>
+    <h1 style="font-size:52px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
+    <p class="subtext">Chase. Anchor. Survive.</p>
     <button class="gameBtn" id="titlePlayBtn" style="font-size:18px; padding:14px 40px;">▶ PLAY</button>
   </div>
 </div>
@@ -231,10 +180,6 @@
     torn off the road.</p>
     <h2>Choose Your Vehicle</h2>
     <p class="subtext" id="saveStatusNote"></p>
-    <div id="nameInputWrap">
-      <label for="playerNameInput">CALLSIGN (for online leaderboard)</label>
-      <input id="playerNameInput" maxlength="24" placeholder="Enter your callsign..." spellcheck="false" autocomplete="off"/>
-    </div>
     <div class="vehicleGrid" id="startVehicleGrid"></div>
     <div class="closeRow"><button class="gameBtn" id="beginBtn">START ENGINE</button></div>
   </div>
@@ -265,6 +210,7 @@
     <button class="gameBtn" id="convoyToggleBtn" style="border-color:#5c9ded; color:#5c9ded;"></button>
 
     <h2 style="margin-top:22px;">Upgrades — <span id="garageActiveVehicle"></span></h2>
+    <button class="gameBtn" id="maxAllUpgradesBtn" style="border-color:#ffd23f; color:#ffd23f;"></button>
     <div class="garageGrid" id="garageUpgrades"></div>
 
     <div class="closeRow">
@@ -292,6 +238,15 @@
       <button class="gameBtn" id="devSpawnBtn" style="margin-top:0;">SPAWN</button>
     </div>
 
+    <h2 style="margin-top:20px;">Admin Vehicles</h2>
+    <div class="subtext" style="margin-bottom:8px;">Instantly unlock dev-exclusive interceptors — free, no cash required, not purchasable anywhere else.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="gameBtn" id="devUnlockTiv3Btn" style="border-color:#f5f5f5; color:#f5f5f5;">🛠 UNLOCK TIV3</button>
+      <button class="gameBtn" id="devUnlockDominator4Btn" style="border-color:#ffec3d; color:#ffec3d;">🛠 UNLOCK DOMINATOR 4</button>
+      <button class="gameBtn" id="devUnlockJokerBtn" style="border-color:#8e24aa; color:#ba68c8;">🃏 UNLOCK JOKER</button>
+      <button class="gameBtn" id="devUnlockJoker2Btn" style="border-color:#ff2fd6; color:#ff2fd6;">🃏 UNLOCK JOKER 2</button>
+    </div>
+
     <h2 style="margin-top:20px;">Secret</h2>
     <button class="gameBtn" id="devMemeBtn" style="border-color:#ff2fd6; color:#ff2fd6;">🎭 SPAWN MEME TORNADO</button>
 
@@ -308,7 +263,7 @@
 ====================================================================== */
 const ROAD_SPACING = 1000;      // distance between grid roads
 const ROAD_WIDTH   = 92;        // wide highways
-const WORLD_MIN = -8000, WORLD_MAX = 8000;
+const WORLD_MIN = -4000, WORLD_MAX = 4000;
 
 const TOWNS = [
   { name:"Silverton",  x: 0,     y: 0    },
@@ -351,6 +306,21 @@ const VEHICLES = {
     maxHealth:110, topSpeed:340, accel:230, mass:1.3,
     anchorCapacity:2.4, probeRate:1.15
   },
+  // ---- Sub-Interceptors: budget, entry-level intercept rigs — not real
+  // named vehicles, just custom prototypes bridging the gap between the
+  // fastest chase cars and the real TIV lineup below. ----
+  subinterceptor1: {
+    key:"subinterceptor1", name:"Interceptor Prototype", category:"interceptor", desc:"A first-generation homebrew intercept rig. Cheap steel, basic hydraulic anchors, but a real step up from a chase car.",
+    cost:15000, color:"#90a4ae",
+    maxHealth:110, topSpeed:260, accel:260, mass:1.2,
+    anchorCapacity:3.5, probeRate:1.1
+  },
+  subinterceptor2: {
+    key:"subinterceptor2", name:"Rapid Interceptor", category:"interceptor", desc:"A refined second-gen prototype — better anchors, sturdier frame, still priced well under a proper TIV.",
+    cost:17500, color:"#78909c",
+    maxHealth:130, topSpeed:280, accel:280, mass:1.35,
+    anchorCapacity:4.8, probeRate:1.2
+  },
   // ---- Prebuilt storm interceptors: real-world tornado intercept vehicles.
   // Each tier is built to survive roughly 2-3 EF ratings higher than the last,
   // and each is also noticeably faster than the one before it. ----
@@ -367,10 +337,10 @@ const VEHICLES = {
     anchorCapacity:8.5, probeRate:1.45
   },
   tiv2: {
-    key:"tiv2", name:"TIV2", category:"interceptor", desc:"The tank-like successor to the TIV. Bigger, heavier, far better anchored.",
-    cost:60000, color:"#8d8d8d",
-    maxHealth:240, topSpeed:450, accel:450, mass:2.3,
-    anchorCapacity:11.0, probeRate:1.6
+    key:"tiv2", name:"TIV2", category:"interceptor", desc:"The tank-like successor to the TIV — since rebuilt into the strongest rig money can actually buy, second only to whatever's locked in the dev panel.",
+    cost:155000, color:"#d8d8d8",
+    maxHealth:495, topSpeed:715, accel:715, mass:4.35,
+    anchorCapacity:23.5, probeRate:2.5
   },
   // ---- Custom-built interceptors, fictional rigs slotted between the TIV2 and Dominator 3 ----
   vortexranger: {
@@ -408,6 +378,36 @@ const VEHICLES = {
     cost:140000, color:"#ffd700",
     maxHealth:380, topSpeed:600, accel:600, mass:3.6,
     anchorCapacity:17.5, probeRate:2.1
+  },
+  // ---- Admin-only interceptors: cannot be purchased in the normal shop
+  // (cost is set to Infinity so a click can never buy them). The only way to
+  // own one is to grant it to yourself from the Dev Panel. Ranked from
+  // weakest to strongest, they sit above every purchasable interceptor —
+  // except TIV2, which was boosted to sit just one rung below the weakest
+  // of these (Joker 2, the single strongest interceptor in the game). ----
+  tiv3: {
+    key:"tiv3", name:"TIV3", category:"interceptor", adminOnly:true, desc:"A third-generation TIV, heavier armor and deeper anchors than anything on the open market. Dev panel exclusive.",
+    cost:Infinity, color:"#f5f5f5",
+    maxHealth:410, topSpeed:625, accel:625, mass:3.8,
+    anchorCapacity:19.0, probeRate:2.2
+  },
+  dominator4: {
+    key:"dominator4", name:"Dominator 4", category:"interceptor", adminOnly:true, desc:"The next-generation Dominator, rebuilt from the ground up. Never made it past the prototype stage — dev panel exclusive.",
+    cost:Infinity, color:"#ffec3d",
+    maxHealth:440, topSpeed:650, accel:650, mass:4.0,
+    anchorCapacity:20.5, probeRate:2.3
+  },
+  joker: {
+    key:"joker", name:"Joker", category:"interceptor", adminOnly:true, desc:"An experimental wildcard rig with no official backstory. Dev panel exclusive.",
+    cost:Infinity, color:"#8e24aa",
+    maxHealth:465, topSpeed:685, accel:685, mass:4.15,
+    anchorCapacity:22.0, probeRate:2.4
+  },
+  joker2: {
+    key:"joker2", name:"Joker 2", category:"interceptor", adminOnly:true, desc:"The final form of the Joker line — the single most powerful interceptor in existence. Dev panel exclusive.",
+    cost:Infinity, color:"#ff2fd6",
+    maxHealth:530, topSpeed:760, accel:760, mass:4.6,
+    anchorCapacity:25.5, probeRate:2.65
   },
   // ---- Support vehicles: fully drivable, real-world-inspired research rigs.
   // Own one and you can drive it yourself like any other vehicle — OR leave
@@ -448,7 +448,7 @@ const VEHICLES = {
   fueltanker: {
     key:"fueltanker", name:"Fuel & Repair Tanker", category:"support", desc:"Rolling supply truck. Patches hulls on the move and cuts repair costs.",
     cost:14500, color:"#e57373",
-    maxHealth:180, topSpeed:280, accel:190, mass:2.1,
+    maxHealth:180, topSpeed:550, accel:500, mass:2.1,
     anchorCapacity:4.0, probeRate:1.0,
     effectDesc:"Slowly repairs your hull while driving; -25% repair costs. Convoy deployed.",
     healthRegenPerSec: 1.4, repairCostMult: -0.25
@@ -456,7 +456,7 @@ const VEHICLES = {
   dow7: {
     key:"dow7", name:"DOW7", category:"support", desc:"The most advanced Doppler on Wheels — rapid-scan, dual-polarization radar in a much heavier rig.",
     cost:55000, color:"#3f6fd1",
-    maxHealth:220, topSpeed:240, accel:170, mass:2.6,
+    maxHealth:220, topSpeed:600, accel:500, mass:2.6,
     anchorCapacity:7.0, probeRate:1.5,
     effectDesc:"+28% data collection rate while parked in the convoy.",
     dataRateMult: 0.28
@@ -466,6 +466,20 @@ const SUPPORT_KEYS = ["toto","dow","stickdeployer","commandvehicle","fueltanker"
 
 const UPGRADE_COST_BASE = { armor:1200, engine:1400, anchor:1800, probe:1000 };
 const MAX_UPGRADE_LEVEL = 25;
+
+// Total $ cost to bring every upgrade category (armor/engine/anchor/probe) of
+// the given vehicle from its current levels up to MAX_UPGRADE_LEVEL, using
+// the same per-level cost curve as the individual UPGRADE buttons.
+function costToMaxAllUpgrades(vehKey){
+  const u = state.upgrades[vehKey];
+  let total = 0;
+  Object.keys(UPGRADE_COST_BASE).forEach(key=>{
+    for (let lvl=u[key]; lvl<MAX_UPGRADE_LEVEL; lvl++){
+      total += Math.round(UPGRADE_COST_BASE[key] * (lvl+1) * 1.35);
+    }
+  });
+  return total;
+}
 
 const MAX_EF = 20; // extended fictional Fujita-style scale (EF0 - EF20)
 // The Meme Tornado always sits just above what a fully-maxed Dominator 3
@@ -527,6 +541,8 @@ let state = {
     pickup:    {armor:0, engine:0, anchor:0, probe:0},
     suv:       {armor:0, engine:0, anchor:0, probe:0},
     van:       {armor:0, engine:0, anchor:0, probe:0},
+    subinterceptor1:   {armor:0, engine:0, anchor:0, probe:0},
+    subinterceptor2:   {armor:0, engine:0, anchor:0, probe:0},
     tiv:               {armor:0, engine:0, anchor:0, probe:0},
     dominator:         {armor:0, engine:0, anchor:0, probe:0},
     tiv2:              {armor:0, engine:0, anchor:0, probe:0},
@@ -536,6 +552,10 @@ let state = {
     maelstromwarden:   {armor:0, engine:0, anchor:0, probe:0},
     tempestjuggernaut: {armor:0, engine:0, anchor:0, probe:0},
     dominator3:        {armor:0, engine:0, anchor:0, probe:0},
+    tiv3:              {armor:0, engine:0, anchor:0, probe:0},
+    dominator4:        {armor:0, engine:0, anchor:0, probe:0},
+    joker:             {armor:0, engine:0, anchor:0, probe:0},
+    joker2:            {armor:0, engine:0, anchor:0, probe:0},
     toto:              {armor:0, engine:0, anchor:0, probe:0},
     dow:               {armor:0, engine:0, anchor:0, probe:0},
     stickdeployer:     {armor:0, engine:0, anchor:0, probe:0},
@@ -1016,12 +1036,12 @@ function updateConvoy(dt){
    the player does.
 ====================================================================== */
 let wildConvoys = [];
-const MIN_WILD_CONVOYS = 4, MAX_WILD_CONVOYS = 8;
+const MIN_WILD_CONVOYS = 8, MAX_WILD_CONVOYS = 12;
 let wildConvoyTarget = MIN_WILD_CONVOYS + Math.floor(Math.random()*(MAX_WILD_CONVOYS-MIN_WILD_CONVOYS+1));
-const MIN_CONVOY_SIZE = 2, MAX_CONVOY_SIZE = 4;
+const MIN_CONVOY_SIZE = 4, MAX_CONVOY_SIZE = 8;
 const ALLY_RANGE = 220;
 
-const RIVAL_TEAM_NAMES = ["Team Vortex","Storm Trackers","Squall Squad","Cyclone Crew","Twister Trackers","Squall Line Chasers","Maelstrom Media","Ridgeline Research"];
+const RIVAL_TEAM_NAMES = ["Team Vortex","Storm Trackers","Team Vortex 2","Twistex","Twister Trackers","Squall Line Chasers","Maelstrom Media","Ridgeline Research"];
 
 function nearestTown(x, y){
   let best = TOWNS[0], bestDist = Infinity;
@@ -1487,7 +1507,6 @@ function closeGarage(){
   document.getElementById("garageScreen").classList.add("hidden");
   state.paused = false;
   saveGame();
-  submitScore();
 }
 
 function refreshGarageUI(){
@@ -1530,6 +1549,12 @@ function refreshGarageUI(){
   supportWrap.className = "vehicleGrid";
   grid.appendChild(supportWrap);
   buildVehicleSection(supportWrap, SUPPORT_KEYS, ()=>state.currentVehicleKey, ()=>{}, false);
+
+  grid.appendChild(sectionHeader("🛠 Admin Vehicles (Dev Panel Only)"));
+  const adminWrap = document.createElement("div");
+  adminWrap.className = "vehicleGrid";
+  grid.appendChild(adminWrap);
+  buildVehicleSection(adminWrap, ADMIN_KEYS, ()=>state.currentVehicleKey, ()=>{}, false);
 
   // Convoy size slider — kept in sync with state
   const sizeSlider = document.getElementById("convoySizeSlider");
@@ -1580,6 +1605,18 @@ function refreshGarageUI(){
   }
 
   // Upgrades
+  const maxAllBtn = document.getElementById("maxAllUpgradesBtn");
+  const uCheck = activeUpgrades();
+  const alreadyMaxed = Object.keys(UPGRADE_COST_BASE).every(key=>uCheck[key] >= MAX_UPGRADE_LEVEL);
+  if (alreadyMaxed){
+    maxAllBtn.textContent = "⭐ ALL UPGRADES MAXED";
+    maxAllBtn.disabled = true;
+  } else {
+    const maxAllCost = costToMaxAllUpgrades(state.currentVehicleKey);
+    maxAllBtn.textContent = `⭐ MAX ALL UPGRADES — $${maxAllCost.toLocaleString()}`;
+    maxAllBtn.disabled = state.money < maxAllCost;
+  }
+
   const up = document.getElementById("garageUpgrades");
   up.innerHTML = "";
   const labels = {
@@ -1656,6 +1693,19 @@ document.getElementById("convoySizeSlider").addEventListener("input", (e)=>{
   if (state.convoyActive) rebuildConvoy();
   refreshGarageUI();
 });
+document.getElementById("maxAllUpgradesBtn").onclick = ()=>{
+  const cost = costToMaxAllUpgrades(state.currentVehicleKey);
+  if (cost <= 0 || state.money < cost) return;
+  state.money -= cost;
+  const u = activeUpgrades();
+  Object.keys(UPGRADE_COST_BASE).forEach(key=>{ u[key] = MAX_UPGRADE_LEVEL; });
+  const stats = computedStats(state.currentVehicleKey);
+  car.maxHealth = stats.maxHealth;
+  car.health = car.maxHealth; // fully maxing armor tops off the hull too
+  car.maxFuel = fuelCapacity(stats);
+  showAlert("⭐ ALL UPGRADES MAXED", 1.6);
+  refreshGarageUI();
+};
 document.getElementById("closeGarageBtn").onclick = closeGarage;
 document.getElementById("convoyToggleBtn").onclick = ()=>{
   if (!canDeployConvoy()) return;
@@ -1705,6 +1755,15 @@ document.getElementById("devInfiniteMoneyBtn").onclick = ()=>{
   state.money += 999999999;
   refreshGarageUI();
 };
+function devUnlockVehicle(key, label){
+  state.ownedVehicles[key] = true;
+  showAlert("🛠 UNLOCKED: " + label, 1.8);
+  refreshGarageUI();
+}
+document.getElementById("devUnlockTiv3Btn").onclick = ()=> devUnlockVehicle("tiv3", "TIV3");
+document.getElementById("devUnlockDominator4Btn").onclick = ()=> devUnlockVehicle("dominator4", "DOMINATOR 4");
+document.getElementById("devUnlockJokerBtn").onclick = ()=> devUnlockVehicle("joker", "JOKER");
+document.getElementById("devUnlockJoker2Btn").onclick = ()=> devUnlockVehicle("joker2", "JOKER 2");
 document.getElementById("devSpawnBtn").onclick = ()=>{
   spawnCustomTornado(parseInt(devEfSlider.value, 10), false, devTypeSelect.value);
   closeDevPanel();
@@ -1791,7 +1850,10 @@ function buildVehicleSection(container, keys, chosenGetter, chosenSetter, forSta
     const owned = !!state.ownedVehicles[v.key];
     const active = chosenGetter() === v.key;
     const card = document.createElement("div");
-    card.className = "vCard" + (active ? " selected":"") + (forStart && !owned ? " locked":"");
+    card.className = "vCard" + (active ? " selected":"") + ((forStart || v.adminOnly) && !owned ? " locked":"");
+    const priceLabel = owned
+      ? (forStart ? "Ready to drive" : (active ? "IN USE" : "OWNED — click to select"))
+      : (v.adminOnly ? "🛠 DEV PANEL ONLY" : "$"+v.cost.toLocaleString());
     card.innerHTML = `
       <div class="vSwatch" style="background:${v.color}"></div>
       <h3>${v.name}</h3>
@@ -1800,7 +1862,7 @@ function buildVehicleSection(container, keys, chosenGetter, chosenSetter, forSta
       <div class="stat"><span>Hull</span><span>${v.maxHealth}</span></div>
       <div class="stat"><span>Anchor Rating</span><span>EF${v.anchorCapacity.toFixed(1)}</span></div>
       ${v.effectDesc ? `<div class="stat"><span style="color:#ffd23f;">${v.effectDesc}</span></div>` : ""}
-      <div class="price">${owned ? (forStart ? "Ready to drive" : (active ? "IN USE" : "OWNED — click to select")) : "$"+v.cost.toLocaleString()}</div>
+      <div class="price" style="${v.adminOnly && !owned ? "color:#ff2fd6;" : ""}">${priceLabel}</div>
     `;
     card.onclick = ()=>{
       if (forStart){
@@ -1810,7 +1872,7 @@ function buildVehicleSection(container, keys, chosenGetter, chosenSetter, forSta
         card.classList.add("selected");
       } else {
         if (owned){ switchVehicle(v.key); refreshGarageUI(); }
-        else if (state.money >= v.cost){
+        else if (!v.adminOnly && state.money >= v.cost){
           state.money -= v.cost;
           state.ownedVehicles[v.key] = true;
           switchVehicle(v.key);
@@ -1831,7 +1893,11 @@ function sectionHeader(text){
 }
 
 const CHASE_KEYS = ["sedan","hatchback","pickup","suv","van"];
-const INTERCEPTOR_KEYS = ["tiv","dominator","tiv2","vortexranger","cyclonesentinel","dominator2","maelstromwarden","tempestjuggernaut","dominator3"];
+const INTERCEPTOR_KEYS = ["subinterceptor1","subinterceptor2","tiv","dominator","vortexranger","cyclonesentinel","dominator2","maelstromwarden","tempestjuggernaut","dominator3","tiv2"];
+// Admin-only interceptors — never purchasable, only granted via the Dev Panel.
+// Ordered weakest to strongest; Joker 2 is the single best interceptor in the
+// game, with TIV2 (above) boosted to sit just one rung below it.
+const ADMIN_KEYS = ["tiv3","dominator4","joker","joker2"];
 
 function buildStartGrid(){
   const grid = document.getElementById("startVehicleGrid");
@@ -1865,6 +1931,12 @@ function buildStartGrid(){
   grid.appendChild(supportWrap);
   buildVehicleSection(supportWrap, SUPPORT_KEYS, ()=>chosen, k=>{chosen=k;}, true);
 
+  grid.appendChild(sectionHeader("🛠 Admin Vehicles (Dev Panel Only)"));
+  const adminWrap = document.createElement("div");
+  adminWrap.className = "vehicleGrid";
+  grid.appendChild(adminWrap);
+  buildVehicleSection(adminWrap, ADMIN_KEYS, ()=>chosen, k=>{chosen=k;}, true);
+
   document.getElementById("beginBtn").onclick = ()=>{
     switchVehicle(chosen);
     document.getElementById("startScreen").classList.add("hidden");
@@ -1888,18 +1960,14 @@ document.getElementById("titlePlayBtn").onclick = ()=>{
 };
 
 let saveToastTimer = null;
-document.getElementById("saveButton").onclick = async ()=>{
+document.getElementById("saveButton").onclick = ()=>{
   saveGame();
   const toast = document.getElementById("saveToast");
   toast.classList.add("show");
   clearTimeout(saveToastTimer);
-  try {
-    await sb.from("vortex_runner_scores").insert({ player_name: playerName||"Unknown Chaser", money: Math.floor(state.money), storms_intercepted: state.stormsIntercepted });
-    toast.textContent = "SAVED u00b7 SCORE SUBMITTED";
-    if (lbOpen) fetchLeaderboard();
-  } catch(e) { toast.textContent = "SAVED (offline)"; }
-  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); toast.textContent = "ud83dudcbe SAVED"; }, 2400);
+  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); }, 1600);
 };
+
 /* ======================================================================
    RENDERING
 ====================================================================== */
@@ -1945,7 +2013,7 @@ function drawRoads(){
 
   ctx.strokeStyle = "#8f9296";
   ctx.lineWidth = ROAD_WIDTH;
-  ctx.lineCap = "butt";
+  ctx.lineCap = "*****";
   for (let x=startX; x<camera.x+R; x+=ROAD_SPACING){
     const p1 = worldToScreen(x, camera.y-R), p2 = worldToScreen(x, camera.y+R);
     ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
@@ -2281,19 +2349,6 @@ function drawRadarContent(mx, my, size, big){
   ctx.fillStyle = "#ff3131";
   ctx.beginPath(); ctx.arc(p.x,p.y, big?5:3, 0, Math.PI*2); ctx.fill();
 
-  // Remote co-op chasers
-  Object.values(remoteCars).forEach(rc => {
-    if (!rc.x) return;
-    const rp = toMap(rc.x, rc.y);
-    ctx.fillStyle = rc.color || "#39ff14";
-    ctx.beginPath(); ctx.arc(rp.x, rp.y, big?4:2.5, 0, Math.PI*2); ctx.fill();
-    if (big) {
-      ctx.fillStyle = rc.color || "#39ff14";
-      ctx.font = "9px Courier New"; ctx.textAlign = "center";
-      ctx.fillText((rc.name||"?").slice(0,10), rp.x, rp.y - 8);
-    }
-  });
-
   ctx.restore(); // clip
 }
 
@@ -2577,7 +2632,6 @@ function loop(now){
   drawCar();
   ctx.restore();
 
-  drawRemoteCarsWorld();
   drawCompass();
 
   if (state.radarFullscreen){
@@ -2587,161 +2641,6 @@ function loop(now){
   }
   updateHUD();
 }
-
-/* ======================================================================
-   CO-OP WORLD RENDER — remote chasers drawn in world space
-====================================================================== */
-function drawRemoteCarsWorld() {
-  Object.values(remoteCars).forEach(rc => {
-    if (rc.x == null) return;
-    const s = worldToScreen(rc.x, rc.y);
-    if (s.x < -80 || s.x > canvas.width+80 || s.y < -80 || s.y > canvas.height+80) return;
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.rotate((rc.angle||0) - camera.angle);
-    ctx.fillStyle = rc.color || "#39ff14";
-    ctx.strokeStyle = "#0a0a0a";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0,-14); ctx.lineTo(8,9); ctx.lineTo(-8,9); ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    if (rc.anchoring) {
-      ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.stroke();
-    }
-    ctx.restore();
-    ctx.fillStyle = rc.color || "#39ff14";
-    ctx.font = "bold 11px Courier New";
-    ctx.textAlign = "center";
-    ctx.fillText(rc.name||"?", s.x, s.y - 22);
-    if (rc.maxHealth > 0) {
-      const bw=30, bh=3, pct=Math.max(0,rc.health/rc.maxHealth);
-      ctx.fillStyle="#00000088"; ctx.fillRect(s.x-bw/2, s.y-18, bw, bh);
-      ctx.fillStyle=pct>.5?"#39ff14":pct>.25?"#ffd23f":"#ff4b6e";
-      ctx.fillRect(s.x-bw/2, s.y-18, bw*pct, bh);
-    }
-  });
-}
-
-/* ======================================================================
-   ONLINE — CO-OP PRESENCE + LEADERBOARD
-====================================================================== */
-const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-const myCoopId = Math.random().toString(36).slice(2, 10);
-let playerName = "";
-let lbTab = "storms";
-let lbOpen = false;
-
-try {
-  const saved = localStorage.getItem("vortexPlayerName");
-  if (saved) playerName = saved;
-} catch(e){}
-
-document.getElementById("playerNameInput").value = playerName;
-document.getElementById("playerNameInput").addEventListener("input", e => {
-  playerName = e.target.value.trim();
-  try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
-});
-
-// ---- Leaderboard ----
-const lbToggleBtn = document.getElementById("lbToggle");
-const lbPanel = document.getElementById("lbPanel");
-lbToggleBtn.addEventListener("click", () => {
-  lbOpen = !lbOpen;
-  lbPanel.classList.toggle("open", lbOpen);
-  lbToggleBtn.classList.toggle("open", lbOpen);
-  if (lbOpen) fetchLeaderboard();
-});
-document.querySelectorAll(".lbTab").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    lbTab = btn.dataset.tab;
-    fetchLeaderboard();
-  });
-});
-
-async function fetchLeaderboard() {
-  const statusEl = document.getElementById("lbStatus");
-  const listEl = document.getElementById("lbList");
-  statusEl.textContent = "Loading...";
-  listEl.innerHTML = "";
-  try {
-    const col = lbTab === "storms" ? "storms_intercepted" : "money";
-    const { data, error } = await sb
-      .from("vortex_runner_scores")
-      .select("player_name, money, storms_intercepted")
-      .order(col, { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    statusEl.textContent = `${data.length} entries`;
-    data.forEach((row, i) => {
-      const div = document.createElement("div");
-      div.className = "lbRow";
-      const val = lbTab === "storms" ? row.storms_intercepted + " storms" : "$" + Number(row.money).toLocaleString();
-      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
-      listEl.appendChild(div);
-    });
-    if (data.length === 0) statusEl.textContent = "No scores yet — be first!";
-  } catch(e) { statusEl.textContent = "Offline"; }
-}
-
-function escHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
-async function submitScore() {
-  try {
-    await sb.from("vortex_runner_scores").insert({
-      player_name: playerName || "Unknown Chaser",
-      money: Math.floor(state.money),
-      storms_intercepted: state.stormsIntercepted
-    });
-    if (lbOpen) fetchLeaderboard();
-  } catch(e){}
-}
-setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
-fetchLeaderboard();
-
-// ---- Co-op REST polling (no WebSockets) ----
-let remoteCars = {};
-
-async function coopPush() {
-  const veh = VEHICLES[state.currentVehicleKey];
-  try {
-    await sb.from('vortex_presence').upsert({
-      id: myCoopId, player_name: playerName || 'Chaser',
-      x: car.x, y: car.y, angle: car.angle,
-      health: car.health, max_health: car.maxHealth,
-      anchoring: !!car.anchored,
-      color: veh ? veh.color : '#39ff14',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
-  } catch(e) {}
-}
-
-async function coopPoll() {
-  try {
-    const cutoff = new Date(Date.now() - 5000).toISOString();
-    const { data } = await sb.from('vortex_presence')
-      .select('*').neq('id', myCoopId).gte('updated_at', cutoff);
-    remoteCars = {};
-    (data||[]).forEach(r => {
-      remoteCars[r.id] = { name: r.player_name, x: r.x, y: r.y, angle: r.angle, health: r.health, maxHealth: r.max_health, anchoring: r.anchoring, color: r.color };
-    });
-    const count = Object.keys(remoteCars).length;
-    document.getElementById('lbFooter').textContent = `${count > 0 ? count + ' chasers online · ' : ''}Updates every 30s · Top 20`;
-  } catch(e) {}
-}
-
-async function coopRemove() {
-  try { await sb.from('vortex_presence').delete().eq('id', myCoopId); } catch(e) {}
-}
-
-setInterval(coopPush, 1000);
-setInterval(coopPoll, 1000);
-window.addEventListener('beforeunload', coopRemove);
 
 })();
 </script>
