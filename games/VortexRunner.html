@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER — Tornado Intercept</title>
+<title>VORTEX RUNNER - Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -2763,33 +2763,29 @@ function drawRemoteCarsWorld() {
 }
 
 /* ======================================================================
-   ONLINE — CO-OP REALTIME + LEADERBOARD
-   The old network version polled REST once per second and drew each received
-   coordinate directly. This build sends movement at 10 Hz, buffers snapshots
-   for ~120 ms, interpolates between them, and predicts only the tiny gap after
-   the newest packet. The result is continuous movement on both clients.
+   ONLINE — CO-OP PRESENCE + LEADERBOARD
+   Multiplayer uses the same public vortex_presence table as the original
+   working online build. The only change is client-side smoothing: snapshots
+   are sent/polled several times per second, then interpolated locally so the
+   remote car moves continuously instead of jumping between database samples.
 ====================================================================== */
 const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const myCoopId = Math.random().toString(36).slice(2, 10);
-const COOP_CHANNEL_NAME = "vortex-runner-public";
-const COOP_SEND_INTERVAL_MS = 100;
-const COOP_HEARTBEAT_INTERVAL_MS = 500;
-const COOP_FALLBACK_INTERVAL_MS = 500;
-const REMOTE_RENDER_DELAY_MS = 120;
-const REMOTE_PREDICTION_MAX_MS = 280;
-const REMOTE_TIMEOUT_MS = 3500;
-const MAX_REMOTE_SNAPSHOTS = 12;
+const COOP_SEND_INTERVAL_MS = 200;
+const COOP_POLL_INTERVAL_MS = 200;
+const REMOTE_RENDER_DELAY_MS = 90;
+const REMOTE_TIMEOUT_MS = 4000;
+const MAX_REMOTE_SNAPSHOTS = 16;
 
 let playerName = "";
 let lbTab = "storms";
 let lbOpen = false;
 let remoteCars = {};
-let coopChannel = null;
-let realtimeConnected = false;
-let coopSendInFlight = false;
+let coopPushInFlight = false;
+let coopPollInFlight = false;
 
 try {
   const saved = localStorage.getItem("vortexPlayerName");
@@ -2800,111 +2796,54 @@ const playerNameInput = document.getElementById("playerNameInput");
 if (playerNameInput) {
   playerNameInput.value = playerName;
   playerNameInput.addEventListener("input", e => {
-    playerName = e.target.value.trim();
+    playerName = e.target.value.trim().slice(0,24);
     try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
   });
 }
 
-function normalizeAngle(a){
-  const full = Math.PI*2;
-  return ((a % full) + full) % full;
+function escHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-function shortestAngleDelta(from, to){
-  return ((to - from + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
-}
-
-function lerpAngle(a, b, t){
-  return normalizeAngle(a + shortestAngleDelta(a, b) * t);
-}
-
-function makeRemoteCarSnapshot(payload, receivedAt){
-  const x = Number(payload.x);
-  const y = Number(payload.y);
-  const vx = Number(payload.vx) || 0;
-  const vy = Number(payload.vy) || 0;
-  const angle = Number(payload.angle) || 0;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  return {
-    receivedAt, x, y, vx, vy, angle,
-    name: String(payload.name || "Chaser").slice(0,24),
-    health: Number(payload.health) || 0,
-    maxHealth: Number(payload.maxHealth) || 0,
-    anchoring: !!payload.anchoring,
-    color: payload.color || "#39ff14"
-  };
-}
-
-function acceptRemoteSnapshot(id, payload){
-  if (!id || id === myCoopId) return;
-  const now = performance.now();
-  const snap = makeRemoteCarSnapshot(payload, now);
-  if (!snap) return;
-
-  let rc = remoteCars[id];
-  if (!rc) {
-    rc = remoteCars[id] = {
-      id, snapshots: [], renderX: snap.x, renderY: snap.y,
-      renderAngle: snap.angle, lastSeen: now
-    };
+async function fetchLeaderboard(){
+  const statusEl = document.getElementById("lbStatus");
+  const listEl = document.getElementById("lbList");
+  if (!statusEl || !listEl) return;
+  statusEl.textContent = "Loading...";
+  listEl.innerHTML = "";
+  try {
+    const col = lbTab === "storms" ? "storms_intercepted" : "money";
+    const {data,error} = await sb.from("vortex_runner_scores")
+      .select("player_name, money, storms_intercepted")
+      .order(col,{ascending:false})
+      .limit(20);
+    if (error) throw error;
+    statusEl.textContent = `${data.length} entries`;
+    data.forEach((row,i) => {
+      const div = document.createElement("div");
+      div.className = "lbRow";
+      const val = lbTab === "storms" ? `${row.storms_intercepted} storms` : "$" + Number(row.money).toLocaleString();
+      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
+      listEl.appendChild(div);
+    });
+    if (!data.length) statusEl.textContent = "No scores yet — be first!";
+  } catch(e) {
+    statusEl.textContent = "Offline";
   }
-  rc.snapshots.push(snap);
-  while (rc.snapshots.length > MAX_REMOTE_SNAPSHOTS) rc.snapshots.shift();
-  rc.lastSeen = now;
-  rc.name = snap.name;
-  rc.health = snap.health;
-  rc.maxHealth = snap.maxHealth;
-  rc.anchoring = snap.anchoring;
-  rc.color = snap.color;
 }
 
-function updateRemoteCarsRender(dt){
-  const now = performance.now();
-  const renderAt = now - REMOTE_RENDER_DELAY_MS;
-  const smooth = 1 - Math.exp(-28 * Math.max(0, dt));
-
-  Object.keys(remoteCars).forEach(id => {
-    const rc = remoteCars[id];
-    if (!rc || now - rc.lastSeen > REMOTE_TIMEOUT_MS) {
-      delete remoteCars[id];
-      return;
-    }
-    const snaps = rc.snapshots || [];
-    if (!snaps.length) return;
-
-    let desiredX, desiredY, desiredAngle, a = null, b = null;
-    for (let i = 0; i < snaps.length - 1; i++) {
-      if (snaps[i].receivedAt <= renderAt && renderAt <= snaps[i+1].receivedAt) {
-        a = snaps[i]; b = snaps[i+1]; break;
-      }
-    }
-
-    if (a && b) {
-      const span = Math.max(1, b.receivedAt - a.receivedAt);
-      const t = Math.max(0, Math.min(1, (renderAt - a.receivedAt) / span));
-      desiredX = a.x + (b.x - a.x) * t;
-      desiredY = a.y + (b.y - a.y) * t;
-      desiredAngle = lerpAngle(a.angle, b.angle, t);
-    } else {
-      const latest = snaps[snaps.length - 1];
-      const predictionMs = Math.max(0, Math.min(REMOTE_PREDICTION_MAX_MS, now - latest.receivedAt));
-      const predictionSec = predictionMs / 1000;
-      desiredX = latest.x + latest.vx * predictionSec;
-      desiredY = latest.y + latest.vy * predictionSec;
-      desiredAngle = latest.angle;
-    }
-
-    if (rc.renderX == null) {
-      rc.renderX = desiredX; rc.renderY = desiredY; rc.renderAngle = desiredAngle;
-    } else {
-      rc.renderX += (desiredX - rc.renderX) * smooth;
-      rc.renderY += (desiredY - rc.renderY) * smooth;
-      rc.renderAngle = lerpAngle(rc.renderAngle, desiredAngle, smooth);
-    }
-  });
+async function submitScore(){
+  try {
+    const {error} = await sb.from("vortex_runner_scores").insert({
+      player_name: playerName || "Unknown Chaser",
+      money: Math.floor(state.money),
+      storms_intercepted: state.stormsIntercepted
+    });
+    if (error) throw error;
+    if (lbOpen) fetchLeaderboard();
+  } catch(e){}
 }
 
-// ---- Leaderboard ----
 const lbToggleBtn = document.getElementById("lbToggle");
 const lbPanel = document.getElementById("lbPanel");
 if (lbToggleBtn && lbPanel) {
@@ -2915,7 +2854,6 @@ if (lbToggleBtn && lbPanel) {
     if (lbOpen) fetchLeaderboard();
   });
 }
-
 document.querySelectorAll(".lbTab").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
@@ -2925,146 +2863,219 @@ document.querySelectorAll(".lbTab").forEach(btn => {
   });
 });
 
-async function fetchLeaderboard(){
-  const statusEl = document.getElementById("lbStatus");
-  const listEl = document.getElementById("lbList");
-  if (!statusEl || !listEl) return;
-  statusEl.textContent = "Loading...";
-  listEl.innerHTML = "";
-  try {
-    const col = lbTab === "storms" ? "storms_intercepted" : "money";
-    const { data, error } = await sb
-      .from("vortex_runner_scores")
-      .select("player_name, money, storms_intercepted")
-      .order(col, { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    statusEl.textContent = `${data.length} entries`;
-    data.forEach((row, i) => {
-      const div = document.createElement("div");
-      div.className = "lbRow";
-      const val = lbTab === "storms" ? row.storms_intercepted + " storms" : "$" + Number(row.money).toLocaleString();
-      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
-      listEl.appendChild(div);
-    });
-    if (data.length === 0) statusEl.textContent = "No scores yet — be first!";
-  } catch(e) {
-    statusEl.textContent = "Offline";
+function normalizeAngle(a){
+  const full = Math.PI * 2;
+  return ((a % full) + full) % full;
+}
+function shortestAngleDelta(from,to){
+  return ((to - from + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+}
+function lerpAngle(a,b,t){
+  return normalizeAngle(a + shortestAngleDelta(a,b) * t);
+}
+
+function acceptRemoteSnapshot(id,row){
+  if (!id || id === myCoopId || !row) return;
+  const x = Number(row.x), y = Number(row.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const now = performance.now();
+  let rc = remoteCars[id];
+
+  if (!rc) {
+    rc = remoteCars[id] = {
+      id, snapshots: [], renderX:x, renderY:y,
+      renderAngle:Number(row.angle) || 0, lastSeen:now, vx:0, vy:0,
+      name:"Chaser", health:0, maxHealth:0, anchoring:false, color:"#39ff14"
+    };
   }
-}
 
-function escHtml(s){
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-}
+  const previous = rc.snapshots.length ? rc.snapshots[rc.snapshots.length-1] : null;
+  let vx = 0, vy = 0;
+  if (previous) {
+    const dt = Math.max(0.025,(now - previous.receivedAt)/1000);
+    vx = (x - previous.x) / dt;
+    vy = (y - previous.y) / dt;
+    const speed = Math.hypot(vx,vy);
+    if (speed > 1400) {
+      const scale = 1400 / speed;
+      vx *= scale; vy *= scale;
+    }
+  }
 
-async function submitScore(){
-  const { error } = await sb.from("vortex_runner_scores").insert({
-    player_name: playerName || "Unknown Chaser",
-    money: Math.floor(state.money),
-    storms_intercepted: state.stormsIntercepted
+  rc.snapshots.push({
+    receivedAt:now, x, y, vx, vy,
+    angle:Number(row.angle) || 0,
+    name:String(row.player_name || "Chaser").slice(0,24),
+    health:Number(row.health) || 0,
+    maxHealth:Number(row.max_health) || 0,
+    anchoring:!!row.anchoring,
+    color:row.color || "#39ff14"
   });
-  if (error) throw error;
-  if (lbOpen) fetchLeaderboard();
+  while (rc.snapshots.length > MAX_REMOTE_SNAPSHOTS) rc.snapshots.shift();
+
+  rc.lastSeen = now;
+  rc.name = String(row.player_name || "Chaser").slice(0,24);
+  rc.health = Number(row.health) || 0;
+  rc.maxHealth = Number(row.max_health) || 0;
+  rc.anchoring = !!row.anchoring;
+  rc.color = row.color || "#39ff14";
+  rc.vx = vx; rc.vy = vy;
 }
 
-// ---- Realtime transform stream ----
-function initRealtime(){
-  try {
-    coopChannel = sb.channel(COOP_CHANNEL_NAME, {
-      config: { broadcast: { self: false, ack: false } }
-    });
-    coopChannel
-      .on("broadcast", { event: "player_state" }, ({ payload }) => {
-        if (payload && payload.id) acceptRemoteSnapshot(payload.id, payload);
-      })
-      .subscribe(status => {
-        realtimeConnected = status === "SUBSCRIBED";
-        const footer = document.getElementById("lbFooter");
-        if (footer) footer.textContent = realtimeConnected
-          ? "CO-OP CONNECTED · 10 Hz movement · Top 20"
-          : "CO-OP RECONNECTING · 2 Hz fallback · Top 20";
-      });
-  } catch(e) {
-    realtimeConnected = false;
-  }
+function updateRemoteCarsRender(dt){
+  const now = performance.now();
+  const renderAt = now - REMOTE_RENDER_DELAY_MS;
+  const smoothing = 1 - Math.exp(-24 * Math.max(0,dt));
+
+  Object.keys(remoteCars).forEach(id => {
+    const rc = remoteCars[id];
+    if (!rc || now - rc.lastSeen > REMOTE_TIMEOUT_MS) {
+      delete remoteCars[id];
+      return;
+    }
+    const snapshots = rc.snapshots || [];
+    if (!snapshots.length) return;
+
+    let targetX = snapshots[snapshots.length-1].x;
+    let targetY = snapshots[snapshots.length-1].y;
+    let targetAngle = snapshots[snapshots.length-1].angle;
+
+    for (let i=0; i<snapshots.length-1; i++) {
+      const a=snapshots[i], b=snapshots[i+1];
+      if (a.receivedAt <= renderAt && renderAt <= b.receivedAt) {
+        const span=Math.max(1,b.receivedAt-a.receivedAt);
+        const t=Math.max(0,Math.min(1,(renderAt-a.receivedAt)/span));
+        targetX=a.x+(b.x-a.x)*t;
+        targetY=a.y+(b.y-a.y)*t;
+        targetAngle=lerpAngle(a.angle,b.angle,t);
+        break;
+      }
+    }
+
+    if (renderAt > snapshots[snapshots.length-1].receivedAt) {
+      const latest=snapshots[snapshots.length-1];
+      const ahead=Math.min(0.18,(renderAt-latest.receivedAt)/1000);
+      targetX=latest.x+latest.vx*ahead;
+      targetY=latest.y+latest.vy*ahead;
+      targetAngle=latest.angle;
+    }
+
+    if (rc.renderX == null) rc.renderX=targetX;
+    if (rc.renderY == null) rc.renderY=targetY;
+    if (rc.renderAngle == null) rc.renderAngle=targetAngle;
+    rc.renderX += (targetX-rc.renderX)*smoothing;
+    rc.renderY += (targetY-rc.renderY)*smoothing;
+    rc.renderAngle = lerpAngle(rc.renderAngle,targetAngle,smoothing);
+  });
 }
 
-function getLocalCoopPayload(){
-  const veh = VEHICLES[state.currentVehicleKey];
-  return {
-    id: myCoopId, name: playerName || "Chaser",
-    x: car.x, y: car.y, vx: car.vx, vy: car.vy, angle: car.angle,
-    health: car.health, maxHealth: car.maxHealth, anchoring: !!car.anchored,
-    color: veh ? veh.color : "#39ff14"
-  };
+function drawRemoteCarsWorld(){
+  Object.values(remoteCars).forEach(rc => {
+    if (rc.renderX == null || rc.renderY == null) return;
+    const s=worldToScreen(rc.renderX,rc.renderY);
+    if (s.x < -80 || s.x > canvas.width+80 || s.y < -80 || s.y > canvas.height+80) return;
+
+    ctx.save();
+    ctx.translate(s.x,s.y);
+    ctx.rotate((rc.renderAngle || 0) - camera.angle);
+    ctx.fillStyle=rc.color || "#39ff14";
+    ctx.strokeStyle="#0a0a0a";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(0,-14); ctx.lineTo(8,9); ctx.lineTo(-8,9); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    if (rc.anchoring) {
+      ctx.strokeStyle="#ffd23f";
+      ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.fillStyle=rc.color || "#39ff14";
+    ctx.font="bold 11px Courier New";
+    ctx.textAlign="center";
+    ctx.fillText(rc.name || "?",s.x,s.y-22);
+
+    if (rc.maxHealth > 0) {
+      const bw=30,bh=3;
+      const pct=Math.max(0,Math.min(1,rc.health/rc.maxHealth));
+      ctx.fillStyle="#00000088";
+      ctx.fillRect(s.x-bw/2,s.y-18,bw,bh);
+      ctx.fillStyle=pct>.5?"#39ff14":pct>.25?"#ffd23f":"#ff4b6e";
+      ctx.fillRect(s.x-bw/2,s.y-18,bw*pct,bh);
+    }
+  });
 }
 
-async function coopBroadcast(){
-  if (!coopChannel || !realtimeConnected || coopSendInFlight || !state.running) return;
-  coopSendInFlight = true;
-  try {
-    await coopChannel.send({
-      type: "broadcast",
-      event: "player_state",
-      payload: getLocalCoopPayload()
-    });
-  } catch(e) {
-    realtimeConnected = false;
-  } finally {
-    coopSendInFlight = false;
-  }
-}
-
-// Keep a database presence heartbeat even while Realtime is connected. This is
-// important because it gives every client a reliable discovery path if Realtime
-// is blocked, temporarily reconnecting, or unavailable in the browser.
 async function coopPush(){
-  const veh = VEHICLES[state.currentVehicleKey];
+  if (coopPushInFlight) return;
+  coopPushInFlight=true;
   try {
-    await sb.from("vortex_presence").upsert({
-      id: myCoopId, player_name: playerName || "Chaser",
-      x: car.x, y: car.y, angle: car.angle,
-      health: car.health, max_health: car.maxHealth, anchoring: !!car.anchored,
-      color: veh ? veh.color : "#39ff14",
-      updated_at: new Date().toISOString()
-    }, { onConflict: "id" });
-  } catch(e) {}
+    const veh=VEHICLES[state.currentVehicleKey];
+    const {error}=await sb.from("vortex_presence").upsert({
+      id:myCoopId,
+      player_name:playerName || "Chaser",
+      x:Number(car.x) || 0,
+      y:Number(car.y) || 0,
+      angle:Number(car.angle) || 0,
+      health:Number(car.health) || 0,
+      max_health:Number(car.maxHealth) || 0,
+      anchoring:!!car.anchored,
+      color:veh ? veh.color : "#39ff14",
+      updated_at:new Date().toISOString()
+    },{onConflict:"id"});
+    if (error) throw error;
+    const footer=document.getElementById("lbFooter");
+    if (footer && !Object.keys(remoteCars).length) footer.textContent="CO-OP SEARCHING · Top 20";
+  } catch(e) {
+    const footer=document.getElementById("lbFooter");
+    if (footer) footer.textContent="CO-OP OFFLINE · Retrying";
+  } finally {
+    coopPushInFlight=false;
+  }
 }
 
 async function coopPoll(){
+  if (coopPollInFlight) return;
+  coopPollInFlight=true;
   try {
-    const cutoff = new Date(Date.now() - 4000).toISOString();
-    const { data, error } = await sb.from("vortex_presence")
+    const cutoff=new Date(Date.now()-REMOTE_TIMEOUT_MS).toISOString();
+    const {data,error}=await sb.from("vortex_presence")
       .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
-      .neq("id", myCoopId).gte("updated_at", cutoff);
+      .neq("id",myCoopId)
+      .gte("updated_at",cutoff);
     if (error) throw error;
-    const seen = new Set();
-    (data || []).forEach(r => {
-      seen.add(r.id);
-      acceptRemoteSnapshot(r.id, {
-        id:r.id, name:r.player_name, x:r.x, y:r.y, vx:0, vy:0, angle:r.angle,
-        health:r.health, maxHealth:r.max_health, anchoring:r.anchoring, color:r.color
-      });
+
+    const now=performance.now();
+    (data || []).forEach(row=>acceptRemoteSnapshot(row.id,row));
+    Object.keys(remoteCars).forEach(id=>{
+      if (now-remoteCars[id].lastSeen > REMOTE_TIMEOUT_MS) delete remoteCars[id];
     });
-    const footer = document.getElementById("lbFooter");
-    const count = Object.keys(remoteCars).filter(id => seen.has(id) || performance.now() - remoteCars[id].lastSeen < REMOTE_TIMEOUT_MS).length;
-    if (footer && !realtimeConnected) footer.textContent = `${count ? count + " chasers online · " : ""}CO-OP FALLBACK · Top 20`;
+
+    const footer=document.getElementById("lbFooter");
+    if (footer) {
+      const count=Object.keys(remoteCars).length;
+      footer.textContent=`${count ? count+" chasers online · " : ""}CO-OP LIVE · Top 20`;
+    }
   } catch(e) {
-    // Do not clear remoteCars here. Realtime snapshots may still be arriving.
+    const footer=document.getElementById("lbFooter");
+    if (footer) footer.textContent="CO-OP RETRYING · Top 20";
+  } finally {
+    coopPollInFlight=false;
   }
 }
 
 async function coopRemove(){
-  try { await sb.from("vortex_presence").delete().eq("id", myCoopId); } catch(e) {}
+  try { await sb.from("vortex_presence").delete().eq("id",myCoopId); } catch(e){}
 }
 
-initRealtime();
-setInterval(coopBroadcast, COOP_SEND_INTERVAL_MS);
-setInterval(coopPush, COOP_HEARTBEAT_INTERVAL_MS);
-setInterval(coopPoll, COOP_FALLBACK_INTERVAL_MS);
-setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
+// Send/poll immediately, then keep the original presence system alive.
+coopPush();
+coopPoll();
+setInterval(coopPush,COOP_SEND_INTERVAL_MS);
+setInterval(coopPoll,COOP_POLL_INTERVAL_MS);
+setInterval(() => { if (lbOpen) fetchLeaderboard(); },30000);
 fetchLeaderboard();
-window.addEventListener("beforeunload", coopRemove);
+window.addEventListener("beforeunload",coopRemove);
 
 </script>
 </body>
