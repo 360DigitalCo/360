@@ -223,9 +223,24 @@ function setupInput(){
   addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false});
   addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement && running&&!paused){input.look.x+=e.movementX*0.0022;input.look.y+=e.movementY*0.0018}});
   $('resume').onclick=()=>togglePause(false);$('leave').onclick=()=>leaveMatch();$('deploy').onclick=()=>queueForMatch();$('training').onclick=()=>startMatch(true);$('settings').onclick=showControls;$('replay').onclick=()=>startMatch(trainingMode);$('menu-back').onclick=()=>{ended=false;showScreen(UI.menu)};
-  $('mob-fire').addEventListener('pointerdown',()=>mouseDown=true);$('mob-fire').addEventListener('pointerup',()=>mouseDown=false);$('mob-fire').addEventListener('pointercancel',()=>mouseDown=false);$('mob-jump').addEventListener('pointerdown',()=>jumpRequested=true);$('mob-reload').addEventListener('pointerdown',()=>reloadRequested=true);
-  const left=$('.stick.left');const lknob=$('left-knob');let leftId=null;left.addEventListener('pointerdown',e=>{leftId=e.pointerId;left.setPointerCapture(leftId);updateStick(e,left,lknob)});left.addEventListener('pointermove',e=>{if(e.pointerId===leftId)updateStick(e,left,lknob)});left.addEventListener('pointerup',()=>{leftId=null;input.move.set(0,0);lknob.style.transform='translate(-50%,-50%)'});
-  const right=$('.stick.right');const rknob=$('right-knob');let rightId=null;right.addEventListener('pointerdown',e=>{rightId=e.pointerId;right.setPointerCapture(rightId);updateStick(e,right,rknob)});right.addEventListener('pointermove',e=>{if(e.pointerId===rightId)updateStick(e,right,rknob)});right.addEventListener('pointerup',()=>{rightId=null;input.look.set(0,0);rknob.style.transform='translate(-50%,-50%)'});
+  const bind=(el,event,handler)=>el?.addEventListener(event,handler);
+  const fire=$('mob-fire'),jump=$('mob-jump'),reload=$('mob-reload');
+  bind(fire,'pointerdown',()=>mouseDown=true);bind(fire,'pointerup',()=>mouseDown=false);bind(fire,'pointercancel',()=>mouseDown=false);
+  bind(jump,'pointerdown',()=>jumpRequested=true);bind(reload,'pointerdown',()=>reloadRequested=true);
+  const left=document.querySelector('.stick.left');const lknob=$('left-knob');let leftId=null;
+  if(left&&lknob){
+    bind(left,'pointerdown',e=>{leftId=e.pointerId;left.setPointerCapture?.(leftId);updateStick(e,left,lknob)});
+    bind(left,'pointermove',e=>{if(e.pointerId===leftId)updateStick(e,left,lknob)});
+    bind(left,'pointerup',()=>{leftId=null;input.move.set(0,0);lknob.style.transform='translate(-50%,-50%)'});
+    bind(left,'pointercancel',()=>{leftId=null;input.move.set(0,0);lknob.style.transform='translate(-50%,-50%)'});
+  }
+  const right=document.querySelector('.stick.right');const rknob=$('right-knob');let rightId=null;
+  if(right&&rknob){
+    bind(right,'pointerdown',e=>{rightId=e.pointerId;right.setPointerCapture?.(rightId);updateStick(e,right,rknob)});
+    bind(right,'pointermove',e=>{if(e.pointerId===rightId)updateStick(e,right,rknob)});
+    bind(right,'pointerup',()=>{rightId=null;input.look.set(0,0);rknob.style.transform='translate(-50%,-50%)'});
+    bind(right,'pointercancel',()=>{rightId=null;input.look.set(0,0);rknob.style.transform='translate(-50%,-50%)'});
+  }
   function updateStick(e,el,knob){const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=42,len=Math.hypot(dx,dy)||1,cl=Math.min(max,len);const nx=dx/len*cl,ny=dy/len*cl;knob.style.transform=`translate(calc(-50% + ${nx}px),calc(-50% + ${ny}px))`;if(el===left)input.move.set(nx/max,-ny/max);else input.look.set(nx/max,ny/max)}
 }
 function startMatch(training){
