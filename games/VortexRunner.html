@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER ONLINE — Tornado Intercept</title>
+<title>VORTEX RUNNER - Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -2634,8 +2634,6 @@ const myCoopId = Math.random().toString(36).slice(2, 10);
 let playerName = "";
 let lbTab = "storms";
 let lbOpen = false;
-let coopChannel = null;
-let remoteCars = {}; // id -> { x, y, angle, vx, vy, name, anchoring, health, maxHealth, vehicleKey }
 
 try {
   const saved = localStorage.getItem("vortexPlayerName");
@@ -2706,57 +2704,44 @@ async function submitScore() {
 setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
 fetchLeaderboard();
 
-// ---- Co-op Realtime Presence ----
-function connectCoop() {
-  if (coopChannel) sb.removeChannel(coopChannel);
-  coopChannel = sb.channel("vortex-coop-v1", { config: { presence: { key: myCoopId } } });
+// ---- Co-op REST polling (no WebSockets) ----
+let remoteCars = {};
 
-  coopChannel.on("presence", { event: "sync" }, () => {
-    const s = coopChannel.presenceState();
-    remoteCars = {};
-    Object.entries(s).forEach(([k, arr]) => {
-      if (k !== myCoopId && arr.length) remoteCars[k] = arr[arr.length - 1];
-    });
-    updateCoopList();
-  });
-  coopChannel.on("presence", { event: "leave" }, ({ leftPresences }) => {
-    leftPresences.forEach(p => delete remoteCars[p.id || p.key]);
-    updateCoopList();
-  });
-  coopChannel.subscribe();
-}
-
-function updateCoopList() {
-  const el = document.getElementById("lbList");
-  // Only update list if leaderboard is on the online players tab
-  // (list is reused for LB, so we leave it alone — just update footer)
-  const count = Object.keys(remoteCars).length;
-  document.getElementById("lbFooter").textContent =
-    `${count > 0 ? count + " chasers online · " : ""}Updates every 30s · Top 20`;
-}
-
-let _lastCoopPush = 0;
-function coopTick() {
-  const now = performance.now();
-  if (now - _lastCoopPush < 1000 / 15) return;
-  _lastCoopPush = now;
-  if (!coopChannel) return;
+async function coopPush() {
   const veh = VEHICLES[state.currentVehicleKey];
-  coopChannel.track({
-    id: myCoopId,
-    name: playerName || "Chaser",
-    x: car.x, y: car.y,
-    angle: car.angle,
-    health: car.health, maxHealth: car.maxHealth,
-    anchoring: car.anchored,
-    color: veh ? veh.color : "#39ff14",
-    money: Math.floor(state.money),
-    storms: state.stormsIntercepted
-  });
+  try {
+    await sb.from('vortex_presence').upsert({
+      id: myCoopId, player_name: playerName || 'Chaser',
+      x: car.x, y: car.y, angle: car.angle,
+      health: car.health, max_health: car.maxHealth,
+      anchoring: !!car.anchored,
+      color: veh ? veh.color : '#39ff14',
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+  } catch(e) {}
 }
 
-connectCoop();
-setInterval(coopTick, 1000/15);
+async function coopPoll() {
+  try {
+    const cutoff = new Date(Date.now() - 5000).toISOString();
+    const { data } = await sb.from('vortex_presence')
+      .select('*').neq('id', myCoopId).gte('updated_at', cutoff);
+    remoteCars = {};
+    (data||[]).forEach(r => {
+      remoteCars[r.id] = { name: r.player_name, x: r.x, y: r.y, angle: r.angle, health: r.health, maxHealth: r.max_health, anchoring: r.anchoring, color: r.color };
+    });
+    const count = Object.keys(remoteCars).length;
+    document.getElementById('lbFooter').textContent = `${count > 0 ? count + ' chasers online · ' : ''}Updates every 30s · Top 20`;
+  } catch(e) {}
+}
+
+async function coopRemove() {
+  try { await sb.from('vortex_presence').delete().eq('id', myCoopId); } catch(e) {}
+}
+
+setInterval(coopPush, 1000);
+setInterval(coopPoll, 1000);
+window.addEventListener('beforeunload', coopRemove);
 
 })();
 </script>
