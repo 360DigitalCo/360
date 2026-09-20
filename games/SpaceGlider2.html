@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-
+<!-- added chocken support, fmt print messages has a crush on goodbye, new giggler effect on spacebar pressing, print system prompt -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -506,6 +506,50 @@
     body:not(.dark) #travel-desc,
     body:not(.dark) #openworld-desc { color:#374151; }
     body:not(.dark) .mode-button { background:#f4f6fa; color:#182033; border-color:#00000016; }
+
+    #welcome-overlay {
+      position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+      z-index:40; pointer-events:auto; background:#050814ef;
+    }
+    #welcome-panel {
+      width:min(610px,90%); padding:24px 24px 20px; border:1px solid #ffffff32;
+      background:#080d1df4; text-align:center; position:relative; overflow:hidden;
+      box-shadow:0 16px 55px #0009;
+    }
+    #welcome-panel::before {
+      content:''; position:absolute; inset:10px; border:1px solid #6af7ff20; pointer-events:none;
+    }
+    #welcome-kicker { color:#6af7ff; font-size:9px; letter-spacing:.24em; text-transform:uppercase; }
+    #welcome-title {
+      margin:8px 0 2px; color:#f4f0ff; font-size:34px; letter-spacing:.08em;
+      font-weight:800; line-height:1; text-shadow:4px 0 #ff6ad5, -2px 0 #6af7ff;
+    }
+    #welcome-subtitle { color:#c4ccee; font-size:10px; letter-spacing:.16em; margin-bottom:24px; }
+    #welcome-starline { color:#ffef9a; font-size:9px; letter-spacing:.35em; margin:0 0 25px; }
+    #welcome-start {
+      color:#6af7ff; font-size:12px; letter-spacing:.16em; min-height:18px;
+      animation:welcomeBlink .9s steps(1,end) infinite;
+    }
+    #welcome-controls { color:#7e88bd; font-size:8px; letter-spacing:.1em; margin-top:17px; }
+    @keyframes welcomeBlink { 50% { opacity:.3; } }
+    #mode-panel { text-align:left; }
+    #mode-panel .mode-buttons { grid-template-columns:1fr; }
+    .mode-button { position:relative; padding-left:28px; }
+    .mode-button.selected { border-color:#6af7ff; background:#172042; }
+    .mode-button.selected::before {
+      content:'▶'; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ffef9a;
+      font-size:10px;
+    }
+    #mode-controls {
+      margin-top:13px; color:#7f8acb; font-size:8px; letter-spacing:.08em; text-align:center;
+    }
+    body:not(.dark) #welcome-overlay { background:rgba(200,210,230,.94); }
+    body:not(.dark) #welcome-panel { background:rgba(255,255,255,.98); border-color:rgba(0,0,0,.14); }
+    body:not(.dark) #welcome-title { color:#182033; text-shadow:3px 0 #be185d, -2px 0 #2563eb; }
+    body:not(.dark) #welcome-subtitle { color:#4b5563; }
+    body:not(.dark) #welcome-controls, body:not(.dark) #mode-controls { color:#64748b; }
+    body:not(.dark) .mode-button.selected { background:#eef6ff; border-color:#2563eb; }
+    body:not(.dark) .mode-button.selected::before { color:#be185d; }
   </style>
 <meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="Space Glider 2" property="og:title"/><meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." property="og:description"/><meta content="https://360-search.com/games/spaceGlider2.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Space Glider 2" name="twitter:title"/><meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." name="twitter:description"/><link href="https://360-search.com/games/spaceGlider2.html" rel="canonical"/></head>
 <body>
@@ -622,6 +666,17 @@
   <div id="boss-bar"><div id="boss-bar-fill"></div></div>
   <div id="boss-phase">PHASE 1 · CORE SEALED</div>
 </div>
+
+<div id="welcome-overlay">
+  <div id="welcome-panel">
+    <div id="welcome-kicker">360 DIGITAL · PRESENTS</div>
+    <div id="welcome-title">SPACE GLIDER 2</div>
+    <div id="welcome-subtitle">A NEW FLIGHT BEYOND THE MAP</div>
+    <div id="welcome-starline">✦ · · ✦ · · · ✦ · · ✦</div>
+    <div id="welcome-start">PRESS ENTER / SPACE TO START</div>
+    <div id="welcome-controls">ARROWS / WASD · SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE · START</div>
+  </div>
+</div>
 <div id="mode-overlay">
   <div id="mode-panel">
     <div id="mode-kicker">SPACE GLIDER 2</div>
@@ -631,6 +686,7 @@
       <button class="mode-button" id="campaign-mode"><strong>CAMPAIGN</strong><span>Story worlds, boss encounters, celebrations and planet-to-planet travel.</span></button>
       <button class="mode-button" id="openworld-mode"><strong>OPENWORLD</strong><span>Roam a connected star map, discover planets and trigger optional encounters.</span></button>
     </div>
+    <div id="mode-controls">▲ / ▼ SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE CONFIRM&nbsp;&nbsp;&nbsp;ESC BACK</div>
   </div>
 </div>
 <div id="celebration-overlay">
@@ -678,7 +734,9 @@ const hpBar=document.getElementById('hp-bar'),xpBar=document.getElementById('xp-
 const scoreEl=document.getElementById('score'),levelEl=document.getElementById('level'),coreNameEl=document.getElementById('core-name'),centerMessage=document.getElementById('center-message');
 const upgradeOverlay=document.getElementById('upgrade-overlay'),upgradeOptionsEl=document.getElementById('upgrade-options'),missionText=document.getElementById('mission-text'),worldTitle=document.getElementById('world-title');
 const cutsceneOverlay=document.getElementById('cutscene-overlay'),cutsceneTitle=document.getElementById('cutscene-title'),cutsceneKicker=document.getElementById('cutscene-kicker'),cutsceneBody=document.getElementById('cutscene-body'),campaignOverlay=document.getElementById('campaign-overlay');
-const modeOverlay=document.getElementById('mode-overlay'),celebrationOverlay=document.getElementById('celebration-overlay'),travelOverlay=document.getElementById('travel-overlay'),openworldOverlay=document.getElementById('openworld-overlay');
+const welcomeOverlay=document.getElementById('welcome-overlay'),modeOverlay=document.getElementById('mode-overlay'),celebrationOverlay=document.getElementById('celebration-overlay'),travelOverlay=document.getElementById('travel-overlay'),openworldOverlay=document.getElementById('openworld-overlay');
+const modeButtons=[document.getElementById('campaign-mode'),document.getElementById('openworld-mode')];
+let welcomeScreen=true,modeSelection=0;
 const travelTitle=document.getElementById('travel-title'),travelDesc=document.getElementById('travel-desc'),celebrationDesc=document.getElementById('celebration-desc'),celebrationNext=document.getElementById('celebration-next');
 const bossHud=document.getElementById('boss-hud'),bossName=document.getElementById('boss-name'),bossBarFill=document.getElementById('boss-bar-fill'),bossPhase=document.getElementById('boss-phase');
 const playerBase={maxHp:5,speed:80,dashSpeed:220,dashDuration:.16,dashCooldown:.7,fireRate:7,bulletSpeed:220,spread:0,multi:1,piercing:false,xp:0,xpToLevel:30,level:1,hp:5};
@@ -720,6 +778,8 @@ const OPEN_PLANETS=[
 const upgradePool=()=>[...upgradesPool];
 function resize(){canvas.width=VIRTUAL_W;canvas.height=VIRTUAL_H;ctx.imageSmoothingEnabled=false}window.addEventListener('resize',resize);resize();
 window.addEventListener('keydown',e=>{const key=e.key.toLowerCase();keys[key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+if(welcomeScreen){if(key==='enter'||key===' '){showModeSelect();return}if(key==='escape')return}
+if(phase==='menu'&&!welcomeScreen){if(key==='arrowup'||key==='w'){moveModeSelection(-1);return}if(key==='arrowdown'||key==='s'){moveModeSelection(1);return}if(key==='enter'||key===' '){confirmModeSelection();return}if(key==='escape'){showWelcome();return}}
 if(cutsceneActive&&(key==='enter'||key===' ')){advanceCutscene();return}if(cutsceneActive&&key==='s'){skipCutscene();return}
 if(campaignComplete&&key==='enter'){campaignComplete=false;campaignOverlay.style.display='none';selectMode('campaign');return}
 if(phase==='travel'&&key==='enter'){player.x=travelTargetX;return}
@@ -731,7 +791,7 @@ window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 document.getElementById('campaign-mode').onclick=()=>selectMode('campaign');document.getElementById('openworld-mode').onclick=()=>selectMode('openworld');
 function rand(a,b){return a+Math.random()*(b-a)}function lerp(a,b,t){return a+(b-a)*t}function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function currentConfig(){return GALAXIES[currentGalaxy].worlds[currentWorld]}function currentGalaxyData(){return GALAXIES[currentGalaxy]}
-function worldLabel(){return `${currentGalaxyData().name} · ${currentConfig().name}`} // IstG I'm horrible at math, @mingzew2 please fix ts
+function worldLabel(){return `${currentGalaxyData().name} · ${currentConfig().name}`}
 function objectiveLabel(){const c=currentConfig();if(c.objective==='destroy')return `Destroy ${c.target} · ${worldKills}/${c.target}`;if(c.objective==='collect')return `Collect ${c.target} shards · ${worldCollected}/${c.target}`;if(c.objective==='survive')return `Survive ${Math.ceil(Math.max(0,c.duration-worldElapsed))}s`;return c.boss}
 function saveProgress(){try{localStorage.setItem('spaceGlider2Progress',JSON.stringify({galaxy:currentGalaxy,world:currentWorld,done:campaignComplete}))}catch{}}
 function loadProgress(){try{const p=JSON.parse(localStorage.getItem('spaceGlider2Progress')||'null');if(p&&Number.isInteger(p.galaxy)&&Number.isInteger(p.world)){currentGalaxy=clamp(p.galaxy,0,GALAXIES.length-1);currentWorld=clamp(p.world,0,GALAXIES[currentGalaxy].worlds.length-1)}}catch{}}
@@ -742,6 +802,21 @@ function showCenterMessage(msg,dur=1.5){centerMessage.textContent=msg;centerMess
 function createPlayer(){return{x:52,y:90,vx:0,vy:0,...structuredClone(playerBase),fireCooldown:0,dashTimer:0,dashCooldownTimer:0,invuln:0}}
 function clearEntities(){bullets=[];enemyBullets=[];enemies=[];collectibles.length=0;particles.length=0;boss=null;spawnTimer=.7;collectSpawnTimer=1.4}
 function resetRun(){player=createPlayer();score=0;worldElapsed=0;worldKills=0;worldCollected=0;timeScale=1;timeScaleTarget=1;shakeMag=0;shakeTime=0;clearEntities();updateBossHud();updateHud()}
+function showWelcome(){
+  welcomeScreen=true; welcomeOverlay.style.display='flex'; modeOverlay.style.display='none'; phase='menu';
+}
+function showModeSelect(){
+  welcomeScreen=false; welcomeOverlay.style.display='none'; modeOverlay.style.display='flex'; phase='menu';
+  updateModeSelection();
+}
+function updateModeSelection(){
+  modeButtons.forEach((button,index)=>button.classList.toggle('selected',index===modeSelection));
+}
+function moveModeSelection(delta){
+  modeSelection=(modeSelection+delta+modeButtons.length)%modeButtons.length; updateModeSelection();
+}
+function confirmModeSelection(){selectMode(modeSelection===0?'campaign':'openworld')}
+
 function selectMode(nextMode){mode=nextMode;modeOverlay.style.display='none';campaignOverlay.style.display='none';bossHud.style.display='none';gameOver=false;campaignComplete=false;resetRun();if(mode==='campaign'){loadProgress();phase='cutscene';playWorldIntro(currentGalaxy===0&&currentWorld===0)}else{startOpenWorld()}}
 function startOpenWorld(){phase='openworld';openWorldOverlay(true);player=createPlayer();player.x=80;player.y=90;openWorldState.cameraX=0;openWorldState.discovered=new Set();openWorldState.challenge=null;worldKills=0;worldCollected=0;clearEntities();showCenterMessage('FREE FLIGHT · E TO EXPLORE PLANETS',2)}
 function openWorldOverlay(show){openworldOverlay.style.display=show?'flex':'none'}
@@ -811,7 +886,7 @@ function drawEnemies(offsetX=0){enemies.forEach(e=>drawEnemy(e,offsetX))}
 function drawEnemy(e,offsetX=0){const x=e.x-offsetX,y=e.y;if(x<-20||x>VIRTUAL_W+20)return;ctx.save();ctx.translate(x,y);ctx.fillStyle=e.color;if(e.type==='tank'||e.guardian){const ss=e.guardian?11:8;ctx.fillRect(-ss,-ss*.65,ss*2,ss*1.3);ctx.fillStyle='#1a0a2e';ctx.fillRect(1,-3,ss-1,6);ctx.fillStyle=e.guardian?'#ffffff88':'#ffef9a';ctx.fillRect(-ss*.4,-2,4,4)}else if(e.type==='rift'){ctx.rotate(performance.now()*.001);ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3,r=i%2?4:8;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill()}else if(e.type==='shard'){ctx.rotate(-.35);ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-4,-4);ctx.lineTo(-6,0);ctx.lineTo(-4,4);ctx.closePath();ctx.fill()}else{ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-6,-5);ctx.lineTo(-6,5);ctx.closePath();ctx.fill()}ctx.restore();if(e.hp<e.maxHp){ctx.fillStyle='#000000aa';ctx.fillRect(x-7,y-e.r-5,14,2);ctx.fillStyle='#ffef9a';ctx.fillRect(x-7,y-e.r-5,14*Math.max(0,e.hp/e.maxHp),2)}}
 function render(){ctx.save();ctx.clearRect(0,0,VIRTUAL_W,VIRTUAL_H);if(phase==='travel'){drawTravel()}else if(mode==='openworld'&&(phase==='openworld'||phase==='openChallenge')){if(phase==='openworld')renderOpenWorld();else{renderOpenWorld();drawEnemies(openWorldState.cameraX);drawShip(player.x-openWorldState.cameraX,player.y);enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-1,4,2)})}}else{renderCampaign();if(mode==='campaign'){if(phase==='boss')drawBoss();drawEnemies(0);drawCollectibles();enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';if(b.r>2){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill()}else ctx.fillRect(b.x-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-2,b.y-1,4,2)});drawShip(player.x,player.y)}}particles.forEach(p=>{ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size)});ctx.globalAlpha=1;confetti.forEach(c=>{ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);ctx.globalAlpha=Math.min(1,c.life);ctx.fillStyle=c.color;ctx.fillRect(-c.size/2,-c.size/2,c.size,c.size*1.8);ctx.restore()});if(shakeMag>0){}ctx.restore()}
 function loop(ts){const delta=Math.min(.25,(ts-lastTime)/1000||0);lastTime=ts;accumulator+=delta;if(running&&!paused&&!cutsceneActive&&!campaignComplete&&!gameOver){while(accumulator>=FIXED_DT){if(phase==='combat')updateCombat(FIXED_DT);else if(phase==='boss')updateBossPhase(FIXED_DT);else if(phase==='celebrate')updateCelebration(FIXED_DT);else if(phase==='travel')updateTravel(FIXED_DT);else if(phase==='openworld')updateOpenWorld(FIXED_DT);else if(phase==='openChallenge')updateOpenChallenge(FIXED_DT);accumulator-=FIXED_DT}}else accumulator=0;updateHud();render();requestAnimationFrame(loop)}
-loadProgress();resetRun();modeOverlay.style.display='flex';phase='menu';worldTitle.textContent=worldLabel();missionText.textContent='Choose a mode';requestAnimationFrame(loop);
+loadProgress();resetRun();showWelcome();worldTitle.textContent=worldLabel();missionText.textContent='Press Enter to start';requestAnimationFrame(loop);
 </script>
 <audio id="clickSound" preload="auto" src="../click-sound.mp3"></audio>
 <script src="/assets/js/main.js"></script>
