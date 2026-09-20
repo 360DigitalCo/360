@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER — Tornado Intercept</title>
+<title>VORTEX RUNNER ONLINE — Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -2582,7 +2582,6 @@ let lbTab = "storms";
 let lbOpen = false;
 let coopChannel = null;
 let remoteCars = {}; // id -> { x, y, angle, vx, vy, name, anchoring, health, maxHealth, vehicleKey }
-let coopPushTimer = 0;
 
 try {
   const saved = localStorage.getItem("vortexPlayerName");
@@ -2684,12 +2683,13 @@ function updateCoopList() {
     `${count > 0 ? count + " chasers online · " : ""}Updates every 30s · Top 20`;
 }
 
+let _lastCoopPush = 0;
 // Push own position ~15×/sec during gameplay
-function coopTick(dt) {
+function coopTick() {
   if (!state.running || state.paused) return;
-  coopPushTimer -= dt;
-  if (coopPushTimer > 0) return;
-  coopPushTimer = 1 / 15;
+  const now = performance.now();
+  if (now - _lastCoopPush < 1000 / 15) return;
+  _lastCoopPush = now;
   if (!coopChannel) return;
   const veh = VEHICLES[state.currentVehicleKey];
   coopChannel.track({
@@ -2707,20 +2707,25 @@ function coopTick(dt) {
   });
 }
 
-// Draw remote cars into the world — called from inside the render loop
-// We patch into the existing updateGame to call coopTick, and patch render
-// to draw remote cars.
-const _origUpdateGame = updateGame;
-function updateGame(dt) {
-  _origUpdateGame(dt);
-  coopTick(dt);
-}
-
-// Patch the render function to draw remote cars after the local car is drawn
-const _origRender = render;
-function render() {
-  _origRender();
-  drawRemoteCars();
+// Hook coop into the game loop via the loop function's post-step callback
+// instead of redeclaring updateGame/render (which breaks due to hoisting).
+// We attach a post-render hook that the loop already calls via requestAnimationFrame.
+let _coopHooked = false;
+function hookCoop() {
+  if (_coopHooked) return;
+  _coopHooked = true;
+  const _origLoop = loop;
+  // Wrap requestAnimationFrame so we can inject after each frame
+  const _origRAF = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = function(cb) {
+    return _origRAF(function(ts) {
+      cb(ts);
+      if (state.running && !state.paused) {
+        coopTick();
+        drawRemoteCars();
+      }
+    });
+  };
 }
 
 function drawRemoteCars() {
@@ -2815,7 +2820,8 @@ function drawRemotesOnMinimap() {
   });
 }
 
-// Start co-op connection immediately (or should we timeout if fail? Idk)
+// Start co-op connection and hook into render loop
+hookCoop();
 connectCoop();
 
 })();
