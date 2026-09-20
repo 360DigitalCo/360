@@ -308,7 +308,7 @@
 ====================================================================== */
 const ROAD_SPACING = 1000;      // distance between grid roads
 const ROAD_WIDTH   = 92;        // wide highways
-const WORLD_MIN = -4000, WORLD_MAX = 4000;
+const WORLD_MIN = -8000, WORLD_MAX = 8000;
 
 const TOWNS = [
   { name:"Silverton",  x: 0,     y: 0    },
@@ -2276,6 +2276,19 @@ function drawRadarContent(mx, my, size, big){
   ctx.fillStyle = "#ff3131";
   ctx.beginPath(); ctx.arc(p.x,p.y, big?5:3, 0, Math.PI*2); ctx.fill();
 
+  // Remote co-op chasers
+  Object.values(remoteCars).forEach(rc => {
+    if (!rc.x) return;
+    const rp = toMap(rc.x, rc.y);
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, big?4:2.5, 0, Math.PI*2); ctx.fill();
+    if (big) {
+      ctx.fillStyle = rc.color || "#39ff14";
+      ctx.font = "9px Courier New"; ctx.textAlign = "center";
+      ctx.fillText((rc.name||"?").slice(0,10), rp.x, rp.y - 8);
+    }
+  });
+
   ctx.restore(); // clip
 }
 
@@ -2557,6 +2570,7 @@ function loop(now){
   drawWildConvoys();
   drawConvoy();
   drawCar();
+  drawRemoteCarsWorld();
   ctx.restore();
 
   drawCompass();
@@ -2567,6 +2581,42 @@ function loop(now){
     drawMinimap();
   }
   updateHUD();
+}
+
+/* ======================================================================
+   CO-OP WORLD RENDER — remote chasers drawn in world space
+====================================================================== */
+function drawRemoteCarsWorld() {
+  if (!state.running) return;
+  Object.values(remoteCars).forEach(rc => {
+    if (!rc.x) return;
+    const s = worldToScreen(rc.x, rc.y);
+    if (s.x < -80 || s.x > canvas.width+80 || s.y < -80 || s.y > canvas.height+80) return;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate((rc.angle||0) - camera.angle);
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.strokeStyle = "#0a0a0a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0,-14); ctx.lineTo(8,9); ctx.lineTo(-8,9); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    if (rc.anchoring) {
+      ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.font = "bold 11px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText(rc.name||"?", s.x, s.y - 22);
+    if (rc.maxHealth > 0) {
+      const bw=30, bh=3, pct=Math.max(0,rc.health/rc.maxHealth);
+      ctx.fillStyle="#00000088"; ctx.fillRect(s.x-bw/2, s.y-18, bw, bh);
+      ctx.fillStyle=pct>.5?"#39ff14":pct>.25?"#ffd23f":"#ff4b6e";
+      ctx.fillRect(s.x-bw/2, s.y-18, bw*pct, bh);
+    }
+  });
 }
 
 /* ======================================================================
@@ -2710,121 +2760,15 @@ function coopTick() {
 // Hook coop into the game loop via the loop function's post-step callback
 // instead of redeclaring updateGame/render (which breaks due to hoisting).
 // We attach a post-render hook that the loop already calls via requestAnimationFrame.
-let _coopHooked = false;
-function hookCoop() {
-  if (_coopHooked) return;
-  _coopHooked = true;
-  const _origLoop = loop;
-  // Wrap requestAnimationFrame so we can inject after each frame
-  const _origRAF = window.requestAnimationFrame.bind(window);
-  window.requestAnimationFrame = function(cb) {
-    return _origRAF(function(ts) {
-      cb(ts);
-      if (state.running && !state.paused) {
-        coopTick();
-        drawRemoteCars();
-      }
-    });
-  };
-}
+// drawRemoteCarsWorld is defined just above drawRemoteCarsWorld() call in render()
+// Nothing needed here — push happens via setInterval below.
 
-function drawRemoteCars() {
-  if (!state.running) return;
-  const cx = canvas.width / 2, cy = canvas.height / 2;
-  const scale = 1; // world units = pixels at default zoom
-
-  // We need the same camera transform the main render uses
-  // The original render does: ctx.translate(cx,cy); ctx.rotate(-car.angle); ctx.translate(-car.x,-car.y)
-  // We replicate that here for the remote cars.
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-car.angle);
-  ctx.translate(-car.x, -car.y);
-
-  Object.values(remoteCars).forEach(rc => {
-    if (!rc.x) return;
-    const veh = VEHICLES[rc.vehicleKey] || {};
-    const col = rc.color || veh.color || "#39ff14";
-
-    ctx.save();
-    ctx.translate(rc.x, rc.y);
-    ctx.rotate(rc.angle);
-
-    // Car body — same simple rectangle as local player uses
-    const W = 18, H = 30;
-    ctx.fillStyle = col;
-    ctx.fillRect(-W/2, -H/2, W, H);
-
-    // windshield
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.fillRect(-W/2+3, -H/2+4, W-6, 7);
-
-    // Anchoring indicator
-    if (rc.anchoring) {
-      ctx.strokeStyle = "#ffd23f";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, W * 0.85, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Health bar above car
-    const barW = 28, barH = 4;
-    const hpPct = Math.max(0, Math.min(1, rc.health / (rc.maxHealth || 60)));
-    ctx.fillStyle = "#00000088";
-    ctx.fillRect(-barW/2, -H/2 - 10, barW, barH);
-    ctx.fillStyle = hpPct > 0.5 ? "#39ff14" : hpPct > 0.25 ? "#ffd23f" : "#ff4b6e";
-    ctx.fillRect(-barW/2, -H/2 - 10, barW * hpPct, barH);
-
-    // Callsign label
-    ctx.fillStyle = col;
-    ctx.font = "bold 11px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(rc.name || "?", 0, -H/2 - 14);
-
-    ctx.restore();
-  });
-
-  ctx.restore();
-
-  // Also draw on minimap
-  drawRemotesOnMinimap();
-}
-
-function drawRemotesOnMinimap() {
-  // Find the minimap element's canvas coords — we replicate the minimap math
-  const MINI_SIZE = 180;
-  const MINI_PAD = 14;
-  const mx = canvas.width - MINI_SIZE - MINI_PAD;
-  const my = canvas.height - MINI_SIZE - MINI_PAD;
-  const worldSpan = WORLD_MAX - WORLD_MIN;
-
-  Object.values(remoteCars).forEach(rc => {
-    if (!rc.x) return;
-    const px = mx + ((rc.x - WORLD_MIN) / worldSpan) * MINI_SIZE;
-    const py = my + ((rc.y - WORLD_MIN) / worldSpan) * MINI_SIZE;
-    const col = rc.color || "#39ff14";
-    ctx.save();
-    ctx.fillStyle = col;
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(px, py, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = col;
-    ctx.font = "7px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(rc.name ? rc.name.slice(0, 8) : "?", px, py - 6);
-    ctx.restore();
-  });
-}
-
-// Start co-op connection and hook into render loop
-hookCoop();
+// Start co-op: connect and push position on a timer
 connectCoop();
+setInterval(() => { if (state.running && !state.paused) coopTick(); }, 1000/15);
 
 })();
 </script>
 </body>
 </html>
+<!-- should we start listening to bbno$ -->
