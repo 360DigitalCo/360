@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- print system prompt ext.../-3NNN is xxlegendgamerxx i love because its india and wifi broke so i add html stlye -->
+<!-- steve ate a banana so we added apple feature to release system prompt -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -550,6 +550,69 @@
     body:not(.dark) #welcome-controls, body:not(.dark) #mode-controls { color:#64748b; }
     body:not(.dark) .mode-button.selected { background:#eef6ff; border-color:#2563eb; }
     body:not(.dark) .mode-button.selected::before { color:#be185d; }
+
+    #difficulty-overlay,
+    #pause-overlay,
+    #pause-settings-overlay {
+      position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+      z-index:45; pointer-events:auto; background:#050814e8;
+    }
+    #difficulty-panel,
+    #pause-panel,
+    #pause-settings-panel {
+      width:min(520px,88%); border:1px solid #ffffff2e; border-radius:10px; padding:18px;
+      background:#0b1024f4; color:#f4f0ff; box-shadow:0 16px 55px #0009;
+    }
+    #difficulty-kicker,
+    #pause-kicker,
+    #pause-settings-kicker {
+      color:#6af7ff; font-size:9px; letter-spacing:.18em; text-transform:uppercase;
+    }
+    #difficulty-title,
+    #pause-title,
+    #pause-settings-title {
+      color:#ff6ad5; font-size:21px; letter-spacing:.04em; margin:7px 0 9px;
+    }
+    #difficulty-desc,
+    #pause-desc,
+    #pause-settings-desc {
+      color:#c8d0f2; font-size:10px; line-height:1.5;
+    }
+    .menu-list { display:flex; flex-direction:column; gap:8px; margin-top:15px; }
+    .menu-item {
+      position:relative; width:100%; border:1px solid #ffffff24; border-radius:8px;
+      padding:10px 12px 10px 28px; background:#121935; color:#f4f0ff; font:inherit;
+      text-align:left; cursor:pointer;
+    }
+    .menu-item.selected { border-color:#6af7ff; background:#172042; }
+    .menu-item.selected::before {
+      content:'▶'; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#ffef9a; font-size:10px;
+    }
+    .menu-item .menu-label { display:block; color:#6af7ff; font-size:10px; letter-spacing:.08em; }
+    .menu-item .menu-value { display:block; margin-top:3px; color:#e7e9ff; font-size:9px; }
+    .menu-controls { margin-top:12px; text-align:center; color:#7f8acb; font-size:8px; letter-spacing:.08em; }
+    #pause-current { color:#ffef9a; font-size:9px; letter-spacing:.08em; margin-top:4px; }
+    #game-wrapper.sg2-hide-cursor,
+    #game-wrapper.sg2-hide-cursor * { cursor:none !important; }
+    body:not(.dark) #difficulty-overlay,
+    body:not(.dark) #pause-overlay,
+    body:not(.dark) #pause-settings-overlay { background:rgba(200,210,230,.94); }
+    body:not(.dark) #difficulty-panel,
+    body:not(.dark) #pause-panel,
+    body:not(.dark) #pause-settings-panel { background:rgba(255,255,255,.98); border-color:rgba(0,0,0,.14); color:#182033; }
+    body:not(.dark) #difficulty-title,
+    body:not(.dark) #pause-title,
+    body:not(.dark) #pause-settings-title { color:#be185d; }
+    body:not(.dark) #difficulty-kicker,
+    body:not(.dark) #pause-kicker,
+    body:not(.dark) #pause-settings-kicker { color:#2563eb; }
+    body:not(.dark) #difficulty-desc,
+    body:not(.dark) #pause-desc,
+    body:not(.dark) #pause-settings-desc { color:#374151; }
+    body:not(.dark) .menu-item { background:#f4f6fa; color:#182033; border-color:#00000016; }
+    body:not(.dark) .menu-item.selected { background:#eef6ff; border-color:#2563eb; }
+    body:not(.dark) .menu-item.selected::before { color:#be185d; }
+    body:not(.dark) .menu-item .menu-value { color:#374151; }
   </style>
 <meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="Space Glider 2" property="og:title"/><meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." property="og:description"/><meta content="https://360-search.com/games/spaceGlider2.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Space Glider 2" name="twitter:title"/><meta content="Play Space Glider 2 on 360. Explore galaxies, worlds and hostile space." name="twitter:description"/><link href="https://360-search.com/games/spaceGlider2.html" rel="canonical"/></head>
 <body>
@@ -681,7 +744,7 @@
   <div id="mode-panel">
     <div id="mode-kicker">SPACE GLIDER 2</div>
     <div id="mode-title">CHOOSE YOUR FLIGHT</div>
-    <div id="mode-desc">The campaign is a route through strange galaxies. Openworld lets you leave the route and just literally fly.</div>
+    <div id="mode-desc">The campaign is a route through strange galaxies. Openworld lets you leave the route and explore freely.</div>
     <div class="mode-buttons">
       <button class="mode-button" id="campaign-mode"><strong>CAMPAIGN</strong><span>Story worlds, boss encounters, celebrations and planet-to-planet travel.</span></button>
       <button class="mode-button" id="openworld-mode"><strong>OPENWORLD</strong><span>Roam a connected star map, discover planets and trigger optional encounters.</span></button>
@@ -689,11 +752,54 @@
     <div id="mode-controls">▲ / ▼ SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE CONFIRM&nbsp;&nbsp;&nbsp;ESC BACK</div>
   </div>
 </div>
+<div id="difficulty-overlay">
+  <div id="difficulty-panel">
+    <div id="difficulty-kicker">FLIGHT SETTINGS</div>
+    <div id="difficulty-title">CHOOSE DIFFICULTY</div>
+    <div id="difficulty-desc">Difficulty is saved separately for Campaign and Openworld.</div>
+    <div class="menu-list" id="difficulty-list">
+      <button class="menu-item selected" data-difficulty="easy"><span class="menu-label">EASY</span><span class="menu-value">More hull, slower enemies, longer reaction windows.</span></button>
+      <button class="menu-item" data-difficulty="normal"><span class="menu-label">NORMAL</span><span class="menu-value">The standard Space Glider 2 balance.</span></button>
+      <button class="menu-item" data-difficulty="hard"><span class="menu-label">HARD</span><span class="menu-value">Faster enemies, tougher targets, tighter pressure.</span></button>
+    </div>
+    <div id="difficulty-controls" class="menu-controls">▲ / ▼ SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE CONFIRM&nbsp;&nbsp;&nbsp;ESC BACK</div>
+  </div>
+</div>
+<div id="pause-overlay">
+  <div id="pause-panel">
+    <div id="pause-kicker">SPACE GLIDER 2</div>
+    <div id="pause-title">PAUSED</div>
+    <div id="pause-current">CAMPAIGN · NORMAL</div>
+    <div id="pause-desc">Resume the current flight, restart this world, adjust settings, or return to the title screen.</div>
+    <div class="menu-list" id="pause-list">
+      <button class="menu-item selected" data-pause="resume"><span class="menu-label">RESUME</span><span class="menu-value">Return to the current flight.</span></button>
+      <button class="menu-item" data-pause="restart"><span class="menu-label">RESTART</span><span class="menu-value">Restart the current world or Openworld flight.</span></button>
+      <button class="menu-item" data-pause="settings"><span class="menu-label">SETTINGS</span><span class="menu-value">Difficulty, cursor, screen shake and display options.</span></button>
+      <button class="menu-item" data-pause="title"><span class="menu-label">QUIT TO TITLE</span><span class="menu-value">Leave this run and return to the start screen.</span></button>
+    </div>
+    <div id="pause-controls" class="menu-controls">▲ / ▼ SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE CONFIRM&nbsp;&nbsp;&nbsp;P / ESC RESUME</div>
+  </div>
+</div>
+<div id="pause-settings-overlay">
+  <div id="pause-settings-panel">
+    <div id="pause-settings-kicker">SETTINGS</div>
+    <div id="pause-settings-title">FLIGHT OPTIONS</div>
+    <div id="pause-settings-desc">Campaign and Openworld keep separate difficulty settings.</div>
+    <div class="menu-list" id="pause-settings-list">
+      <button class="menu-item selected" data-setting="campaignDifficulty"><span class="menu-label">CAMPAIGN DIFFICULTY</span><span class="menu-value" id="campaign-difficulty-value">NORMAL</span></button>
+      <button class="menu-item" data-setting="openworldDifficulty"><span class="menu-label">OPENWORLD DIFFICULTY</span><span class="menu-value" id="openworld-difficulty-value">NORMAL</span></button>
+      <button class="menu-item" data-setting="hideCursor"><span class="menu-label">HIDE CURSOR</span><span class="menu-value" id="hide-cursor-value">OFF</span></button>
+      <button class="menu-item" data-setting="screenShake"><span class="menu-label">SCREEN SHAKE</span><span class="menu-value" id="screen-shake-value">ON</span></button>
+    </div>
+    <div id="pause-settings-controls" class="menu-controls">▲ / ▼ SELECT&nbsp;&nbsp;&nbsp;ENTER / SPACE CHANGE&nbsp;&nbsp;&nbsp;ESC BACK</div>
+  </div>
+</div>
+</div>
 <div id="celebration-overlay">
   <div id="celebration-panel">
     <div id="celebration-kicker">WORLD CLEAR</div>
     <div id="celebration-title">FLIGHT PATH OPEN</div>
-    <div id="celebration-desc">That world is done. Instead of teleporting you into the next cutscene like a cheap loading screen, the universe gives you a tiny victory party.</div>
+    <div id="celebration-desc">That world is complete. Enjoy the celebration, then pilot to the next destination.</div>
     <div id="celebration-next">PRESS ENTER / SPACE TO CONTINUE · THEN FLY TO THE NEXT DESTINATION</div>
   </div>
 </div>
@@ -715,7 +821,7 @@
 <div id="campaign-panel">
 <div id="campaign-kicker">CAMPAIGN COMPLETE</div>
 <div id="campaign-title">THE RIFT IS CLOSED</div>
-<div id="campaign-desc">The glider made it through every known sector. The rest of the universe can panic later.</div>
+<div id="campaign-desc">The glider made it through every known sector. The rest of the universe is waiting beyond the route.</div>
 <div id="campaign-next">PRESS ENTER TO FLY AGAIN</div>
 </div>
 </div>
@@ -734,9 +840,23 @@ const hpBar=document.getElementById('hp-bar'),xpBar=document.getElementById('xp-
 const scoreEl=document.getElementById('score'),levelEl=document.getElementById('level'),coreNameEl=document.getElementById('core-name'),centerMessage=document.getElementById('center-message');
 const upgradeOverlay=document.getElementById('upgrade-overlay'),upgradeOptionsEl=document.getElementById('upgrade-options'),missionText=document.getElementById('mission-text'),worldTitle=document.getElementById('world-title');
 const cutsceneOverlay=document.getElementById('cutscene-overlay'),cutsceneTitle=document.getElementById('cutscene-title'),cutsceneKicker=document.getElementById('cutscene-kicker'),cutsceneBody=document.getElementById('cutscene-body'),campaignOverlay=document.getElementById('campaign-overlay');
-const welcomeOverlay=document.getElementById('welcome-overlay'),modeOverlay=document.getElementById('mode-overlay'),celebrationOverlay=document.getElementById('celebration-overlay'),travelOverlay=document.getElementById('travel-overlay'),openworldOverlay=document.getElementById('openworld-overlay');
+const welcomeOverlay=document.getElementById('welcome-overlay'),modeOverlay=document.getElementById('mode-overlay'),difficultyOverlay=document.getElementById('difficulty-overlay'),pauseOverlay=document.getElementById('pause-overlay'),pauseSettingsOverlay=document.getElementById('pause-settings-overlay'),celebrationOverlay=document.getElementById('celebration-overlay'),travelOverlay=document.getElementById('travel-overlay'),openworldOverlay=document.getElementById('openworld-overlay');
 const modeButtons=[document.getElementById('campaign-mode'),document.getElementById('openworld-mode')];
+const difficultyButtons=[...document.querySelectorAll('#difficulty-list .menu-item')];
+const pauseButtons=[...document.querySelectorAll('#pause-list .menu-item')];
+const pauseSettingButtons=[...document.querySelectorAll('#pause-settings-list .menu-item')];
+const gameWrapper=document.getElementById('game-wrapper');
 let welcomeScreen=true,modeSelection=0;
+let pendingMode='campaign',difficultySelection=1;
+let pauseSelection=0,pauseSettingsSelection=0;
+let gameSettings={campaignDifficulty:'normal',openworldDifficulty:'normal',hideCursor:false,screenShake:true};
+const DIFFICULTIES=['easy','normal','hard'];
+const DIFFICULTY_NAMES={easy:'EASY',normal:'NORMAL',hard:'HARD'};
+const DIFFICULTY_CONFIG={
+  easy:{enemyHp:.78,enemySpeed:.84,spawnRate:1.22,damage:.8,playerHpBonus:1},
+  normal:{enemyHp:1,enemySpeed:1,spawnRate:1,damage:1,playerHpBonus:0},
+  hard:{enemyHp:1.3,enemySpeed:1.18,spawnRate:.78,damage:1.22,playerHpBonus:-1}
+};
 const travelTitle=document.getElementById('travel-title'),travelDesc=document.getElementById('travel-desc'),celebrationDesc=document.getElementById('celebration-desc'),celebrationNext=document.getElementById('celebration-next');
 const bossHud=document.getElementById('boss-hud'),bossName=document.getElementById('boss-name'),bossBarFill=document.getElementById('boss-bar-fill'),bossPhase=document.getElementById('boss-phase');
 const playerBase={maxHp:5,speed:80,dashSpeed:220,dashDuration:.16,dashCooldown:.7,fireRate:7,bulletSpeed:220,spread:0,multi:1,piercing:false,xp:0,xpToLevel:30,level:1,hp:5};
@@ -776,20 +896,63 @@ const OPEN_PLANETS=[
 {x:1380,y:108,r:24,color:'#6af7ff',name:'Riftlet',desc:'A tiny edge of impossible space.'}
 ];
 const upgradePool=()=>[...upgradesPool];
+function difficultyFor(modeName=mode){return DIFFICULTY_CONFIG[gameSettings[`${modeName}Difficulty`]]||DIFFICULTY_CONFIG.normal}
+function difficultyNameFor(modeName=mode){return DIFFICULTY_NAMES[gameSettings[`${modeName}Difficulty`]]||'NORMAL'}
+function saveGameSettings(){try{localStorage.setItem('spaceGlider2Settings',JSON.stringify(gameSettings))}catch{}}
+function loadGameSettings(){try{const saved=JSON.parse(localStorage.getItem('spaceGlider2Settings')||'null');if(saved&&typeof saved==='object'){gameSettings={...gameSettings,...saved}}}catch{}applyGameSettings()}
+function applyGameSettings(){gameWrapper.classList.toggle('sg2-hide-cursor',!!gameSettings.hideCursor);updateSettingsLabels()}
+function updateSettingsLabels(){const c=document.getElementById('campaign-difficulty-value'),o=document.getElementById('openworld-difficulty-value'),hc=document.getElementById('hide-cursor-value'),ss=document.getElementById('screen-shake-value');if(c)c.textContent=difficultyNameFor('campaign');if(o)o.textContent=difficultyNameFor('openworld');if(hc)hc.textContent=gameSettings.hideCursor?'ON':'OFF';if(ss)ss.textContent=gameSettings.screenShake?'ON':'OFF';document.getElementById('pause-current').textContent=`${mode==='campaign'?'CAMPAIGN':'OPENWORLD'} · ${difficultyNameFor(mode)}`}
 function resize(){canvas.width=VIRTUAL_W;canvas.height=VIRTUAL_H;ctx.imageSmoothingEnabled=false}window.addEventListener('resize',resize);resize();
-window.addEventListener('keydown',e=>{const key=e.key.toLowerCase();keys[key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
-if(welcomeScreen){if(key==='enter'||key===' '){showModeSelect();return}if(key==='escape')return}
-if(phase==='menu'&&!welcomeScreen){if(key==='arrowup'||key==='w'){moveModeSelection(-1);return}if(key==='arrowdown'||key==='s'){moveModeSelection(1);return}if(key==='enter'||key===' '){confirmModeSelection();return}if(key==='escape'){showWelcome();return}}
-if(phase==='celebrate'&&(key==='enter'||key===' ')){finishCelebration();return}
-if(cutsceneActive&&(key==='enter'||key===' ')){advanceCutscene();return}if(cutsceneActive&&key==='s'){skipCutscene();return}
-if(campaignComplete&&key==='enter'){campaignComplete=false;campaignOverlay.style.display='none';selectMode('campaign');return}
-if(phase==='travel'&&key==='enter'){player.x=travelTargetX;return}
-if(phase==='openworld'&&key==='e'){tryEnterPlanet();return}
-if(phase==='openChallenge'&&key==='e'&&openWorldState.challenge&&openWorldState.challenge.returning){finishOpenChallenge();return}
-if(key==='enter'&&gameOver){selectMode(mode);return}
-if(key==='p'&&(phase==='combat'||phase==='boss'||phase==='openworld'||phase==='openChallenge'))paused=!paused;});
+window.addEventListener('keydown',e=>{
+  const key=e.key.toLowerCase();
+  keys[key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+  if(welcomeScreen){if(key==='enter'||key===' '){showModeSelect();return}if(key==='escape')return}
+  if(phase==='menu'&&!welcomeScreen){
+    if(key==='arrowup'||key==='w'){moveModeSelection(-1);return}
+    if(key==='arrowdown'||key==='s'){moveModeSelection(1);return}
+    if(key==='enter'||key===' '){confirmModeSelection();return}
+    if(key==='escape'){showWelcome();return}
+  }
+  if(phase==='difficulty'){
+    if(key==='arrowup'||key==='w'){moveDifficultySelection(-1);return}
+    if(key==='arrowdown'||key==='s'){moveDifficultySelection(1);return}
+    if(key==='arrowleft'||key==='a'){moveDifficultySelection(-1);return}
+    if(key==='arrowright'||key==='d'){moveDifficultySelection(1);return}
+    if(key==='enter'||key===' '){confirmDifficultySelection();return}
+    if(key==='escape'){showModeSelect();return}
+  }
+  if(pauseSettingsOverlay.style.display==='flex'){
+    if(key==='arrowup'||key==='w'){movePauseSettingsSelection(-1);return}
+    if(key==='arrowdown'||key==='s'){movePauseSettingsSelection(1);return}
+    if(key==='arrowleft'||key==='a'){changePauseSetting();return}
+    if(key==='arrowright'||key==='d'){changePauseSetting();return}
+    if(key==='enter'||key===' '){changePauseSetting();return}
+    if(key==='escape'||key==='p'){closePauseSettings();return}
+    return;
+  }
+  if(pauseOverlay.style.display==='flex'){
+    if(key==='arrowup'||key==='w'){movePauseSelection(-1);return}
+    if(key==='arrowdown'||key==='s'){movePauseSelection(1);return}
+    if(key==='enter'||key===' '){confirmPauseSelection();return}
+    if(key==='escape'||key==='p'){closePause();return}
+    return;
+  }
+  if(phase==='celebrate'&&(key==='enter'||key===' ')){finishCelebration();return}
+  if(cutsceneActive&&(key==='enter'||key===' ')){advanceCutscene();return}
+  if(cutsceneActive&&key==='s'){skipCutscene();return}
+  if(campaignComplete&&key==='enter'){campaignComplete=false;campaignOverlay.style.display='none';selectMode('campaign');return}
+  if((phase==='combat'||phase==='boss'||phase==='openworld'||phase==='openChallenge'||phase==='travel')&&(key==='p'||key==='escape')){openPause();return}
+  if(phase==='travel'&&key==='enter'){player.x=travelTargetX;return}
+  if(phase==='openworld'&&key==='e'){tryEnterPlanet();return}
+  if(phase==='openChallenge'&&key==='e'&&openWorldState.challenge&&openWorldState.challenge.returning){finishOpenChallenge();return}
+  if(key==='enter'&&gameOver){selectMode(mode);return}
+});
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
-document.getElementById('campaign-mode').onclick=()=>selectMode('campaign');document.getElementById('openworld-mode').onclick=()=>selectMode('openworld');
+document.getElementById('campaign-mode').onclick=()=>showDifficultySelect('campaign');document.getElementById('openworld-mode').onclick=()=>showDifficultySelect('openworld');
+difficultyButtons.forEach((button,index)=>button.addEventListener('click',()=>{difficultySelection=index;updateDifficultySelection();confirmDifficultySelection()}));
+pauseButtons.forEach((button,index)=>button.addEventListener('click',()=>{pauseSelection=index;updatePauseSelection();confirmPauseSelection()}));
+pauseSettingButtons.forEach((button,index)=>button.addEventListener('click',()=>{pauseSettingsSelection=index;updatePauseSettingsSelection();changePauseSetting()}));
 function rand(a,b){return a+Math.random()*(b-a)}function lerp(a,b,t){return a+(b-a)*t}function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function currentConfig(){return GALAXIES[currentGalaxy].worlds[currentWorld]}function currentGalaxyData(){return GALAXIES[currentGalaxy]}
 function worldLabel(){return `${currentGalaxyData().name} · ${currentConfig().name}`}
@@ -798,16 +961,16 @@ function saveProgress(){try{localStorage.setItem('spaceGlider2Progress',JSON.str
 function loadProgress(){try{const p=JSON.parse(localStorage.getItem('spaceGlider2Progress')||'null');if(p&&Number.isInteger(p.galaxy)&&Number.isInteger(p.world)){currentGalaxy=clamp(p.galaxy,0,GALAXIES.length-1);currentWorld=clamp(p.world,0,GALAXIES[currentGalaxy].worlds.length-1)}}catch{}}
 function resetProgress(){try{localStorage.removeItem('spaceGlider2Progress')}catch{}currentGalaxy=0;currentWorld=0}
 function burst(x,y,color,count=8,life=.4,size=1.5){for(let i=0;i<count;i++)particles.push({x,y,vx:rand(-35,35),vy:rand(-35,35),life:rand(life*.6,life),maxLife:life,size:rand(.7,size),color})}
-function spark(x,y,color,count=3){burst(x,y,color,count,.22,1.4)}function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t)}
+function spark(x,y,color,count=3){burst(x,y,color,count,.22,1.4)}function shake(m,t){if(!gameSettings.screenShake)return;shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t)}
 function showCenterMessage(msg,dur=1.5){centerMessage.textContent=msg;centerMessage.classList.add('show');clearTimeout(showCenterMessage.timer);if(dur<100)showCenterMessage.timer=setTimeout(()=>centerMessage.classList.remove('show'),dur*1000)}
-function createPlayer(){return{x:52,y:90,vx:0,vy:0,...structuredClone(playerBase),fireCooldown:0,dashTimer:0,dashCooldownTimer:0,invuln:0}}
+function createPlayer(){const d=difficultyFor();const p={x:52,y:90,vx:0,vy:0,...structuredClone(playerBase),fireCooldown:0,dashTimer:0,dashCooldownTimer:0,invuln:0};p.maxHp=Math.max(1,p.maxHp+d.playerHpBonus);p.hp=p.maxHp;return p}
 function clearEntities(){bullets=[];enemyBullets=[];enemies=[];collectibles.length=0;particles.length=0;boss=null;spawnTimer=.7;collectSpawnTimer=1.4}
 function resetRun(){player=createPlayer();score=0;worldElapsed=0;worldKills=0;worldCollected=0;timeScale=1;timeScaleTarget=1;shakeMag=0;shakeTime=0;clearEntities();updateBossHud();updateHud()}
 function showWelcome(){
   welcomeScreen=true; welcomeOverlay.style.display='flex'; modeOverlay.style.display='none'; phase='menu';
 }
 function showModeSelect(){
-  welcomeScreen=false; welcomeOverlay.style.display='none'; modeOverlay.style.display='flex'; phase='menu';
+  welcomeScreen=false; welcomeOverlay.style.display='none'; modeOverlay.style.display='flex'; difficultyOverlay.style.display='none'; phase='menu';
   updateModeSelection();
 }
 function updateModeSelection(){
@@ -816,28 +979,49 @@ function updateModeSelection(){
 function moveModeSelection(delta){
   modeSelection=(modeSelection+delta+modeButtons.length)%modeButtons.length; updateModeSelection();
 }
-function confirmModeSelection(){selectMode(modeSelection===0?'campaign':'openworld')}
-
-function selectMode(nextMode){mode=nextMode;modeOverlay.style.display='none';campaignOverlay.style.display='none';bossHud.style.display='none';gameOver=false;campaignComplete=false;resetRun();if(mode==='campaign'){loadProgress();phase='cutscene';playWorldIntro(currentGalaxy===0&&currentWorld===0)}else{startOpenWorld()}}
-function startOpenWorld(){phase='openworld';openWorldOverlay(true);player=createPlayer();player.x=80;player.y=90;openWorldState.cameraX=0;openWorldState.discovered=new Set();openWorldState.challenge=null;worldKills=0;worldCollected=0;clearEntities();showCenterMessage('FREE FLIGHT · E TO EXPLORE PLANETS',2)}
+function confirmModeSelection(){showDifficultySelect(modeSelection===0?'campaign':'openworld')}
+function showDifficultySelect(nextMode){
+  pendingMode=nextMode; difficultySelection=DIFFICULTIES.indexOf(gameSettings[`${nextMode}Difficulty`]); if(difficultySelection<0)difficultySelection=1;
+  modeOverlay.style.display='none'; difficultyOverlay.style.display='flex'; phase='difficulty'; updateDifficultySelection();
+}
+function updateDifficultySelection(){difficultyButtons.forEach((button,index)=>button.classList.toggle('selected',index===difficultySelection))}
+function moveDifficultySelection(delta){difficultySelection=(difficultySelection+delta+DIFFICULTIES.length)%DIFFICULTIES.length;updateDifficultySelection()}
+function confirmDifficultySelection(){gameSettings[`${pendingMode}Difficulty`]=DIFFICULTIES[difficultySelection];saveGameSettings();applyGameSettings();difficultyOverlay.style.display='none';selectMode(pendingMode)}
+function selectMode(nextMode){mode=nextMode;modeOverlay.style.display='none';difficultyOverlay.style.display='none';pauseOverlay.style.display='none';pauseSettingsOverlay.style.display='none';campaignOverlay.style.display='none';bossHud.style.display='none';gameOver=false;campaignComplete=false;paused=false;resetRun();if(mode==='campaign'){loadProgress();phase='cutscene';playWorldIntro(currentGalaxy===0&&currentWorld===0)}else{startOpenWorld()}}
+function startOpenWorld(){phase='openworld';running=true;paused=false;cutsceneActive=false;openWorldOverlay(true);player=createPlayer();player.x=80;player.y=90;openWorldState.cameraX=0;openWorldState.discovered=new Set();openWorldState.challenge=null;worldKills=0;worldCollected=0;clearEntities();spawnTimer=.35;showCenterMessage('FREE FLIGHT · E TO EXPLORE PLANETS',2);applyGameSettings()}
 function openWorldOverlay(show){openworldOverlay.style.display=show?'flex':'none'}
+function openPause(){if(welcomeScreen||phase==='menu'||phase==='difficulty'||cutsceneActive||gameOver||campaignComplete)return;paused=true;pauseSelection=0;pauseOverlay.style.display='flex';pauseSettingsOverlay.style.display='none';updatePauseSelection();updateSettingsLabels()}
+function closePause(){pauseOverlay.style.display='none';pauseSettingsOverlay.style.display='none';paused=false}
+function movePauseSelection(delta){pauseSelection=(pauseSelection+delta+pauseButtons.length)%pauseButtons.length;updatePauseSelection()}
+function updatePauseSelection(){pauseButtons.forEach((button,index)=>button.classList.toggle('selected',index===pauseSelection))}
+function confirmPauseSelection(){const action=pauseButtons[pauseSelection].dataset.pause;if(action==='resume'){closePause();return}if(action==='restart'){restartCurrentMode();return}if(action==='settings'){pauseSettingsSelection=0;pauseOverlay.style.display='none';pauseSettingsOverlay.style.display='flex';updatePauseSettingsSelection();return}if(action==='title'){quitToTitle();return}}
+function movePauseSettingsSelection(delta){pauseSettingsSelection=(pauseSettingsSelection+delta+pauseSettingButtons.length)%pauseSettingButtons.length;updatePauseSettingsSelection()}
+function updatePauseSettingsSelection(){pauseSettingButtons.forEach((button,index)=>button.classList.toggle('selected',index===pauseSettingsSelection));updateSettingsLabels()}
+function changePauseSetting(){const key=pauseSettingButtons[pauseSettingsSelection].dataset.setting;if(key==='campaignDifficulty'||key==='openworldDifficulty'){const current=DIFFICULTIES.indexOf(gameSettings[key]);gameSettings[key]=DIFFICULTIES[(current+1+DIFFICULTIES.length)%DIFFICULTIES.length]}else if(key==='hideCursor'){gameSettings.hideCursor=!gameSettings.hideCursor}else if(key==='screenShake'){gameSettings.screenShake=!gameSettings.screenShake}saveGameSettings();applyGameSettings();updatePauseSettingsSelection()}
+function closePauseSettings(){pauseSettingsOverlay.style.display='none';pauseOverlay.style.display='flex';updatePauseSelection()}
+function restartCurrentMode(){pauseOverlay.style.display='none';pauseSettingsOverlay.style.display='none';paused=false;gameOver=false;campaignComplete=false;resetRun();if(mode==='campaign'){phase='cutscene';playWorldIntro(false)}else{startOpenWorld()}}
+function quitToTitle(){pauseOverlay.style.display='none';pauseSettingsOverlay.style.display='none';paused=false;running=false;gameOver=false;campaignComplete=false;openWorldOverlay(false);bossHud.style.display='none';cutsceneOverlay.style.display='none';celebrationOverlay.style.display='none';travelOverlay.style.display='none';showWelcome();resetRun()}
 function playWorldIntro(campaignStart=false){const g=currentGalaxyData(),w=currentConfig();cutsceneQueue=[];if(campaignStart)cutsceneQueue.push({kicker:'SPACE GLIDER 2',title:'A SIGNAL BEYOND THE MAP',body:'The original flight was only the first route.\nA repeating signal has appeared outside every known lane.\nYou are the only glider fast enough to trace it.'});if(currentWorld===0)cutsceneQueue.push({kicker:g.kicker,title:g.name,body:g.intro});cutsceneQueue.push({kicker:`${g.kicker} · WORLD ${currentWorld+1}/${g.worlds.length}`,title:w.name,body:`${w.brief}\n\nObjective: ${w.objective==='boss'?`defeat ${w.boss}`:objectiveLabel()}.`});beginCutscene()}
 function beginCutscene(){phase='cutscene';cutsceneActive=true;running=false;paused=false;cutsceneIndex=0;cutsceneOverlay.style.display='flex';renderCutscene()}
 function renderCutscene(){const s=cutsceneQueue[cutsceneIndex];if(!s){finishCutscene();return}cutsceneKicker.textContent=s.kicker;cutsceneTitle.textContent=s.title;cutsceneBody.textContent=s.body}
 function advanceCutscene(){cutsceneIndex++;if(cutsceneIndex>=cutsceneQueue.length)finishCutscene();else renderCutscene()}
 function skipCutscene(){cutsceneIndex=cutsceneQueue.length;finishCutscene()}
 function finishCutscene(){cutsceneActive=false;cutsceneOverlay.style.display='none';phase=currentConfig().objective==='boss'?'boss':'combat';running=true;clearEntities();showCenterMessage(currentConfig().objective==='boss'?'BOSS APPROACH':'FLIGHT ACTIVE',1.2);if(phase==='boss')spawnBoss();}
-function enemySpec(type){const g=currentGalaxy;const base={type,x:VIRTUAL_W+12,y:rand(14,VIRTUAL_H-14),vx:-42,vy:0,hp:2,maxHp:2,r:7,fireCooldown:rand(.7,1.5),phase:rand(0,6)};if(type==='drone')return{...base,hp:2,maxHp:2,vx:-42-g*.8,color:'#ff6ad5'};if(type==='sweeper')return{...base,hp:3,maxHp:3,vx:-32,vy:rand(24,42)*(Math.random()<.5?1:-1),color:'#ff6ad5'};if(type==='hunter')return{...base,hp:3,maxHp:3,vx:-30,color:'#a98bff',turn:1.8};if(type==='zigzag')return{...base,hp:3,maxHp:3,vx:-38,color:'#ffef9a',amp:rand(12,24),freq:rand(2.3,3.7)};if(type==='tank')return{...base,hp:7,maxHp:7,vx:-19,r:9,color:'#ff4b6e',fireCooldown:rand(.8,1.3)};if(type==='sniper')return{...base,hp:4,maxHp:4,vx:-22,r:7,color:'#ffef9a',fireCooldown:rand(.4,.9),sniper:true};if(type==='shard')return{...base,hp:1,maxHp:1,vx:-75,vy:rand(-35,35),r:5,color:'#ff9f5a',fireCooldown:99};if(type==='rift')return{...base,hp:4,maxHp:4,vx:-28,r:7,color:'#6af7ff',teleport:rand(1.2,2.8),fireCooldown:rand(.6,1.2)};return{...base,type:'guardian',hp:10+g*3,maxHp:10+g*3,vx:-24,r:10,color:'#6af7ff',fireCooldown:.8,guardian:true}}
+function enemySpec(type){
+  const g=currentGalaxy,d=difficultyFor(),base={type,x:VIRTUAL_W+12,y:rand(14,VIRTUAL_H-14),vx:-42,vy:0,hp:2,maxHp:2,r:7,fireCooldown:rand(.7,1.5),phase:rand(0,6)};
+  let e;if(type==='drone')e={...base,hp:2,maxHp:2,vx:-42-g*.8,color:'#ff6ad5'};else if(type==='sweeper')e={...base,hp:3,maxHp:3,vx:-32,vy:rand(24,42)*(Math.random()<.5?1:-1),color:'#ff6ad5'};else if(type==='hunter')e={...base,hp:3,maxHp:3,vx:-30,color:'#a98bff',turn:1.8};else if(type==='zigzag')e={...base,hp:3,maxHp:3,vx:-38,color:'#ffef9a',amp:rand(12,24),freq:rand(2.3,3.7)};else if(type==='tank')e={...base,hp:7,maxHp:7,vx:-19,r:9,color:'#ff4b6e',fireCooldown:rand(.8,1.3)};else if(type==='sniper')e={...base,hp:4,maxHp:4,vx:-22,r:7,color:'#ffef9a',fireCooldown:rand(.4,.9),sniper:true};else if(type==='shard')e={...base,hp:1,maxHp:1,vx:-75,vy:rand(-35,35),r:5,color:'#ff9f5a',fireCooldown:99};else if(type==='rift')e={...base,hp:4,maxHp:4,vx:-28,r:7,color:'#6af7ff',teleport:rand(1.2,2.8),fireCooldown:rand(.6,1.2)};else e={...base,type:'guardian',hp:10+g*3,maxHp:10+g*3,vx:-24,r:10,color:'#6af7ff',fireCooldown:.8,guardian:true};
+  e.hp=Math.max(1,Math.round(e.hp*d.enemyHp));e.maxHp=e.hp;e.vx*=d.enemySpeed;e.vy*=d.enemySpeed;return e;
+}
 function spawnEnemy(){if(mode==='campaign'&&phase!=='combat')return;const cfg=mode==='campaign'?currentConfig():openWorldState.challenge?{types:['drone','hunter','sweeper'],duration:25,target:8}:null;if(!cfg)return;let type=cfg.types[Math.floor(Math.random()*cfg.types.length)];enemies.push(enemySpec(type))}
 function spawnCollectible(){collectibles.push({x:rand(120,VIRTUAL_W-24),y:rand(16,VIRTUAL_H-16),r:3,spin:rand(0,6),color:currentConfig().planet})}
 function fireEnemy(e){const dx=player.x-e.x,dy=player.y-e.y,ang=Math.atan2(dy,dx),shots=e.type==='guardian'?3:1,spread=e.type==='guardian'?.11:0;for(let i=0;i<shots;i++){const off=(i-(shots-1)/2)*spread,s=e.sniper?135:e.type==='guardian'?88:78;enemyBullets.push({x:e.x-5,y:e.y,vx:Math.cos(ang+off)*s,vy:Math.sin(ang+off)*s,life:3,color:e.type==='guardian'?'#ffef9a':'#ff6ad5',r:e.type==='guardian'?2.5:2})}}
 function fireBossPattern(){if(!boss)return;const ang=Math.atan2(player.y-boss.y,player.x-boss.x),g=currentGalaxy,p=boss.phase;if(g===0){for(let i=-2;i<=2;i++){const a=ang+i*.15;enemyBullets.push({x:boss.x-11,y:boss.y,vx:Math.cos(a)*75,vy:Math.sin(a)*75,life:3.5,color:'#ffef9a',r:2.5,boss:true})}}else if(g===1){for(let i=0;i<10;i++){const a=i*Math.PI*.2+boss.spin*.2;enemyBullets.push({x:boss.x,y:boss.y,vx:Math.cos(a)*58,vy:Math.sin(a)*58,life:3.8,color:i%2?'#ff6ad5':'#6af7ff',r:2,boss:true})}}else if(g===2){for(let i=0;i<3;i++){const a=ang+rand(-.16,.16);enemyBullets.push({x:boss.x-11,y:boss.y,vx:Math.cos(a)*105,vy:Math.sin(a)*105,life:3,color:'#ff4b6e',r:3,boss:true,homing:.4})}}else{for(let i=0;i<8;i++){const a=i*Math.PI/4+boss.spin*.08;enemyBullets.push({x:boss.x,y:boss.y,vx:Math.cos(a)*70,vy:Math.sin(a)*70,life:4,color:'#6af7ff',r:2,boss:true})};for(let i=0;i<2;i++)enemyBullets.push({x:boss.x-10,y:boss.y,vx:Math.cos(ang+rand(-.08,.08))*120,vy:Math.sin(ang+rand(-.08,.08))*120,life:3,color:'#ffef9a',r:2.8,boss:true})}}
-function spawnBoss(){const w=currentConfig();boss={x:254,y:90,vx:-10,vy:0,hp:80+currentGalaxy*35,maxHp:80+currentGalaxy*35,phase:1,spin:0,attackTimer:1.2,weakTimer:1.7,weakOpen:false,chargeTimer:2.5,hitFlash:0,color:w.planet};bossHud.style.display='block';bossName.textContent=w.boss;updateBossHud()}
+function spawnBoss(){const w=currentConfig();boss={x:254,y:90,vx:-10,vy:0,hp:Math.round((80+currentGalaxy*35)*difficultyFor().enemyHp),maxHp:Math.round((80+currentGalaxy*35)*difficultyFor().enemyHp),phase:1,spin:0,attackTimer:1.2,weakTimer:1.7,weakOpen:false,chargeTimer:2.5,hitFlash:0,color:w.planet};bossHud.style.display='block';bossName.textContent=w.boss;updateBossHud()}
 function updateBossHud(){if(!boss){bossHud.style.display='none';return}bossBarFill.style.width=`${clamp(boss.hp/boss.maxHp*100,0,100)}%`;bossPhase.textContent=`PHASE ${boss.phase} · ${boss.weakOpen?'CORE EXPOSED':'CORE SEALED'}`}
 function levelUp(){player.level++;player.xp-=player.xpToLevel;player.xpToLevel=Math.floor(player.xpToLevel*1.25);paused=true;showUpgradeChoices();updateHud()}
 function showUpgradeChoices(){upgradeOverlay.style.display='flex';upgradeOptionsEl.innerHTML='';const pool=upgradePool(),choices=[];while(choices.length<3&&pool.length)choices.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);choices.forEach(up=>{const div=document.createElement('div');div.className='upgrade-option';div.innerHTML=`<div class="upgrade-name">${up.name}</div><div class="upgrade-desc">${up.desc}</div>`;div.addEventListener('click',()=>{up.apply(player);coreNameEl.textContent=up.name;upgradeOverlay.style.display='none';paused=false;showCenterMessage(`UPGRADE: ${up.name}`,1.2)});upgradeOptionsEl.appendChild(div)})}
 function firePlayer(){const interval=1/player.fireRate;player.fireCooldown=interval;const spreadTotal=player.spread*(player.multi-1);for(let i=0;i<player.multi;i++){const t=player.multi===1?0:i/(player.multi-1)-.5,a=t*spreadTotal;bullets.push({x:player.x+7,y:player.y,vx:Math.cos(a)*player.bulletSpeed,vy:Math.sin(a)*player.bulletSpeed,life:1.7,piercing:player.piercing,hit:new Set()})}spark(player.x+5,player.y,'#6af7ff',2)}
-function hitPlayer(dmg=1){if(player.invuln>0)return;player.hp-=dmg;player.invuln=1;burst(player.x,player.y,'#6af7ff',10,.35,2);shake(4,.25);timeScaleTarget=.55;setTimeout(()=>timeScaleTarget=1,120);if(player.hp<=0)onDeath()}
+function hitPlayer(dmg=1){if(player.invuln>0)return;player.hp-=dmg*difficultyFor().damage;player.invuln=1;burst(player.x,player.y,'#6af7ff',10,.35,2);shake(4,.25);timeScaleTarget=.55;setTimeout(()=>timeScaleTarget=1,120);if(player.hp<=0)onDeath()}
 function onDeath(){running=false;phase='gameover';gameOver=true;bossHud.style.display='none';showCenterMessage('CORE LOST · PRESS ENTER TO REBOOT',999)}
 function inputVector(){let ix=0,iy=0;if(keys.arrowleft||keys.a)ix--;if(keys.arrowright||keys.d)ix++;if(keys.arrowup||keys.w)iy--;if(keys.arrowdown||keys.s)iy++;const len=Math.hypot(ix,iy)||1;return[ix/len,iy/len]}
 function movePlayer(dt,minX,maxX){const[ix,iy]=inputVector(),dashing=player.dashTimer>0;if(!dashing){player.vx=lerp(player.vx,ix*player.speed,10*dt);player.vy=lerp(player.vy,iy*player.speed,10*dt)}player.dashCooldownTimer-=dt;player.dashTimer-=dt;player.invuln-=dt;if((keys.k||keys.x)&&player.dashCooldownTimer<=0&&(ix||iy)){player.dashTimer=player.dashDuration;player.dashCooldownTimer=player.dashCooldown;player.vx=ix*player.dashSpeed;player.vy=iy*player.dashSpeed;player.invuln=Math.max(player.invuln,.13);shake(2,.15)}player.x=clamp(player.x+player.vx*dt,minX,maxX);player.y=clamp(player.y+player.vy*dt,10,VIRTUAL_H-10);player.fireCooldown-=dt;if((keys.j||keys.z||keys[' '])&&player.fireCooldown<=0)firePlayer()}
@@ -856,24 +1040,24 @@ bullets.forEach(b=>{if(b.life<=0)return;if(Math.hypot(boss.x-b.x,boss.y-b.y)<17)
 function bossDefeated(){boss=null;bossHud.style.display='none';worldKills=1;score+=500;player.xp+=30;burst(252,90,'#ffef9a',80,1.4,4);shake(10,.6);startCelebration(true)}
 function completeWorld(){if(phase!=='combat')return;running=false;startCelebration(false)}
 function checkObjective(){const c=currentConfig();if(c.objective==='destroy'&&worldKills>=c.target&&worldElapsed>=5)completeWorld();else if(c.objective==='collect'&&worldCollected>=c.target)completeWorld();else if(c.objective==='survive'&&worldElapsed>=c.duration)completeWorld()}
-function startCelebration(fromBoss){phase='celebrate';running=true;celebrationReturnToOpenworld=false;celebrationTimer=2.8;celebrationOverlay.style.display='flex';const g=currentGalaxyData(),c=currentConfig();celebrationDesc.textContent=fromBoss?`${c.boss} is down. The sector opens and the route ahead becomes visible.`:`${c.name} is cleared. No abrupt cutscene teleport. Take the win, then pilot to the next destination.`;celebrationNext.textContent=currentGalaxy===GALAXIES.length-1&&currentWorld===c.worlds?.length-1?'THE LAST ROUTE IS AHEAD':'NEXT: TAKE OFF AND FLY TO THE NEW PLANET';
+function startCelebration(fromBoss){confetti.length=0;phase='celebrate';running=true;celebrationReturnToOpenworld=false;celebrationTimer=2.8;celebrationOverlay.style.display='flex';const g=currentGalaxyData(),c=currentConfig();celebrationDesc.textContent=fromBoss?`${c.boss} is down. The sector opens and the route ahead becomes visible.`:`${c.name} is cleared. No abrupt cutscene teleport. Take the win, then pilot to the next destination.`;celebrationNext.textContent=currentGalaxy===GALAXIES.length-1&&currentWorld===c.worlds?.length-1?'THE LAST ROUTE IS AHEAD':'NEXT: TAKE OFF AND FLY TO THE NEW PLANET';
 for(let i=0;i<170;i++){confetti.push({x:rand(8,VIRTUAL_W-8),y:rand(-20,20),vx:rand(-18,18),vy:rand(20,70),life:rand(1.8,3.3),color:[g.accent,g.accent2,'#ffef9a','#ffffff'][i%4],size:rand(1,3),rot:rand(0,6)})}showCenterMessage('WORLD CLEAR',2.8)}
 function updateCelebration(dt){celebrationTimer-=dt;confetti.forEach(c=>{c.x+=c.vx*dt;c.y+=c.vy*dt;c.vy+=32*dt;c.rot+=dt*4;c.life-=dt});for(let i=confetti.length-1;i>=0;i--)if(confetti[i].life<=0||confetti[i].y>VIRTUAL_H+10)confetti.splice(i,1);if(celebrationTimer<=0){finishCelebration()}}
-function finishCelebration(){if(phase!=='celebrate')return;celebrationTimer=0;celebrationOverlay.style.display='none';if(celebrationReturnToOpenworld){finishOpenChallenge()}else{prepareTravel()}}
+function finishCelebration(){if(phase!=='celebrate')return;celebrationTimer=0;confetti.length=0;celebrationOverlay.style.display='none';if(celebrationReturnToOpenworld){finishOpenChallenge()}else{prepareTravel()}}
 function prepareTravel(){const lastWorld=currentWorld===GALAXIES[currentGalaxy].worlds.length-1;if(currentGalaxy===GALAXIES.length-1&&lastWorld){campaignComplete=true;try{localStorage.setItem('spaceGlider2Progress',JSON.stringify({galaxy:0,world:0,done:true}))}catch{};campaignOverlay.style.display='flex';phase='campaignComplete';return}if(lastWorld){currentGalaxy++;currentWorld=0;travelKind='galaxy';travelTargetName=`${currentGalaxyData().name} · ${currentConfig().name}`;travelPlanetColor=currentGalaxyData().accent}else{currentWorld++;travelKind='planet';travelTargetName=currentConfig().name;travelPlanetColor=currentConfig().planet}saveProgress();beginTravel()}
 function beginTravel(){phase='travel';running=true;paused=false;player.x=22;player.y=90;player.vx=0;player.vy=0;travelOverlay.style.display='flex';travelTitle.textContent=travelKind==='galaxy'?'WARP TO NEXT GALAXY':`FLY TO ${travelTargetName.toUpperCase()}`;travelDesc.textContent=travelKind==='galaxy'?`Reach the warp gate and enter ${travelTargetName}. You control the crossing.`:`Pilot to ${travelTargetName}. Reach the planet and the next story beat will begin there.`;showCenterMessage('FLY RIGHT TO CONTINUE',999)}
 function finishTravel(){travelOverlay.style.display='none';running=false;player.x=52;clearEntities();playWorldIntro(false)}
 function updateTravel(dt){movePlayer(dt,8,VIRTUAL_W-8);if(player.x>=travelTargetX){burst(travelTargetX,90,travelPlanetColor,40,.8,2.5);showCenterMessage('ARRIVAL',.8);finishTravel()}}
 function completeOpenChallenge(){const ch=openWorldState.challenge;if(!ch)return;ch.returning=true;running=true;celebrationReturnToOpenworld=true;phase='celebrate';celebrationTimer=2.1;celebrationOverlay.style.display='flex';celebrationDesc.textContent=`${OPEN_PLANETS[ch.planetIndex].name} encounter cleared. Your route remains open; there is no forced level ladder here.`;celebrationNext.textContent='NEXT: RETURN TO FREE FLIGHT';for(let i=0;i<100;i++)confetti.push({x:rand(8,VIRTUAL_W-8),y:rand(-20,20),vx:rand(-18,18),vy:rand(20,65),life:rand(1.6,2.6),color:[OPEN_PLANETS[ch.planetIndex].color,'#6af7ff','#ffef9a','#fff'][i%4],size:rand(1,3),rot:rand(0,6)})}
-function finishOpenChallenge(){openWorldState.challenge=null;phase='openworld';running=true;celebrationOverlay.style.display='none';showCenterMessage('BACK TO FREE FLIGHT',1.1)}
+function finishOpenChallenge(){openWorldState.challenge=null;confetti.length=0;phase='openworld';running=true;paused=false;celebrationOverlay.style.display='none';showCenterMessage('BACK TO FREE FLIGHT',1.1)}
 function tryEnterPlanet(){if(phase!=='openworld')return;const worldX=player.x;let best=-1,dist=999;OPEN_PLANETS.forEach((p,i)=>{const d=Math.hypot(worldX-p.x,player.y-p.y);if(d<dist){dist=d;best=i}});if(best<0||dist>32){showCenterMessage('NO PLANET IN RANGE',.8);return}openWorldState.planetIndex=best;openWorldState.discovered.add(best);openWorldState.challenge={planetIndex:best,kills:0,target:8,returning:false};phase='openChallenge';running=true;clearEntities();openWorldState.cameraX=0;worldKills=0;worldElapsed=0;player.x=52;player.y=90;showCenterMessage(`${OPEN_PLANETS[best].name.toUpperCase()} · PLANET ENCOUNTER`,1.3)}
 function updateOpenWorld(dt){movePlayer(dt,12,openWorldState.mapWidth-12);openWorldState.cameraX=clamp(player.x-110,0,openWorldState.mapWidth-VIRTUAL_W);worldElapsed+=dt;spawnTimer-=dt;if(spawnTimer<=0){spawnOpenWorldEnemy();spawnTimer=rand(.7,1.5)}updateOpenEnemies(dt);updateBullets(dt);resolveOpenWorldHits();updateParticles(dt)}
-function spawnOpenWorldEnemy(){const wx=openWorldState.cameraX+VIRTUAL_W+rand(15,55),y=rand(14,VIRTUAL_H-14);enemies.push({type:'drone',x:wx,y,vx:-24,vy:rand(-10,10),hp:2,maxHp:2,r:7,color:openWorldState.discovered.has(4)?'#6af7ff':'#ff6ad5',fireCooldown:rand(1,2)})}
+function spawnOpenWorldEnemy(){const d=difficultyFor('openworld'),wx=openWorldState.cameraX+VIRTUAL_W+rand(15,55),y=rand(14,VIRTUAL_H-14),hp=Math.max(1,Math.round(2*d.enemyHp));enemies.push({type:'drone',x:wx,y,vx:-24*d.enemySpeed,vy:rand(-10,10)*d.enemySpeed,hp,maxHp:hp,r:7,color:openWorldState.discovered.has(4)?'#6af7ff':'#ff6ad5',fireCooldown:rand(1,2)/d.spawnRate})}
 function updateOpenEnemies(dt){enemies.forEach(e=>{e.x+=e.vx*dt;e.y+=e.vy*dt;e.y=clamp(e.y,10,VIRTUAL_H-10);e.fireCooldown-=dt;if(e.fireCooldown<=0){e.fireCooldown=rand(1.5,2.5);fireEnemyWorld(e)}});enemies=enemies.filter(e=>e.hp>0&&e.x>openWorldState.cameraX-50&&e.x<openWorldState.cameraX+VIRTUAL_W+60)}
 function fireEnemyWorld(e){const a=Math.atan2(player.y-e.y,player.x-e.x);enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*65,vy:Math.sin(a)*65,life:3,color:'#ff6ad5',r:2,world:true})}
 function resolveOpenWorldHits(){bullets.forEach(b=>enemies.forEach(e=>{if(Math.hypot(e.x-b.x,e.y-b.y)<e.r+4){e.hp=0;b.life=0;score+=10;burst(e.x-openWorldState.cameraX,e.y,'#ffef9a',3,.22,1.4)}}));enemyBullets.forEach(b=>{if(Math.hypot(player.x-b.x,player.y-b.y)<6){b.life=0;hitPlayer()}})}
 function updateOpenChallenge(dt){worldElapsed+=dt;movePlayer(dt,10,VIRTUAL_W-10);spawnTimer-=dt;if(spawnTimer<=0){spawnEnemy();spawnTimer=.7}updateEnemies(dt,true);updateBullets(dt);resolvePlayerEnemyHits();resolveBulletEnemyHits();updateParticles(dt);const ch=openWorldState.challenge;if(ch&&worldKills>ch.kills)ch.kills=worldKills;if(ch&&ch.kills>=ch.target)completeOpenChallenge()}
-function updateCombat(dt){worldElapsed+=dt;movePlayer(dt,10,VIRTUAL_W-10);spawnTimer-=dt;if(spawnTimer<=0){spawnEnemy();spawnTimer=Math.max(.3,rand(.52,1.02)-currentGalaxy*.04)}updateEnemies(dt);updateBullets(dt);resolveBulletEnemyHits();resolvePlayerEnemyHits();updateParticles(dt);if(currentConfig().objective==='collect')updateCollectibles(dt);checkObjective()}
+function updateCombat(dt){worldElapsed+=dt;movePlayer(dt,10,VIRTUAL_W-10);spawnTimer-=dt;if(spawnTimer<=0){spawnEnemy();spawnTimer=Math.max(.3,rand(.52,1.02)-currentGalaxy*.04)/difficultyFor().spawnRate}updateEnemies(dt);updateBullets(dt);resolveBulletEnemyHits();resolvePlayerEnemyHits();updateParticles(dt);if(currentConfig().objective==='collect')updateCollectibles(dt);checkObjective()}
 function updateBossPhase(dt){movePlayer(dt,10,220);updateBoss(dt);updateBullets(dt);updateParticles(dt);if(player.invuln<=0)enemyBullets.forEach(b=>{if(Math.hypot(player.x-b.x,player.y-b.y)<6+(b.r||2)){b.life=0;hitPlayer(b.r>2?2:1)}})}
 function updateHud(){if(!player)return;hpBar.style.width=`${clamp(player.hp/player.maxHp*100,0,100)}%`;xpBar.style.width=`${clamp(player.xp/player.xpToLevel*100,0,100)}%`;let w=1,mission='Free Flight';if(mode==='campaign'){const c=currentConfig();w=c.objective==='survive'?clamp(worldElapsed/c.duration,0,1):c.objective==='collect'?clamp(worldCollected/c.target,0,1):c.objective==='boss'?(boss?1-boss.hp/boss.maxHp:1):clamp(worldKills/c.target,0,1);mission=objectiveLabel();worldTitle.textContent=worldLabel()}else{w=0;worldTitle.textContent='OPENWORLD · FREE FLIGHT';if(openWorldState.challenge){mission=`Planet Encounter · ${openWorldState.challenge.kills}/${openWorldState.challenge.target}`}}worldBar.style.width=`${w*100}%`;scoreEl.textContent=score;levelEl.textContent=player.level;missionText.textContent=mission}
 function planetForWorld(){const cfg=currentConfig();return{x:270,y:52+(currentWorld%3)*58,r:18+currentWorld*3,color:cfg.planet,ring:currentGalaxy%2===1}}
@@ -886,9 +1070,9 @@ function drawTravel(){const sky=ctx.createLinearGradient(0,0,0,VIRTUAL_H);sky.ad
 function renderOpenWorld(){const sky=ctx.createLinearGradient(0,0,0,VIRTUAL_H);sky.addColorStop(0,'#040711');sky.addColorStop(1,'#13122b');ctx.fillStyle=sky;ctx.fillRect(0,0,VIRTUAL_W,VIRTUAL_H);drawStarfield(openWorldState.cameraX*.04,'#1d2850');OPEN_PLANETS.forEach((p,i)=>{const x=p.x-openWorldState.cameraX;if(x<-45||x>VIRTUAL_W+45)return;ctx.fillStyle=p.color+'1e';ctx.beginPath();ctx.arc(x,p.y,p.r+9,0,Math.PI*2);ctx.fill();ctx.fillStyle=p.color+'55';ctx.beginPath();ctx.arc(x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffffaa';ctx.fillRect(x-5,p.y-2,10,4);if(openWorldState.discovered.has(i)){ctx.fillStyle='#ffef9a';ctx.font='7px monospace';ctx.fillText(p.name.toUpperCase(),x-p.name.length*2.1,p.y+p.r+10)}if(Math.hypot(player.x-p.x,player.y-p.y)<34){ctx.strokeStyle=p.color;ctx.lineWidth=1;ctx.setLineDash([2,2]);ctx.beginPath();ctx.arc(x,p.y,p.r+10,0,Math.PI*2);ctx.stroke();ctx.setLineDash([])}});ctx.fillStyle='#6af7ff1c';for(let y=22;y<VIRTUAL_H;y+=31)ctx.fillRect(0,y,VIRTUAL_W,1)}
 function drawEnemies(offsetX=0){enemies.forEach(e=>drawEnemy(e,offsetX))}
 function drawEnemy(e,offsetX=0){const x=e.x-offsetX,y=e.y;if(x<-20||x>VIRTUAL_W+20)return;ctx.save();ctx.translate(x,y);ctx.fillStyle=e.color;if(e.type==='tank'||e.guardian){const ss=e.guardian?11:8;ctx.fillRect(-ss,-ss*.65,ss*2,ss*1.3);ctx.fillStyle='#1a0a2e';ctx.fillRect(1,-3,ss-1,6);ctx.fillStyle=e.guardian?'#ffffff88':'#ffef9a';ctx.fillRect(-ss*.4,-2,4,4)}else if(e.type==='rift'){ctx.rotate(performance.now()*.001);ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3,r=i%2?4:8;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill()}else if(e.type==='shard'){ctx.rotate(-.35);ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-4,-4);ctx.lineTo(-6,0);ctx.lineTo(-4,4);ctx.closePath();ctx.fill()}else{ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-6,-5);ctx.lineTo(-6,5);ctx.closePath();ctx.fill()}ctx.restore();if(e.hp<e.maxHp){ctx.fillStyle='#000000aa';ctx.fillRect(x-7,y-e.r-5,14,2);ctx.fillStyle='#ffef9a';ctx.fillRect(x-7,y-e.r-5,14*Math.max(0,e.hp/e.maxHp),2)}}
-function render(){ctx.save();ctx.clearRect(0,0,VIRTUAL_W,VIRTUAL_H);if(phase==='travel'){drawTravel()}else if(mode==='openworld'&&(phase==='openworld'||phase==='openChallenge')){renderOpenWorld();drawEnemies(openWorldState.cameraX);if(phase==='openworld'){drawShip(player.x-openWorldState.cameraX,player.y);enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-1,4,2)})}else{drawShip(player.x-openWorldState.cameraX,player.y);enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-1,4,2)})}}else{renderCampaign();if(mode==='campaign'){if(phase==='boss')drawBoss();drawEnemies(0);drawCollectibles();enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';if(b.r>2){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill()}else ctx.fillRect(b.x-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-2,b.y-1,4,2)});drawShip(player.x,player.y)}}particles.forEach(p=>{ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size)});ctx.globalAlpha=1;confetti.forEach(c=>{ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);ctx.globalAlpha=Math.min(1,c.life);ctx.fillStyle=c.color;ctx.fillRect(-c.size/2,-c.size/2,c.size,c.size*1.8);ctx.restore()});if(shakeMag>0){}ctx.restore()}
+function render(){ctx.save();ctx.clearRect(0,0,VIRTUAL_W,VIRTUAL_H);if(phase==='travel'){drawTravel()}else if(mode==='openworld'&&(phase==='openworld'||phase==='openChallenge')){renderOpenWorld();drawEnemies(openWorldState.cameraX);if(phase==='openworld'){drawShip(player.x-openWorldState.cameraX,player.y);enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-1,4,2)})}else{drawShip(player.x-openWorldState.cameraX,player.y);enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-openWorldState.cameraX-2,b.y-1,4,2)})}}else{renderCampaign();if(mode==='campaign'){if(phase==='boss')drawBoss();drawEnemies(0);drawCollectibles();enemyBullets.forEach(b=>{ctx.fillStyle=b.color||'#ff6ad5';if(b.r>2){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill()}else ctx.fillRect(b.x-2,b.y-2,4,4)});bullets.forEach(b=>{ctx.fillStyle='#ffef9a';ctx.fillRect(b.x-2,b.y-1,4,2)});drawShip(player.x,player.y)}}particles.forEach(p=>{ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size)});ctx.globalAlpha=1;if(phase==='celebrate')confetti.forEach(c=>{ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);ctx.globalAlpha=Math.min(1,c.life);ctx.fillStyle=c.color;ctx.fillRect(-c.size/2,-c.size/2,c.size,c.size*1.8);ctx.restore()});if(shakeMag>0){}ctx.restore()}
 function loop(ts){const delta=Math.min(.25,(ts-lastTime)/1000||0);lastTime=ts;accumulator+=delta;if(running&&!paused&&!cutsceneActive&&!campaignComplete&&!gameOver){while(accumulator>=FIXED_DT){if(phase==='combat')updateCombat(FIXED_DT);else if(phase==='boss')updateBossPhase(FIXED_DT);else if(phase==='celebrate')updateCelebration(FIXED_DT);else if(phase==='travel')updateTravel(FIXED_DT);else if(phase==='openworld')updateOpenWorld(FIXED_DT);else if(phase==='openChallenge')updateOpenChallenge(FIXED_DT);accumulator-=FIXED_DT}}else accumulator=0;updateHud();render();requestAnimationFrame(loop)}
-loadProgress();resetRun();showWelcome();worldTitle.textContent=worldLabel();missionText.textContent='Press Enter to start';requestAnimationFrame(loop);
+loadGameSettings();loadProgress();resetRun();showWelcome();worldTitle.textContent=worldLabel();missionText.textContent='Press Enter to start';requestAnimationFrame(loop);
 </script>
 <audio id="clickSound" preload="auto" src="../click-sound.mp3"></audio>
 <script src="/assets/js/main.js"></script>
