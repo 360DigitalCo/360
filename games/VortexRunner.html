@@ -318,8 +318,8 @@
 /* ======================================================================
    CONSTANTS & CONFIG
 ====================================================================== */
-const ROAD_SPACING = 1000;      // distance between grid roads
-const ROAD_WIDTH   = 92;        // wide highways
+const ROAD_SPACING = 1800;      // wider city blocks: more space between roads
+const ROAD_WIDTH   = 104;        // wide highways
 const WORLD_MIN = -8000, WORLD_MAX = 8000;
 
 const TOWNS = [
@@ -684,12 +684,19 @@ const grapple = {
   x: 0,
   y: 0,
   ropeLength: 0,
-  pullStrength: 520,
-  maxPullSpeed: 760,
-  springStrength: 7.5,
-  tangentialAssist: 155,
-  releaseBoost: 1.08,
-  arriveDistance: 46
+  pullStrength: 720,
+  maxPullSpeed: 1260,
+  springStrength: 8.5,
+  tangentialAssist: 205,
+  releaseBoost: 1.14,
+  arriveDistance: 46,
+  // Swing momentum is intentionally built across a sequence of grapple
+  // anchors. A first long hook starts slow; shorter hooks build momentum,
+  // and progressively longer hooks preserve and amplify it.
+  swingMomentum: 0,
+  previousDistance: 0,
+  chain: 0,
+  lastReleaseAt: 0
 };
 
 /* ======================================================================
@@ -2116,18 +2123,47 @@ function launchGrappleAt(screenX, screenY){
   const dist = Math.hypot(target.x-car.x, target.y-car.y);
   if (dist < grapple.arriveDistance) return;
 
+  // Preserve a recent swing chain, but reset stale chains so every fresh
+  // grapple sequence starts with realistic low momentum.
+  const now = performance.now();
+  if (now - grapple.lastReleaseAt > 1800 && !grapple.active){
+    grapple.swingMomentum *= 0.18;
+    grapple.chain = 0;
+    grapple.previousDistance = 0;
+  }
+
+  const prev = grapple.previousDistance;
+  if (prev > 0){
+    const shortFactor = Math.max(0, Math.min(1, 1 - dist / 1400));
+    const progressiveLongFactor = Math.max(0, Math.min(1, (dist - prev) / 900));
+    const stableSequence = dist >= prev * 0.72;
+    const gain = stableSequence
+      ? 0.055 + shortFactor * 0.14 + progressiveLongFactor * 0.12
+      : 0.025 + shortFactor * 0.08;
+    grapple.swingMomentum = Math.min(1, grapple.swingMomentum + gain);
+    grapple.chain = Math.min(12, grapple.chain + 1);
+  } else {
+    // No previous swing: long hooks intentionally begin sluggishly.
+    grapple.swingMomentum *= 0.12;
+    grapple.chain = 1;
+  }
+  grapple.previousDistance = dist;
+
   grapple.active = true;
   grapple.x = target.x;
   grapple.y = target.y;
-  grapple.ropeLength = Math.max(120, dist * 0.96);
+  // A high-momentum chain shortens the effective rope a touch, making the
+  // pendulum catch sooner without ever teleporting the vehicle.
+  const ropeTightness = 0.965 - grapple.swingMomentum * 0.035;
+  grapple.ropeLength = Math.max(120, dist * ropeTightness);
 
-  // Preserve existing velocity and give the initial pull a slight boost so
-  // the grapple feels like a launch rather than a hard magnetic tug.
   const nx = (target.x-car.x)/dist, ny = (target.y-car.y)/dist;
   const toward = car.vx*nx + car.vy*ny;
-  const boost = Math.max(0, 95 - toward) * 0.35;
-  car.vx += nx*boost;
-  car.vy += ny*boost;
+  const initialPull = (75 + grapple.swingMomentum * 210) - Math.max(0, toward);
+  if (initialPull > 0){
+    car.vx += nx*initialPull*0.38;
+    car.vy += ny*initialPull*0.38;
+  }
 }
 
 function releaseGrapple(boost=true){
@@ -2139,68 +2175,90 @@ function releaseGrapple(boost=true){
     const tx = -ny, ty = nx;
     const tangential = car.vx*tx + car.vy*ty;
     const outward = car.vx*nx + car.vy*ny;
-    // Preserve the swing direction and add a small outward slingshot kick.
-    car.vx += tx * tangential * (grapple.releaseBoost-1);
-    car.vy += ty * tangential * (grapple.releaseBoost-1);
-    car.vx += nx * Math.max(0, outward) * 0.08;
-    car.vy += ny * Math.max(0, outward) * 0.08;
+    const momentumBoost = 1 + grapple.swingMomentum * 0.22;
+    car.vx += tx * tangential * (grapple.releaseBoost*momentumBoost - 1);
+    car.vy += ty * tangential * (grapple.releaseBoost*momentumBoost - 1);
+    car.vx += nx * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
+    car.vy += ny * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
   }
   grapple.active = false;
+  grapple.lastReleaseAt = performance.now();
 }
 
 function updateGrapple(dt){
-  if (!grapple.active || car.anchored) return;
+  // Momentum naturally bleeds away, but stays hot enough for a quick second
+  // grapple so the player can chain short -> medium -> long anchors.
+  if (!grapple.active){
+    const age = performance.now() - grapple.lastReleaseAt;
+    const decay = age < 1800 ? Math.exp(-0.9*dt) : Math.exp(-2.6*dt);
+    grapple.swingMomentum *= decay;
+    if (age > 1800){
+      grapple.chain = 0;
+      grapple.previousDistance = 0;
+    }
+    return;
+  }
+  if (car.anchored) return;
 
   const dx = grapple.x-car.x, dy = grapple.y-car.y;
   const dist = Math.hypot(dx,dy) || 0.001;
   const nx = dx/dist, ny = dy/dist;
   const tx = -ny, ty = nx;
 
-  // The hook behaves like a tether: velocity is preserved along the rope,
-  // while radial velocity is corrected toward the anchor. This creates a
-  // pendulum/swing effect instead of simply dragging the player in a line.
   const radialSpeed = car.vx*nx + car.vy*ny;
   const tangentialSpeed = car.vx*tx + car.vy*ty;
 
-  // Small tangential assist lets the grapple build speed around the anchor.
-  const assist = Math.min(grapple.tangentialAssist, Math.abs(tangentialSpeed)*0.22 + 28);
+  // The farther the chain has progressed, the more it transfers the car's
+  // existing tangential speed into useful forward motion around the anchor.
+  const momentumScale = 1 + grapple.swingMomentum * 1.65;
+  const assist = Math.min(grapple.tangentialAssist * momentumScale,
+                          Math.abs(tangentialSpeed)*0.30 + 26 + grapple.swingMomentum*120);
   const sign = tangentialSpeed >= 0 ? 1 : -1;
   car.vx += tx * assist * sign * dt;
   car.vy += ty * assist * sign * dt;
 
+  // Once momentum exists, gently increase the target speed instead of forcing
+  // an abrupt jump. This gives the user the desired short-to-long acceleration.
+  const chainSpeed = 360 + grapple.swingMomentum * 820;
+  if (tangentialSpeed !== 0){
+    const tangentialTarget = chainSpeed;
+    const tangentialError = tangentialTarget - Math.abs(tangentialSpeed);
+    const tangentialAccel = Math.max(-380, Math.min(520, tangentialError*0.82));
+    car.vx += tx * sign * tangentialAccel * dt;
+    car.vy += ty * sign * tangentialAccel * dt;
+  }
+
   const targetLength = grapple.ropeLength;
   if (dist > targetLength){
-    // Hard rope limit: remove the outward radial velocity, then add a spring
-    // pull proportional to how far beyond the rope the car has travelled.
     const excess = dist-targetLength;
     if (radialSpeed > 0){
       car.vx -= nx*radialSpeed;
       car.vy -= ny*radialSpeed;
     }
-    const spring = Math.min(grapple.pullStrength, excess*grapple.springStrength + 120);
+    const spring = Math.min(grapple.pullStrength*(0.72 + grapple.swingMomentum*0.42),
+                            excess*grapple.springStrength + 120 + grapple.swingMomentum*170);
     car.vx += nx*spring*dt;
     car.vy += ny*spring*dt;
 
-    // Keep the player exactly on the rope boundary.
-    car.x = grapple.x - nx*targetLength;
-    car.y = grapple.y - ny*targetLength;
+    // Keep the rope taut, but only correct position by the small amount that
+    // actually exceeds the rope. This avoids the old hard snap feeling.
+    const correction = Math.min(excess, excess*(0.35 + grapple.swingMomentum*0.25));
+    car.x += nx*correction;
+    car.y += ny*correction;
   } else {
-    // While the rope is slack, pull gently so the tether can catch and build
-    // momentum rather than immediately freezing the player's motion.
     const slack = targetLength-dist;
-    const desired = Math.min(grapple.maxPullSpeed, 90 + slack*0.28);
+    const desired = Math.min(grapple.maxPullSpeed, 100 + slack*0.22 + grapple.swingMomentum*260);
     if (radialSpeed < desired){
-      const accel = Math.min(grapple.pullStrength*0.35, (desired-radialSpeed)*2.0);
+      const accel = Math.min(grapple.pullStrength*0.42, (desired-radialSpeed)*1.6);
       car.vx += nx*accel*dt;
       car.vy += ny*accel*dt;
     }
   }
 
-  // Never let the grapple become a teleport. It accelerates the vehicle while
-  // retaining the existing momentum from driving, wind, and previous swings.
   const speed = Math.hypot(car.vx, car.vy);
-  if (speed > grapple.maxPullSpeed){
-    const scale = grapple.maxPullSpeed/speed;
+  const speedLimit = Math.min(grapple.maxPullSpeed, 760 + grapple.swingMomentum*500);
+  if (speed > speedLimit){
+    const scale = speedLimit/speed;
     car.vx *= scale;
     car.vy *= scale;
   }
@@ -2281,6 +2339,43 @@ function drawRoads(){
     ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
   }
   ctx.setLineDash([]);
+}
+
+function drawWorldLocations(){
+  // The same coordinate dataset used by the tactical map is rendered here,
+  // so map markers correspond to physical places in the playable world.
+  const cityRange = Math.hypot(canvas.width, canvas.height)/2 + 260;
+  CITIES.forEach(city=>{
+    if (Math.hypot(city.x-camera.x, city.y-camera.y) > cityRange) return;
+    const s = worldToScreen(city.x, city.y);
+    ctx.save();
+    ctx.fillStyle = "rgba(92,157,237,0.08)";
+    ctx.beginPath(); ctx.arc(s.x,s.y,78,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(92,157,237,0.45)"; ctx.lineWidth=2; ctx.stroke();
+    // Simple city blocks sitting inside the marker.
+    const blocks = [[-30,-18,22,14],[-4,-28,18,24],[18,-10,26,16],[-22,8,32,18],[10,10,20,22]];
+    blocks.forEach(([ox,oy,w,h])=>{
+      ctx.fillStyle = "rgba(165,185,200,0.38)";
+      ctx.fillRect(s.x+ox,s.y+oy,w,h);
+      ctx.strokeStyle = "rgba(20,30,32,0.55)"; ctx.lineWidth=1; ctx.strokeRect(s.x+ox,s.y+oy,w,h);
+    });
+    ctx.fillStyle="#b9dcff"; ctx.font="bold 13px Courier New"; ctx.textAlign="center";
+    ctx.fillText(city.name.toUpperCase(),s.x,s.y-92);
+    ctx.restore();
+  });
+
+  MAP_LANDMARKS.forEach(l=>{
+    if (Math.hypot(l.x-camera.x,l.y-camera.y) > cityRange) return;
+    const s=worldToScreen(l.x,l.y);
+    ctx.save();
+    ctx.fillStyle="rgba(255,210,63,0.13)"; ctx.beginPath(); ctx.arc(s.x,s.y,28,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="#ffd23f"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(s.x,s.y-14); ctx.lineTo(s.x+12,s.y+10); ctx.lineTo(s.x-12,s.y+10); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle="#ffeaa0"; ctx.font="bold 11px Courier New"; ctx.textAlign="center";
+    ctx.fillText(l.name.toUpperCase(),s.x,s.y-35);
+    ctx.fillStyle="#ffd23f"; ctx.font="bold 9px Courier New"; ctx.fillText(l.icon||"L",s.x,s.y+4);
+    ctx.restore();
+  });
 }
 
 function drawTowns(){
@@ -2817,6 +2912,7 @@ function loop(now){
   drawBackground();
   drawRoads();
   drawTowns();
+  drawWorldLocations();
   drawTornadoPath();
   drawTornado();
   drawWildConvoys();
