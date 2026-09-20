@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER ONLINE — Tornado Intercept</title>
+<title>VORTEX RUNNER — Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -2570,17 +2570,20 @@ function loop(now){
 }
 
 /* ======================================================================
-   ONLINE — SUPABASE LEADERBOARD
+   ONLINE — CO-OP PRESENCE + LEADERBOARD
 ====================================================================== */
 const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const myCoopId = Math.random().toString(36).slice(2, 10);
 let playerName = "";
 let lbTab = "storms";
 let lbOpen = false;
+let coopChannel = null;
+let remoteCars = {}; // id -> { x, y, angle, vx, vy, name, anchoring, health, maxHealth, vehicleKey }
+let coopPushTimer = 0;
 
-// Load saved callsign
 try {
   const saved = localStorage.getItem("vortexPlayerName");
   if (saved) playerName = saved;
@@ -2592,7 +2595,7 @@ document.getElementById("playerNameInput").addEventListener("input", e => {
   try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
 });
 
-// Leaderboard toggle
+// ---- Leaderboard ----
 const lbToggleBtn = document.getElementById("lbToggle");
 const lbPanel = document.getElementById("lbPanel");
 lbToggleBtn.addEventListener("click", () => {
@@ -2601,7 +2604,6 @@ lbToggleBtn.addEventListener("click", () => {
   lbToggleBtn.classList.toggle("open", lbOpen);
   if (lbOpen) fetchLeaderboard();
 });
-
 document.querySelectorAll(".lbTab").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
@@ -2618,10 +2620,9 @@ async function fetchLeaderboard() {
   listEl.innerHTML = "";
   try {
     const col = lbTab === "storms" ? "storms_intercepted" : "money";
-    const label = lbTab === "storms" ? "storms" : "$";
     const { data, error } = await sb
       .from("vortex_runner_scores")
-      .select("player_name, money, storms_intercepted, created_at")
+      .select("player_name, money, storms_intercepted")
       .order(col, { ascending: false })
       .limit(20);
     if (error) throw error;
@@ -2634,40 +2635,188 @@ async function fetchLeaderboard() {
       listEl.appendChild(div);
     });
     if (data.length === 0) statusEl.textContent = "No scores yet — be first!";
-  } catch(e) {
-    statusEl.textContent = "Offline";
-  }
+  } catch(e) { statusEl.textContent = "Offline"; }
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-}
+function escHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 async function submitScore() {
-  const name = playerName || "Unknown Chaser";
   try {
     await sb.from("vortex_runner_scores").insert({
-      player_name: name,
+      player_name: playerName || "Unknown Chaser",
       money: Math.floor(state.money),
       storms_intercepted: state.stormsIntercepted
     });
     if (lbOpen) fetchLeaderboard();
   } catch(e){}
 }
-
-// Hook into save — also submit score online
-const origSaveGame = saveGame;
-// Override save button to also submit score
 document.getElementById("saveButton").addEventListener("click", submitScore);
-
-// Also submit when closing the garage
 document.getElementById("closeGarageBtn").addEventListener("click", submitScore);
-
-// Auto-refresh leaderboard every 30s when open
 setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
-
-// Initial fetch so panel has data when first opened
 fetchLeaderboard();
+
+// ---- Co-op Realtime Presence ----
+function connectCoop() {
+  if (coopChannel) sb.removeChannel(coopChannel);
+  coopChannel = sb.channel("vortex-coop-v1", { config: { presence: { key: myCoopId } } });
+
+  coopChannel.on("presence", { event: "sync" }, () => {
+    const s = coopChannel.presenceState();
+    remoteCars = {};
+    Object.entries(s).forEach(([k, arr]) => {
+      if (k !== myCoopId && arr.length) remoteCars[k] = arr[arr.length - 1];
+    });
+    updateCoopList();
+  });
+  coopChannel.on("presence", { event: "leave" }, ({ leftPresences }) => {
+    leftPresences.forEach(p => delete remoteCars[p.id || p.key]);
+    updateCoopList();
+  });
+  coopChannel.subscribe();
+}
+
+function updateCoopList() {
+  const el = document.getElementById("lbList");
+  // Only update list if leaderboard is on the online players tab
+  // (list is reused for LB, so we leave it alone — just update footer)
+  const count = Object.keys(remoteCars).length;
+  document.getElementById("lbFooter").textContent =
+    `${count > 0 ? count + " chasers online · " : ""}Updates every 30s · Top 20`;
+}
+
+// Push own position ~15×/sec during gameplay
+function coopTick(dt) {
+  if (!state.running || state.paused) return;
+  coopPushTimer -= dt;
+  if (coopPushTimer > 0) return;
+  coopPushTimer = 1 / 15;
+  if (!coopChannel) return;
+  const veh = VEHICLES[state.currentVehicleKey];
+  coopChannel.track({
+    id: myCoopId,
+    name: playerName || "Chaser",
+    x: car.x, y: car.y,
+    angle: car.angle,
+    vx: car.vx, vy: car.vy,
+    health: car.health, maxHealth: car.maxHealth,
+    anchoring: car.anchored,
+    vehicleKey: state.currentVehicleKey,
+    color: veh ? veh.color : "#39ff14",
+    money: Math.floor(state.money),
+    storms: state.stormsIntercepted
+  });
+}
+
+// Draw remote cars into the world — called from inside the render loop
+// We patch into the existing updateGame to call coopTick, and patch render
+// to draw remote cars.
+const _origUpdateGame = updateGame;
+function updateGame(dt) {
+  _origUpdateGame(dt);
+  coopTick(dt);
+}
+
+// Patch the render function to draw remote cars after the local car is drawn
+const _origRender = render;
+function render() {
+  _origRender();
+  drawRemoteCars();
+}
+
+function drawRemoteCars() {
+  if (!state.running) return;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const scale = 1; // world units = pixels at default zoom
+
+  // We need the same camera transform the main render uses
+  // The original render does: ctx.translate(cx,cy); ctx.rotate(-car.angle); ctx.translate(-car.x,-car.y)
+  // We replicate that here for the remote cars.
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-car.angle);
+  ctx.translate(-car.x, -car.y);
+
+  Object.values(remoteCars).forEach(rc => {
+    if (!rc.x) return;
+    const veh = VEHICLES[rc.vehicleKey] || {};
+    const col = rc.color || veh.color || "#39ff14";
+
+    ctx.save();
+    ctx.translate(rc.x, rc.y);
+    ctx.rotate(rc.angle);
+
+    // Car body — same simple rectangle as local player uses
+    const W = 18, H = 30;
+    ctx.fillStyle = col;
+    ctx.fillRect(-W/2, -H/2, W, H);
+
+    // windshield
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(-W/2+3, -H/2+4, W-6, 7);
+
+    // Anchoring indicator
+    if (rc.anchoring) {
+      ctx.strokeStyle = "#ffd23f";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, W * 0.85, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Health bar above car
+    const barW = 28, barH = 4;
+    const hpPct = Math.max(0, Math.min(1, rc.health / (rc.maxHealth || 60)));
+    ctx.fillStyle = "#00000088";
+    ctx.fillRect(-barW/2, -H/2 - 10, barW, barH);
+    ctx.fillStyle = hpPct > 0.5 ? "#39ff14" : hpPct > 0.25 ? "#ffd23f" : "#ff4b6e";
+    ctx.fillRect(-barW/2, -H/2 - 10, barW * hpPct, barH);
+
+    // Callsign label
+    ctx.fillStyle = col;
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(rc.name || "?", 0, -H/2 - 14);
+
+    ctx.restore();
+  });
+
+  ctx.restore();
+
+  // Also draw on minimap
+  drawRemotesOnMinimap();
+}
+
+function drawRemotesOnMinimap() {
+  // Find the minimap element's canvas coords — we replicate the minimap math
+  const MINI_SIZE = 180;
+  const MINI_PAD = 14;
+  const mx = canvas.width - MINI_SIZE - MINI_PAD;
+  const my = canvas.height - MINI_SIZE - MINI_PAD;
+  const worldSpan = WORLD_MAX - WORLD_MIN;
+
+  Object.values(remoteCars).forEach(rc => {
+    if (!rc.x) return;
+    const px = mx + ((rc.x - WORLD_MIN) / worldSpan) * MINI_SIZE;
+    const py = my + ((rc.y - WORLD_MIN) / worldSpan) * MINI_SIZE;
+    const col = rc.color || "#39ff14";
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.font = "7px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(rc.name ? rc.name.slice(0, 8) : "?", px, py - 6);
+    ctx.restore();
+  });
+}
+
+// Start co-op connection immediately (or should we timeout if fail? Idk)
+connectCoop();
 
 })();
 </script>
