@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER - Tornado Intercept</title>
+<title>VORTEX RUNNER — Tornado Intercept</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   html, body {
@@ -131,9 +132,61 @@
     opacity:0; pointer-events:none; transition: opacity 0.3s;
   }
   #saveToast.show { opacity:1; }
+
+
+  /* ---- Online / Leaderboard ---- */
+  #lbPanel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
+    width: 260px; background: rgba(8,12,8,0.94); border-left: 1px solid #2c5a2c;
+    display: flex; flex-direction: column; transform: translateX(100%);
+    transition: transform 0.22s ease; box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+  }
+  #lbPanel.open { transform: translateX(0); }
+  #lbToggle {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+    z-index: 11; background: rgba(8,12,8,0.85); border: 1px solid #2c5a2c;
+    border-right: none; border-radius: 6px 0 0 6px;
+    padding: 10px 7px; cursor: pointer; color: #39ff14; font-family: inherit;
+    font-size: 11px; writing-mode: vertical-rl; letter-spacing: 1px;
+    transition: right 0.22s ease;
+  }
+  #lbToggle.open { right: 260px; }
+  #lbPanel h2 { color:#39ff14; font-size:13px; letter-spacing:2px; padding:12px 14px 6px; border-bottom:1px solid #2c5a2c; margin:0; }
+  #lbTabs { display:flex; border-bottom:1px solid #2c5a2c; }
+  .lbTab { flex:1; padding:7px 4px; text-align:center; font-size:11px; color:#7fd07f; cursor:pointer; border:none; background:none; font-family:inherit; letter-spacing:1px; }
+  .lbTab.active { color:#39ff14; border-bottom:2px solid #39ff14; }
+  #lbList { flex:1; overflow-y:auto; padding:8px 0; }
+  .lbRow { display:flex; align-items:center; gap:6px; padding:5px 12px; font-size:11px; border-bottom:1px dashed #1a2a1a; }
+  .lbRank { color:#ffd23f; min-width:20px; font-weight:bold; }
+  .lbName { flex:1; color:#d7ffd9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbVal { color:#39ff14; font-weight:bold; white-space:nowrap; }
+  #lbFooter { padding:10px 12px; border-top:1px solid #2c5a2c; font-size:10px; color:#7fd07f; }
+  #lbStatus { font-size:10px; color:#7fd07f; padding:6px 12px; }
+
+  #nameInputWrap { margin-top: 16px; display:flex; flex-direction:column; gap:6px; }
+  #nameInputWrap label { font-size: 12px; color:#9fcf9f; }
+  #playerNameInput {
+    background:#182a18; color:#39ff14; border:1px solid #2c5a2c; border-radius:4px;
+    padding:7px 10px; font-family:inherit; font-size:13px; letter-spacing:1px; width:100%;
+  }
+  #playerNameInput:focus { outline:none; border-color:#39ff14; }
 </style>
 </head>
 <body>
+
+
+<!-- Leaderboard Sidebar -->
+<button id="lbToggle">LEADERBOARD</button>
+<div id="lbPanel">
+  <h2>LEADERBOARD</h2>
+  <div id="lbTabs">
+    <button class="lbTab active" data-tab="storms">Storms</button>
+    <button class="lbTab" data-tab="money">Money</button>
+  </div>
+  <div id="lbStatus">Loading...</div>
+  <div id="lbList"></div>
+  <div id="lbFooter">CO-OP CONNECTING · Top 20</div>
+</div>
 
 <canvas id="game"></canvas>
 
@@ -166,7 +219,7 @@
 <div class="overlay" id="titleScreen">
   <div class="panel" style="text-align:center;">
     <h1 style="font-size:52px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
-    <p class="subtext">Chase. Anchor. Survive.</p>
+    <p class="subtext">Chase. Anchor. Survive. <span style="color:#39ff14; font-size:11px;">ONLINE CO-OP</span></p>
     <button class="gameBtn" id="titlePlayBtn" style="font-size:18px; padding:14px 40px;">▶ PLAY</button>
   </div>
 </div>
@@ -180,6 +233,10 @@
     torn off the road.</p>
     <h2>Choose Your Vehicle</h2>
     <p class="subtext" id="saveStatusNote"></p>
+    <div id="nameInputWrap">
+      <label for="playerNameInput">CALLSIGN (for online leaderboard / co-op)</label>
+      <input id="playerNameInput" maxlength="24" placeholder="Enter your callsign..." spellcheck="false" autocomplete="off"/>
+    </div>
     <div class="vehicleGrid" id="startVehicleGrid"></div>
     <div class="closeRow"><button class="gameBtn" id="beginBtn">START ENGINE</button></div>
   </div>
@@ -263,7 +320,7 @@
 ====================================================================== */
 const ROAD_SPACING = 1000;      // distance between grid roads
 const ROAD_WIDTH   = 92;        // wide highways
-const WORLD_MIN = -4000, WORLD_MAX = 4000;
+const WORLD_MIN = -8000, WORLD_MAX = 8000;
 
 const TOWNS = [
   { name:"Silverton",  x: 0,     y: 0    },
@@ -1960,12 +2017,22 @@ document.getElementById("titlePlayBtn").onclick = ()=>{
 };
 
 let saveToastTimer = null;
-document.getElementById("saveButton").onclick = ()=>{
+document.getElementById("saveButton").onclick = async ()=>{
   saveGame();
   const toast = document.getElementById("saveToast");
+  toast.textContent = "SAVED";
   toast.classList.add("show");
   clearTimeout(saveToastTimer);
-  saveToastTimer = setTimeout(()=>{ toast.classList.remove("show"); }, 1600);
+  try {
+    await submitScore();
+    toast.textContent = "SAVED · SCORE SUBMITTED";
+  } catch(e) {
+    toast.textContent = "SAVED (OFFLINE)";
+  }
+  saveToastTimer = setTimeout(()=>{
+    toast.classList.remove("show");
+    toast.textContent = "PROGRESS SAVED";
+  }, 2400);
 };
 
 /* ======================================================================
@@ -2013,7 +2080,7 @@ function drawRoads(){
 
   ctx.strokeStyle = "#8f9296";
   ctx.lineWidth = ROAD_WIDTH;
-  ctx.lineCap = "*****";
+  ctx.lineCap = "butt";
   for (let x=startX; x<camera.x+R; x+=ROAD_SPACING){
     const p1 = worldToScreen(x, camera.y-R), p2 = worldToScreen(x, camera.y+R);
     ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
@@ -2345,6 +2412,19 @@ function drawRadarContent(mx, my, size, big){
     }
   }
 
+  // Remote co-op chasers (smoothed client-side)
+  Object.values(remoteCars).forEach(rc => {
+    if (rc.renderX == null || rc.renderY == null) return;
+    const rp = toMap(rc.renderX, rc.renderY);
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, big?4:2.5, 0, Math.PI*2); ctx.fill();
+    if (big) {
+      ctx.fillStyle = rc.color || "#39ff14";
+      ctx.font = "9px Courier New"; ctx.textAlign = "center";
+      ctx.fillText((rc.name||"?").slice(0,10), rp.x, rp.y - 8);
+    }
+  });
+
   const p = toMap(car.x,car.y);
   ctx.fillStyle = "#ff3131";
   ctx.beginPath(); ctx.arc(p.x,p.y, big?5:3, 0, Math.PI*2); ctx.fill();
@@ -2570,6 +2650,8 @@ function updateGame(dt){
 
   autosaveTimer += dt;
   if (autosaveTimer > 15){ autosaveTimer = 0; saveGame(); }
+
+  updateRemoteCarsRender(dt);
 }
 
 // ---- Background tab support ----
@@ -2632,6 +2714,7 @@ function loop(now){
   drawCar();
   ctx.restore();
 
+  drawRemoteCarsWorld();
   drawCompass();
 
   if (state.radarFullscreen){
@@ -2643,6 +2726,346 @@ function loop(now){
 }
 
 })();
+
+/* ======================================================================
+   CO-OP WORLD RENDER — remote chasers use buffered/interpolated snapshots
+====================================================================== */
+function drawRemoteCarsWorld() {
+  Object.values(remoteCars).forEach(rc => {
+    if (rc.renderX == null || rc.renderY == null) return;
+    const s = worldToScreen(rc.renderX, rc.renderY);
+    if (s.x < -80 || s.x > canvas.width+80 || s.y < -80 || s.y > canvas.height+80) return;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate((rc.renderAngle||0) - camera.angle);
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.strokeStyle = "#0a0a0a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0,-14); ctx.lineTo(8,9); ctx.lineTo(-8,9); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    if (rc.anchoring) {
+      ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = rc.color || "#39ff14";
+    ctx.font = "bold 11px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText(rc.name||"?", s.x, s.y - 22);
+    if (rc.maxHealth > 0) {
+      const bw=30, bh=3, pct=Math.max(0,rc.health/rc.maxHealth);
+      ctx.fillStyle="#00000088"; ctx.fillRect(s.x-bw/2, s.y-18, bw, bh);
+      ctx.fillStyle=pct>.5?"#39ff14":pct>.25?"#ffd23f":"#ff4b6e";
+      ctx.fillRect(s.x-bw/2, s.y-18, bw*pct, bh);
+    }
+  });
+}
+
+/* ======================================================================
+   ONLINE — CO-OP REALTIME + LEADERBOARD
+   The old network version polled REST once per second and drew each received
+   coordinate directly. This build sends movement at 10 Hz, buffers snapshots
+   for ~120 ms, interpolates between them, and predicts only the tiny gap after
+   the newest packet. The result is continuous movement on both clients.
+====================================================================== */
+const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const myCoopId = Math.random().toString(36).slice(2, 10);
+const COOP_CHANNEL_NAME = "vortex-runner-public";
+const COOP_SEND_INTERVAL_MS = 100;
+const COOP_HEARTBEAT_INTERVAL_MS = 500;
+const COOP_FALLBACK_INTERVAL_MS = 500;
+const REMOTE_RENDER_DELAY_MS = 120;
+const REMOTE_PREDICTION_MAX_MS = 280;
+const REMOTE_TIMEOUT_MS = 3500;
+const MAX_REMOTE_SNAPSHOTS = 12;
+
+let playerName = "";
+let lbTab = "storms";
+let lbOpen = false;
+let remoteCars = {};
+let coopChannel = null;
+let realtimeConnected = false;
+let coopSendInFlight = false;
+
+try {
+  const saved = localStorage.getItem("vortexPlayerName");
+  if (saved) playerName = saved;
+} catch(e){}
+
+const playerNameInput = document.getElementById("playerNameInput");
+if (playerNameInput) {
+  playerNameInput.value = playerName;
+  playerNameInput.addEventListener("input", e => {
+    playerName = e.target.value.trim();
+    try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
+  });
+}
+
+function normalizeAngle(a){
+  const full = Math.PI*2;
+  return ((a % full) + full) % full;
+}
+
+function shortestAngleDelta(from, to){
+  return ((to - from + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+}
+
+function lerpAngle(a, b, t){
+  return normalizeAngle(a + shortestAngleDelta(a, b) * t);
+}
+
+function makeRemoteCarSnapshot(payload, receivedAt){
+  const x = Number(payload.x);
+  const y = Number(payload.y);
+  const vx = Number(payload.vx) || 0;
+  const vy = Number(payload.vy) || 0;
+  const angle = Number(payload.angle) || 0;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    receivedAt, x, y, vx, vy, angle,
+    name: String(payload.name || "Chaser").slice(0,24),
+    health: Number(payload.health) || 0,
+    maxHealth: Number(payload.maxHealth) || 0,
+    anchoring: !!payload.anchoring,
+    color: payload.color || "#39ff14"
+  };
+}
+
+function acceptRemoteSnapshot(id, payload){
+  if (!id || id === myCoopId) return;
+  const now = performance.now();
+  const snap = makeRemoteCarSnapshot(payload, now);
+  if (!snap) return;
+
+  let rc = remoteCars[id];
+  if (!rc) {
+    rc = remoteCars[id] = {
+      id, snapshots: [], renderX: snap.x, renderY: snap.y,
+      renderAngle: snap.angle, lastSeen: now
+    };
+  }
+  rc.snapshots.push(snap);
+  while (rc.snapshots.length > MAX_REMOTE_SNAPSHOTS) rc.snapshots.shift();
+  rc.lastSeen = now;
+  rc.name = snap.name;
+  rc.health = snap.health;
+  rc.maxHealth = snap.maxHealth;
+  rc.anchoring = snap.anchoring;
+  rc.color = snap.color;
+}
+
+function updateRemoteCarsRender(dt){
+  const now = performance.now();
+  const renderAt = now - REMOTE_RENDER_DELAY_MS;
+  const smooth = 1 - Math.exp(-28 * Math.max(0, dt));
+
+  Object.keys(remoteCars).forEach(id => {
+    const rc = remoteCars[id];
+    if (!rc || now - rc.lastSeen > REMOTE_TIMEOUT_MS) {
+      delete remoteCars[id];
+      return;
+    }
+    const snaps = rc.snapshots || [];
+    if (!snaps.length) return;
+
+    let desiredX, desiredY, desiredAngle, a = null, b = null;
+    for (let i = 0; i < snaps.length - 1; i++) {
+      if (snaps[i].receivedAt <= renderAt && renderAt <= snaps[i+1].receivedAt) {
+        a = snaps[i]; b = snaps[i+1]; break;
+      }
+    }
+
+    if (a && b) {
+      const span = Math.max(1, b.receivedAt - a.receivedAt);
+      const t = Math.max(0, Math.min(1, (renderAt - a.receivedAt) / span));
+      desiredX = a.x + (b.x - a.x) * t;
+      desiredY = a.y + (b.y - a.y) * t;
+      desiredAngle = lerpAngle(a.angle, b.angle, t);
+    } else {
+      const latest = snaps[snaps.length - 1];
+      const predictionMs = Math.max(0, Math.min(REMOTE_PREDICTION_MAX_MS, now - latest.receivedAt));
+      const predictionSec = predictionMs / 1000;
+      desiredX = latest.x + latest.vx * predictionSec;
+      desiredY = latest.y + latest.vy * predictionSec;
+      desiredAngle = latest.angle;
+    }
+
+    if (rc.renderX == null) {
+      rc.renderX = desiredX; rc.renderY = desiredY; rc.renderAngle = desiredAngle;
+    } else {
+      rc.renderX += (desiredX - rc.renderX) * smooth;
+      rc.renderY += (desiredY - rc.renderY) * smooth;
+      rc.renderAngle = lerpAngle(rc.renderAngle, desiredAngle, smooth);
+    }
+  });
+}
+
+// ---- Leaderboard ----
+const lbToggleBtn = document.getElementById("lbToggle");
+const lbPanel = document.getElementById("lbPanel");
+if (lbToggleBtn && lbPanel) {
+  lbToggleBtn.addEventListener("click", () => {
+    lbOpen = !lbOpen;
+    lbPanel.classList.toggle("open", lbOpen);
+    lbToggleBtn.classList.toggle("open", lbOpen);
+    if (lbOpen) fetchLeaderboard();
+  });
+}
+
+document.querySelectorAll(".lbTab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    lbTab = btn.dataset.tab;
+    fetchLeaderboard();
+  });
+});
+
+async function fetchLeaderboard(){
+  const statusEl = document.getElementById("lbStatus");
+  const listEl = document.getElementById("lbList");
+  if (!statusEl || !listEl) return;
+  statusEl.textContent = "Loading...";
+  listEl.innerHTML = "";
+  try {
+    const col = lbTab === "storms" ? "storms_intercepted" : "money";
+    const { data, error } = await sb
+      .from("vortex_runner_scores")
+      .select("player_name, money, storms_intercepted")
+      .order(col, { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    statusEl.textContent = `${data.length} entries`;
+    data.forEach((row, i) => {
+      const div = document.createElement("div");
+      div.className = "lbRow";
+      const val = lbTab === "storms" ? row.storms_intercepted + " storms" : "$" + Number(row.money).toLocaleString();
+      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
+      listEl.appendChild(div);
+    });
+    if (data.length === 0) statusEl.textContent = "No scores yet — be first!";
+  } catch(e) {
+    statusEl.textContent = "Offline";
+  }
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function submitScore(){
+  const { error } = await sb.from("vortex_runner_scores").insert({
+    player_name: playerName || "Unknown Chaser",
+    money: Math.floor(state.money),
+    storms_intercepted: state.stormsIntercepted
+  });
+  if (error) throw error;
+  if (lbOpen) fetchLeaderboard();
+}
+
+// ---- Realtime transform stream ----
+function initRealtime(){
+  try {
+    coopChannel = sb.channel(COOP_CHANNEL_NAME, {
+      config: { broadcast: { self: false, ack: false } }
+    });
+    coopChannel
+      .on("broadcast", { event: "player_state" }, ({ payload }) => {
+        if (payload && payload.id) acceptRemoteSnapshot(payload.id, payload);
+      })
+      .subscribe(status => {
+        realtimeConnected = status === "SUBSCRIBED";
+        const footer = document.getElementById("lbFooter");
+        if (footer) footer.textContent = realtimeConnected
+          ? "CO-OP CONNECTED · 10 Hz movement · Top 20"
+          : "CO-OP RECONNECTING · 2 Hz fallback · Top 20";
+      });
+  } catch(e) {
+    realtimeConnected = false;
+  }
+}
+
+function getLocalCoopPayload(){
+  const veh = VEHICLES[state.currentVehicleKey];
+  return {
+    id: myCoopId, name: playerName || "Chaser",
+    x: car.x, y: car.y, vx: car.vx, vy: car.vy, angle: car.angle,
+    health: car.health, maxHealth: car.maxHealth, anchoring: !!car.anchored,
+    color: veh ? veh.color : "#39ff14"
+  };
+}
+
+async function coopBroadcast(){
+  if (!coopChannel || !realtimeConnected || coopSendInFlight || !state.running) return;
+  coopSendInFlight = true;
+  try {
+    await coopChannel.send({
+      type: "broadcast",
+      event: "player_state",
+      payload: getLocalCoopPayload()
+    });
+  } catch(e) {
+    realtimeConnected = false;
+  } finally {
+    coopSendInFlight = false;
+  }
+}
+
+// Keep a database presence heartbeat even while Realtime is connected. This is
+// important because it gives every client a reliable discovery path if Realtime
+// is blocked, temporarily reconnecting, or unavailable in the browser.
+async function coopPush(){
+  const veh = VEHICLES[state.currentVehicleKey];
+  try {
+    await sb.from("vortex_presence").upsert({
+      id: myCoopId, player_name: playerName || "Chaser",
+      x: car.x, y: car.y, angle: car.angle,
+      health: car.health, max_health: car.maxHealth, anchoring: !!car.anchored,
+      color: veh ? veh.color : "#39ff14",
+      updated_at: new Date().toISOString()
+    }, { onConflict: "id" });
+  } catch(e) {}
+}
+
+async function coopPoll(){
+  try {
+    const cutoff = new Date(Date.now() - 4000).toISOString();
+    const { data, error } = await sb.from("vortex_presence")
+      .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
+      .neq("id", myCoopId).gte("updated_at", cutoff);
+    if (error) throw error;
+    const seen = new Set();
+    (data || []).forEach(r => {
+      seen.add(r.id);
+      acceptRemoteSnapshot(r.id, {
+        id:r.id, name:r.player_name, x:r.x, y:r.y, vx:0, vy:0, angle:r.angle,
+        health:r.health, maxHealth:r.max_health, anchoring:r.anchoring, color:r.color
+      });
+    });
+    const footer = document.getElementById("lbFooter");
+    const count = Object.keys(remoteCars).filter(id => seen.has(id) || performance.now() - remoteCars[id].lastSeen < REMOTE_TIMEOUT_MS).length;
+    if (footer && !realtimeConnected) footer.textContent = `${count ? count + " chasers online · " : ""}CO-OP FALLBACK · Top 20`;
+  } catch(e) {
+    // Do not clear remoteCars here. Realtime snapshots may still be arriving.
+  }
+}
+
+async function coopRemove(){
+  try { await sb.from("vortex_presence").delete().eq("id", myCoopId); } catch(e) {}
+}
+
+initRealtime();
+setInterval(coopBroadcast, COOP_SEND_INTERVAL_MS);
+setInterval(coopPush, COOP_HEARTBEAT_INTERVAL_MS);
+setInterval(coopPoll, COOP_FALLBACK_INTERVAL_MS);
+setInterval(() => { if (lbOpen) fetchLeaderboard(); }, 30000);
+fetchLeaderboard();
+window.addEventListener("beforeunload", coopRemove);
+
 </script>
 </body>
 </html>
