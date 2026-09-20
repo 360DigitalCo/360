@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VORTEX RUNNER - Tornado Intercept</title>
+<title>VORTEX RUNNER — Tornado Intercept</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
@@ -2774,10 +2774,10 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const myCoopId = Math.random().toString(36).slice(2, 10);
-const COOP_SEND_INTERVAL_MS = 200;
-const COOP_POLL_INTERVAL_MS = 200;
-const REMOTE_RENDER_DELAY_MS = 90;
-const REMOTE_TIMEOUT_MS = 4000;
+const COOP_SEND_INTERVAL_MS = 1000;
+const COOP_POLL_INTERVAL_MS = 1000;
+const REMOTE_RENDER_DELAY_MS = 120;
+const REMOTE_TIMEOUT_MS = 12000;
 const MAX_REMOTE_SNAPSHOTS = 16;
 
 let playerName = "";
@@ -3038,6 +3038,8 @@ async function coopPoll(){
   if (coopPollInFlight) return;
   coopPollInFlight=true;
   try {
+    // Keep discovery tolerant of modest client clock skew. We still expire
+    // players locally, but do not make a tiny timestamp mismatch hide them.
     const cutoff=new Date(Date.now()-REMOTE_TIMEOUT_MS).toISOString();
     const {data,error}=await sb.from("vortex_presence")
       .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
@@ -3050,6 +3052,16 @@ async function coopPoll(){
     Object.keys(remoteCars).forEach(id=>{
       if (now-remoteCars[id].lastSeen > REMOTE_TIMEOUT_MS) delete remoteCars[id];
     });
+
+    // If the normal freshness window returns nothing, make one lightweight
+    // unfiltered discovery read. Client-side lastSeen/timeout still prevents
+    // disconnected entries from remaining on screen forever.
+    if (!(data || []).length) {
+      const fallback=await sb.from("vortex_presence")
+        .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
+        .neq("id",myCoopId);
+      if (!fallback.error && fallback.data) fallback.data.forEach(row=>acceptRemoteSnapshot(row.id,row));
+    }
 
     const footer=document.getElementById("lbFooter");
     if (footer) {
