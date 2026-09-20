@@ -231,11 +231,19 @@ function onResize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;cam
 function terrainHeight(x,z){return 1.1*Math.sin(x*.055)*Math.cos(z*.047)+.7*Math.sin((x+z)*.08)+.34*Math.cos(z*.12-x*.05)}
 function groundY(x,z){return terrainHeight(x,z)}
 
-function buildWorld(){
+const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+async function buildWorld(){
   const geo=new THREE.PlaneGeometry(GAME.mapRadius*2,GAME.mapRadius*2,72,72);geo.rotateX(-Math.PI/2);
   const p=geo.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,terrainHeight(x,z)-.05)}geo.computeVertexNormals();terrain=new THREE.Mesh(geo,makeMat(0x304c36,.98));terrain.receiveShadow=true;scene.add(terrain);
   const shore=new THREE.Mesh(new THREE.CircleGeometry(GAME.mapRadius+2,128),makeMat(0x19303b,.95));shore.rotation.x=-Math.PI/2;shore.position.y=-.3;scene.add(shore);
-  makeRoads(); makeForest(); makeBuildings(); makeProps(); makeLandmarks(); makeAtmosphere(); makeChests(); makeStorm();
+  await nextFrame(); makeRoads();
+  await nextFrame(); makeForest();
+  await nextFrame(); makeBuildings();
+  await nextFrame(); makeProps();
+  await nextFrame(); makeLandmarks();
+  await nextFrame(); makeAtmosphere();
+  await nextFrame(); makeChests();
+  await nextFrame(); makeStorm();
 }
 function makeRoads(){
   const roadMat=makeMat(0x2a3036,1);const lineMat=makeMat(0xbab9a2,.85);
@@ -359,13 +367,13 @@ function startMatch(training){
   if(onlineMode)leaveNetworkMatch();
   trainingMode=training;onlineMode=false;ended=false;running=false;paused=false;matchTime=0;kills=0;damageDone=0;matchXp=0;currentPhase=0;phaseTimer=0;phaseState='wait';stormRadius=GAME.stormPhases[0].radius;safeCenter.set(0,0);reseed(GAME.seed);input.move.set(0,0);input.look.set(0,0);keys.clear();mouseDown=false;aiming=false;reloadRequested=false;jumpRequested=false;
   resetEntities();showScreen(UI.game);$('player-name').textContent=training?'RANGE OP':playerName;UI.status.textContent='ALIVE';UI.loading.classList.remove('hide');UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='building verdant reach';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    try{buildMatchWorld();running=true;clock.start();UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);renderer.domElement.requestPointerLock?.();startRewardsSession()}
+  requestAnimationFrame(()=>requestAnimationFrame(async ()=>{
+    try{await buildMatchWorld();running=true;clock.start();UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);renderer.domElement.requestPointerLock?.();startRewardsSession()}
     catch(err){console.error('StarFallRoyale world build failed',err);UI.loading.querySelector('p').textContent='world build failed';setTimeout(()=>{UI.loading.style.display='none';showScreen(UI.menu);UI.queueState.innerHTML='STARTUP ERROR · <b>refresh and retry</b>'},700)}
   }))
 }
 function resetEntities(){for(const o of [...bots.map(b=>b.mesh),...remotePlayers.map(b=>b.mesh),...loot.map(l=>l.mesh),...shots.map(s=>s.obj),...particles.map(p=>p.obj)])scene?.remove(o);bots=[];remotePlayers=[];loot=[];chests=[];particles=[];buildings=[];for(const p of pingMarkers)scene?.remove(p.group);for(const c of tacticalCovers)scene?.remove(c.group);pingMarkers=[];tacticalCovers=[];if(player){scene.remove(player.mesh);player=null}}
-function buildMatchWorld(){scene.clear();const hemi=new THREE.HemisphereLight(0xb9dbeb,0x243223,2.1);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.far=340;scene.add(sun);const fill=new THREE.DirectionalLight(0x70aaff,.7);fill.position.set(-70,45,-60);scene.add(fill);scene.background=new THREE.Color(0x8da9b6);scene.fog=new THREE.FogExp2(0x79929b,.0087);reseed(onlineMode?matchSeed:GAME.seed);buildWorld();spawnPlayer();spawnBots(onlineMode?Math.max(0,GAME.maxPlayers-Math.max(1,pendingRoster.length)):GAME.botCount);spawnLoot();showToast(choice(['VERDANT REACH','STARLIGHT QUARRY','MOONGLASS DISTRICT','CINDER HOLLOW','AURORA DOCKS']));makeMinimap();stormRadius=trainingMode?GAME.mapRadius:GAME.stormPhases[0].radius;updateHUD()}
+async function buildMatchWorld(){scene.clear();const hemi=new THREE.HemisphereLight(0xb9dbeb,0x243223,2.1);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff0d1,3.5);sun.position.set(80,120,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-170;sun.shadow.camera.right=170;sun.shadow.camera.top=170;sun.shadow.camera.bottom=-170;sun.shadow.camera.far=340;scene.add(sun);const fill=new THREE.DirectionalLight(0x70aaff,.7);fill.position.set(-70,45,-60);scene.add(fill);scene.background=new THREE.Color(0x8da9b6);scene.fog=new THREE.FogExp2(0x79929b,.0087);reseed(onlineMode?matchSeed:GAME.seed);await nextFrame();await buildWorld();await nextFrame();spawnPlayer();await nextFrame();spawnBots(onlineMode?Math.max(0,GAME.maxPlayers-Math.max(1,pendingRoster.length)):GAME.botCount);await nextFrame();spawnLoot();showToast(choice(['VERDANT REACH','STARLIGHT QUARRY','MOONGLASS DISTRICT','CINDER HOLLOW','AURORA DOCKS']));makeMinimap();stormRadius=trainingMode?GAME.mapRadius:GAME.stormPhases[0].radius;updateHUD()}
 
 
 function movePlayer(dt){
@@ -436,7 +444,6 @@ function updateEffects(dt){for(let i=shots.length-1;i>=0;i--){shots[i].life-=dt;
 function pulseUI(el,cls='hot'){if(!el)return;el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls)}
 let lastHUDWeapon='',lastHUDAmmo='',lastHUDHp=-1,lastHUDShield=-1;
 function updateHUD(){if(!player)return;const ammo=`${player.weapon.mag} / ${player.weapon.reserve}`,weapon=player.weapon.name,hp=Math.ceil(player.health),shield=Math.ceil(player.shield);UI.health.style.width=`${clamp(player.health,0,100)}%`;UI.shield.style.width=`${clamp(player.shield,0,100)}%`;UI.hp.textContent=hp;UI.sh.textContent=shield;UI.kills.textContent=kills;UI.ammo.innerHTML=`${player.weapon.mag} <span>/ ${player.weapon.reserve}</span>`;UI.weapon.textContent=weapon;UI.weaponSub.textContent=player.weapon.sub;if(ammo!==lastHUDAmmo) pulseUI(UI.ammo.parentElement);if(weapon!==lastHUDWeapon)pulseUI(UI.weapon);if(hp!==lastHUDHp)pulseUI(UI.health);if(shield!==lastHUDShield)pulseUI(UI.shield);lastHUDAmmo=ammo;lastHUDWeapon=weapon;lastHUDHp=hp;lastHUDShield=shield;UI.alive.textContent=(bots.filter(b=>!b.dead).length+remotePlayers.filter(b=>!b.dead).length+1);UI.storm.textContent=trainingMode?'—':Math.max(0,Math.ceil((phaseState==='wait'?GAME.stormPhases[currentPhase]?.wait-phaseTimer:GAME.stormPhases[currentPhase]?.duration-phaseTimer)||0))+'s';UI.stormSub.textContent=trainingMode?'training':`phase ${currentPhase+1}`;UI.elev.textContent=Math.max(0,Math.round(player.pos.y*2+12))+'m';UI.loc.textContent=getLocation(player.pos.x,player.pos.z);updateInventoryHUD();const db=$('drop-banner');if(db)db.classList.toggle('hide',!dropActive);const near=nearestInteract();if(near){if(UI.interaction.style.display!=='block')pulseUI(UI.interaction,'hot');UI.interaction.style.display='block';UI.interactionName.textContent=near.kind==='chest'?'SEARCH CHEST':near.loot.type.toUpperCase()}else UI.interaction.style.display='none'}
-function nearestLoot(){if(!player)return null;let best=null,bd=2.3;for(const l of loot){if(l.taken)continue;const d=Math.hypot(l.x-player.pos.x,l.z-player.pos.z);if(d<bd){bd=d;best=l}}return best}
 function getLocation(x,z){if(Math.hypot(x,z)<20)return 'Verdant Plaza';if(x>55&&z<-35)return 'North Market';if(x<-45&&z>35)return 'Pine Ridge';if(x>55&&z>25)return 'Riverside';if(x<-45&&z<-35)return 'Industrial Yard';return 'Outer Reach'}
 function feed(text,me=false){const el=document.createElement('div');el.className='feed'+(me?' me':'');el.innerHTML=text;UI.feed.prepend(el);while(UI.feed.children.length>5)UI.feed.lastElementChild.remove();setTimeout(()=>el.remove(),4200)}
 function togglePause(force){if(!running||ended)return;paused=force===undefined?!paused:force;UI.pause.classList.toggle('active',paused);if(paused){renderer.domElement.requestPointerLock?.();document.exitPointerLock?.()}else{renderer.domElement.requestPointerLock?.()}}
@@ -548,23 +555,23 @@ async function beginOnlineMatch(mid,seed,startAt){
   lobbyChannel=null;
   resetEntities();showScreen(UI.game);UI.loading.classList.remove('hide');UI.loading.style.display='flex';UI.loading.querySelector('p').textContent='building verdant reach';
   try{
-    buildMatchWorld();
+    await buildMatchWorld();
     running=true;clock.start();
     UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',280);
     renderer.domElement.requestPointerLock?.();
     startRewardsSession();
     matchConnectionPending=true;
-    joinMatch().then(joined=>{
+    joinMatch().then(async joined=>{
       matchConnectionPending=false;
       if(joined){UI.network.textContent='LIVE';feed('<b>Live squad connected</b>',true);trackMatchPresence(true)}
       else {
         UI.network.textContent='RECONNECTING';
         feed('<b>Live network unavailable</b> · continuing locally');
         onlineMode=false;trainingMode=true;
-        resetEntities();buildMatchWorld();running=true;clock.start();
+        resetEntities();await buildMatchWorld();running=true;clock.start();
       }
-    }).catch(err=>{
-      console.warn('StarFallRoyale realtime join failed',err);matchConnectionPending=false;UI.network.textContent='RECONNECTING';onlineMode=false;trainingMode=true;resetEntities();buildMatchWorld();running=true;clock.start();
+    }).catch(async err=>{
+      console.warn('StarFallRoyale realtime join failed',err);matchConnectionPending=false;UI.network.textContent='RECONNECTING';onlineMode=false;trainingMode=true;resetEntities();await buildMatchWorld();running=true;clock.start();
     });
   }catch(err){console.error('StarFallRoyale online world build failed',err);UI.loading.style.display='none';onlineMode=false;showScreen(UI.menu);UI.queueState.innerHTML='STARTUP ERROR · <b>could not build Verdant Reach</b>'}
   return;
