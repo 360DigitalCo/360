@@ -39,6 +39,212 @@
 
   const SB_URL = "https://wiswfpfsjiowtrdyqpxy.supabase.co";
 
+  /* ── model catalog ───────────────────────────────────────────────────
+     Grouped by provider for the dropup/flyout picker. Ids are OpenRouter
+     model ids (provider/model) — the backend forwards whatever id is sent
+     straight to OpenRouter, so adding a row here is enough to make a new
+     model selectable; no edge-function redeploy needed. Trim/extend this
+     list to match exactly what you've enabled on your OpenRouter account. */
+  const MODEL_CATALOG = {
+    "OpenAI": [
+      ["openai/gpt-4o", "GPT-4o"],
+      ["openai/gpt-4o-mini", "GPT-4o mini"],
+      ["openai/gpt-4.1", "GPT-4.1"],
+      ["openai/gpt-4.1-mini", "GPT-4.1 mini"],
+      ["openai/gpt-4.1-nano", "GPT-4.1 nano"],
+      ["openai/o1", "o1"],
+      ["openai/o1-mini", "o1 mini"],
+      ["openai/o3", "o3"],
+      ["openai/o3-mini", "o3 mini"],
+      ["openai/o4-mini", "o4 mini"],
+      ["openai/gpt-4-turbo", "GPT-4 Turbo"],
+      ["openai/gpt-3.5-turbo", "GPT-3.5 Turbo"],
+    ],
+    "Anthropic": [
+      ["anthropic/claude-3.5-sonnet", "Claude 3.5 Sonnet"],
+      ["anthropic/claude-3.5-haiku", "Claude 3.5 Haiku"],
+      ["anthropic/claude-3.7-sonnet", "Claude 3.7 Sonnet"],
+      ["anthropic/claude-3-opus", "Claude 3 Opus"],
+      ["anthropic/claude-3-haiku", "Claude 3 Haiku"],
+      ["anthropic/claude-sonnet-4", "Claude Sonnet 4"],
+      ["anthropic/claude-opus-4", "Claude Opus 4"],
+    ],
+    "Azure": [
+      ["azure/gpt-4o", "Azure GPT-4o"],
+      ["azure/gpt-4o-mini", "Azure GPT-4o mini"],
+      ["azure/gpt-4-turbo", "Azure GPT-4 Turbo"],
+      ["azure/gpt-35-turbo", "Azure GPT-3.5 Turbo"],
+    ],
+    "DeepSeek": [
+      ["deepseek/deepseek-chat", "DeepSeek V3"],
+      ["deepseek/deepseek-r1", "DeepSeek R1"],
+      ["deepseek/deepseek-r1-distill-llama-70b", "DeepSeek R1 Distill 70B"],
+      ["deepseek/deepseek-coder", "DeepSeek Coder"],
+    ],
+    "Google AI Studio": [
+      ["google/gemini-2.0-flash-001", "Gemini 2.0 Flash"],
+      ["google/gemini-2.0-flash-lite-001", "Gemini 2.0 Flash Lite"],
+      ["google/gemini-2.5-pro", "Gemini 2.5 Pro"],
+      ["google/gemini-2.5-flash", "Gemini 2.5 Flash"],
+      ["google/gemini-pro-1.5", "Gemini 1.5 Pro"],
+      ["google/gemini-flash-1.5", "Gemini 1.5 Flash"],
+      ["google/gemma-2-27b-it", "Gemma 2 27B"],
+    ],
+    "Groq": [
+      ["groq/llama-3.3-70b-versatile", "Llama 3.3 70B (Groq)"],
+      ["groq/llama-3.1-8b-instant", "Llama 3.1 8B Instant (Groq)"],
+      ["groq/mixtral-8x7b-32768", "Mixtral 8x7B (Groq)"],
+      ["groq/gemma2-9b-it", "Gemma2 9B (Groq)"],
+    ],
+    "Meta": [
+      ["meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B"],
+      ["meta-llama/llama-3.1-405b-instruct", "Llama 3.1 405B"],
+      ["meta-llama/llama-3.1-70b-instruct", "Llama 3.1 70B"],
+      ["meta-llama/llama-3.1-8b-instruct", "Llama 3.1 8B"],
+      ["meta-llama/llama-3.2-90b-vision-instruct", "Llama 3.2 90B Vision"],
+      ["meta-llama/llama-4-maverick", "Llama 4 Maverick"],
+      ["meta-llama/llama-4-scout", "Llama 4 Scout"],
+    ],
+    "NVIDIA": [
+      ["nvidia/llama-3.1-nemotron-70b-instruct", "Nemotron 70B"],
+      ["nvidia/nemotron-4-340b-instruct", "Nemotron 4 340B"],
+      ["nvidia/llama-3.1-nemotron-51b-instruct", "Nemotron 51B"],
+    ],
+  };
+
+  const MODEL_STORAGE_KEY = "ai360:selectedModel";
+  let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "openai/gpt-4o-mini";
+
+  const modelPicker = document.getElementById("model-picker");
+  const modelPickerBtn = document.getElementById("model-picker-btn");
+  const modelPickerLabel = document.getElementById("model-picker-label");
+  const modelDropup = document.getElementById("model-dropup");
+  const adminBadge = document.getElementById("admin-badge");
+  const usageMeter = document.getElementById("usage-meter");
+  const usageMeterFill = document.getElementById("usage-meter-fill");
+  const usageMeterLabel = document.getElementById("usage-meter-label");
+
+  function labelForModel(id) {
+    for (const provider in MODEL_CATALOG) {
+      const hit = MODEL_CATALOG[provider].find(m => m[0] === id);
+      if (hit) return hit[1];
+    }
+    return id;
+  }
+
+  function setSelectedModel(id) {
+    selectedModel = id;
+    localStorage.setItem(MODEL_STORAGE_KEY, id);
+    if (modelPickerLabel) modelPickerLabel.textContent = labelForModel(id);
+    if (modelDropup) {
+      modelDropup.querySelectorAll(".mp-model-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.modelId === id);
+      });
+    }
+  }
+
+  function buildModelDropup() {
+    if (!modelDropup) return;
+    modelDropup.innerHTML = "";
+    Object.keys(MODEL_CATALOG).forEach(provider => {
+      const models = MODEL_CATALOG[provider];
+      const row = document.createElement("div");
+      row.className = "mp-provider";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mp-provider-btn";
+      btn.innerHTML =
+        `<span>${escHtml(provider)}</span>` +
+        `<span class="mp-provider-count">${models.length}</span>` +
+        `<span class="mp-provider-arrow">◂</span>`;
+      on(btn, "click", e => {
+        e.stopPropagation();
+        const wasOpen = row.classList.contains("open");
+        modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
+        if (!wasOpen) row.classList.add("open");
+      });
+
+      const flyout = document.createElement("div");
+      flyout.className = "mp-flyout";
+      models.forEach(([id, label]) => {
+        const mBtn = document.createElement("button");
+        mBtn.type = "button";
+        mBtn.className = "mp-model-btn" + (id === selectedModel ? " active" : "");
+        mBtn.dataset.modelId = id;
+        mBtn.innerHTML = `<span>${escHtml(label)}</span><span class="mp-model-id">${escHtml(id)}</span>`;
+        on(mBtn, "click", e => {
+          e.stopPropagation();
+          setSelectedModel(id);
+          if (modelPicker) modelPicker.classList.remove("open");
+        });
+        flyout.appendChild(mBtn);
+      });
+
+      row.appendChild(btn);
+      row.appendChild(flyout);
+      modelDropup.appendChild(row);
+    });
+  }
+
+  buildModelDropup();
+  setSelectedModel(selectedModel);
+
+  on(modelPickerBtn, "click", e => {
+    e.stopPropagation();
+    if (!modelPicker) return;
+    const willOpen = !modelPicker.classList.contains("open");
+    modelPicker.classList.toggle("open", willOpen);
+    if (!willOpen) modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
+  });
+
+  document.addEventListener("click", () => {
+    if (modelPicker) modelPicker.classList.remove("open");
+    if (modelDropup) modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
+  });
+
+  /* ── usage meter + admin badge ───────────────────────────────────── */
+
+  async function refreshUsageAndAdmin() {
+    if (!sb || !currentUserId) {
+      if (usageMeter) usageMeter.style.display = "none";
+      if (adminBadge) adminBadge.classList.remove("show");
+      return;
+    }
+    try {
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", currentUserId)
+        .maybeSingle();
+      if (adminBadge) adminBadge.classList.toggle("show", !!(profile && profile.is_admin));
+    } catch (_) {}
+
+    try {
+      const { data: usage } = await sb
+        .from("ai_usage_today")
+        .select("total_tokens, daily_token_limit")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      if (usage && usageMeter) {
+        usageMeter.style.display = "flex";
+        const limit = usage.daily_token_limit;
+        const used = usage.total_tokens || 0;
+        if (limit == null || limit < 0) {
+          usageMeterFill.style.width = "4%";
+          usageMeterLabel.textContent = `${used.toLocaleString()} tokens today`;
+          usageMeter.classList.remove("warn", "limit");
+        } else {
+          const pct = Math.min(100, Math.round((used / limit) * 100));
+          usageMeterFill.style.width = pct + "%";
+          usageMeterLabel.textContent = `${used.toLocaleString()}/${limit.toLocaleString()}`;
+          usageMeter.classList.toggle("warn", pct >= 75 && pct < 100);
+          usageMeter.classList.toggle("limit", pct >= 100);
+        }
+      }
+    } catch (_) {}
+  }
+
   let history = [];
   let currentConvId = null;
   let currentUserId = null;
@@ -633,6 +839,8 @@
       const body = {
         message: backendMessage,
         memory: apiMemory(history),
+        userId: currentUserId,
+        model: selectedModel,
       };
 
       if (captured) {
@@ -709,6 +917,8 @@
         answerContent.innerHTML = renderMarkdown(reply);
         if (window.hljs) answerContent.querySelectorAll("pre code").forEach(el => { try { hljs.highlightElement(el); } catch (_) {} });
       }
+
+      refreshUsageAndAdmin();
 
       scrollBottom();
 
@@ -1144,6 +1354,7 @@
       const { data: { session } } = await sb.auth.getSession();
       currentUserId = session && session.user ? session.user.id : null;
       scheduleLoad();
+      refreshUsageAndAdmin();
     } catch (_) {}
   })();
 
@@ -1152,6 +1363,7 @@
       if (event === "INITIAL_SESSION") return;
       currentUserId = session && session.user ? session.user.id : null;
       scheduleLoad();
+      refreshUsageAndAdmin();
     });
   }
 })();
