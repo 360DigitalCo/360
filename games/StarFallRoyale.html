@@ -1033,6 +1033,8 @@ function initRenderer(){
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));
   renderer.setSize(innerWidth,innerHeight);
+  rendererInputBound=false;
+  bindRendererInput();
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.18;
@@ -1400,6 +1402,27 @@ function drawMinimap(){
 // ══════════════════════════════════════════
 class InputState{constructor(){this.move=new THREE.Vector2();this.look=new THREE.Vector2()}}
 const input=new InputState();
+let rendererInputBound=false;
+
+function bindRendererInput(){
+  if(rendererInputBound||!renderer?.domElement)return;
+  rendererInputBound=true;
+  const canvas=renderer.domElement;
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  canvas.addEventListener('mousedown',e=>{
+    if(!running||paused)return;
+    canvas.requestPointerLock?.();
+    if(e.button===0)mouseDown=true;
+    if(e.button===2)aiming=true;
+    if(e.button===1){e.preventDefault();performPing()}
+  });
+  addEventListener('mousemove',e=>{
+    if(renderer?.domElement&&document.pointerLockElement===renderer.domElement&&running&&!paused){
+      input.look.x+=e.movementX*0.0022*customization.sensitivity;
+      input.look.y+=e.movementY*0.0018*customization.sensitivity;
+    }
+  });
+}
 
 function setupInput(){
   installUIEffects();
@@ -1416,21 +1439,8 @@ function setupInput(){
     if(k===' '){e.preventDefault();jumpRequested=true}
   });
   addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-  renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
-  renderer.domElement.addEventListener('mousedown',e=>{
-    if(!running||paused)return;
-    renderer.domElement.requestPointerLock?.();
-    if(e.button===0)mouseDown=true;
-    if(e.button===2)aiming=true;
-    if(e.button===1){e.preventDefault();performPing()}
-  });
+  bindRendererInput();
   addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false});
-  addEventListener('mousemove',e=>{
-    if(document.pointerLockElement===renderer.domElement&&running&&!paused){
-      input.look.x+=e.movementX*0.0022*customization.sensitivity;
-      input.look.y+=e.movementY*0.0018*customization.sensitivity;
-    }
-  });
   $('mode-duo')?.addEventListener('click',()=>showToast('DUO · COMING SOON'));
   $('mode-squad')?.addEventListener('click',()=>showToast('SQUAD · COMING SOON'));
   $('resume').onclick=()=>togglePause(false);
