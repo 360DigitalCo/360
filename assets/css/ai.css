@@ -1680,3 +1680,131 @@ body:not(.dark) .ai-input-area {
 @keyframes mcpSpin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================
+   Model picker (dropup) — grouped by provider, flyout submenus
+   ============================================================ */
+#model-picker { position: relative; flex-shrink: 0; }
+
+#model-picker-btn {
+  display: flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-soft, rgba(0,0,0,.06));
+  background: var(--surface-soft);
+  color: var(--txt);
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease;
+}
+#model-picker-btn:hover { background: var(--hover); }
+#model-picker-btn .mp-caret { opacity: .6; transition: transform .15s ease; }
+#model-picker.open #model-picker-btn .mp-caret { transform: rotate(180deg); }
+#model-picker-label {
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+}
+
+#model-dropup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28);
+  padding: 6px;
+  z-index: 60;
+  max-height: 60vh;
+  overflow: visible;
+}
+#model-picker.open #model-dropup { display: block; }
+
+.mp-provider {
+  position: relative;
+}
+.mp-provider-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: transparent; border: none;
+  color: var(--txt);
+  font-size: 13px; font-weight: 500;
+  text-align: left; cursor: pointer;
+}
+.mp-provider-btn:hover, .mp-provider.open > .mp-provider-btn { background: var(--hover); }
+.mp-provider-btn .mp-provider-arrow { opacity: .5; font-size: 11px; }
+.mp-provider-count {
+  font-size: 11px; color: var(--mut); font-weight: 400;
+}
+
+.mp-flyout {
+  display: none;
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0;
+  min-width: 240px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28);
+  padding: 6px;
+}
+.mp-provider.open > .mp-flyout { display: block; }
+
+/* On narrow screens there's no room to the left — stack below instead */
+@media (max-width: 640px) {
+  .mp-flyout { right: auto; left: 0; top: calc(100% + 4px); }
+}
+
+.mp-model-btn {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent; border: none;
+  color: var(--txt);
+  font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.mp-model-btn:hover { background: var(--hover); }
+.mp-model-btn.active { background: var(--hover); font-weight: 600; }
+.mp-model-id { font-size: 10.5px; color: var(--mut); font-weight: 400; }
+
+/* ============================================================
+   Admin badge + usage meter
+   ============================================================ */
+#admin-badge {
+  display: none;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .06em;
+  padding: 2px 6px; border-radius: 6px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff; margin-left: 6px; vertical-align: middle;
+}
+#admin-badge.show { display: inline-block; }
+
+#usage-meter {
+  display: flex; align-items: center; gap: 7px;
+  margin-right: 6px;
+  font-size: 11px; color: var(--mut);
+}
+#usage-meter-bar {
+  width: 54px; height: 5px; border-radius: 3px;
+  background: var(--surface-soft, rgba(0,0,0,.08));
+  overflow: hidden;
+}
+#usage-meter-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  transition: width .3s ease, background .3s ease;
+}
+#usage-meter.warn #usage-meter-fill { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+#usage-meter.limit #usage-meter-fill { background: #ef4444; }
+@media (max-width: 640px) { #usage-meter-label { display: none; } }
