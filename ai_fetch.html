@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter Models Catalog</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #4f46e5;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .search-container {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        #loading {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            padding: 3rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .card .slug {
+            font-family: monospace;
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #334155;
+            word-break: break-all;
+        }
+
+        .meta-info {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .error-container {
+            color: #ef4444;
+            background: #fef2f2;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #fee2e2;
+            margin-bottom: 2rem;
+        }
+
+        .error-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-details {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            margin-top: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .raw-output {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-top: 0.5rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .html-output {
+            width: 100%;
+            min-height: 600px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 1rem;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>OpenRouter Models Catalog</h1>
+            <p>Live listings fetched through your Supabase Gateway</p>
+        </header>
+
+        <div class="search-container">
+            <input type="text" id="search" class="search-input" placeholder="Search models by name or provider..." disabled>
+        </div>
+
+        <div id="loading">Fetching available models from edge...</div>
+
+        <div id="error-box" class="error-container" style="display: none;">
+            <div class="error-title" id="error-title-text">Network Pipeline Crash</div>
+            <div id="error-msg"></div>
+            <div id="error-debug" class="error-details"></div>
+            <div id="raw-output" class="raw-output" style="display: none;"></div>
+        </div>
+
+        <div id="models-grid" class="grid"></div>
+    </div>
+
+    <script>
+        const API_URL = "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/openrouter-models";
+        const SUPABASE_ANON_KEY = "sb_publishable_thiEv1nfaZ1ng1Wd1IG5Vw_r68ix0B9";
+
+        let allModels = [];
+
+        async function loadModels() {
+            const loadingEl = document.getElementById('loading');
+            const errorBoxEl = document.getElementById('error-box');
+            const errorTitleEl = document.getElementById('error-title-text');
+            const errorMsgEl = document.getElementById('error-msg');
+            const errorDebugEl = document.getElementById('error-debug');
+            const rawOutputEl = document.getElementById('raw-output');
+            const gridEl = document.getElementById('models-grid');
+            const searchInput = document.getElementById('search');
+
+            try {
+                console.log("Initiating fetch sequence...");
+
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+                    }
+                });
+
+                console.log("Server responded with status:", response.status);
+
+                loadingEl.style.display = 'none';
+
+                const rawOutput = await response.text();
+
+                console.log("Raw server output:", rawOutput);
+
+                let result = null;
+
+                try {
+                    result = JSON.parse(rawOutput);
+
+                    console.log("JSON data parsed:", result);
+
+                    if (response.ok && result.success && Array.isArray(result.models)) {
+                        allModels = result.models;
+                        searchInput.disabled = false;
+                        searchInput.focus();
+                        renderGrid(allModels, gridEl);
+                        return;
+                    }
+
+                    errorTitleEl.textContent = 'Gateway Rejection (HTTP ' + response.status + ')';
+
+                    showError(
+                        result.error || "SERVER_REJECTION",
+                        result.details || "Bad response framework.",
+                        errorBoxEl,
+                        errorMsgEl,
+                        errorDebugEl,
+                        rawOutputEl,
+                        rawOutput
+                    );
+
+                    return;
+
+                } catch (jsonError) {
+                    console.log("Response is not valid JSON.");
+                }
+
+                const trimmedRaw = rawOutput.trim();
+
+                const looksLikeHTML =
+                    /^<!doctype\s+html/i.test(trimmedRaw) ||
+                    /^<html[\s>]/i.test(trimmedRaw) ||
+                    /^<head[\s>]/i.test(trimmedRaw) ||
+                    /^<body[\s>]/i.test(trimmedRaw) ||
+                    /^<div[\s>]/i.test(trimmedRaw);
+
+                if (looksLikeHTML) {
+                    console.log("HTML response detected.");
+
+                    gridEl.innerHTML = '';
+
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'html-output';
+                    iframe.setAttribute('sandbox', 'allow-scripts');
+
+                    iframe.srcdoc = rawOutput;
+
+                    gridEl.appendChild(iframe);
+
+                    return;
+                }
+
+                errorTitleEl.textContent = 'Network Pipeline Crash';
+
+                showError(
+                    "UNKNOWN_RESPONSE_TYPE",
+                    "Bad response framework.",
+                    errorBoxEl,
+                    errorMsgEl,
+                    errorDebugEl,
+                    rawOutputEl,
+                    rawOutput
+                );
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+
+                errorTitleEl.textContent = 'Network Pipeline Crash';
+
+                showError(
+                    "JS_EXECUTION_CRASH",
+                    "Error: " + err.message + "\n\nStack:\n" + err.stack,
+                    errorBoxEl,
+                    errorMsgEl,
+                    errorDebugEl,
+                    rawOutputEl,
+                    ""
+                );
+
+                console.error(err);
+            }
+        }
+
+        function showError(reason, details, box, msgEl, debugEl, rawOutputEl, rawOutput) {
+            msgEl.textContent = "Status Reason: " + reason;
+
+            debugEl.textContent =
+                typeof details === 'object'
+                    ? JSON.stringify(details, null, 2)
+                    : details;
+
+            if (rawOutput !== undefined && rawOutput !== null && rawOutput !== "") {
+                rawOutputEl.textContent = rawOutput;
+                rawOutputEl.style.display = 'block';
+            } else {
+                rawOutputEl.textContent = '';
+                rawOutputEl.style.display = 'none';
+            }
+
+            box.style.display = 'block';
+        }
+
+        function renderGrid(models, container) {
+            container.innerHTML = '';
+
+            if (!models || models.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No models match your search criteria.</div>';
+                return;
+            }
+
+            models.forEach(function(model) {
+                try {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+
+                    const promptRaw = model && model.pricing ? parseFloat(model.pricing.prompt || 0) : 0;
+                    const completionRaw = model && model.pricing ? parseFloat(model.pricing.completion || 0) : 0;
+                    const contextRaw = model ? (model.context_length || 0) : 0;
+                    const modelName = model ? (model.name || 'Unnamed Model') : 'Unnamed Model';
+                    const modelId = model ? (model.id || 'unknown/id') : 'unknown/id';
+
+                    const promptPrice = (promptRaw * 1000000).toFixed(2);
+                    const completionPrice = (completionRaw * 1000000).toFixed(2);
+
+                    card.innerHTML =
+                        '<div>' +
+                            '<h3>' + modelName + '</h3>' +
+                            '<span class="slug">' + modelId + '</span>' +
+                        '</div>' +
+                        '<div class="meta-info">' +
+                            '<div class="meta-row">' +
+                                '<span>Context Limit:</span>' +
+                                '<strong>' + contextRaw.toLocaleString() + ' tokens</strong>' +
+                            '</div>' +
+                            '<div class="meta-row">' +
+                                '<span>Input Cost:</span>' +
+                                '<strong>$' + promptPrice + ' / 1M tokens</strong>' +
+                            '</div>' +
+                            '<div class="meta-row">' +
+                                '<span>Output Cost:</span>' +
+                                '<strong>$' + completionPrice + ' / 1M tokens</strong>' +
+                            '</div>' +
+                        '</div>';
+
+                    container.appendChild(card);
+
+                } catch (innerError) {
+                    console.error("Skipped item:", innerError);
+                }
+            });
+        }
+
+        document.getElementById('search').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+
+            const filtered = allModels.filter(function(model) {
+                const nameMatch = model.name && model.name.toLowerCase().includes(query);
+                const idMatch = model.id && model.id.toLowerCase().includes(query);
+
+                return nameMatch || idMatch;
+            });
+
+            renderGrid(filtered, document.getElementById('models-grid'));
+        });
+
+        document.addEventListener('DOMContentLoaded', loadModels);
+    </script>
+
+</body>
+</html>
