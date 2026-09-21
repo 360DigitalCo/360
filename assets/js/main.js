@@ -3,13 +3,13 @@
       ____    __   ___  
      |___ \  / /  / _ \ 
        __) |/ /_ | | | |
-      |__ <| '_ \| | | |   so tuff TT
+      |__ <| '_ \| | | |
       ___) | (_) | |_| |
      |____/ \___/ \___/ 
    ============================================================ */
 
 //CHANGE THE FOLLOWING TO CHANGE ALL THE PAGE'S VERSION!!
-const version = "3.6.0";
+const version = "3.6.2";
 
 // Apply the site-wide bold font preference before the rest of the page initializes.
 // Load Electron game detector client when running inside the desktop app
