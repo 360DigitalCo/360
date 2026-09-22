@@ -202,6 +202,8 @@
   <div class="row" style="margin-top:6px;"><span class="label">DATA (unsold)</span><span class="val" id="hudData">0.0 GB</span></div>
   <div class="row"><span class="label">MONEY</span><span class="val" id="hudMoney">$0</span></div>
   <div class="row"><span class="label">CONVOY</span><span class="val" id="hudConvoy">0/4 (single)</span></div>
+  <div class="row" style="margin-top:6px;"><span class="label">WEATHER</span><span class="val" id="hudWeather">Clear</span></div>
+  <div class="row"><span class="label">TOOLS</span><span class="val" id="hudTools" style="font-size:12px;">—</span></div>
 </div>
 
 <div id="anchorBadge">ANCHORS UP</div>
@@ -210,7 +212,8 @@
 <div id="alertBanner"></div>
 <div id="controlsHint">
   WASD / ARROWS — drive&nbsp;&nbsp;|&nbsp;&nbsp;LMB — grapple hook&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — anchor&nbsp;&nbsp;|&nbsp;&nbsp;G — garage (in town)&nbsp;&nbsp;|&nbsp;&nbsp;M / click radar — expand map<br>
-  1 — single-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;2 — two-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;F — ally with nearby crew&nbsp;&nbsp;|&nbsp;&nbsp;P — infinite fuel
+  1 — single-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;2 — two-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;F — ally with nearby crew&nbsp;&nbsp;|&nbsp;&nbsp;P — infinite fuel<br>
+  3 — deploy Dorothy Probe&nbsp;&nbsp;|&nbsp;&nbsp;4 — deploy StickNet&nbsp;&nbsp;|&nbsp;&nbsp;5 — fireworks&nbsp;&nbsp;|&nbsp;&nbsp;6 — smoke flare
 </div>
 <button id="saveButton" title="Save progress">💾 SAVE</button>
 <div id="saveToast">PROGRESS SAVED</div>
@@ -255,6 +258,10 @@
     <h2 style="margin-top:22px;">Fleet</h2>
     <p class="subtext">Chase cars, interceptors, and support vehicles (DOWs and the rest) are all fully drivable — buy any of them, click to switch, and drive it yourself.</p>
     <div class="vehicleGrid" id="garageVehicleGrid"></div>
+
+    <h2 style="margin-top:22px;">🎒 Tools &amp; Probes</h2>
+    <p class="subtext">Consumable field gear — bought here, deployed out on the road with the number keys shown on each card. Stock is per-unit; buy as many as you can carry.</p>
+    <div class="vehicleGrid" id="garageToolsGrid"></div>
 
     <h2 style="margin-top:22px;">🤝 Convoy Roster</h2>
     <p class="subtext">Owned support vehicles don't have to be driven — left-click a card below to toggle one in or out of your active convoy instead (up to your Max Convoy Size), where it rides along and grants its passive bonus to whichever vehicle you ARE driving. Allied crews are recruited out on the road — drive up close to an independent crew and press <b>F</b>. Once deployed, press <b>1</b> for a single-file line or <b>2</b> for a two-file line, and the whole convoy stays locked to your speed.</p>
@@ -304,6 +311,10 @@
       <button class="gameBtn" id="devUnlockJoker2Btn" style="border-color:#ff2fd6; color:#ff2fd6;">🃏 UNLOCK JOKER 2</button>
     </div>
 
+    <h2 style="margin-top:20px;">Weather</h2>
+    <div class="subtext" style="margin-bottom:8px;">Force the current weather condition.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;" id="devWeatherBtns"></div>
+
     <h2 style="margin-top:20px;">Secret</h2>
     <button class="gameBtn" id="devMemeBtn" style="border-color:#ff2fd6; color:#ff2fd6;">🎭 SPAWN MEME TORNADO</button>
 
@@ -318,7 +329,7 @@
 /* ======================================================================
    CONSTANTS & CONFIG
 ====================================================================== */
-const ROAD_SPACING = 1800;      // wider city blocks: more space between roads
+const ROAD_SPACING = 5600;      // way wider city blocks: a lot more open ground between roads
 const ROAD_WIDTH   = 104;        // wide highways
 const WORLD_MIN = -8000, WORLD_MAX = 8000;
 
@@ -574,6 +585,35 @@ const VEHICLES = {
 };
 const SUPPORT_KEYS = ["toto","dow","stickdeployer","commandvehicle","fueltanker","dow7"];
 
+/* ======================================================================
+   TOOLS & PROBES — consumable field gear, bought per-unit in the garage and
+   deployed out on the road with number keys 3-6. Unlike vehicles these
+   aren't driven; they're single-use items that come out of your inventory.
+====================================================================== */
+const TOOLS = {
+  dorothyProbe: {
+    key:"dorothyProbe", name:"Dorothy Probe", icon:"🛢️", color:"#ffd23f", slotKey:"Digit3", keyLabel:"3",
+    desc:"A barrel of sensors hurled directly into the vortex's path, in the tradition of the classic research probes. Deploy near an active tornado for a big one-time data burst.",
+    cost:2200, dataBurst:3.5
+  },
+  sticknetHandheld: {
+    key:"sticknetHandheld", name:"Handheld StickNet", icon:"📍", color:"#8bc34a", slotKey:"Digit4", keyLabel:"4",
+    desc:"A cheap, disposable weather-station stake. Smaller data burst than the Dorothy Probe, but you can carry a lot more of them.",
+    cost:600, dataBurst:1.0
+  },
+  fireworks: {
+    key:"fireworks", name:"Fireworks Launcher", icon:"🎆", color:"#ff5252", slotKey:"Digit5", keyLabel:"5",
+    desc:"Purely for celebration. Launches a burst of fireworks into the sky above your position — and scatters any wild convoy vehicles nearby.",
+    cost:350, dataBurst:0
+  },
+  smokeFlare: {
+    key:"smokeFlare", name:"Smoke Flare", icon:"🚨", color:"#ff9800", slotKey:"Digit6", keyLabel:"6",
+    desc:"Marks your position with a tall column of colored smoke for a couple of minutes — visible on your own tactical map from a distance.",
+    cost:450, dataBurst:0
+  }
+};
+const TOOL_KEYS = ["dorothyProbe","sticknetHandheld","fireworks","smokeFlare"];
+
 const UPGRADE_COST_BASE = { armor:1200, engine:1400, anchor:1800, probe:1000 };
 const MAX_UPGRADE_LEVEL = 25;
 
@@ -626,6 +666,32 @@ function pickTornadoType(){
   return "single";
 }
 
+/* ======================================================================
+   WEATHER — an independent layer of ambient conditions (separate from the
+   tornado itself) that cycles over time: clear, cloudy, rain, thunderstorms,
+   and fog. Purely atmospheric/visual for most types, but thunderstorms come
+   with real lightning strikes and make freshly-spawned tornadoes a little
+   more dangerous, tying the two systems together.
+====================================================================== */
+const WEATHER_TYPES = {
+  clear:        { label:"Clear",        weight:38 },
+  cloudy:       { label:"Cloudy",       weight:22 },
+  rain:         { label:"Rain",         weight:20 },
+  thunderstorm: { label:"Thunderstorm", weight:14 },
+  fog:          { label:"Fog",          weight:6  }
+};
+const WEATHER_KEYS = Object.keys(WEATHER_TYPES);
+function pickWeatherType(excludeKey){
+  const pool = WEATHER_KEYS.filter(k=>k!==excludeKey);
+  const totalWeight = pool.reduce((s,k)=>s+WEATHER_TYPES[k].weight, 0);
+  let r = Math.random()*totalWeight;
+  for (const k of pool){
+    r -= WEATHER_TYPES[k].weight;
+    if (r <= 0) return k;
+  }
+  return pool[0];
+}
+
 
 /* ======================================================================
    CANVAS SETUP
@@ -645,6 +711,7 @@ let state = {
   money: 50000,
   ownedVehicles: { sedan: true },
   currentVehicleKey: "sedan",
+  tools: { dorothyProbe:0, sticknetHandheld:0, fireworks:0, smokeFlare:0 },
   upgrades: {
     sedan:     {armor:0, engine:0, anchor:0, probe:0},
     hatchback: {armor:0, engine:0, anchor:0, probe:0},
@@ -684,7 +751,8 @@ let state = {
   convoyFormation: "double", // "single" file line or "double" (two-file line)
   allies: [],              // NPC crews that have joined your side, e.g. {id, vehicleKey, name, color}
   activeConvoyMembers: [], // ids (support keys or ally ids) currently selected to ride in the convoy
-  infiniteFuel: false      // secret "gas" cheat code — never runs out of fuel once unlocked
+  infiniteFuel: false,      // secret "gas" cheat code — never runs out of fuel once unlocked
+  weather: "clear"
 };
 
 const car = {
@@ -720,6 +788,99 @@ const grapple = {
 };
 
 /* ======================================================================
+   WEATHER STATE — timers, particles, and deployed tool effects
+====================================================================== */
+let weatherTimer = 20 + Math.random()*20; // time until first change, then re-rolled each transition
+let lightningTimer = 5 + Math.random()*10;
+let lightningFlash = 0; // 0..1 fading flash overlay opacity
+let rainOffset = 0; // scroll offset for the rain streak overlay
+
+// Ephemeral visual effects spawned by tools/weather — fireworks bursts,
+// probe drop markers, smoke flare columns. Each entry: {type, x, y, age, life, ...}
+let fxList = [];
+
+function updateWeather(dt){
+  weatherTimer -= dt;
+  if (weatherTimer <= 0){
+    const prev = state.weather;
+    state.weather = pickWeatherType(prev);
+    weatherTimer = 50 + Math.random()*90;
+    if (state.weather !== "clear" || prev !== "clear"){
+      showAlert("WEATHER: " + WEATHER_TYPES[state.weather].label.toUpperCase(), 1.6);
+    }
+  }
+  if (state.weather === "thunderstorm"){
+    lightningTimer -= dt;
+    if (lightningTimer <= 0){
+      lightningFlash = 1;
+      lightningTimer = 4 + Math.random()*9;
+      shake = Math.max(shake, 11);
+    }
+  }
+  lightningFlash *= Math.exp(-dt*3.2);
+  rainOffset += dt * (state.weather === "thunderstorm" ? 950 : 620);
+
+  // Ambient rain/fog gently drains fuel efficiency is intentionally NOT
+  // modeled to keep controls predictable — weather here is atmosphere first.
+}
+
+function isPrecipitating(){
+  return state.weather === "rain" || state.weather === "thunderstorm";
+}
+
+/* ======================================================================
+   TOOL DEPLOYMENT — consumes 1 unit from state.tools and applies an effect
+====================================================================== */
+function useTool(toolKey){
+  if (!state.running || state.paused) return;
+  const tool = TOOLS[toolKey];
+  if (!tool) return;
+  if ((state.tools[toolKey]||0) <= 0){
+    showAlert("NO " + tool.name.toUpperCase() + " LEFT — BUY MORE IN TOWN", 1.4);
+    return;
+  }
+  state.tools[toolKey]--;
+
+  if (toolKey === "dorothyProbe" || toolKey === "sticknetHandheld"){
+    let gained = 0;
+    if (tornado){
+      const dist = Math.hypot(tornado.x-car.x, tornado.y-car.y);
+      if (dist < tornado.radius*2.6){
+        gained = tool.dataBurst * (1 + tornado.category*0.15);
+        car.dataGB += gained;
+        tornado.collectedThisStorm += gained;
+      }
+    }
+    fxList.push({type:"probe", x:car.x, y:car.y, age:0, life:2.4, color:tool.color, icon:tool.icon});
+    showAlert(gained>0
+      ? `${tool.icon} ${tool.name.toUpperCase()} — +${gained.toFixed(1)} GB`
+      : `${tool.icon} ${tool.name.toUpperCase()} DEPLOYED — NO TORNADO IN RANGE`, 1.6);
+  } else if (toolKey === "fireworks"){
+    fxList.push({type:"fireworks", x:car.x, y:car.y, age:0, life:2.0, color:tool.color});
+    // scare off nearby wild convoy vehicles for a little chaos/fun
+    wildConvoys.forEach(convoy=>{
+      const d = Math.hypot(convoy.x-car.x, convoy.y-car.y);
+      if (d < 650){
+        convoy.state = "flee";
+        const town = nearestTown(convoy.x, convoy.y);
+        convoy.fleeTargetX = town.x; convoy.fleeTargetY = town.y;
+      }
+    });
+    showAlert("🎆 FIREWORKS!", 1.4);
+  } else if (toolKey === "smokeFlare"){
+    fxList.push({type:"smoke", x:car.x, y:car.y, age:0, life:110, color:tool.color});
+    showAlert("🚨 SMOKE FLARE MARKED", 1.4);
+  }
+
+  saveGame();
+}
+
+function updateFx(dt){
+  fxList.forEach(fx=>{ fx.age += dt; });
+  fxList = fxList.filter(fx=>fx.age < fx.life);
+}
+
+/* ======================================================================
    LOCAL SAVE / LOAD
    Progress (money, owned vehicles, upgrades, achievements, unsold data) is
    persisted to the browser's localStorage so it survives page reloads.
@@ -738,6 +899,7 @@ function saveGame(){
       ownedVehicles: state.ownedVehicles,
       currentVehicleKey: state.currentVehicleKey,
       upgrades: state.upgrades,
+      tools: state.tools,
       stormsIntercepted: state.stormsIntercepted,
       memeUnlocked: state.memeUnlocked,
       dataGB: car.dataGB,
@@ -748,6 +910,7 @@ function saveGame(){
       convoyFormation: state.convoyFormation,
       allies: state.allies,
       activeConvoyMembers: state.activeConvoyMembers,
+      devMode: state.devMode,
       savedAt: Date.now()
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -769,6 +932,7 @@ function loadGame(){
         if (data.upgrades[k]) Object.assign(state.upgrades[k], data.upgrades[k]);
       });
     }
+    if (data.tools) Object.assign(state.tools, data.tools);
     if (typeof data.stormsIntercepted === "number") state.stormsIntercepted = data.stormsIntercepted;
     if (typeof data.memeUnlocked === "boolean") state.memeUnlocked = data.memeUnlocked;
     if (typeof data.dataGB === "number") car.dataGB = data.dataGB;
@@ -779,6 +943,7 @@ function loadGame(){
     if (data.convoyFormation === "single" || data.convoyFormation === "double") state.convoyFormation = data.convoyFormation;
     if (Array.isArray(data.allies)) state.allies = data.allies;
     if (Array.isArray(data.activeConvoyMembers)) state.activeConvoyMembers = data.activeConvoyMembers;
+    if (typeof data.devMode === "boolean") state.devMode = data.devMode;
     return true;
   } catch(e){
     localSaveAvailable = false;
@@ -791,6 +956,7 @@ function resetSaveData(){
   state.money = 50000;
   state.ownedVehicles = { sedan: true };
   state.currentVehicleKey = "sedan";
+  state.tools = { dorothyProbe:0, sticknetHandheld:0, fireworks:0, smokeFlare:0 };
   Object.keys(state.upgrades).forEach(k=>{ state.upgrades[k] = {armor:0, engine:0, anchor:0, probe:0}; });
   state.stormsIntercepted = 0;
   state.memeUnlocked = false;
@@ -801,6 +967,7 @@ function resetSaveData(){
   state.convoyFormation = "double";
   state.allies = [];
   state.activeConvoyMembers = [];
+  state.devMode = false;
   convoyNPCs = [];
   wildConvoys = [];
   wildConvoyTarget = MIN_WILD_CONVOYS + Math.floor(Math.random()*(MAX_WILD_CONVOYS-MIN_WILD_CONVOYS+1));
@@ -828,7 +995,7 @@ function spawnTornado(){
   const margin = 800;
   let x = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
   let y = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
-  const baseFloor = Math.min(4, Math.floor(state.stormsIntercepted/2));
+  let baseFloor = Math.min(4, Math.floor(state.stormsIntercepted/2));
   // Bias the initial heading toward the map's interior (roughly toward the
   // center, with some random spread) so the storm commits to a long, sane
   // route instead of immediately bouncing off a nearby edge.
@@ -839,7 +1006,11 @@ function spawnTornado(){
   // rest spent dissipating back down to nothing before it disappears.
   const lifespan = 60;
   const growthDuration = lifespan * 0.6;
-  const peakCategory = Math.min(MAX_EF, baseFloor + 11 + Math.random()*7); // reaches roughly EF11-EF20
+  // Thunderstorms breed meaner tornadoes: a small bump to both the floor and
+  // the ceiling when one spins up during an active thunderstorm.
+  const stormBonus = state.weather === "thunderstorm" ? 1.5 : 0;
+  baseFloor = Math.min(MAX_EF, baseFloor + (state.weather === "thunderstorm" ? 1 : 0));
+  const peakCategory = Math.min(MAX_EF, baseFloor + 11 + stormBonus + Math.random()*7); // reaches roughly EF11-EF20+
   const type = pickTornadoType();
   const tt = TORNADO_TYPES[type];
 
@@ -1469,7 +1640,9 @@ function fuelKeyHandler(){ /* placeholder kept for readability of the code below
 function updateCar(dt){
   const stats = computedStats(state.currentVehicleKey);
   const onRoad = isOnRoad(car.x, car.y); // kept for road rendering only — speed is identical on/off road
-  const terrainMult = 1.0;
+  // Rain/thunderstorms make the road a little slicker: slightly reduced grip
+  // (more coasting, less precise handling) without being punishing.
+  const terrainMult = isPrecipitating() ? 0.94 : 1.0;
   const outOfFuel = !state.infiniteFuel && car.fuel <= 0;
 
   if (car.anchored){
@@ -1497,8 +1670,8 @@ function updateCar(dt){
     }
     if (!outOfFuel) goodByeFuelWarned = false;
 
-    // friction (identical on/off road)
-    const fric = 0.975;
+    // friction (identical on/off road, slightly higher in rain/storms)
+    const fric = isPrecipitating() ? 0.965 : 0.975;
     car.vx *= Math.pow(fric, dt*60);
     car.vy *= Math.pow(fric, dt*60);
 
@@ -1689,6 +1862,37 @@ function refreshGarageUI(){
   grid.appendChild(adminWrap);
   buildVehicleSection(adminWrap, ADMIN_KEYS, ()=>state.currentVehicleKey, ()=>{}, false);
 
+  // Tools & Probes — consumable inventory items, bought per-unit
+  const toolsGrid = document.getElementById("garageToolsGrid");
+  toolsGrid.innerHTML = "";
+  TOOL_KEYS.forEach(tk=>{
+    const tool = TOOLS[tk];
+    const owned = state.tools[tk]||0;
+    const card = document.createElement("div");
+    card.className = "vCard";
+    card.innerHTML = `
+      <div class="vSwatch" style="background:${tool.color}; display:flex; align-items:center; justify-content:center; font-size:22px;">${tool.icon}</div>
+      <h3>${tool.name} <span style="color:#7fd07f; font-size:11px;">[key ${tool.keyLabel}]</span></h3>
+      <div class="stat"><span>${tool.desc}</span></div>
+      <div class="stat"><span>In Inventory</span><span>${owned}</span></div>
+      <div class="price">$${tool.cost.toLocaleString()} / unit</div>
+    `;
+    const buyBtn = document.createElement("button");
+    buyBtn.className = "smallBtn";
+    buyBtn.textContent = "BUY 1";
+    buyBtn.style.marginTop = "8px";
+    buyBtn.disabled = state.money < tool.cost;
+    buyBtn.onclick = (ev)=>{
+      ev.stopPropagation();
+      if (state.money < tool.cost) return;
+      state.money -= tool.cost;
+      state.tools[tk] = (state.tools[tk]||0) + 1;
+      refreshGarageUI();
+    };
+    card.appendChild(buyBtn);
+    toolsGrid.appendChild(card);
+  });
+
   // Convoy size slider — kept in sync with state
   const sizeSlider = document.getElementById("convoySizeSlider");
   sizeSlider.value = state.maxConvoySize;
@@ -1876,8 +2080,23 @@ TORNADO_TYPE_KEYS.forEach(k=>{
   devTypeSelect.appendChild(opt);
 });
 
+const devWeatherBtns = document.getElementById("devWeatherBtns");
+WEATHER_KEYS.forEach(wk=>{
+  const btn = document.createElement("button");
+  btn.className = "gameBtn";
+  btn.style.marginTop = "0";
+  btn.textContent = WEATHER_TYPES[wk].label.toUpperCase();
+  btn.onclick = ()=>{
+    state.weather = wk;
+    weatherTimer = 60 + Math.random()*60;
+    showAlert("WEATHER: " + WEATHER_TYPES[wk].label.toUpperCase(), 1.4);
+  };
+  devWeatherBtns.appendChild(btn);
+});
+
 function openDevPanel(){
   state.devMode = true;
+  refreshGarageUI();
   document.getElementById("devPanel").classList.remove("hidden");
 }
 function closeDevPanel(){
@@ -1962,6 +2181,10 @@ window.addEventListener("keydown", e=>{
       rebuildConvoy();
       showAlert("FORMATION: TWO-FILE LINE", 1.2);
     }
+    if (e.code === "Digit3") useTool("dorothyProbe");
+    if (e.code === "Digit4") useTool("sticknetHandheld");
+    if (e.code === "Digit5") useTool("fireworks");
+    if (e.code === "Digit6") useTool("smokeFlare");
     if (e.code === "KeyF"){
       tryFormAlliance();
     }
@@ -2305,6 +2528,58 @@ function drawGrapple(){
   ctx.restore();
 }
 
+/* ======================================================================
+   FX — fireworks bursts, probe drop markers, smoke flare columns
+====================================================================== */
+function drawFx(){
+  fxList.forEach(fx=>{
+    const s = worldToScreen(fx.x, fx.y);
+    const t = fx.age / fx.life;
+    if (fx.type === "probe"){
+      const alpha = Math.max(0, 1-t);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = fx.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 10+t*40, 0, Math.PI*2); ctx.stroke();
+      ctx.font = "16px Courier New"; ctx.textAlign = "center";
+      ctx.fillText(fx.icon||"📍", s.x, s.y+6);
+      ctx.restore();
+    } else if (fx.type === "fireworks"){
+      const bursts = 3;
+      for (let b=0;b<bursts;b++){
+        const bt = Math.max(0, Math.min(1, t*1.6 - b*0.22));
+        if (bt<=0 || bt>=1) continue;
+        const cx = s.x + (b-1)*22, cy = s.y - 60 - b*10;
+        const rays = 14;
+        for (let i=0;i<rays;i++){
+          const a = (i/rays)*Math.PI*2;
+          const r = bt*38;
+          const hue = (b*70 + i*10 + fx.age*80) % 360;
+          ctx.fillStyle = `hsla(${hue},95%,62%,${1-bt})`;
+          ctx.beginPath();
+          ctx.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 2.2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    } else if (fx.type === "smoke"){
+      const alpha = Math.max(0, Math.min(0.55, 1-t*0.9));
+      const puffs = 6;
+      ctx.save();
+      for (let i=0;i<puffs;i++){
+        const rise = (fx.age*18 + i*22) % 260;
+        const wob = Math.sin(fx.age*0.8 + i)*10;
+        ctx.globalAlpha = alpha*(1-rise/260);
+        ctx.fillStyle = fx.color;
+        ctx.beginPath();
+        ctx.arc(s.x+wob, s.y-rise, 14+i*1.6, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  });
+}
+
 function drawBackground(){
   ctx.fillStyle = "#232823";
   ctx.fillRect(0,0,canvas.width, canvas.height);
@@ -2616,6 +2891,51 @@ function drawWildConvoys(){
   });
 }
 
+/* ======================================================================
+   WEATHER OVERLAY — rain streaks, lightning flashes, fog vignette, cloud tint
+====================================================================== */
+function drawWeatherOverlay(){
+  const w = state.weather;
+  if (w === "cloudy"){
+    ctx.fillStyle = "rgba(40,48,52,0.14)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  if (isPrecipitating()){
+    const heavy = w === "thunderstorm";
+    ctx.save();
+    ctx.strokeStyle = heavy ? "rgba(180,210,255,0.5)" : "rgba(170,200,235,0.34)";
+    ctx.lineWidth = heavy ? 1.6 : 1.1;
+    const spacing = 34;
+    const slant = 7;
+    const len = heavy ? 22 : 15;
+    for (let x=-spacing; x<canvas.width+spacing; x+=spacing){
+      for (let y=-40; y<canvas.height+40; y+=48){
+        const offset = ((rainOffset*0.32 + x*1.7) % 48);
+        const yy = ((y + offset) % (canvas.height+80)) - 40;
+        ctx.beginPath();
+        ctx.moveTo(x, yy);
+        ctx.lineTo(x+slant, yy+len);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    // subtle darkening
+    ctx.fillStyle = heavy ? "rgba(10,14,22,0.22)" : "rgba(10,14,18,0.12)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  if (w === "thunderstorm" && lightningFlash > 0.01){
+    ctx.fillStyle = `rgba(230,240,255,${Math.min(0.55, lightningFlash*0.6)})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  if (w === "fog"){
+    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height*0.15, canvas.width/2, canvas.height/2, canvas.height*0.75);
+    grad.addColorStop(0, "rgba(210,215,210,0.05)");
+    grad.addColorStop(1, "rgba(210,215,210,0.45)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
 // Tactical map / radar.
 let mapZoom = 1.0;
 const MAP_ZOOM_MIN = 0.28;
@@ -2704,6 +3024,12 @@ function drawRadarContent(mx,my,width,big,height=width){
     if(big)drawLocationLabel(q,l.name.toUpperCase(),l.city||"","#ffeaa0",true);
   });
 
+  fxList.forEach(fx=>{
+    if (fx.type !== "smoke") return;
+    const q=mapProject(fx.x,fx.y,mx,my,width,range,height);if(q.x<mx-15||q.x>mx+width+15||q.y<my-15||q.y>my+height+15)return;
+    ctx.fillStyle=fx.color;ctx.beginPath();ctx.arc(q.x,q.y,big?5:3,0,Math.PI*2);ctx.fill();
+  });
+
   wildConvoys.forEach(convoy=>{
     convoy.members.forEach(m=>{if(m.allied)return;const q=mapProject(m.x,m.y,mx,my,width,range,height);if(q.x<mx-15||q.x>mx+width+15||q.y<my-15||q.y>my+height+15)return;ctx.fillStyle="#a855f7";ctx.beginPath();ctx.arc(q.x,q.y,big?4:2,0,Math.PI*2);ctx.fill();});
     if(big){const q=mapProject(convoy.x,convoy.y,mx,my,width,range,height);if(q.x>=mx&&q.x<=mx+width&&q.y>=my&&q.y<=my+height){ctx.fillStyle="#c99cff";ctx.font="9px Courier New";ctx.textAlign="center";ctx.fillText(convoy.team,q.x,q.y-10);}}
@@ -2745,7 +3071,7 @@ function drawFullscreenRadar(){
   const sw=Math.min(360,Math.floor(canvas.width*.24)),sh=170,sx=canvas.width-sw-42,sy=my+18;ctx.fillStyle="rgba(8,13,9,.90)";ctx.strokeStyle="rgba(57,255,20,.34)";ctx.lineWidth=1;ctx.fillRect(sx,sy,sw,sh);ctx.strokeRect(sx,sy,sw,sh);ctx.textAlign="left";ctx.fillStyle="#39ff14";ctx.font="bold 14px Courier New";ctx.fillText("TACTICAL OVERVIEW",sx+14,sy+24);
   const legends=[["#ff3131","YOU"],["#39ff14","ONLINE CHASER"],["#5c9ded","CITIES / TORNADO"],["#a855f7","WILD CONVOY"],["#39ff14","TOWNS / SERVICES"],["#ffd23f","LANDMARKS / RESEARCH"]];
   legends.forEach((it,i)=>{const yy=sy+46+i*20;ctx.fillStyle=it[0];ctx.beginPath();ctx.arc(sx+14,yy-4,4,0,Math.PI*2);ctx.fill();ctx.fillStyle="#d7ffd9";ctx.font="10px Courier New";ctx.fillText(it[1],sx+26,yy);});
-  const online=Object.keys(remoteCars).length;let nearest=TOWNS[0],best=Infinity;TOWNS.forEach(t=>{const d=Math.hypot(t.x-car.x,t.y-car.y);if(d<best){best=d;nearest=t;}});ctx.fillStyle="#9fcf9f";ctx.fillText(`ONLINE ${online} · NEAREST ${nearest.name} ${Math.round(best)} FT · ZOOM ${mapZoom.toFixed(2)}x`,sx+14,sy+158);
+  const online=Object.keys(remoteCars).length;let nearest=TOWNS[0],best=Infinity;TOWNS.forEach(t=>{const d=Math.hypot(t.x-car.x,t.y-car.y);if(d<best){best=d;nearest=t;}});ctx.fillStyle="#9fcf9f";ctx.fillText(`ONLINE ${online} · NEAREST ${nearest.name} ${Math.round(best)} FT · ZOOM ${mapZoom.toFixed(2)}x · WEATHER ${WEATHER_TYPES[state.weather].label.toUpperCase()}`,sx+14,sy+158);
   ctx.textAlign="center";ctx.fillStyle="#39ff14";ctx.font="bold 18px Courier New";ctx.fillText("VORTEX RUNNER · WORLD MAP",canvas.width/2,38);ctx.fillStyle="#9fcf9f";ctx.font="11px Courier New";ctx.fillText("Cities · towns · roads · storm track · research sites · convoys · online chasers",canvas.width/2,60);ctx.fillStyle="#b7ffbd";ctx.font="10px Courier New";ctx.fillText("WHEEL / + - ZOOM · 0 RESET · M / ESC CLOSE",canvas.width/2,canvas.height-24);ctx.restore();
 }
 
@@ -2819,6 +3145,13 @@ function updateHUD(){
   const convoyCount = state.convoyActive ? convoyNPCs.length : 0;
   document.getElementById("hudConvoy").textContent = convoyCount + "/" + state.maxConvoySize + " (" + (state.convoyFormation==="single"?"single":"double") + ")";
 
+  const weatherEl = document.getElementById("hudWeather");
+  weatherEl.textContent = WEATHER_TYPES[state.weather].label;
+  weatherEl.className = "val " + (state.weather==="thunderstorm"?"warn":"");
+
+  const toolsEl = document.getElementById("hudTools");
+  toolsEl.textContent = TOOL_KEYS.map(tk=>`${TOOLS[tk].icon}${state.tools[tk]||0}`).join("  ");
+
   const badge = document.getElementById("anchorBadge");
   badge.textContent = car.anchored ? "⚓ ANCHORED" : "ANCHORS UP";
   badge.className = car.anchored ? "active" : "";
@@ -2850,6 +3183,8 @@ function updateGame(dt){
   if (state.paused) return;
   updateCar(dt);
   updateTornado(dt);
+  updateWeather(dt);
+  updateFx(dt);
   checkTown();
   updateConvoy(dt);
   updateWildConvoys(dt);
@@ -2940,9 +3275,11 @@ function loop(now){
   drawConvoy();
   drawCar();
   drawGrapple();
+  drawFx();
   ctx.restore();
 
   drawRemoteCarsWorld();
+  drawWeatherOverlay();
   drawCompass();
 
   if (state.radarFullscreen){
