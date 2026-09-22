@@ -97,6 +97,8 @@
     selectedModel = id;
     localStorage.setItem(MODEL_STORAGE_KEY, id);
     if (modelPickerLabel) modelPickerLabel.textContent = labelForModel(id);
+    if (modelPickerBtn) modelPickerBtn.classList.toggle("custom", id !== "default");
+    if (modelPickerBtn) modelPickerBtn.title = id === "default" ? "Choose AI model (Default: auto-select)" : "Model: " + labelForModel(id);
   }
 
   async function loadModels() {
@@ -257,6 +259,15 @@
   function on(el, evt, handler, opts) {
     if (el) el.addEventListener(evt, handler, opts);
   }
+
+  // New 360 AI mark: three 120°-spaced orbit arcs around a center dot —
+  // a cleaner "360°" motif than the old dashed-circle-and-triangle logo.
+  const LOGO_SVG = `<svg class="ai-logo-svg" width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+  <circle cx="16" cy="16" r="4.2" fill="currentColor"/>
+  <path d="M16 3.2a12.8 12.8 0 0 1 11.05 6.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M27.05 22.4A12.8 12.8 0 0 1 16 28.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M4.95 22.4A12.8 12.8 0 0 1 4.95 9.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+</svg>`;
 
   function escHtml(s) {
     return String(s || "")
@@ -487,11 +498,7 @@
 
     const avatar = document.createElement("div");
     avatar.className = "ai-avatar";
-    avatar.innerHTML = `<svg class="ai-logo-svg" width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-  <circle cx="16" cy="16" r="11.5" stroke="currentColor" stroke-width="2.2" stroke-dasharray="17 8" stroke-linecap="round"/>
-  <path d="M10.5 21.2 16 7.5l5.5 13.7-5.5-3.1-5.5 3.1Z" fill="currentColor"/>
-  <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
-</svg>`;
+    avatar.innerHTML = LOGO_SVG;
 
     const inner = document.createElement("div");
     inner.className = "bubble-inner";
@@ -523,32 +530,28 @@
 
     const avatar = document.createElement("div");
     avatar.className = "ai-avatar";
-    avatar.innerHTML = `<svg class="ai-logo-svg" width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-  <circle cx="16" cy="16" r="11.5" stroke="currentColor" stroke-width="2.2" stroke-dasharray="17 8" stroke-linecap="round"/>
-  <path d="M10.5 21.2 16 7.5l5.5 13.7-5.5-3.1-5.5 3.1Z" fill="currentColor"/>
-  <circle cx="16" cy="16" r="2.2" fill="currentColor"/>
-</svg>`;
+    avatar.innerHTML = LOGO_SVG;
 
     const inner = document.createElement("div");
     inner.className = "bubble-inner";
     inner.innerHTML = `
-      <div class="ai-thinking-box" style="display:none;">
+      <div class="ai-thinking-box">
         <button class="ai-thinking-toggle" type="button">
           <span class="ai-thinking-spinner"></span>
           <span class="ai-thinking-label">Thinking…</span>
           <span class="ai-thinking-arrow">▾</span>
         </button>
-        <div class="ai-thinking-content"></div>
+        <div class="ai-thinking-content"><span class="ai-thinking-empty">Nothing to show yet…</span></div>
       </div>
-      <div class="ai-work-state" aria-live="polite">
-  <div class="ai-work-orb" aria-hidden="true"><span></span><i></i><b></b></div>
-  <div class="ai-work-copy">
-    <div class="ai-work-label">Working</div>
-    <div class="ai-work-detail">Preparing your answer…</div>
-  </div>
-  <div class="ai-work-signal" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-</div>
-<div class="ai-answer-content"></div>
+      <div class="ai-tools-box" style="display:none;">
+        <button class="ai-tools-toggle" type="button">
+          <span class="ai-tools-spinner"></span>
+          <span class="ai-tools-label">Running Command…</span>
+          <span class="ai-tools-arrow">▾</span>
+        </button>
+        <div class="ai-tools-content"></div>
+      </div>
+      <div class="ai-answer-content"></div>
     `;
 
     div.appendChild(avatar);
@@ -560,20 +563,57 @@
     const thinkingContent = inner.querySelector(".ai-thinking-content");
     const thinkingLabel = inner.querySelector(".ai-thinking-label");
     const answerContent = inner.querySelector(".ai-answer-content");
-    const workState = inner.querySelector(".ai-work-state");
-    const workLabel = inner.querySelector(".ai-work-label");
-    const workDetail = inner.querySelector(".ai-work-detail");
+    const toolsBox = inner.querySelector(".ai-tools-box");
+    const toolsLabel = inner.querySelector(".ai-tools-label");
+    const toolsContent = inner.querySelector(".ai-tools-content");
+    const toolsSpinner = inner.querySelector(".ai-tools-spinner");
 
-    let expanded = true;
-    if (thinkingContent) thinkingContent.style.display = "block";
+    let thinkExpanded = true;
     on(inner.querySelector(".ai-thinking-toggle"), "click", () => {
-      expanded = !expanded;
-      thinkingContent.style.display = expanded ? "block" : "none";
+      thinkExpanded = !thinkExpanded;
+      thinkingContent.style.display = thinkExpanded ? "block" : "none";
       const arrow = inner.querySelector(".ai-thinking-arrow");
-      if (arrow) arrow.textContent = expanded ? "▾" : "▸";
+      if (arrow) arrow.textContent = thinkExpanded ? "▾" : "▸";
     });
 
-    return { div, inner, thinkingBox, thinkingContent, thinkingLabel, answerContent, workState, workLabel, workDetail };
+    let toolsExpanded = false;
+    on(inner.querySelector(".ai-tools-toggle"), "click", () => {
+      toolsExpanded = !toolsExpanded;
+      toolsContent.style.display = toolsExpanded ? "block" : "none";
+      const arrow = inner.querySelector(".ai-tools-arrow");
+      if (arrow) arrow.textContent = toolsExpanded ? "▾" : "▸";
+    });
+
+    // Tool-call bundling: every "running"/"done" pair for a command is one
+    // entry; when more than one command runs in a single reply they're
+    // bundled under one dropdown titled with the connector/tool count
+    // instead of stacking separate pills.
+    const toolCalls = [];
+    function renderTools() {
+      if (!toolCalls.length) return;
+      toolsBox.style.display = "block";
+      const anyRunning = toolCalls.some(t => t.status === "running");
+      toolsSpinner.style.display = anyRunning ? "" : "none";
+      if (toolCalls.length === 1) {
+        toolsLabel.textContent = anyRunning ? "Running Command…" : "Ran a command";
+      } else {
+        toolsLabel.textContent = anyRunning
+          ? `Running ${toolCalls.length} commands…`
+          : `Connectors and resources used (${toolCalls.length} command${toolCalls.length === 1 ? "" : "s"})`;
+      }
+      toolsContent.innerHTML = toolCalls.map(t => `
+        <div class="ai-tool-entry">
+          <div class="ai-tool-entry-name">${escHtml(t.name)}${t.status === "running" ? " <em>running…</em>" : ""}</div>
+          ${t.code ? `<pre class="ai-tool-code">${escHtml(t.code)}</pre>` : ""}
+          ${t.output ? `<pre class="ai-tool-output">${escHtml(t.output)}</pre>` : ""}
+        </div>
+      `).join("");
+    }
+
+    return {
+      div, inner, thinkingBox, thinkingContent, thinkingLabel, answerContent,
+      toolsBox, toolsLabel, toolsContent, toolCalls, renderTools,
+    };
   }
 
   /* ── file handling ───────────────────────────────────────────────── */
@@ -771,7 +811,7 @@
         let evt;
         try { evt = JSON.parse(payload); } catch (_) { continue; }
         if (evt.type === "thinking") { sawAnything = true; handlers.onThinking(evt.delta); }
-        else if (evt.type === "tool") { sawAnything = true; if (handlers.onTool) handlers.onTool(evt.name || evt.tool || "tool", evt.status || "running"); }
+        else if (evt.type === "tool") { sawAnything = true; if (handlers.onTool) handlers.onTool(evt.name || evt.tool || "tool", evt.status || "running", { code: evt.code, output: evt.output }); }
         else if (evt.type === "text") { sawAnything = true; handlers.onText(evt.delta); }
         else if (evt.type === "done") { if (handlers.onDone) handlers.onDone(evt.model); }
         else if (evt.type === "error") { sawError = evt.message; }
@@ -817,7 +857,7 @@
       captured ? { ...captured, previewUrl: storageUrl || captured.previewUrl } : null
     );
 
-    const { thinkingBox, thinkingContent, thinkingLabel, answerContent, workState, workLabel, workDetail } = appendStreamingBubble();
+    const { thinkingBox, thinkingContent, thinkingLabel, answerContent, toolCalls, renderTools } = appendStreamingBubble();
 
     const isFirstMessage = history.length === 0;
 
@@ -858,17 +898,21 @@
         renderPending = true;
         requestAnimationFrame(() => {
           renderPending = false;
-          if (answerContent) answerContent.innerHTML = renderMarkdown(textBuf);
+          // Strip a fully-arrived [[TITLE: ...]] tag immediately, and hide a
+          // still-arriving one (e.g. "...\n[[TIT") so it never flashes on
+          // screen mid-stream, not just after the reply finishes.
+          let display = textBuf;
+          if (isFirstMessage) {
+            display = display.replace(/\n?\s*\[\[TITLE:\s*(.+?)\]\]\s*/i, "").replace(/\n?\s*\[\[TITLE?:?\s*[^\]]*$/i, "");
+          }
+          if (answerContent) answerContent.innerHTML = renderMarkdown(display);
           scrollBottom();
         });
       }
 
       await streamChatEndpoint(body, {
         onThinking(delta) {
-          if (workLabel) workLabel.textContent = "Thinking";
-          if (workDetail) workDetail.textContent = "Processing context and reasoning…";
           thinkingBuf += delta;
-          if (thinkingBox) thinkingBox.style.display = "block";
           if (thinkingContent) {
             thinkingContent.style.display = "block";
             thinkingContent.textContent = thinkingBuf;
@@ -876,17 +920,28 @@
           }
           scrollBottom();
         },
-        onTool(name, status) {
-          if (workState) workState.classList.toggle("tool", status !== "done");
-          if (workLabel) workLabel.textContent = status === "done" ? "Tool complete" : "Using a tool";
-          if (workDetail) workDetail.textContent = status === "done" ? String(name) + " finished" : "Running " + String(name) + "…";
+        onTool(name, status, detail) {
+          detail = detail || {};
+          if (status === "running") {
+            toolCalls.push({ name: String(name), code: detail.code || "", output: "", status: "running" });
+          } else {
+            // Match the most recent running entry with this name and complete it.
+            let entry = null;
+            for (let i = toolCalls.length - 1; i >= 0; i--) {
+              if (toolCalls[i].name === String(name) && toolCalls[i].status === "running") { entry = toolCalls[i]; break; }
+            }
+            if (!entry) entry = { name: String(name), code: detail.code || "" };
+            entry.status = "done";
+            entry.output = detail.output || "";
+            if (!toolCalls.includes(entry)) toolCalls.push(entry);
+          }
+          renderTools();
+          scrollBottom();
         },
         onText(delta) {
           if (firstTextChunk) {
             firstTextChunk = false;
-            if (workLabel) workLabel.textContent = "Writing";
-            if (workDetail) workDetail.textContent = "Generating the response…";
-            if (thinkingLabel) thinkingLabel.textContent = "Thought it through";
+            if (thinkingLabel) thinkingLabel.textContent = "Finished";
             if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
           }
           textBuf += delta;
@@ -897,20 +952,23 @@
       let reply = textBuf || "No response.";
 
       if (isFirstMessage) {
-        const m = reply.match(/\[\[TITLE:\s*(.+?)\]\]\s*$/i);
+        // Not anchored to the very end: the model doesn't always put the
+        // tag on its own last line exactly as asked (trailing punctuation,
+        // a stray newline, or a short sign-off after it were all enough to
+        // make the old end-anchored regex miss and leave the tag visible
+        // in the chat). Find it anywhere near the end and cut it out.
+        const m = reply.match(/\n?\s*\[\[TITLE:\s*(.+?)\]\]\s*/i);
         if (m) {
-          reply = reply.slice(0, m.index).trim();
+          reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
           setTitle(m[1].trim().replace(/["'.]+$/, ""));
         } else {
           setTitle((prompt || (captured ? captured.name : "") || "Chat").slice(0, 50));
         }
       }
 
-      if (workState) {
-        workState.classList.add("done");
-        if (workLabel) workLabel.textContent = "Done";
-        if (workDetail) workDetail.textContent = "Response ready";
-      }
+      if (thinkingLabel && thinkingLabel.textContent === "Thinking…") thinkingLabel.textContent = "Finished";
+      if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
+      if (!thinkingBuf && thinkingContent) thinkingContent.innerHTML = '<span class="ai-thinking-empty">No detailed reasoning was returned for this reply.</span>';
 
       if (answerContent) {
         answerContent.innerHTML = renderMarkdown(reply);
@@ -936,12 +994,8 @@
 
       scheduleAutoSave();
     } catch (err) {
-      if (thinkingBox) thinkingBox.style.display = "none";
-      if (workState) {
-        workState.classList.add("done");
-        if (workLabel) workLabel.textContent = "Couldn’t finish";
-        if (workDetail) workDetail.textContent = "The request returned an error.";
-      }
+      if (thinkingLabel) thinkingLabel.textContent = "Finished";
+      if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
       if (answerContent) {
         answerContent.innerHTML = `<span style="color:#ef4444;">${escHtml((err && err.message) || "Unknown error")}</span>`;
       }
