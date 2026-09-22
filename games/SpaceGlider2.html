@@ -341,6 +341,57 @@ let owDiscovered = new Set();
 let owChallenge = null; // { pIdx, kills, target }
 let csQueue = [], csIdx = 0;
 
+// Hidden cheat-code detector. Nothing is listed in the UI; codes activate only when typed.
+let cheatBuffer = '';
+let overdriveCheat = false;
+let bossDeleteCheat = false;
+const CHEAT_CODES = {
+  '360yayayay': 'overdrive',
+  'mingzedidit': 'bossdelete'
+};
+const CHEAT_BUFFER_MAX = 32;
+
+function activateCheat(code) {
+  const effect = CHEAT_CODES[code];
+  if (effect === 'overdrive') {
+    overdriveCheat = true;
+    if (player) {
+      player.maxHp = Math.max(player.maxHp, 25);
+      player.hp = player.maxHp;
+      player.speed *= 1.85;
+      player.dashSpeed *= 1.85;
+      player.fireRate *= 1.85;
+      player.bulletSpeed *= 1.35;
+      player.multi = Math.max(player.multi, 4);
+      player.piercing = true;
+      player.homingCount = Math.max(player.homingCount, 3);
+    }
+    showMsg('360 OVERDRIVE UNLOCKED', 2.2);
+    burst(player?.x ?? VW/2, player?.y ?? VH/2, '#6af7ff', 48, .9, 3.5);
+  } else if (effect === 'bossdelete') {
+    bossDeleteCheat = true;
+    if (bossObj) {
+      bossObj.hp = 1;
+      updateBossHud();
+      showMsg('MINGZE DID IT', 1.8);
+    } else {
+      showMsg('MINGZE DID IT · NEXT BOSS: 1 HP', 2.2);
+    }
+  }
+}
+
+function handleCheatKey(key) {
+  if (!key || key.length !== 1 || !/[a-z0-9]/i.test(key)) return;
+  cheatBuffer = (cheatBuffer + key.toLowerCase()).slice(-CHEAT_BUFFER_MAX);
+  for (const [code, effect] of Object.entries(CHEAT_CODES)) {
+    if (cheatBuffer.endsWith(code)) {
+      activateCheat(code);
+      cheatBuffer = '';
+      break;
+    }
+  }
+}
+
 // menu nav
 let menuSel = 0, settingsSel = 0, diffSel = 1, pauseSel = 0;
 let diffTarget = 'campaign'; // which mode we're setting diff for
@@ -549,7 +600,15 @@ function startOpenWorld() {
   showMsg('FREE FLIGHT · E TO ENTER PLANETS', 3);
 }
 function resetRun() {
-  player = createPlayer(); score = 0; worldElapsed = 0; worldKills = 0; worldCollected = 0;
+  stopBossMusic();
+  player = createPlayer();
+  if (overdriveCheat) {
+    player.maxHp = 25; player.hp = 25;
+    player.speed *= 1.85; player.dashSpeed *= 1.85;
+    player.fireRate *= 1.85; player.bulletSpeed *= 1.35;
+    player.multi = 4; player.piercing = true; player.homingCount = 3;
+  }
+  score = 0; worldElapsed = 0; worldKills = 0; worldCollected = 0;
   timeScale = 1; timeScaleTarget = 1; shakeMag = 0; shakeTime = 0;
   bullets = []; eBullets = []; enemies = []; particles = []; collectibles = []; confetti = []; bossObj = null;
   spawnTimer = .8; collectSpawnTimer = 1.5;
@@ -614,7 +673,9 @@ function beginWorldGameplay() {
 }
 function spawnBoss() {
   bossObj = createBoss(gIdx);
+  if (bossDeleteCheat) bossObj.hp = 1;
   document.getElementById('boss-wrap').style.display = 'block';
+  startBossMusic();
   document.getElementById('boss-lbl').textContent = bossObj.name;
   updateBossHud();
 }
@@ -777,6 +838,7 @@ function levelUp() {
 const keys = {};
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
+  handleCheatKey(e.key);
   keys[k] = true;
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key)) e.preventDefault();
 
@@ -993,6 +1055,8 @@ function updateBossEntity(dt) {
 }
 
 function bossDefeated() {
+  stopBossMusic();
+  bossDeleteCheat = false;
   burst(bossObj.x,bossObj.y,bossObj.color,80,1.5,4); doShake(10,.6);
   score += 500; player.xp += 30; if(player.xp>=player.xpToLevel) levelUp();
   bossObj = null; document.getElementById('boss-wrap').style.display='none';
@@ -1321,6 +1385,36 @@ let bgmStarted = false;
 let audioReady = false;
 let shootPool = [], shootPoolIdx = 0;
 
+let bossMusic = null;
+let bossMusicStarted = false;
+
+function initBossMusic() {
+  if (bossMusic) return;
+  bossMusic = new Audio('assets/sounds/games/bossfight.mp3');
+  bossMusic.loop = true;
+  bossMusic.preload = 'auto';
+  bossMusic.volume = 0.72;
+}
+
+function startBossMusic() {
+  initBossMusic();
+  if (!bossMusic) return;
+  try {
+    if (bgmSource) fadeBGM(0.035, 0.25);
+    bossMusic.currentTime = 0;
+    const promise = bossMusic.play();
+    bossMusicStarted = true;
+    if (promise && typeof promise.catch === 'function') promise.catch(() => { bossMusicStarted = false; });
+  } catch (e) {}
+}
+
+function stopBossMusic() {
+  if (!bossMusic) return;
+  try { bossMusic.pause(); bossMusic.currentTime = 0; } catch (e) {}
+  bossMusicStarted = false;
+  if (bgmStarted) fadeBGM(0.28, 0.35);
+}
+
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1396,7 +1490,7 @@ const _origFirePlayer = firePlayer;
 firePlayer = function() { _origFirePlayer.call(this); playShoot(); };
 
 const _origDoGameOver = doGameOver;
-doGameOver = function() { _origDoGameOver.call(this); fadeBGM(0, 1.2); playDeath(); };
+doGameOver = function() { stopBossMusic(); _origDoGameOver.call(this); fadeBGM(0, 1.2); playDeath(); };
 
 const _origLevelUp = levelUp;
 levelUp = function() { _origLevelUp.call(this); playXP(); };
@@ -1414,12 +1508,14 @@ bossDefeated = function() {
 
 const _origBeginWorldGameplay = beginWorldGameplay;
 beginWorldGameplay = function() {
+  stopBossMusic();
   _origBeginWorldGameplay.call(this);
   if (!bgmStarted) startBGM(); else fadeBGM(0.28, .4);
 };
 
 const _origStartOpenWorld = startOpenWorld;
 startOpenWorld = function() {
+  stopBossMusic();
   _origStartOpenWorld.call(this);
   if (!bgmStarted) startBGM(); else fadeBGM(0.28, .4);
 };
@@ -1431,13 +1527,14 @@ const _origClosePause = closePause;
 closePause = function() { _origClosePause.call(this); fadeBGM(0.28, .3); };
 
 const _origGoTitle = goTitle;
-goTitle = function() { _origGoTitle.call(this); stopBGM(); };
+goTitle = function() { stopBossMusic(); _origGoTitle.call(this); stopBGM(); };
 
 // Unlock audio on first user gesture (title screen interaction)
 function unlockAndInit() {
   initAudio();
   // Resume if suspended (autoplay policy)
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (bossObj && !bossMusicStarted) startBossMusic();
 }
 document.addEventListener('keydown', unlockAndInit, { once: false });
 document.addEventListener('click', unlockAndInit, { once: false });
