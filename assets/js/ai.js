@@ -40,167 +40,166 @@
   const SB_URL = "https://wiswfpfsjiowtrdyqpxy.supabase.co";
 
   /* ── model catalog ───────────────────────────────────────────────────
-     Grouped by provider for the dropup/flyout picker. Ids are OpenRouter
-     model ids (provider/model) — the backend forwards whatever id is sent
-     straight to OpenRouter, so adding a row here is enough to make a new
-     model selectable; no edge-function redeploy needed. Trim/extend this
-     list to match exactly what you've enabled on your OpenRouter account. */
-  const MODEL_CATALOG = {
-    "OpenAI": [
-      ["openai/gpt-4o", "GPT-4o"],
-      ["openai/gpt-4o-mini", "GPT-4o mini"],
-      ["openai/gpt-4.1", "GPT-4.1"],
-      ["openai/gpt-4.1-mini", "GPT-4.1 mini"],
-      ["openai/gpt-4.1-nano", "GPT-4.1 nano"],
-      ["openai/o1", "o1"],
-      ["openai/o1-mini", "o1 mini"],
-      ["openai/o3", "o3"],
-      ["openai/o3-mini", "o3 mini"],
-      ["openai/o4-mini", "o4 mini"],
-      ["openai/gpt-4-turbo", "GPT-4 Turbo"],
-      ["openai/gpt-3.5-turbo", "GPT-3.5 Turbo"],
-    ],
-    "Anthropic": [
-      ["anthropic/claude-3.5-sonnet", "Claude 3.5 Sonnet"],
-      ["anthropic/claude-3.5-haiku", "Claude 3.5 Haiku"],
-      ["anthropic/claude-3.7-sonnet", "Claude 3.7 Sonnet"],
-      ["anthropic/claude-3-opus", "Claude 3 Opus"],
-      ["anthropic/claude-3-haiku", "Claude 3 Haiku"],
-      ["anthropic/claude-sonnet-4", "Claude Sonnet 4"],
-      ["anthropic/claude-opus-4", "Claude Opus 4"],
-    ],
-    "Azure": [
-      ["azure/gpt-4o", "Azure GPT-4o"],
-      ["azure/gpt-4o-mini", "Azure GPT-4o mini"],
-      ["azure/gpt-4-turbo", "Azure GPT-4 Turbo"],
-      ["azure/gpt-35-turbo", "Azure GPT-3.5 Turbo"],
-    ],
-    "DeepSeek": [
-      ["deepseek/deepseek-chat", "DeepSeek V3"],
-      ["deepseek/deepseek-r1", "DeepSeek R1"],
-      ["deepseek/deepseek-r1-distill-llama-70b", "DeepSeek R1 Distill 70B"],
-      ["deepseek/deepseek-coder", "DeepSeek Coder"],
-    ],
-    "Google AI Studio": [
-      ["google/gemini-2.0-flash-001", "Gemini 2.0 Flash"],
-      ["google/gemini-2.0-flash-lite-001", "Gemini 2.0 Flash Lite"],
-      ["google/gemini-2.5-pro", "Gemini 2.5 Pro"],
-      ["google/gemini-2.5-flash", "Gemini 2.5 Flash"],
-      ["google/gemini-pro-1.5", "Gemini 1.5 Pro"],
-      ["google/gemini-flash-1.5", "Gemini 1.5 Flash"],
-      ["google/gemma-2-27b-it", "Gemma 2 27B"],
-    ],
-    "Groq": [
-      ["groq/llama-3.3-70b-versatile", "Llama 3.3 70B (Groq)"],
-      ["groq/llama-3.1-8b-instant", "Llama 3.1 8B Instant (Groq)"],
-      ["groq/mixtral-8x7b-32768", "Mixtral 8x7B (Groq)"],
-      ["groq/gemma2-9b-it", "Gemma2 9B (Groq)"],
-    ],
-    "Meta": [
-      ["meta-llama/llama-3.3-70b-instruct", "Llama 3.3 70B"],
-      ["meta-llama/llama-3.1-405b-instruct", "Llama 3.1 405B"],
-      ["meta-llama/llama-3.1-70b-instruct", "Llama 3.1 70B"],
-      ["meta-llama/llama-3.1-8b-instruct", "Llama 3.1 8B"],
-      ["meta-llama/llama-3.2-90b-vision-instruct", "Llama 3.2 90B Vision"],
-      ["meta-llama/llama-4-maverick", "Llama 4 Maverick"],
-      ["meta-llama/llama-4-scout", "Llama 4 Scout"],
-    ],
-    "NVIDIA": [
-      ["nvidia/llama-3.1-nemotron-70b-instruct", "Nemotron 70B"],
-      ["nvidia/nemotron-4-340b-instruct", "Nemotron 4 340B"],
-      ["nvidia/llama-3.1-nemotron-51b-instruct", "Nemotron 51B"],
-    ],
-  };
-
+     Pulled live from the openrouter-models edge function (hundreds of
+     models) instead of a hardcoded list, so this never goes stale. Each
+     entry is grouped into one of the named categories by its OpenRouter
+     id prefix; anything unrecognized falls into "Other". "default" is a
+     sentinel the backend understands as "pick the best model yourself
+     based on the request" (topic-detection auto-race) — it is not a real
+     OpenRouter id and is never sent to the models list. */
   const MODEL_STORAGE_KEY = "ai360:selectedModel";
-  let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "openai/gpt-4o-mini";
+  let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "default";
+  let allModels = [];          // raw rows from openrouter-models
+  let modelsLoaded = false;
+  let modelsLoading = null;
 
-  const modelPicker = document.getElementById("model-picker");
+  const CATEGORY_MATCHERS = [
+    ["OpenAI", (id) => id.startsWith("openai/")],
+    ["Anthropic", (id) => id.startsWith("anthropic/")],
+    ["Azure", (id) => id.startsWith("azure/") || id.includes("azure")],
+    ["DeepSeek", (id) => id.startsWith("deepseek/")],
+    ["Google AI Studio", (id) => id.startsWith("google/")],
+    ["Groq", (id) => id.startsWith("groq/") || id.includes("groq")],
+    ["Meta", (id) => id.startsWith("meta-llama/") || id.startsWith("meta/")],
+    ["NVIDIA", (id) => id.startsWith("nvidia/")],
+  ];
+  const CATEGORY_ORDER = ["OpenAI", "Anthropic", "Azure", "DeepSeek", "Google AI Studio", "Groq", "Meta", "NVIDIA", "Other"];
+
+  function categoryFor(id) {
+    const lo = String(id || "").toLowerCase();
+    for (const [name, test] of CATEGORY_MATCHERS) if (test(lo)) return name;
+    return "Other";
+  }
+
   const modelPickerBtn = document.getElementById("model-picker-btn");
   const modelPickerLabel = document.getElementById("model-picker-label");
-  const modelDropup = document.getElementById("model-dropup");
+  const modelOverlay = document.getElementById("model-overlay");
+  const modelModal = document.getElementById("model-modal");
+  const modelSearchInput = document.getElementById("model-search-input");
+  const modelTabs = document.getElementById("model-tabs");
+  const modelList = document.getElementById("model-list");
+  const modelCloseBtn = document.getElementById("model-modal-close");
   const adminBadge = document.getElementById("admin-badge");
   const usageMeter = document.getElementById("usage-meter");
   const usageMeterFill = document.getElementById("usage-meter-fill");
   const usageMeterLabel = document.getElementById("usage-meter-label");
 
+  let activeCategory = "All";
+  let searchQuery = "";
+
   function labelForModel(id) {
-    for (const provider in MODEL_CATALOG) {
-      const hit = MODEL_CATALOG[provider].find(m => m[0] === id);
-      if (hit) return hit[1];
-    }
-    return id;
+    if (!id || id === "default") return "Default";
+    const hit = allModels.find(m => m.id === id);
+    return hit ? hit.name || id : id;
   }
 
   function setSelectedModel(id) {
     selectedModel = id;
     localStorage.setItem(MODEL_STORAGE_KEY, id);
     if (modelPickerLabel) modelPickerLabel.textContent = labelForModel(id);
-    if (modelDropup) {
-      modelDropup.querySelectorAll(".mp-model-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.modelId === id);
-      });
-    }
   }
 
-  function buildModelDropup() {
-    if (!modelDropup) return;
-    modelDropup.innerHTML = "";
-    Object.keys(MODEL_CATALOG).forEach(provider => {
-      const models = MODEL_CATALOG[provider];
-      const row = document.createElement("div");
-      row.className = "mp-provider";
+  async function loadModels() {
+    if (modelsLoaded) return;
+    if (modelsLoading) return modelsLoading;
+    modelsLoading = (async () => {
+      try {
+        if (sb && sb.functions) {
+          const { data, error } = await sb.functions.invoke("openrouter-models");
+          if (!error && data && data.success && Array.isArray(data.models)) {
+            allModels = data.models;
+            modelsLoaded = true;
+          }
+        }
+      } catch (_) {}
+    })();
+    return modelsLoading;
+  }
 
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "mp-provider-btn";
-      btn.innerHTML =
-        `<span>${escHtml(provider)}</span>` +
-        `<span class="mp-provider-count">${models.length}</span>` +
-        `<span class="mp-provider-arrow">◂</span>`;
-      on(btn, "click", e => {
-        e.stopPropagation();
-        const wasOpen = row.classList.contains("open");
-        modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
-        if (!wasOpen) row.classList.add("open");
-      });
-
-      const flyout = document.createElement("div");
-      flyout.className = "mp-flyout";
-      models.forEach(([id, label]) => {
-        const mBtn = document.createElement("button");
-        mBtn.type = "button";
-        mBtn.className = "mp-model-btn" + (id === selectedModel ? " active" : "");
-        mBtn.dataset.modelId = id;
-        mBtn.innerHTML = `<span>${escHtml(label)}</span><span class="mp-model-id">${escHtml(id)}</span>`;
-        on(mBtn, "click", e => {
-          e.stopPropagation();
-          setSelectedModel(id);
-          if (modelPicker) modelPicker.classList.remove("open");
-        });
-        flyout.appendChild(mBtn);
-      });
-
-      row.appendChild(btn);
-      row.appendChild(flyout);
-      modelDropup.appendChild(row);
+  function renderTabs() {
+    if (!modelTabs) return;
+    const counts = { All: allModels.length };
+    CATEGORY_ORDER.forEach(c => (counts[c] = 0));
+    allModels.forEach(m => { const c = categoryFor(m.id); counts[c] = (counts[c] || 0) + 1; });
+    const tabs = ["All", ...CATEGORY_ORDER.filter(c => counts[c] > 0)];
+    modelTabs.innerHTML = tabs.map(t =>
+      `<button type="button" class="model-tab${t === activeCategory ? " active" : ""}" data-cat="${escHtml(t)}">${escHtml(t)}${t !== "All" ? ` <span class="model-tab-count">${counts[t]}</span>` : ""}</button>`
+    ).join("");
+    modelTabs.querySelectorAll(".model-tab").forEach(btn => {
+      on(btn, "click", () => { activeCategory = btn.dataset.cat; renderTabs(); renderList(); });
     });
   }
 
-  buildModelDropup();
+  function formatPrice(v) {
+    const n = parseFloat(v || "0");
+    if (!n) return "Free";
+    return "$" + (n * 1000000).toFixed(2) + "/1M";
+  }
+
+  function renderList() {
+    if (!modelList) return;
+    const q = searchQuery.trim().toLowerCase();
+    let rows = allModels;
+    if (activeCategory !== "All") rows = rows.filter(m => categoryFor(m.id) === activeCategory);
+    if (q) rows = rows.filter(m => (m.name || "").toLowerCase().includes(q) || (m.id || "").toLowerCase().includes(q));
+
+    const defaultCard = !q ? `
+      <button type="button" class="model-row model-row-default${selectedModel === "default" ? " active" : ""}" data-model-id="default">
+        <div class="model-row-main">
+          <span class="model-row-name">✨ Default — Auto-select</span>
+          <span class="model-row-id">Picks the best model for your prompt automatically</span>
+        </div>
+      </button>` : "";
+
+    if (!rows.length) {
+      modelList.innerHTML = defaultCard + `<div class="model-empty">No models match${q ? ` “${escHtml(q)}”` : " this category"}.</div>`;
+      return;
+    }
+
+    modelList.innerHTML = defaultCard + rows.slice(0, 300).map(m => {
+      const active = m.id === selectedModel;
+      const ctx = m.context_length ? Number(m.context_length).toLocaleString() + " ctx" : "";
+      const price = m.pricing ? formatPrice(m.pricing.prompt) : "";
+      return `<button type="button" class="model-row${active ? " active" : ""}" data-model-id="${escHtml(m.id)}">
+        <div class="model-row-main">
+          <span class="model-row-name">${escHtml(m.name || m.id)}</span>
+          <span class="model-row-id">${escHtml(m.id)}</span>
+        </div>
+        <div class="model-row-meta">${[ctx, price].filter(Boolean).join(" · ")}</div>
+      </button>`;
+    }).join("");
+
+    modelList.querySelectorAll(".model-row").forEach(row => {
+      on(row, "click", () => {
+        setSelectedModel(row.dataset.modelId);
+        closeModelModal();
+      });
+    });
+  }
+
+  function openModelModal() {
+    if (!modelOverlay || !modelModal) return;
+    modelOverlay.classList.add("show");
+    modelModal.classList.add("show");
+    if (modelSearchInput) { modelSearchInput.value = ""; searchQuery = ""; }
+    loadModels().then(() => { renderTabs(); renderList(); });
+    renderTabs();
+    renderList();
+    setTimeout(() => safeFocus(modelSearchInput), 30);
+  }
+
+  function closeModelModal() {
+    if (modelOverlay) modelOverlay.classList.remove("show");
+    if (modelModal) modelModal.classList.remove("show");
+  }
+
   setSelectedModel(selectedModel);
-
-  on(modelPickerBtn, "click", e => {
-    e.stopPropagation();
-    if (!modelPicker) return;
-    const willOpen = !modelPicker.classList.contains("open");
-    modelPicker.classList.toggle("open", willOpen);
-    if (!willOpen) modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
-  });
-
-  document.addEventListener("click", () => {
-    if (modelPicker) modelPicker.classList.remove("open");
-    if (modelDropup) modelDropup.querySelectorAll(".mp-provider.open").forEach(el => el.classList.remove("open"));
+  on(modelPickerBtn, "click", openModelModal);
+  on(modelCloseBtn, "click", closeModelModal);
+  on(modelOverlay, "click", closeModelModal);
+  on(modelSearchInput, "input", e => { searchQuery = e.target.value; renderList(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && modelModal && modelModal.classList.contains("show")) closeModelModal();
   });
 
   /* ── usage meter + admin badge ───────────────────────────────────── */
