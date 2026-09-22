@@ -1682,10 +1682,8 @@ body:not(.dark) .ai-input-area {
 }
 
 /* ============================================================
-   Model picker (dropup) — grouped by provider, flyout submenus
+   Model picker — trigger button + full popup (search + category tabs)
    ============================================================ */
-#model-picker { position: relative; flex-shrink: 0; }
-
 #model-picker-btn {
   display: flex; align-items: center; gap: 6px;
   height: 34px; padding: 0 10px;
@@ -1695,88 +1693,127 @@ body:not(.dark) .ai-input-area {
   color: var(--txt);
   font-size: 12.5px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
+  flex-shrink: 0;
   transition: background .15s ease, border-color .15s ease;
 }
 #model-picker-btn:hover { background: var(--hover); }
-#model-picker-btn .mp-caret { opacity: .6; transition: transform .15s ease; }
-#model-picker.open #model-picker-btn .mp-caret { transform: rotate(180deg); }
 #model-picker-label {
   max-width: 140px; overflow: hidden; text-overflow: ellipsis;
 }
 
-#model-dropup {
+#model-overlay {
   display: none;
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  min-width: 220px;
-  background: var(--surface);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
-  border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(0,0,0,.28);
-  padding: 6px;
-  z-index: 60;
-  max-height: 60vh;
-  overflow: visible;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(2px);
+  z-index: 200;
 }
-#model-picker.open #model-dropup { display: block; }
+#model-overlay.show { display: block; }
 
-.mp-provider {
-  position: relative;
+#model-modal {
+  display: none;
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 92vw);
+  max-height: min(640px, 82vh);
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.4);
+  z-index: 201;
+  flex-direction: column;
+  overflow: hidden;
 }
-.mp-provider-btn {
+#model-modal.show { display: flex; }
+
+#model-modal-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 18px 12px;
+  color: var(--txt);
+  flex-shrink: 0;
+}
+#model-modal-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 700; }
+#model-modal-head svg:first-child { opacity: .7; }
+#model-modal-close {
+  background: transparent; border: none; color: var(--mut);
+  cursor: pointer; padding: 4px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+#model-modal-close:hover { background: var(--hover); color: var(--txt); }
+
+#model-search-row {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 18px 10px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: var(--surface-soft, rgba(0,0,0,.05));
+  color: var(--mut);
+  flex-shrink: 0;
+}
+#model-search-row svg { flex-shrink: 0; }
+#model-search-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  color: var(--txt); font-size: 13.5px;
+}
+#model-search-input::placeholder { color: var(--mut); }
+
+#model-tabs {
+  display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto;
+  padding: 0 18px 12px;
+  flex-shrink: 0;
+}
+#model-tabs::-webkit-scrollbar { height: 0; }
+.model-tab {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
+  background: transparent;
+  color: var(--mut);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.model-tab:hover { background: var(--hover); color: var(--txt); }
+.model-tab.active { background: var(--txt); color: var(--bg); border-color: transparent; }
+.model-tab-count { opacity: .65; font-weight: 500; }
+
+#model-list {
+  overflow-y: auto;
+  padding: 0 10px 14px;
+  flex: 1;
+}
+
+.model-row {
   width: 100%;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 8px;
-  padding: 9px 10px;
-  border-radius: 9px;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 10px;
   background: transparent; border: none;
   color: var(--txt);
-  font-size: 13px; font-weight: 500;
   text-align: left; cursor: pointer;
 }
-.mp-provider-btn:hover, .mp-provider.open > .mp-provider-btn { background: var(--hover); }
-.mp-provider-btn .mp-provider-arrow { opacity: .5; font-size: 11px; }
-.mp-provider-count {
-  font-size: 11px; color: var(--mut); font-weight: 400;
+.model-row:hover { background: var(--hover); }
+.model-row.active { background: var(--hover); }
+.model-row.active .model-row-name::after { content: " ✓"; opacity: .7; }
+.model-row-default { border: 1px dashed var(--surface-soft, rgba(0,0,0,.15)); margin-bottom: 6px; }
+.model-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.model-row-name {
+  font-size: 13.5px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-
-.mp-flyout {
-  display: none;
-  position: absolute;
-  right: calc(100% + 8px);
-  top: 0;
-  min-width: 240px;
-  max-height: 340px;
-  overflow-y: auto;
-  background: var(--surface);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--surface-soft, rgba(0,0,0,.08));
-  border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(0,0,0,.28);
-  padding: 6px;
+.model-row-id {
+  font-size: 11px; color: var(--mut); font-family: monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mp-provider.open > .mp-flyout { display: block; }
-
-/* On narrow screens there's no room to the left — stack below instead */
-@media (max-width: 640px) {
-  .mp-flyout { right: auto; left: 0; top: calc(100% + 4px); }
+.model-row-meta {
+  font-size: 11px; color: var(--mut); white-space: nowrap; flex-shrink: 0;
 }
-
-.mp-model-btn {
-  width: 100%;
-  display: flex; flex-direction: column; align-items: flex-start;
-  gap: 1px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: transparent; border: none;
-  color: var(--txt);
-  font-size: 12.5px; text-align: left; cursor: pointer;
+.model-empty {
+  padding: 30px 10px; text-align: center; color: var(--mut); font-size: 13px;
 }
-.mp-model-btn:hover { background: var(--hover); }
-.mp-model-btn.active { background: var(--hover); font-weight: 600; }
-.mp-model-id { font-size: 10.5px; color: var(--mut); font-weight: 400; }
 
 /* ============================================================
    Admin badge + usage meter
