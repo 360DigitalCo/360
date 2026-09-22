@@ -678,9 +678,10 @@ body.dark .ai-shell #ai-input::placeholder { color: var(--mutd); }
 .ai-input-btns {
   display: flex;
   align-items: center;
+  align-self: flex-end;
   gap: 2px;
   flex-shrink: 0;
-  padding-bottom: 2px;
+  padding-bottom: 5px;
 }
 #ai-attach-btn {
   display: flex;
@@ -988,7 +989,10 @@ body:not(.dark) .ai-input-area {
 .ai-input-row {
   max-width: 840px;
   min-height: 58px;
-  align-items: center;
+  /* flex-end, not center: as the textarea grows with newlines it should
+     expand upward while the model picker / send / attach buttons stay
+     pinned to the bottom edge instead of re-centering with every line. */
+  align-items: flex-end;
   padding: 8px 9px 8px 17px;
   border: 1px solid var(--ai-line);
   border-radius: 20px;
@@ -1155,58 +1159,69 @@ body:not(.dark) .ai-input-area {
 .ai-logo-svg { display:block; }
 .ai-brand-mark .ai-logo-svg { filter: drop-shadow(0 4px 10px rgba(109,124,255,.28)); }
 
-.ai-work-state {
-  display:flex;
-  align-items:center;
-  gap:11px;
-  min-height:42px;
-  padding:8px 11px;
-  margin:2px 0 10px;
-  width:max-content;
-  max-width:100%;
-  border:1px solid var(--ai-line, var(--br));
-  background:var(--ai-soft, var(--surface-soft));
-  border-radius:14px;
-  overflow:hidden;
-  animation: aiWorkIn .24s ease both;
+/* Tool-call dropdown: "Running Command…" while active, "Ran a command" (or
+   "Connectors and resources used (N commands)" when several ran together)
+   once done, expanding to show each command's code + output. */
+.ai-tools-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
 }
-@keyframes aiWorkIn { from { opacity:0; transform:translateY(5px) scale(.98); } to { opacity:1; transform:none; } }
-
-.ai-work-orb {
-  position:relative;
-  width:28px;height:28px;flex:0 0 28px;
-  border-radius:50%;
-  background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.98) 0 7%, rgba(109,124,255,.9) 8% 20%, transparent 21%);
-  box-shadow:0 0 0 1px rgba(109,124,255,.22), 0 0 22px rgba(109,124,255,.22);
+body.dark .ai-tools-box { border-color: var(--border-dark, var(--border)); }
+.ai-tools-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mut);
+  text-align: left;
 }
-.ai-work-orb:before,.ai-work-orb:after,.ai-work-orb span {
-  content:""; position:absolute; inset:3px; border:1.5px solid rgba(109,124,255,.58);
-  border-radius:50%; animation:aiOrbit 1.5s linear infinite;
+body.dark .ai-tools-toggle { color: var(--mutd); }
+.ai-tools-toggle:hover { background: var(--hover); }
+.ai-tools-spinner {
+  width: 10px; height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--a);
+  border-radius: 50%;
+  animation: aiThinkSpin .7s linear infinite;
+  flex-shrink: 0;
 }
-.ai-work-orb:after { inset:7px; animation-duration:1s; animation-direction:reverse; opacity:.75; }
-.ai-work-orb span { inset:0; border-style:dashed; animation-duration:2.2s; opacity:.45; }
-@keyframes aiOrbit { to { transform:rotate(360deg); } }
-
-.ai-work-copy { min-width:105px; }
-.ai-work-label { font-size:12px; font-weight:700; line-height:1.15; letter-spacing:.01em; }
-.ai-work-detail { margin-top:3px; font-size:11px; opacity:.52; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
-
-.ai-work-signal { display:flex; align-items:center; gap:2px; height:20px; margin-left:3px; opacity:.65; }
-.ai-work-signal span { width:2px; height:7px; border-radius:99px; background:currentColor; animation:aiSignal .85s ease-in-out infinite; }
-.ai-work-signal span:nth-child(2){animation-delay:.12s}.ai-work-signal span:nth-child(3){animation-delay:.24s}.ai-work-signal span:nth-child(4){animation-delay:.36s}.ai-work-signal span:nth-child(5){animation-delay:.48s}
-@keyframes aiSignal { 0%,100%{height:5px;opacity:.35} 50%{height:17px;opacity:1} }
-
-.ai-work-state.done .ai-work-orb:before,.ai-work-state.done .ai-work-orb:after,.ai-work-state.done .ai-work-orb span,
-.ai-work-state.done .ai-work-signal span { animation-play-state:paused; }
-.ai-work-state.done .ai-work-signal { opacity:.3; }
-.ai-work-state.done .ai-work-label { opacity:.7; }
-
-.ai-work-state.tool { border-color:rgba(109,124,255,.28); box-shadow:0 8px 28px rgba(109,124,255,.08); }
-
-@media (max-width:760px) {
-  .ai-work-state { width:auto; }
-  .ai-work-detail { max-width:150px; }
+.ai-tools-label { flex: 1; }
+.ai-tools-arrow { opacity: .6; font-size: 10px; }
+.ai-tools-content {
+  display: none;
+  padding: 0 14px 12px;
+  font-size: 12px;
+  max-height: 320px;
+  overflow-y: auto;
 }
+.ai-tool-entry { padding: 8px 0; border-top: 1px solid var(--border); }
+.ai-tool-entry:first-child { border-top: none; }
+.ai-tool-entry-name { font-weight: 600; color: var(--mut); margin-bottom: 5px; }
+body.dark .ai-tool-entry-name { color: var(--mutd); }
+.ai-tool-entry-name em { font-style: normal; opacity: .6; font-weight: 400; }
+.ai-tool-code, .ai-tool-output {
+  margin: 5px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-soft, rgba(0,0,0,.05));
+  color: var(--txt);
+  font-family: monospace;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.ai-thinking-empty { opacity: .6; font-style: italic; }
 
 
 /* ── MCP Connector panel ───────────────────────────────────────────── */
@@ -1685,20 +1700,24 @@ body:not(.dark) .ai-input-area {
    Model picker — trigger button + full popup (search + category tabs)
    ============================================================ */
 #model-picker-btn {
-  display: flex; align-items: center; gap: 6px;
-  height: 34px; padding: 0 10px;
-  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  align-self: flex-end;
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 50%;
   border: 1px solid var(--surface-soft, rgba(0,0,0,.06));
   background: var(--surface-soft);
   color: var(--txt);
-  font-size: 12.5px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
   transition: background .15s ease, border-color .15s ease;
 }
 #model-picker-btn:hover { background: var(--hover); }
-#model-picker-label {
-  max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+#model-picker-btn.custom::after {
+  content: "";
+  position: absolute; top: 2px; right: 2px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border: 1.5px solid var(--surface);
 }
 
 #model-overlay {
