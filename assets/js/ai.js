@@ -568,12 +568,16 @@
     const toolsContent = inner.querySelector(".ai-tools-content");
     const toolsSpinner = inner.querySelector(".ai-tools-spinner");
 
-    let thinkExpanded = true;
+    // Collapsed by default — the dropdown is for "what did it think of",
+    // not something that should take up space on every reply.
+    let thinkExpanded = false;
+    thinkingContent.style.display = "none";
+    const thinkArrowEl = inner.querySelector(".ai-thinking-arrow");
+    if (thinkArrowEl) thinkArrowEl.textContent = "▸";
     on(inner.querySelector(".ai-thinking-toggle"), "click", () => {
       thinkExpanded = !thinkExpanded;
       thinkingContent.style.display = thinkExpanded ? "block" : "none";
-      const arrow = inner.querySelector(".ai-thinking-arrow");
-      if (arrow) arrow.textContent = thinkExpanded ? "▾" : "▸";
+      if (thinkArrowEl) thinkArrowEl.textContent = thinkExpanded ? "▾" : "▸";
     });
 
     let toolsExpanded = false;
@@ -913,12 +917,13 @@
       await streamChatEndpoint(body, {
         onThinking(delta) {
           thinkingBuf += delta;
+          // Keep it collapsed while streaming — only update the text
+          // underneath; the user opens the dropdown to see it, we don't
+          // force it open (that was making the box jump around live).
           if (thinkingContent) {
-            thinkingContent.style.display = "block";
             thinkingContent.textContent = thinkingBuf;
             thinkingContent.scrollTop = thinkingContent.scrollHeight;
           }
-          scrollBottom();
         },
         onTool(name, status, detail) {
           detail = detail || {};
