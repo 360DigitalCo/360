@@ -1,11 +1,345 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Metro Rush</title><link rel="icon" href="../favicon-32x32.png"><style>:root{--bg:#07090d;--panel:#0e131b;--line:#27303d;--text:#f5f7fa;--muted:#8b96a8;--accent:#39d98a;--yellow:#ffd34d;--red:#ff5f66}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}canvas{width:100%;height:100%;display:block}.hud{position:fixed;left:16px;right:16px;top:16px;display:flex;justify-content:space-between;pointer-events:none;z-index:2}.hudbox{padding:10px 14px;border-radius:13px;background:#0a0f16d9;border:1px solid #ffffff16;backdrop-filter:blur(10px);min-width:105px}.k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.v{font-weight:900;font-size:18px;margin-top:2px}.overlay{position:fixed;inset:0;display:grid;place-items:center;background:#05070bdc;backdrop-filter:blur(8px);z-index:3}.panel{width:min(600px,92vw);padding:34px;border-radius:22px;background:#0c1119ee;border:1px solid #ffffff18;box-shadow:0 30px 100px #000b}.eyebrow{font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.17em}.title{font-weight:900;font-size:clamp(48px,9vw,86px);line-height:.9;letter-spacing:-.06em;margin:10px 0 16px}.sub{color:#abb5c3;line-height:1.6}.actions{display:flex;gap:10px;margin-top:22px}button{border:1px solid #ffffff22;background:#ffffff08;color:#fff;padding:11px 16px;border-radius:11px;font-weight:800;cursor:pointer}button.primary{border:0;background:linear-gradient(135deg,#39d98a,#6de6b0);color:#06100b}.hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:#9ba6b7;background:#0a0f16cc;padding:8px 12px;border-radius:999px;border:1px solid #ffffff12;z-index:2;white-space:nowrap}@media(max-width:700px){.panel{padding:24px}.hud{top:9px;left:9px;right:9px}.hudbox{padding:8px 10px;min-width:auto}}
-</style></head><body><canvas id="game"></canvas><div class="hud"><div style="display:flex;gap:8px"><div class="hudbox"><div class="k">Distance</div><div class="v" id="dist">0 m</div></div><div class="hudbox"><div class="k">Score</div><div class="v" id="score">0</div></div></div><div style="display:flex;gap:8px"><div class="hudbox"><div class="k">Combo</div><div class="v" id="combo">x1</div></div><div class="hudbox"><div class="k">Best</div><div class="v" id="best">0</div></div></div></div><div class="hint">A/D or ←/→ switch lanes · W/↑ jump · S/↓ slide</div><div id="start" class="overlay"><div class="panel"><div class="eyebrow">360 Games · Endless Arcade</div><div class="title">METRO<br>RUSH</div><div class="sub">Stay ahead of the train. Read the track, change lanes early, jump barriers and slide under signs. The city speeds up as you survive.</div><div class="actions"><button class="primary" id="play">START RUN</button></div></div></div><div id="gameover" class="overlay" style="display:none"><div class="panel"><div class="eyebrow">Run ended</div><div class="title" style="font-size:clamp(46px,8vw,70px)">LAST STOP.</div><div class="sub">Distance <b id="fd">0</b> m · Score <b id="fs">0</b> · Best <b id="fb">0</b></div><div class="actions"><button class="primary" id="again">RUN AGAIN</button></div></div></div>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Metro Rush</title><link rel="icon" href="../favicon-32x32.png"><style>:root{--bg:#07090d;--panel:#0e131b;--line:#27303d;--text:#f5f7fa;--muted:#8b96a8;--accent:#39d98a;--yellow:#ffd34d;--red:#ff5f66}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}canvas{width:100%;height:100%;display:block}.hud{position:fixed;left:16px;right:16px;top:16px;display:flex;justify-content:space-between;pointer-events:none;z-index:2}.hudbox{padding:10px 14px;border-radius:13px;background:#0a0f16d9;border:1px solid #ffffff16;backdrop-filter:blur(10px);min-width:105px}.k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.v{font-weight:900;font-size:18px;margin-top:2px}.overlay{position:fixed;inset:0;display:grid;place-items:center;background:#05070bdc;backdrop-filter:blur(8px);z-index:3}.panel{width:min(600px,92vw);padding:34px;border-radius:22px;background:#0c1119ee;border:1px solid #ffffff18;box-shadow:0 30px 100px #000b}.eyebrow{font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.17em}.title{font-weight:900;font-size:clamp(48px,9vw,86px);line-height:.9;letter-spacing:-.06em;margin:10px 0 16px}.sub{color:#abb5c3;line-height:1.6}.actions{display:flex;gap:10px;margin-top:22px}button{border:1px solid #ffffff22;background:#ffffff08;color:#fff;padding:11px 16px;border-radius:11px;font-weight:800;cursor:pointer}button.primary{border:0;background:linear-gradient(135deg,#39d98a,#6de6b0);color:#06100b}.hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:#9ba6b7;background:#0a0f16cc;padding:8px 12px;border-radius:999px;border:1px solid #ffffff12;z-index:2;white-space:nowrap}@media(max-width:700px){.panel{padding:24px}.hud{top:9px;left:9px;right:9px}.hudbox{padding:8px 10px;min-width:auto}}</style></head><body>
+<canvas id="game"></canvas>
+<div class="hud">
+  <div style="display:flex;gap:8px">
+    <div class="hudbox"><div class="k">Distance</div><div class="v" id="dist">0 m</div></div>
+    <div class="hudbox"><div class="k">Score</div><div class="v" id="score">0</div></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <div class="hudbox"><div class="k">Combo</div><div class="v" id="combo">x1</div></div>
+    <div class="hudbox"><div class="k">Best</div><div class="v" id="best">0</div></div>
+  </div>
+</div>
+<div class="hint">A/D or ←/→ switch lanes · W/↑ jump · S/↓ slide</div>
+<div id="start" class="overlay">
+  <div class="panel">
+    <div class="eyebrow">360 Games · Endless Arcade</div>
+    <div class="title">METRO<br>RUSH</div>
+    <div class="sub">Stay ahead of the train. Read the track, change lanes early, jump barriers and slide under signs. The city speeds up as you survive.</div>
+    <div class="actions"><button class="primary" id="play">START RUN</button></div>
+  </div>
+</div>
+<div id="gameover" class="overlay" style="display:none">
+  <div class="panel">
+    <div class="eyebrow">Run ended</div>
+    <div class="title" style="font-size:clamp(46px,8vw,70px)">LAST STOP.</div>
+    <div class="sub">Distance <b id="fd">0</b> m · Score <b id="fs">0</b> · Best <b id="fb">0</b></div>
+    <div class="actions"><button class="primary" id="again">RUN AGAIN</button></div>
+  </div>
+</div>
 <script>
-(()=>{'use strict';const c=document.getElementById('game'),ctx=c.getContext('2d'),start=document.getElementById('start'),over=document.getElementById('gameover'),distEl=document.getElementById('dist'),scoreEl=document.getElementById('score'),comboEl=document.getElementById('combo'),bestEl=document.getElementById('best'),fd=document.getElementById('fd'),fs=document.getElementById('fs'),fb=document.getElementById('fb');let W,H,dpr,last=0,running=false,time=0,distance=0,score=0,best=Number(localStorage.getItem('metro-rush-best')||0),lane=1,targetLane=1,y=0,vy=0,state='run',speed=420,combo=1,items=[],spawn=0,keys=new Set();function resize(){dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();bestEl.textContent=best;
-function reset(){distance=score=0;time=0;lane=targetLane=1;y=0;vy=0;speed=420;combo=1;items=[];spawn=.4;state='run';running=true;start.style.display='none';over.style.display='none';last=performance.now();requestAnimationFrame(loop)}
-function laneX(l){return W*.5+(l-1)*Math.min(W*.18,150)}function spawnItem(){const type=Math.random()<.57?'barrier':Math.random()<.5?'coin':'sign';const l=Math.floor(Math.random()*3);items.push({lane:l,z:0,type,wiggle:Math.random()*9});}
-function draw(){ctx.fillStyle='#070b10';ctx.fillRect(0,0,W,H);const horizon=H*.25,ground=H*.92;const grad=ctx.createLinearGradient(0,horizon,0,ground);grad.addColorStop(0,'#111a25');grad.addColorStop(1,'#06080c');ctx.fillStyle=grad;ctx.fillRect(0,horizon,W,ground-horizon);for(let i=-1;i<5;i++){const bx=W*.5+i*180,hh=80+((i*73)%140+140);ctx.fillStyle=i%2?'#101924':'#141e2a';ctx.fillRect(bx-hh/2,horizon-hh,bh=hh,hh)}for(let l=0;l<3;l++){const x0=laneX(l),x1=W*.5+(l-1)*Math.min(W*.18,150);ctx.strokeStyle='#2d3a49';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x0,H);ctx.lineTo(W*.5+(l-1)*18,horizon);ctx.stroke()}ctx.strokeStyle='#42505f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W*.5-180,H);ctx.lineTo(W*.5-40,horizon);ctx.moveTo(W*.5+180,H);ctx.lineTo(W*.5+40,horizon);ctx.stroke();for(const it of items){const p=Math.min(1,it.z),yy=horizon+(ground-horizon)*Math.pow(p,1.55),scale=.2+p*1.1,xx=W*.5+(it.lane-1)*Math.min(W*.18,150)*scale;if(it.type==='coin'){ctx.fillStyle='#ffd34d';ctx.beginPath();ctx.arc(xx,yy-30*scale,9*scale,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff2a6';ctx.stroke()}else if(it.type==='barrier'){ctx.fillStyle='#d74b52';ctx.fillRect(xx-22*scale,yy-24*scale,44*scale,24*scale);ctx.fillStyle='#fff';ctx.fillRect(xx-17*scale,yy-19*scale,34*scale,5*scale)}else{ctx.fillStyle='#315a79';ctx.fillRect(xx-23*scale,yy-55*scale,46*scale,12*scale)}}const cx=laneX(lane);const cy=H*.82-y;ctx.save();ctx.translate(cx,cy);ctx.rotate((targetLane-lane)*.08);ctx.fillStyle='#39d98a';ctx.beginPath();const h=state==='slide'?44:76,yy=state==='slide'?-18:-38;ctx.roundRect(-25,yy,50,h,13);ctx.fill();ctx.fillStyle='#c8ffe5';ctx.fillRect(-16,-23,32,17);ctx.fillStyle='#172028';ctx.fillRect(-18,23,10,8);ctx.fillRect(8,23,10,8);ctx.restore()}
-function collide(it){const p=it.z;if(p>.78&&p<1.03&&it.lane===lane){if(it.type==='coin'){it.z=-1;score+=100*combo;combo=Math.min(9,combo+1);return false}if(it.type==='barrier'&&y>45)return false;if(it.type==='sign'&&state==='slide')return false;return true}return false}
-function update(dt){time+=dt;distance+=speed*dt/10;speed=Math.min(790,420+distance*1.4);spawn-=dt;if(spawn<=0){spawnItem();spawn=Math.max(.34,.9-distance/1500)}lane+=(targetLane-lane)*Math.min(1,dt*10);if(keys.has('w')||keys.has('arrowup')){if(y<1){vy=730;y=2}}if(keys.has('s')||keys.has('arrowdown')){state='slide'}else state='run';vy-=1800*dt;y=Math.max(0,y+vy*dt);for(let i=items.length-1;i>=0;i--){const it=items[i];it.z+=dt*(speed/360);if(it.z>1.12){if(it.type!=='coin')combo=Math.max(1,combo-1);items.splice(i,1);continue}if(collide(it)){running=false;fd.textContent=Math.floor(distance);fs.textContent=Math.floor(score);best=Math.max(best,Math.floor(score));localStorage.setItem('metro-rush-best',String(best));fb.textContent=best;over.style.display='grid'}}score+=Math.floor(dt*12*combo);distEl.textContent=`${Math.floor(distance)} m`;scoreEl.textContent=Math.floor(score);comboEl.textContent=`x${combo}`}
-function loop(now){if(!running)return;const dt=Math.min(.035,(now-last)/1000);last=now;update(dt);draw();if(running)requestAnimationFrame(loop)}addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());if(e.key==='a'||e.key==='arrowleft')targetLane=Math.max(0,targetLane-1);if(e.key==='d'||e.key==='arrowright')targetLane=Math.min(2,targetLane+1);e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));document.getElementById('play').onclick=reset;document.getElementById('again').onclick=reset;})();
+(()=>{'use strict';
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const distEl=document.getElementById('dist'),scoreEl=document.getElementById('score'),comboEl=document.getElementById('combo'),bestEl=document.getElementById('best');
+const startEl=document.getElementById('start'),overEl=document.getElementById('gameover');
+const fd=document.getElementById('fd'),fs=document.getElementById('fs'),fb=document.getElementById('fb');
+
+let W,H,dpr,last=0,running=false;
+let time=0,distance=0,score=0,best=Number(localStorage.getItem('metro-rush-best')||0);
+let lane=1,targetLane=1,laneSmooth=1;
+let y=0,vy=0,state='run',speed=420,combo=1;
+let items=[],spawnTimer=0;
+const keys=new Set();
+
+bestEl.textContent=best;
+
+function resize(){
+  dpr=Math.min(2,devicePixelRatio||1);
+  W=innerWidth;H=innerHeight;
+  c.width=W*dpr;c.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize);
+resize();
+
+function laneX(l){return W*.5+(l-1)*Math.min(W*.19,160);}
+
+function project(laneL,depth){
+  // depth 0=near(bottom) 1=far(horizon)
+  const horizon=H*.26,ground=H*.91;
+  const yy=horizon+(ground-horizon)*Math.pow(1-depth,1.5);
+  const scale=0.18+(.82)*(1-depth);
+  const xx=W*.5+(laneL-1)*Math.min(W*.19,160)*scale;
+  return{xx,yy,scale};
+}
+
+function reset(){
+  distance=score=time=0;
+  lane=targetLane=laneSmooth=1;
+  y=vy=0;state='run';speed=420;combo=1;
+  items=[];spawnTimer=0.5;
+  running=true;
+  startEl.style.display='none';
+  overEl.style.display='none';
+  last=performance.now();
+  requestAnimationFrame(loop);
+}
+
+function spawnItem(){
+  const r=Math.random();
+  const type=r<.52?'barrier':r<.76?'coin':'sign';
+  // avoid clustering all three lanes
+  const l=Math.floor(Math.random()*3);
+  items.push({lane:l,depth:1,type});
+}
+
+/* ── Drawing ── */
+function drawTrack(){
+  const horizon=H*.26,ground=H*.91;
+  // sky gradient
+  const sky=ctx.createLinearGradient(0,0,0,horizon);
+  sky.addColorStop(0,'#06080d');
+  sky.addColorStop(1,'#0d1a26');
+  ctx.fillStyle=sky;
+  ctx.fillRect(0,0,W,horizon);
+
+  // buildings silhouette
+  const seed=[120,190,95,155,210,80,170,130,100,200,145,88];
+  for(let i=0;i<12;i++){
+    const bw=seed[i%seed.length];
+    const bh=60+seed[(i*3)%seed.length];
+    const bx=(i-1)*Math.floor(W/10)+((distance*0.4*(i%2?1:-1))%Math.floor(W/10));
+    ctx.fillStyle=i%3===0?'#0f1b28':i%3===1?'#111d2b':'#0d1822';
+    ctx.fillRect(bx,horizon-bh,bw,bh);
+    // windows
+    ctx.fillStyle='#1e3a55';
+    for(let wy=bh-14;wy>10;wy-=18){
+      for(let wx=8;wx<bw-10;wx+=16){
+        if((i+wy+wx)%3!==0)ctx.fillRect(bx+wx,horizon-wy,8,10);
+      }
+    }
+  }
+
+  // road surface
+  const road=ctx.createLinearGradient(0,horizon,0,ground);
+  road.addColorStop(0,'#0e1920');
+  road.addColorStop(1,'#07090f');
+  ctx.fillStyle=road;
+  ctx.fillRect(0,horizon,W,ground-horizon);
+
+  // road edges
+  ctx.strokeStyle='#283444';
+  ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(W*.5-Math.min(W*.57,500),ground);
+  ctx.lineTo(W*.5-40,horizon);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(W*.5+Math.min(W*.57,500),ground);
+  ctx.lineTo(W*.5+40,horizon);
+  ctx.stroke();
+
+  // lane dividers — dashed perspective lines
+  for(let l=0;l<2;l++){
+    const nearX=W*.5+(l-0.5)*Math.min(W*.19,160);
+    const farX=W*.5+(l-0.5)*18;
+    ctx.strokeStyle='#2d3f50';
+    ctx.lineWidth=2;
+    ctx.setLineDash([22,18]);
+    ctx.beginPath();
+    ctx.moveTo(nearX,ground);
+    ctx.lineTo(farX,horizon);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // floor tile grid for speed feel
+  const gridLines=8;
+  for(let g=0;g<gridLines;g++){
+    const depth=((g/gridLines)+((distance*0.0018)%( 1/gridLines)))%(1/gridLines)*gridLines;
+    const yy=horizon+(ground-horizon)*Math.pow(depth,1.2);
+    const spread=Math.min(W*.57,500)*depth;
+    ctx.strokeStyle=`rgba(35,55,75,${depth*.35})`;
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(W*.5-spread,yy);
+    ctx.lineTo(W*.5+spread,yy);
+    ctx.stroke();
+  }
+}
+
+function drawItem(it){
+  const {xx,yy,scale}=project(it.lane,it.depth);
+  if(it.type==='coin'){
+    const r=10*scale;
+    ctx.fillStyle='#ffd34d';
+    ctx.strokeStyle='#fff5a0';
+    ctx.lineWidth=1.5*scale;
+    ctx.beginPath();ctx.arc(xx,yy-r*2,r,0,Math.PI*2);
+    ctx.fill();ctx.stroke();
+    // shine
+    ctx.fillStyle='#ffffff88';
+    ctx.beginPath();ctx.arc(xx-r*.3,yy-r*2-r*.3,r*.3,0,Math.PI*2);
+    ctx.fill();
+  }else if(it.type==='barrier'){
+    const w=48*scale,h=26*scale;
+    ctx.fillStyle='#c23a40';
+    ctx.beginPath();ctx.roundRect(xx-w/2,yy-h,w,h,4*scale);ctx.fill();
+    ctx.fillStyle='#e04a52';
+    ctx.fillRect(xx-w/2+3*scale,yy-h+3*scale,w-6*scale,4*scale);
+    ctx.fillRect(xx-w/2+3*scale,yy-h*.5,w-6*scale,4*scale);
+    // posts
+    ctx.fillStyle='#8a2428';
+    ctx.fillRect(xx-w*.45,yy-h*1.4,4*scale,h*.45);
+    ctx.fillRect(xx+w*.3,yy-h*1.4,4*scale,h*.45);
+  }else{ // sign overhead
+    const w=50*scale,th=13*scale;
+    ctx.fillStyle='#244060';
+    ctx.strokeStyle='#3a6a99';
+    ctx.lineWidth=1.5*scale;
+    ctx.beginPath();ctx.roundRect(xx-w/2,yy-65*scale,w,th,3*scale);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#7ac0ff';
+    ctx.font=`bold ${9*scale}px monospace`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('DUCK',xx,yy-65*scale+th/2);
+    // support poles
+    ctx.strokeStyle='#2a4a60';
+    ctx.lineWidth=2*scale;
+    ctx.beginPath();ctx.moveTo(xx-w*.35,yy-65*scale+th);ctx.lineTo(xx-w*.35,yy-35*scale);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(xx+w*.35,yy-65*scale+th);ctx.lineTo(xx+w*.35,yy-35*scale);ctx.stroke();
+  }
+}
+
+function drawPlayer(){
+  const cx=laneX(laneSmooth);
+  const groundY=H*.91;
+  const baseY=groundY-18;
+  const py=baseY-y;
+
+  const tilt=(targetLane-laneSmooth)*.12;
+
+  ctx.save();
+  ctx.translate(cx,py);
+  ctx.rotate(tilt);
+
+  const isSliding=state==='slide';
+  const ph=isSliding?36:70;
+  const pw=50;
+  const bodyY=isSliding?-20:-42;
+
+  // shadow
+  const shadowAlpha=Math.max(0,.35-y*.003);
+  ctx.fillStyle=`rgba(0,0,0,${shadowAlpha})`;
+  ctx.beginPath();
+  ctx.ellipse(0,groundY-py+4,pw*.6,6,0,0,Math.PI*2);
+  ctx.fill();
+
+  // body
+  ctx.fillStyle='#39d98a';
+  ctx.beginPath();ctx.roundRect(-pw/2,bodyY,pw,ph,10);ctx.fill();
+
+  // visor
+  ctx.fillStyle='#c0ffe5';
+  ctx.beginPath();ctx.roundRect(-pw*.36,bodyY+6,pw*.72,16,5);ctx.fill();
+
+  // legs (not when sliding)
+  if(!isSliding){
+    ctx.fillStyle='#1d7a50';
+    const legBob=y>1?0:Math.sin(Date.now()*.01)*3;
+    ctx.fillRect(-pw*.36,bodyY+ph-4,pw*.28,12+legBob);
+    ctx.fillRect(pw*.08,bodyY+ph-4,pw*.28,12-legBob);
+  }
+
+  ctx.restore();
+}
+
+/* ── Collision ── */
+function collide(it){
+  if(it.depth<.78||it.depth>1.03)return false;
+  if(Math.round(it.lane)!==Math.round(laneSmooth))return false;
+  if(it.type==='coin'){
+    it.depth=-1; // consumed
+    score+=100*combo;
+    combo=Math.min(9,combo+1);
+    return false;
+  }
+  if(it.type==='barrier'&&y>42)return false;
+  if(it.type==='sign'&&state==='slide')return false;
+  return true;
+}
+
+/* ── Update ── */
+function update(dt){
+  time+=dt;
+  distance+=speed*dt/10;
+  speed=Math.min(820,420+distance*1.5);
+  spawnTimer-=dt;
+  if(spawnTimer<=0){
+    spawnItem();
+    spawnTimer=Math.max(.3,.92-distance/1600);
+  }
+
+  // smooth lane
+  laneSmooth+=(targetLane-laneSmooth)*Math.min(1,dt*11);
+
+  // jump
+  if((keys.has('w')||keys.has('arrowup'))&&y<1){vy=740;y=2;}
+
+  // slide — only active while key held
+  state=(keys.has('s')||keys.has('arrowdown'))?'slide':'run';
+
+  // gravity
+  vy-=1850*dt;
+  y=Math.max(0,y+vy*dt);
+  if(y===0)vy=0;
+
+  // items
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i];
+    it.depth-=dt*(speed/400);
+    if(it.depth<0){
+      items.splice(i,1);
+      continue;
+    }
+    if(collide(it)){
+      // hit obstacle — game over
+      running=false;
+      fd.textContent=Math.floor(distance);
+      fs.textContent=Math.floor(score);
+      best=Math.max(best,Math.floor(score));
+      localStorage.setItem('metro-rush-best',String(best));
+      fb.textContent=best;
+      overEl.style.display='grid';
+      return;
+    }
+  }
+
+  score+=Math.floor(dt*14*combo);
+  distEl.textContent=`${Math.floor(distance)} m`;
+  scoreEl.textContent=Math.floor(score);
+  comboEl.textContent=`x${combo}`;
+  bestEl.textContent=best;
+}
+
+function draw(){
+  ctx.fillStyle='#070b10';
+  ctx.fillRect(0,0,W,H);
+  drawTrack();
+  // items back-to-front (depth 1=far, 0=near)
+  const sorted=[...items].sort((a,b)=>b.depth-a.depth);
+  sorted.forEach(drawItem);
+  drawPlayer();
+}
+
+function loop(now){
+  if(!running)return;
+  const dt=Math.min(.034,(now-last)/1000);
+  last=now;
+  update(dt);
+  draw();
+  if(running)requestAnimationFrame(loop);
+}
+
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  keys.add(k);
+  if(k==='a'||k==='arrowleft')targetLane=Math.max(0,targetLane-1);
+  if(k==='d'||k==='arrowright')targetLane=Math.min(2,targetLane+1);
+  e.preventDefault();
+});
+addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+document.getElementById('play').onclick=reset;
+document.getElementById('again').onclick=reset;
+})();
 </script></body></html>
