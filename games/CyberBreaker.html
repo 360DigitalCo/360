@@ -195,7 +195,7 @@ $('tskip').onclick=()=>{ $('tut').style.display='none';startTimer() };
 
 /* ── GAME STATE ───────────────────────────────────── */
 let level=1,totalCredits=+localStorage.getItem('cb-credits')||0,solved=+localStorage.getItem('cb-solved')||0,streak=0;
-let nodes=[],edges=[],route=[],optimalHops=0;
+let nodes=[],edges=[],route=[],optimalHops=0,lvData=null;
 let timerSec=0,timerInt=null,running=false;
 
 /* ── LEVEL DEFINITIONS ─────────────────────────────
@@ -238,7 +238,8 @@ function build(){
   const svg=$('svg-layer');svg.innerHTML='';
   document.querySelectorAll('.node').forEach(n=>n.remove());
   route=[];running=false;
-  const {pts,adj,src,tgt,diff}=genLevel(level);
+  lvData=genLevel(level);
+  const {pts,adj,src,tgt,diff}=lvData;
   nodes=pts;edges=[];
   for(let i=0;i<nodes.length;i++)for(const j of adj[i])if(j>i)edges.push([i,j]);
 
@@ -266,7 +267,7 @@ function build(){
 
   // difficulty badge + label
   const bd=$('diff-badge');
-  bd.className='diff-badge diff-'+diff.slice(0,3);
+  bd.className='diff-badge diff-'+(diff==='easy'?'easy':diff==='medium'?'med':'hard');
   bd.textContent=diff.toUpperCase();
   $('ts-node').textContent=String(level).padStart(2,'0');
   $('btn-next').style.display='none';
@@ -280,7 +281,7 @@ function build(){
 
 /* ── PICK NODE ────────────────────────────────────── */
 function pick(i){
-  const src=genLevel(level).src,tgt=genLevel(level).tgt;
+  const {src,tgt,adj}=lvData;
   if(!route.length){
     if(i!==src){log('<span class="bad">[DENY]</span> Must start at SOURCE.');return}
     route=[src];
@@ -288,7 +289,6 @@ function pick(i){
   }else if(i===route.at(-1)){return}
   else if(route.length>=2&&i===route.at(-2)){route.pop()}
   else{
-    const adj=genLevel(level).adj;
     if(!adj[route.at(-1)].has(i)){log('<span class="bad">[DENY]</span> No direct link.');return}
     if(route.includes(i)){log('<span class="bad">[DENY]</span> Node already in route — backtrack first.');return}
     route.push(i);
@@ -304,7 +304,6 @@ function pick(i){
 /* ── RENDER BOARD STATE ───────────────────────────── */
 function renderBoard(){
   const svg=$('svg-layer');
-  const {adj}=genLevel(level);
   // nodes
   document.querySelectorAll('.node').forEach((btn,i)=>{
     const inRoute=route.includes(i);
@@ -325,12 +324,12 @@ function renderBoard(){
     line.classList.toggle('near',near);
   });
   $('hops').textContent=Math.max(0,route.length-1);
-  $('status-fill').style.width=Math.min(100,route.length/genLevel(level).nodeCount*100)+'%';
+  $('status-fill').style.width=Math.min(100,route.length/lvData.nodeCount*100)+'%';
   updateRouteDisplay();
 }
 
 function updateRouteDisplay(){
-  const {src,tgt}=genLevel(level);
+  const {src,tgt}=lvData;
   if(!route.length){$('route-display').innerHTML='<span style="opacity:.3;font-size:10px">no route yet</span>';return}
   const names=i=>i===src?'SRC':i===tgt?'GOAL':String(i).padStart(2,'0');
   $('route-display').innerHTML=route.map((n,i)=>`<span class="rb">${names(n)}</span>${i<route.length-1?'<span class="rb arrow">→</span>':''}`).join('');
@@ -344,7 +343,7 @@ function startTimer(){clearInterval(timerInt);timerSec=0;timerInt=setInterval(()
 
 /* ── VERIFY ───────────────────────────────────────── */
 $('btn-verify').onclick=()=>{
-  const {tgt}=genLevel(level);
+  const {tgt}=lvData;
   if(route.at(-1)!==tgt){log('<span class="bad">[VERIFY]</span> TARGET not reached.');return}
   clearInterval(timerInt);running=false;
   const hops=route.length-1;
