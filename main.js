@@ -1,5 +1,5 @@
 /* ============================================================
-   360 — MAIN.JS V.3.6.0
+   360 — MAIN.JS V.3.6.0 (M.3.6.2 beta)
       ____    __   ___  
      |___ \  / /  / _ \ 
        __) |/ /_ | | | |
@@ -9,7 +9,7 @@
    ============================================================ */
 
 //CHANGE THE FOLLOWING TO CHANGE ALL THE PAGE'S VERSION!!
-const version = "3.6.0";
+const version = "3.6.2";
 
 // Apply the site-wide bold font preference before the rest of the page initializes.
 // Load Electron game detector client when running inside the desktop app
