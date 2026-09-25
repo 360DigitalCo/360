@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Website Viewer</title>
+
+<style>
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.12);
+    --glass-bg-strong: rgba(255, 255, 255, 0.18);
+    --glass-border: rgba(255, 255, 255, 0.35);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --accent: #7c9dff;
+    --accent-strong: #5b7bff;
+    --danger: #ff6b7d;
+    --ok: #4ade80;
+    --text: #eef1f8;
+    --text-dim: rgba(238, 241, 248, 0.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 60px;
+    background:
+      radial-gradient(circle at 15% 10%, #4a5cff 0%, transparent 45%),
+      radial-gradient(circle at 85% 0%, #ff6ba8 0%, transparent 40%),
+      radial-gradient(circle at 50% 100%, #22d3ee 0%, transparent 45%),
+      linear-gradient(160deg, #0f1226, #1a1f3d 60%, #101425);
+    background-attachment: fixed;
+  }
+
+  h1 {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    margin: 0 0 4px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin: 0 0 24px;
+    text-align: center;
+  }
+
+  .glass-panel {
+    width: min(1200px, 90vw);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  input[type="text"] {
+    flex: 1 1 320px;
+    padding: 12px 16px;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  input[type="text"]::placeholder {
+    color: rgba(238, 241, 248, 0.45);
+  }
+
+  input[type="text"]:focus {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: var(--accent);
+  }
+
+  button {
+    padding: 12px 18px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    transition: background 0.2s, transform 0.05s;
+    white-space: nowrap;
+  }
+
+  button:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  button:active {
+    transform: scale(0.97);
+  }
+
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  button.primary:hover {
+    filter: brightness(1.08);
+  }
+
+  button.toggle-on {
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .note {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin: 12px 2px 0;
+    line-height: 1.5;
+  }
+
+  .frame-wrap {
+    width: min(1200px, 90vw);
+    aspect-ratio: 16 / 9;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(6px);
+    position: relative;
+  }
+
+  iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    display: block;
+  }
+
+  #sourceViewer {
+    display: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: auto;
+    background: rgba(15, 18, 38, 0.92);
+    color: #b9f5c8;
+    padding: 18px;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    white-space: pre;
+  }
+
+  #loadingOverlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 18, 38, 0.55);
+    backdrop-filter: blur(6px);
+    color: var(--text);
+    font-size: 14px;
+    gap: 10px;
+    flex-direction: column;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.25);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  #errorMessage {
+    color: var(--danger);
+    margin-top: 14px;
+    font-size: 13.5px;
+    min-height: 18px;
+  }
+
+  /* Badge now actually shows once a page is loaded — previously this had
+     visibility:hidden + display:none baked in, so no amount of JS could
+     ever make it appear. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--glass-border);
+    color: var(--text-dim);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex: 0 0 auto;
+  }
+
+  .badge.live .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .badge.error .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+</style>
+</head>
+
+<body>
+
+<h1>Website Viewer</h1>
+<p class="subtitle">Glass-styled proxy viewer &mdash; full HTML/CSS/JS + live WebSocket relay</p>
+
+<div class="glass-panel">
+  <div class="input-row">
+    <input
+      type="text"
+      id="urlInput"
+      placeholder="Enter website URL (http:// or https://)"
+    >
+    <button class="primary" onclick="loadWebsite()">Load Website</button>
+  </div>
+
+  <div class="toolbar">
+    <button id="viewToggleBtn" onclick="toggleViewMode()">Source View</button>
+    <button id="modeToggleBtn" onclick="toggleProxyMode()">Mode: Proxy</button>
+    <button onclick="toggleFullScreen()">Toggle Full Screen</button>
+    <button onclick="reloadCurrent()">Reload</button>
+    <span class="badge" id="currentUrlBadge"><span class="dot"></span><span id="badgeText">No page loaded</span></span>
+  </div>
+
+  <p class="note"><strong>Note:</strong> Every asset &mdash; scripts, stylesheets (including their own fonts/background images), images, and live WebSocket connections &mdash; is routed back through the Supabase proxy so pages render and behave close to the original site. In-page navigation (links, forms, SPA routing) is intercepted and re-proxied automatically, and the address bar above updates on every navigation, redirect, hash change, or SPA route change.</p>
+
+  <div id="errorMessage"></div>
+</div>
+
+<div class="frame-wrap">
+  <iframe
+    id="websiteFrame"
+    sandbox="allow-same-origin allow-scripts allow-forms allow-popups">
+  </iframe>
+  <pre id="sourceViewer"></pre>
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div>Loading page&hellip;</div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_PROXY =
+    "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/web-viewer";
+
+// Raw HTML as returned by the edge function (already rewritten for
+// assets/nav — that's what the iframe actually runs). Shown in Source View.
+let rawHtml = "";
+// The current resolved page URL, used for display + reload.
+let currentUrl = "";
+let sourceMode = false;
+let proxyMode = "proxy"; // "proxy" | "direct"
+
+function proxify(targetUrl) {
+    return SUPABASE_PROXY + "?url=" + encodeURIComponent(targetUrl) +
+        (proxyMode === "direct" ? "&mode=direct" : "");
+}
+
+function setLoading(isLoading) {
+    document.getElementById("loadingOverlay").style.display =
+        isLoading ? "flex" : "none";
+}
+
+function setBadge(text, state) {
+    const badge = document.getElementById("currentUrlBadge");
+    document.getElementById("badgeText").textContent = text;
+    badge.classList.remove("live", "error");
+    if (state) badge.classList.add(state);
+}
+
+function normalizeInputUrl(raw) {
+    let url = raw.trim();
+    if (!url) return "";
+    if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+    }
+    return url;
+}
+
+// This is the single place that keeps the address bar in sync — every
+// navigation path (initial load, in-page link clicks, SPA pushState,
+// hash changes, redirects, form submits, escape-hatch recovery) funnels
+// through setCurrentUrl so the input and badge never drift from what's
+// actually showing in the iframe.
+function setCurrentUrl(url) {
+    if (!url) return;
+    currentUrl = url;
+    document.getElementById("urlInput").value = currentUrl;
+    setBadge(currentUrl, "live");
+}
+
+async function fetchAndRender(url, method) {
+    setLoading(true);
+    document.getElementById("errorMessage").textContent = "";
+
+    try {
+        const response = await fetch(proxify(url), {
+            method: method === "post" ? "POST" : "GET",
+        });
+
+        if (!response.ok) {
+            throw new Error("Server responded with " + response.status);
+        }
+
+        const html = await response.text();
+
+        // The edge function already does all the rewriting (base tag,
+        // asset rewriting, nav interception, service worker neutralizing,
+        // live WebSocket relay) — the front end just renders what comes back.
+        rawHtml = html;
+        setCurrentUrl(response.headers.get("X-Final-Url") || url);
+
+        document.getElementById("websiteFrame").srcdoc = html;
+
+        if (sourceMode) {
+            document.getElementById("sourceViewer").textContent = rawHtml;
+        }
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("errorMessage").textContent =
+            "Failed to load site: " + err.message;
+        setBadge("Failed to load", "error");
+    } finally {
+        setLoading(false);
+    }
+}
+
+function loadWebsite() {
+    const url = normalizeInputUrl(document.getElementById("urlInput").value);
+    if (!url) {
+        alert("Enter a URL");
+        return;
+    }
+    fetchAndRender(url);
+}
+
+function reloadCurrent() {
+    if (!currentUrl) return;
+    fetchAndRender(currentUrl);
+}
+
+function toggleProxyMode() {
+    proxyMode = proxyMode === "proxy" ? "direct" : "proxy";
+    const btn = document.getElementById("modeToggleBtn");
+    btn.textContent = "Mode: " + (proxyMode === "proxy" ? "Proxy" : "Direct");
+    btn.classList.toggle("toggle-on", proxyMode === "direct");
+    if (currentUrl) fetchAndRender(currentUrl);
+}
+
+// The edge function's injected script postMessages navigation/meta/dialog
+// events back up to us instead of navigating the iframe directly — the
+// iframe is sandboxed and cross-origin, so it has no other way to reach
+// us. This listener is what actually closes the loop: without it,
+// clicking a link inside the proxied page asks us to navigate, and
+// nothing was listening.
+window.addEventListener("message", function(event) {
+    const data = event.data;
+    if (!data || typeof data !== "object") return;
+
+    switch (data.type) {
+        case "360-navigate":
+            fetchAndRender(data.url, data.method);
+            break;
+
+        case "360-meta":
+            // In-page SPA navigation (pushState/replaceState/hashchange) —
+            // just reflect the new URL, no re-fetch needed.
+            if (data.url) {
+                setCurrentUrl(data.url);
+            }
+            break;
+
+        case "360-alert":
+            alert(data.msg);
+            break;
+
+        case "360-confirm":
+            confirm(data.msg);
+            break;
+
+        case "360-prompt":
+            prompt(data.msg, data.def);
+            break;
+    }
+});
+
+function toggleViewMode() {
+    const iframe = document.getElementById("websiteFrame");
+    const sourceViewer = document.getElementById("sourceViewer");
+    const btn = document.getElementById("viewToggleBtn");
+
+    sourceMode = !sourceMode;
+
+    if (sourceMode) {
+        iframe.style.display = "none";
+        sourceViewer.textContent = rawHtml || "No page loaded.";
+        sourceViewer.style.display = "block";
+        btn.textContent = "Page View";
+    } else {
+        sourceViewer.style.display = "none";
+        iframe.style.display = "block";
+        btn.textContent = "Source View";
+    }
+}
+
+function toggleFullScreen() {
+    const target = sourceMode
+        ? document.getElementById("sourceViewer")
+        : document.getElementById("websiteFrame");
+
+    if (target.requestFullscreen) {
+        target.requestFullscreen();
+    } else if (target.webkitRequestFullscreen) {
+        target.webkitRequestFullscreen();
+    } else if (target.msRequestFullscreen) {
+        target.msRequestFullscreen();
+    }
+}
+
+document
+    .getElementById("urlInput")
+    .addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            loadWebsite();
+        }
+    });
+
+// ── Escape-hatch net ──
+// Some navigations never fire our click/submit listeners or postMessage
+// at all — most commonly a page doing `window.location.href = "..."`
+// directly, which can't be intercepted from JS the way assign()/replace()
+// can. When that happens the iframe just navigates itself straight to
+// the real, un-proxied URL: CSS breaks, forms 404, everything looks
+// "broken" even though our interceptor script never saw anything wrong.
+//
+// Since we render via srcdoc, our own content always lives at
+// "about:srcdoc". If the iframe's location is ever anything else, the
+// page escaped on its own — so we catch it here and re-route it back
+// through the proxy immediately (which also re-syncs the address bar).
+document.getElementById("websiteFrame").addEventListener("load", function() {
+    let frameHref;
+    try {
+        frameHref = this.contentWindow.location.href;
+    } catch (e) {
+        // Cross-origin access blocked — shouldn't happen with
+        // allow-same-origin + srcdoc, but bail safely if it does.
+        return;
+    }
+
+    if (frameHref && frameHref !== "about:srcdoc" && frameHref !== "about:blank") {
+        fetchAndRender(frameHref);
+    }
+});
+</script>
+
+</body>
+</html>
