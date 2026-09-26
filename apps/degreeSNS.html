@@ -1487,6 +1487,15 @@
         const url=new URL(location.href);
         const hash=new URLSearchParams(url.hash.startsWith("#")?url.hash.slice(1):"");
         const query=url.searchParams;
+        const code=query.get("code");
+        if(code){
+          const {data,error}=await sb.auth.exchangeCodeForSession(code);
+          if(error)throw error;
+          if(data?.session?.user){
+            history.replaceState({},document.title,url.pathname);
+            return true;
+          }
+        }
         const accessToken=hash.get("access_token") || query.get("access_token");
         const refreshToken=hash.get("refresh_token") || query.get("refresh_token");
         if(accessToken && refreshToken){
@@ -1502,7 +1511,8 @@
         if(tokenHash && (flowType==="email" || flowType==="signup" || flowType==="recovery")){
           const {data,error}=await sb.auth.verifyOtp({token_hash:tokenHash,type:flowType==="recovery"?"recovery":"email"});
           if(error)throw error;
-          if(data?.session?.user){
+          const session=data?.session || (await sb.auth.getSession()).data?.session;
+          if(session?.user){
             history.replaceState({},document.title,url.pathname);
             return true;
           }
