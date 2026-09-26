@@ -5,51 +5,95 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Aurora</title>
 <link rel="icon" href="../assets/images/AURORA.png">
-<meta name="theme-color" content="#d93a00">
+<meta name="theme-color" content="#d74310">
 <style>
 :root{
-  --accent:#d93a00;--accent-2:#e24a16;--accent-dark:#a92c00;
-  --bg:#f4f4f4;--panel:#fff;--panel-2:#fafafa;--line:#cfcfcf;
-  --text:#222;--muted:#6b6b6b;--link:#c43b00;--shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.08);
+  --accent:#d74310;--accent-hover:#ef5a20;--accent-dark:#a92b05;
+  --bg:#f3f3f3;--panel:#fff;--panel2:#fafafa;--line:#c8c8c8;--line2:#ddd;
+  --text:#222;--muted:#707070;--link:#c83c0b;--green:#4c7f3c;--danger:#9b1800;
+  --shadow:inset 0 1px 0 rgba(255,255,255,.96),0 1px 2px rgba(0,0,0,.09)
 }
-html.dark{--bg:#151515;--panel:#202020;--panel-2:#252525;--line:#3b3b3b;--text:#e6e6e6;--muted:#a4a4a4;--link:#ff7440;--shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 2px rgba(0,0,0,.35)}
+html.dark{
+  --bg:#141414;--panel:#202020;--panel2:#262626;--line:#464646;--line2:#363636;
+  --text:#ededed;--muted:#a9a9a9;--link:#ff8050;--green:#78a768;--danger:#ff7650;
+  --shadow:inset 0 1px 0 rgba(255,255,255,.035),0 1px 2px rgba(0,0,0,.45)
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;font-size:13px}
-a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:13px Arial,Helvetica,sans-serif}
 button,input,textarea,select{font:inherit}
 button{cursor:pointer}
-.topbar{height:46px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(0,0,0,.05);display:flex;align-items:center;gap:12px;padding:0 14px;position:sticky;top:0;z-index:50}
-.brand{font-size:24px;font-weight:700;letter-spacing:-1px;white-space:nowrap;margin-right:5px}.brand-a{color:var(--accent)}.brand-rest{color:var(--text)}
-.top-search{width:min(420px,34vw);height:28px;border:1px solid #bcbcbc;background:#fff;padding:4px 8px;border-radius:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
-html.dark .top-search{background:#111;color:#eee;border-color:#4d4d4d}
-.spacer{flex:1}.top-links{display:flex;gap:9px;align-items:center;white-space:nowrap}.top-links a{font-size:12px}.top-button,.classic-button{border:1px solid #aaa;border-radius:2px;background:linear-gradient(#fff,#e8e8e8);color:#333;padding:4px 9px;box-shadow:var(--shadow);font-weight:700}.top-button:active,.classic-button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
-html.dark .top-button,html.dark .classic-button{background:linear-gradient(#3a3a3a,#2a2a2a);color:#eee;border-color:#555}
-.layout{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:180px minmax(0,1fr) 280px;gap:10px;padding:10px}
-.sidebar,.rightbar{min-width:0}.side-box{background:var(--panel);border:1px solid var(--line);margin-bottom:10px;box-shadow:var(--shadow)}
-.side-title{background:linear-gradient(#f9f9f9,#e7e7e7);color:#555;border-bottom:1px solid var(--line);font-weight:700;padding:6px 8px;font-size:11px;text-transform:uppercase}.dark .side-title{color:#ddd}
-html.dark .side-title{background:linear-gradient(#313131,#252525)}
-.side-item{display:block;padding:7px 9px;border-bottom:1px solid rgba(0,0,0,.05);color:var(--text)}.side-item:last-child{border-bottom:0}.side-item.active{background:#eee;font-weight:700;color:var(--accent)}html.dark .side-item.active{background:#2d2d2d}
-.side-item:hover{background:var(--panel-2);text-decoration:none}.tiny{font-size:11px;color:var(--muted)}
-.main{min-width:0}.feed-head{border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);padding:7px 8px;margin-bottom:8px}.tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.tab{border:1px solid transparent;padding:4px 7px;font-weight:700;color:var(--muted)}.tab.active{color:var(--accent);border-color:var(--line);background:#f2f2f2;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}html.dark .tab.active{background:#2d2d2d}.feed-actions{display:flex;gap:6px;align-items:center;margin-top:7px}
-.post{display:grid;grid-template-columns:42px minmax(0,1fr);gap:6px;background:var(--panel);border:1px solid var(--line);margin-bottom:7px;box-shadow:var(--shadow);padding:7px 8px}.vote{display:flex;flex-direction:column;align-items:center;padding-top:1px;gap:3px}.vote svg{width:21px;height:21px;display:block;fill:none;stroke:#999;stroke-width:1.8}.vote-btn{border:0;background:transparent;padding:0;line-height:0}.vote-btn:hover svg{stroke:var(--accent)}.vote-btn.up.on svg{fill:var(--accent);stroke:var(--accent)}.vote-btn.down.on svg{fill:var(--accent-dark);stroke:var(--accent-dark)}.score{font-size:12px;font-weight:700;color:var(--muted)}.score.pos{color:var(--accent)}
-.post-title{font-size:16px;line-height:20px;font-weight:700;margin:0 0 3px}.post-title a{color:var(--text)}.post-title a:hover{color:var(--accent)}.post-meta{font-size:10px;color:var(--muted);margin-bottom:6px}.post-meta b{color:var(--link)}.post-body{font-size:13px;line-height:18px;white-space:pre-wrap;overflow-wrap:anywhere}.post-body.link-only{color:var(--muted)}.post-image{max-width:100%;max-height:430px;margin-top:8px;border:1px solid var(--line);display:block;background:#eee}.post-link-preview{display:block;border:1px solid var(--line);background:var(--panel-2);margin-top:8px;padding:7px}.post-link-preview strong{display:block;margin-bottom:2px}.post-tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:11px}.post-tools button,.post-tools a{border:0;background:none;padding:0;color:var(--muted);font-weight:700}.post-tools button:hover,.post-tools a:hover{color:var(--accent);text-decoration:none}.flair{display:inline-block;background:#eee;border:1px solid #ccc;color:#555;padding:1px 4px;font-size:10px;margin-right:5px}.nsfw,.spoiler{border:1px solid var(--accent);color:var(--accent);padding:1px 4px;font-size:10px;margin-left:3px}.empty{padding:35px;text-align:center;color:var(--muted);border:1px dashed var(--line);background:var(--panel)}
-.right-box{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);margin-bottom:10px}.right-inner{padding:8px}.join-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.08)}.join-row:last-child{border-bottom:0}.community-name{font-weight:700}.community-desc{font-size:11px;color:var(--muted);line-height:15px}.user-card{padding:9px}.user-card strong{font-size:14px}.compose{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);padding:7px;margin-bottom:8px}.compose-row{display:flex;gap:6px}.compose input{flex:1;border:1px solid #bbb;padding:6px;background:#fff}html.dark .compose input,html.dark textarea{background:#161616;color:#eee;border-color:#4b4b4b}.compose textarea{display:none;width:100%;min-height:75px;margin-top:6px;border:1px solid #bbb;padding:6px;background:#fff;resize:vertical}.compose.expanded textarea{display:block}.compose.expanded .compose-more{display:flex}.compose-more{display:none;gap:6px;margin-top:6px}
-.toast{position:fixed;right:14px;bottom:14px;background:#222;color:#fff;border:1px solid #111;padding:8px 11px;z-index:100;box-shadow:0 3px 12px rgba(0,0,0,.25);max-width:330px}.toast.error{background:#7d1900}
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding-top:70px;z-index:200}.modal-backdrop.open{display:flex}.modal{width:min(620px,94vw);background:var(--panel);border:1px solid #888;box-shadow:0 6px 30px rgba(0,0,0,.35)}.modal-head{padding:8px 10px;background:linear-gradient(#f9f9f9,#e5e5e5);border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between}.modal-body{padding:10px}.field{margin-bottom:8px}.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}.field input,.field textarea,.field select{width:100%;border:1px solid #aaa;background:#fff;padding:6px}html.dark .field input,html.dark .field textarea,html.dark .field select{background:#171717;color:#eee;border-color:#555}.modal-foot{padding:8px 10px;border-top:1px solid var(--line);display:flex;gap:6px;justify-content:flex-end}.close-btn{border:0;background:none;color:#777;font-size:18px;line-height:1}.comment{border-top:1px solid var(--line);padding:7px 0 0;margin-top:8px}.comment-head{font-size:10px;color:var(--muted)}.comment-body{line-height:17px;margin:4px 0}.comment-tools{font-size:10px}.comment-tools button{border:0;background:none;color:var(--muted);padding:0;margin-right:7px}.comment-vote svg{width:14px;height:14px;vertical-align:middle;stroke:currentColor;fill:none;stroke-width:1.8}.comment-vote:hover svg{stroke:var(--accent)}.comment-tools button:hover{color:var(--accent)}
-.footer{max-width:1320px;margin:0 auto;padding:16px 12px 28px;color:var(--muted);font-size:10px;text-align:center}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6b6b6b;margin-right:5px}.status-dot.online{background:#4b8a32}
-@media(max-width:1050px){.layout{grid-template-columns:155px minmax(0,1fr)}.rightbar{display:none}.top-search{width:min(330px,32vw)}}
-@media(max-width:720px){.topbar{height:auto;min-height:46px;flex-wrap:wrap;padding:7px}.top-search{order:3;width:100%}.layout{grid-template-columns:1fr;padding:6px}.sidebar{display:none}.post{grid-template-columns:34px minmax(0,1fr)}.brand{font-size:22px}.top-links a{display:none}}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+.hidden{display:none!important}
+.topbar{position:sticky;top:0;z-index:80;height:47px;display:flex;align-items:center;gap:10px;padding:0 13px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.brand{font-size:24px;font-weight:bold;letter-spacing:-1.2px;white-space:nowrap;margin-right:5px}
+.brand-a{color:var(--accent)}.brand-rest{color:var(--text)}
+.search-wrap{position:relative;width:min(460px,36vw)}
+#search{width:100%;height:29px;border:1px solid #aaa;border-radius:2px;background:#fff;color:#222;padding:5px 8px;box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+html.dark #search{background:#111;color:#eee;border-color:#585858}
+.top-spacer{flex:1}.top-links{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.top-link{font-size:11px;font-weight:bold;color:var(--muted);padding:4px}.top-link:hover{color:var(--accent);text-decoration:none}
+.classic{border:1px solid #a9a9a9;border-radius:2px;background:linear-gradient(#fff,#e5e5e5);color:#333;font-weight:bold;padding:5px 9px;box-shadow:var(--shadow);min-height:28px}
+.classic:hover{background:linear-gradient(#fff,#dedede)}
+.classic:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,.2)}
+.classic.accent{border-color:#a9360d;background:linear-gradient(#ee7141,var(--accent));color:#fff;text-shadow:0 1px rgba(0,0,0,.2)}
+html.dark .classic{background:linear-gradient(#404040,#2c2c2c);border-color:#5c5c5c;color:#eee}.classic.accent{background:linear-gradient(#d95b2b,#a9360d)}
+.layout{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:190px minmax(0,1fr) 290px;gap:10px;padding:10px}
+.side-box,.right-box,.feed-head,.post,.compose,.profile-card,.community-card{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+.side-box,.right-box,.profile-card,.community-card{margin-bottom:10px}
+.side-title{padding:6px 8px;font-size:10px;font-weight:bold;text-transform:uppercase;color:#606060;background:linear-gradient(#fafafa,#e8e8e8);border-bottom:1px solid var(--line)}
+html.dark .side-title{background:linear-gradient(#333,#292929);color:#ddd}
+.side-item{display:block;padding:7px 9px;color:var(--text);border-bottom:1px solid rgba(0,0,0,.05)}
+.side-item:last-child{border-bottom:0}.side-item:hover{background:var(--panel2);text-decoration:none}.side-item.active{font-weight:bold;color:var(--accent);background:#efefef}
+html.dark .side-item.active{background:#2c2c2c}
+.side-note{padding:8px;color:var(--muted);font-size:10px;line-height:14px}
+.main{min-width:0}.feed-head{padding:7px;margin-bottom:8px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}.tab{border:1px solid transparent;background:transparent;color:var(--muted);font-weight:bold;font-size:11px;padding:4px 7px}.tab:hover{color:var(--accent)}.tab.active{background:#eee;border-color:var(--line);color:var(--accent);box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+html.dark .tab.active{background:#2d2d2d}
+.feed-sub{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:6px;color:var(--muted);font-size:10px}
+.compose{padding:7px;margin-bottom:8px}.compose-row{display:flex;gap:6px}.compose input,.compose textarea{border:1px solid #aaa;background:#fff;color:#222;padding:6px;border-radius:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+html.dark .compose input,html.dark .compose textarea{background:#151515;color:#eee;border-color:#555}.compose input{flex:1}.compose textarea{display:none;width:100%;min-height:76px;margin-top:6px;resize:vertical}.compose.expanded textarea,.compose.expanded .compose-extra{display:block}.compose-extra{display:none;margin-top:6px}.compose-tools{display:flex;gap:6px;margin-top:6px}
+.post{display:grid;grid-template-columns:42px minmax(0,1fr);gap:6px;padding:7px 8px;margin-bottom:7px}.post:hover{border-color:#b8b8b8}.vote{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:1px}
+.vote-btn{border:0;background:transparent;padding:0;line-height:0;color:#989898}.vote-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;transition:transform .08s,stroke .12s,fill .12s}.vote-btn:hover{color:var(--accent)}.vote-btn:active svg{transform:scale(.88)}.vote-btn.up.on{color:var(--accent)}.vote-btn.down.on{color:var(--accent-dark)}.vote-btn.on svg{fill:currentColor}.score{font-size:12px;font-weight:bold;color:var(--muted)}.score.pos{color:var(--accent)}
+.post-title{font-size:16px;line-height:20px;font-weight:bold;margin:0 0 3px}.post-title a{color:var(--text)}.post-title a:hover{color:var(--accent)}
+.post-meta{font-size:10px;color:var(--muted);margin-bottom:6px;line-height:14px}.post-meta b{color:var(--link)}
+.badge{display:inline-block;border:1px solid #ccc;background:#eee;color:#5d5d5d;padding:1px 4px;font-size:9px;margin-right:4px}.nsfw,.spoiler{border-color:var(--accent);color:var(--accent);background:transparent}
+html.dark .badge{background:#2d2d2d;border-color:#515151;color:#cfcfcf}
+.post-body{font-size:13px;line-height:18px;white-space:pre-wrap;overflow-wrap:anywhere}.post-image{display:block;max-width:100%;max-height:500px;margin-top:8px;border:1px solid var(--line2);background:#eee}.post-link{display:block;margin-top:8px;padding:7px;border:1px solid var(--line2);background:var(--panel2);font-size:11px}
+.post-tools{display:flex;gap:11px;flex-wrap:wrap;margin-top:7px;font-size:10px}.post-tools button,.post-tools a{border:0;background:none;color:var(--muted);padding:0;font-weight:bold}.post-tools button:hover,.post-tools a:hover{color:var(--accent);text-decoration:none}
+.community-name{font-weight:bold}.community-desc{font-size:10px;line-height:14px;color:var(--muted)}.right-inner{padding:8px}.join-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line2)}.join-row:last-child{border-bottom:0}
+.statline{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--muted)}.statline b{color:var(--text)}
+.empty{padding:38px 20px;text-align:center;background:var(--panel);border:1px dashed var(--line);color:var(--muted)}
+.footer{max-width:1400px;margin:0 auto;padding:14px 12px 28px;color:var(--muted);font-size:10px;text-align:center}.footer a{color:var(--muted)}
+.toast-root{position:fixed;right:14px;bottom:14px;z-index:400;display:flex;flex-direction:column;gap:6px;align-items:flex-end}.toast{max-width:360px;background:#222;color:#fff;border:1px solid #111;padding:8px 11px;box-shadow:0 3px 12px rgba(0,0,0,.25);font-size:11px}.toast.error{background:#7f1a00}
+.backdrop{position:fixed;inset:0;z-index:300;display:none;align-items:flex-start;justify-content:center;padding:65px 12px 20px;background:rgba(0,0,0,.48)}.backdrop.open{display:flex}.modal{width:min(720px,96vw);max-height:calc(100vh - 85px);overflow:auto;background:var(--panel);border:1px solid #777;box-shadow:0 10px 35px rgba(0,0,0,.35)}
+.modal-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:linear-gradient(#fbfbfb,#e6e6e6);border-bottom:1px solid var(--line);font-weight:bold}.modal-head .close{border:0;background:transparent;color:#777;font-size:19px;line-height:1;padding:0 2px}.modal-head .close:hover{color:var(--accent)}
+html.dark .modal-head{background:linear-gradient(#363636,#292929)}
+.modal-body{padding:10px}.modal-foot{display:flex;justify-content:flex-end;gap:6px;padding:8px 10px;border-top:1px solid var(--line)}
+.field{margin-bottom:9px}.field label{display:block;font-size:10px;font-weight:bold;color:var(--muted);margin-bottom:3px;text-transform:uppercase}.field input,.field textarea,.field select{width:100%;border:1px solid #aaa;background:#fff;color:#222;padding:6px;border-radius:2px}.field textarea{resize:vertical}.field.inline{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hint{font-size:10px;color:var(--muted);line-height:14px}
+.auth-box{max-width:430px}.auth-message{min-height:16px;margin-top:6px;color:var(--muted);font-size:10px}.profile-head{display:flex;gap:12px;align-items:center;margin-bottom:10px}.avatar{width:58px;height:58px;border:1px solid var(--line);background:#eee;object-fit:cover}.avatar-fallback{width:58px;height:58px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#eee;color:#888;font-weight:bold;font-size:18px}.profile-name{font-size:18px;font-weight:bold}.profile-user{font-size:11px;color:var(--muted)}
+.comment{border-top:1px solid var(--line2);padding:7px 0 2px;margin-top:7px}.comment.depth-1{margin-left:19px}.comment.depth-2{margin-left:38px}.comment.depth-3{margin-left:57px}.comment-head{font-size:10px;color:var(--muted)}.comment-body{font-size:12px;line-height:17px;margin:4px 0}.comment-tools{display:flex;gap:9px;align-items:center}.comment-tools button{border:0;background:transparent;color:var(--muted);font-size:10px;font-weight:bold;padding:0}.comment-tools button:hover{color:var(--accent)}.comment-vote svg{width:14px;height:14px;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:1.8}.comment-vote.on{color:var(--accent)}.comment-vote.on svg{fill:currentColor}
+.community-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.community-card{padding:9px}.community-card h3{margin:0 0 3px;font-size:14px}.community-card p{margin:0 0 7px;color:var(--muted);font-size:11px;line-height:15px}
+.profile-posts{margin-top:10px}.mini-post{padding:7px 0;border-top:1px solid var(--line2)}.mini-post:first-child{border-top:0}.mini-post-title{font-weight:bold;color:var(--text)}
+.notice{padding:7px 8px;background:#fff6ef;border:1px solid #e9c1ad;color:#7c3012;font-size:10px;margin-bottom:8px}.notice.hidden{display:none!important}html.dark .notice{background:#3a2118;border-color:#68402e;color:#ffb08f}
+ .platform-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #d99b86;background:linear-gradient(#fff7f3,#f2ddd5);color:#923311;padding:2px 6px;font-size:9px;font-weight:bold;margin:2px 4px 2px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.platform-badge::before{content:"★";font-size:9px}.badge-strip{margin-top:8px}.link-box{border-top:1px solid var(--line2);margin-top:8px;padding-top:8px}.tiny-link{font-size:10px}.cross-description{font-size:10px;color:var(--muted);line-height:14px;margin-top:4px}
+@media(max-width:1080px){.layout{grid-template-columns:165px minmax(0,1fr)}.rightbar{display:none}.search-wrap{width:min(400px,38vw)}}
+@media(max-width:760px){.topbar{height:auto;min-height:47px;flex-wrap:wrap;padding:7px}.brand{font-size:22px}.search-wrap{order:3;width:100%}.top-link{display:none}.layout{grid-template-columns:1fr;padding:6px}.sidebar{display:none}.post{grid-template-columns:36px minmax(0,1fr)}.field.inline{grid-template-columns:1fr}.community-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="brand-a">A</span><span class="brand-rest">urora</span></div>
-  <input id="search" class="top-search" placeholder="search Aurora" autocomplete="off">
-  <div class="spacer"></div>
+  <div class="brand" aria-label="Aurora"><span class="brand-a">A</span><span class="brand-rest">urora</span></div>
+  <div class="search-wrap"><input id="search" autocomplete="off" placeholder="search communities, posts, people"></div>
+  <div class="top-spacer"></div>
   <div class="top-links">
-    <a href="#" data-view="home">home</a><a href="#" data-view="popular">popular</a><a href="#" data-view="new">new</a>
-    <button class="top-button" id="themeBtn">dark mode</button>
-    <button class="top-button" id="authBtn">sign in</button>
+    <a class="top-link" href="#" data-view="home">home</a>
+    <a class="top-link" href="#" data-view="popular">popular</a>
+    <a class="top-link" href="#" data-view="new">new</a>
+    <button class="classic" id="themeBtn" type="button">dark mode</button>
+    <button class="classic accent" id="authBtn" type="button">sign in</button>
   </div>
 </header>
 
@@ -60,6 +104,7 @@ html.dark .side-title{background:linear-gradient(#313131,#252525)}
       <a class="side-item active" href="#" data-view="home">home</a>
       <a class="side-item" href="#" data-view="popular">popular</a>
       <a class="side-item" href="#" data-view="new">new</a>
+      <a class="side-item" href="#" data-view="rising">rising</a>
       <a class="side-item" href="#" data-view="saved">saved</a>
       <a class="side-item" href="#" data-view="communities">communities</a>
     </div>
@@ -67,301 +112,507 @@ html.dark .side-title{background:linear-gradient(#313131,#252525)}
       <div class="side-title">account</div>
       <a class="side-item" href="#" id="profileLink">profile</a>
       <a class="side-item" href="#" id="settingsLink">settings</a>
+      <button class="side-item" id="createCommunityBtn" type="button" style="width:100%;text-align:left;border:0;background:transparent">create community</button>
     </div>
     <div class="side-box">
-      <div class="side-title">aurora</div>
-      <div class="side-item tiny">A classic discussion web, rebuilt on Supabase.</div>
+      <div class="side-title">about</div>
+      <div class="side-note">Aurora is a dense, classic discussion web with communities, threads, voting, profiles and old-web polish.</div>
     </div>
   </aside>
 
   <main class="main">
-    <div id="userCard" class="compose">
-      <div class="compose-row"><input id="quickTitle" placeholder="what's happening?" maxlength="240"><button class="classic-button" id="expandCompose">post</button></div>
-      <textarea id="quickBody" placeholder="body text (optional)"></textarea>
-      <div class="compose-more"><button class="classic-button" id="quickSubmit">submit post</button><button class="classic-button" id="quickCancel">cancel</button><span class="tiny" id="loginHint"></span></div>
-    </div>
-    <div class="feed-head">
-      <div class="tabs">
-        <button class="tab active" data-sort="hot">hot</button>
-        <button class="tab" data-sort="top">top</button>
-        <button class="tab" data-sort="new">new</button>
-        <button class="tab" data-sort="rising">rising</button>
+    <div id="notice" class="notice hidden"></div>
+    <section class="compose" id="compose">
+      <div class="compose-row">
+        <input id="quickTitle" maxlength="300" placeholder="start a discussion...">
+        <button class="classic" id="expandCompose" type="button">post</button>
       </div>
-      <div class="feed-actions"><button class="classic-button" id="createBtn">create post</button><button class="classic-button" id="communityBtn">new community</button><span class="tiny" id="feedStatus"></span></div>
-    </div>
+      <textarea id="quickBody" maxlength="5000" placeholder="add some context"></textarea>
+      <div class="compose-extra">
+        <div class="compose-tools"><button class="classic" id="quickSubmit" type="button">publish</button><button class="classic" id="quickCancel" type="button">cancel</button><span id="loginHint" class="hint" style="align-self:center"></span></div>
+      </div>
+    </section>
+
+    <section class="feed-head">
+      <div class="tabs" id="sortTabs">
+        <button class="tab active" data-sort="hot" type="button">hot</button>
+        <button class="tab" data-sort="new" type="button">new</button>
+        <button class="tab" data-sort="top" type="button">top</button>
+        <button class="tab" data-sort="rising" type="button">rising</button>
+      </div>
+      <div class="feed-sub"><span id="feedTitle">all communities</span><span id="feedStatus">loading...</span></div>
+    </section>
+
     <section id="feed"></section>
   </main>
 
   <aside class="rightbar">
     <div class="right-box">
-      <div class="side-title">about Aurora</div>
-      <div class="right-inner"><strong>Peak old-web discussion.</strong><p class="tiny">Communities, posts, votes, comments, saves, and profiles backed by Supabase.</p></div>
+      <div class="side-title">your account</div>
+      <div class="right-inner" id="accountPanel"></div>
     </div>
     <div class="right-box">
       <div class="side-title">communities</div>
       <div class="right-inner" id="communityList"></div>
     </div>
     <div class="right-box">
-      <div class="side-title">account</div>
-      <div class="right-inner" id="accountPanel"><span class="status-dot"></span>not signed in<br><span class="tiny">sign in to vote, post, comment, save, and join.</span></div>
+      <div class="side-title">quick links</div>
+      <div class="right-inner">
+        <button class="side-item" type="button" id="browseCommunitiesBtn" style="width:100%;text-align:left;border:0;background:transparent">browse communities</button>
+        <button class="side-item" type="button" id="createPostBtn" style="width:100%;text-align:left;border:0;background:transparent">advanced post</button>
+      </div>
     </div>
   </aside>
 </div>
 
-<div class="footer">Aurora · classic HTML web styling · powered by Supabase</div>
-<div id="toastRoot"></div>
+<footer class="footer">Aurora · classic discussion web · <a href="#" id="resetTheme">reset theme</a></footer>
 
-<div class="modal-backdrop" id="authModal"><div class="modal">
-  <div class="modal-head"><span id="authTitle">sign in</span><button class="close-btn" data-close="authModal">×</button></div>
+<div class="toast-root" id="toastRoot"></div>
+
+<div class="backdrop" id="authModal"><div class="modal auth-box">
+  <div class="modal-head"><span id="authTitle">sign in</span><button class="close" data-close="authModal" type="button">×</button></div>
   <div class="modal-body">
     <div class="field" id="usernameField"><label>username</label><input id="authUsername" maxlength="32" autocomplete="username"></div>
     <div class="field"><label>email</label><input id="authEmail" type="email" autocomplete="email"></div>
     <div class="field"><label>password</label><input id="authPassword" type="password" autocomplete="current-password"></div>
-    <div class="tiny" id="authMessage"></div>
+    <div id="authMessage" class="auth-message"></div>
   </div>
-  <div class="modal-foot"><button class="classic-button" id="switchAuth">create account</button><button class="classic-button" id="authSubmit">sign in</button></div>
+  <div class="modal-foot"><button class="classic" id="switchAuth" type="button">create account</button><button class="classic accent" id="authSubmit" type="button">sign in</button></div>
 </div></div>
 
-<div class="modal-backdrop" id="postModal"><div class="modal">
-  <div class="modal-head"><span>create post</span><button class="close-btn" data-close="postModal">×</button></div>
+<div class="backdrop" id="postModal"><div class="modal">
+  <div class="modal-head"><span>advanced post</span><button class="close" data-close="postModal" type="button">×</button></div>
   <div class="modal-body">
     <div class="field"><label>community</label><select id="postCommunity"></select></div>
     <div class="field"><label>title</label><input id="postTitle" maxlength="300"></div>
-    <div class="field"><label>body</label><textarea id="postBody" rows="7"></textarea></div>
-    <div class="field"><label>link URL (optional)</label><input id="postUrl" placeholder="https://"></div>
-    <div class="field"><label>image URL (optional)</label><input id="postImage" placeholder="https://"></div>
+    <div class="field"><label>body</label><textarea id="postBody" rows="8" maxlength="10000"></textarea></div>
+    <div class="field inline"><div><label>link url</label><input id="postUrl" type="url" placeholder="https://"></div><div><label>image url</label><input id="postImage" type="url" placeholder="https://"></div></div>
+    <div class="field inline"><div><label>flair</label><input id="postFlair" maxlength="40" placeholder="optional"></div><div><label>flags</label><select id="postFlag"><option value="normal">normal</option><option value="spoiler">spoiler</option><option value="nsfw">18+ / NSFW</option></select></div></div>
   </div>
-  <div class="modal-foot"><button class="classic-button" data-close="postModal">cancel</button><button class="classic-button" id="createPostSubmit">publish</button></div>
+  <div class="modal-foot"><button class="classic" data-close="postModal" type="button">cancel</button><button class="classic accent" id="createPostSubmit" type="button">publish</button></div>
 </div></div>
 
-<div class="modal-backdrop" id="communityModal"><div class="modal">
-  <div class="modal-head"><span>new community</span><button class="close-btn" data-close="communityModal">×</button></div>
+<div class="backdrop" id="communityModal"><div class="modal">
+  <div class="modal-head"><span>create community</span><button class="close" data-close="communityModal" type="button">×</button></div>
   <div class="modal-body">
-    <div class="field"><label>community name</label><input id="communityName" placeholder="for example technology"></div>
-    <div class="field"><label>title</label><input id="communityTitle"></div>
-    <div class="field"><label>description</label><textarea id="communityDesc" rows="4"></textarea></div>
+    <div class="field"><label>community name</label><input id="communityName" maxlength="32" placeholder="technology"></div>
+    <div class="field"><label>title</label><input id="communityTitle" maxlength="80"></div>
+    <div class="field"><label>description</label><textarea id="communityDesc" rows="4" maxlength="500"></textarea></div>
+    <div class="hint">Names become r/name and may contain letters, numbers and underscores.</div>
   </div>
-  <div class="modal-foot"><button class="classic-button" data-close="communityModal">cancel</button><button class="classic-button" id="createCommunitySubmit">create</button></div>
+  <div class="modal-foot"><button class="classic" data-close="communityModal" type="button">cancel</button><button class="classic accent" id="createCommunitySubmit" type="button">create</button></div>
 </div></div>
 
-<div class="modal-backdrop" id="commentsModal"><div class="modal">
-  <div class="modal-head"><span id="commentsTitle">comments</span><button class="close-btn" data-close="commentsModal">×</button></div>
-  <div class="modal-body"><div id="commentsList"></div><div class="field" style="margin-top:10px"><label>add a comment</label><textarea id="commentBody" rows="4" placeholder="say something..."></textarea></div></div>
-  <div class="modal-foot"><button class="classic-button" data-close="commentsModal">close</button><button class="classic-button" id="commentSubmit">reply</button></div>
+<div class="backdrop" id="commentsModal"><div class="modal">
+  <div class="modal-head"><span id="commentsTitle">comments</span><button class="close" data-close="commentsModal" type="button">×</button></div>
+  <div class="modal-body"><div id="commentsList"></div><div class="field" style="margin-top:11px"><label id="replyLabel">add a comment</label><textarea id="commentBody" rows="4" maxlength="5000" placeholder="say something useful..."></textarea></div></div>
+  <div class="modal-foot"><button class="classic" id="cancelReply" type="button">clear reply</button><button class="classic" data-close="commentsModal" type="button">close</button><button class="classic accent" id="commentSubmit" type="button">reply</button></div>
+</div></div>
+
+<div class="backdrop" id="profileModal"><div class="modal">
+  <div class="modal-head"><span id="profileTitle">profile</span><button class="close" data-close="profileModal" type="button">×</button></div>
+  <div class="modal-body" id="profileBody"></div>
+</div></div>
+
+<div class="backdrop" id="settingsModal"><div class="modal">
+  <div class="modal-head"><span>settings</span><button class="close" data-close="settingsModal" type="button">×</button></div>
+  <div class="modal-body">
+    <div class="field inline"><div><label>display name</label><input id="settingDisplayName" maxlength="60"></div><div><label>avatar url</label><input id="settingAvatar" type="url"></div></div>
+    <div class="field"><label>bio</label><textarea id="settingBio" rows="5" maxlength="500"></textarea></div>
+    <div class="field"><label>account</label><div class="hint" id="settingAccountInfo"></div></div>
+  </div>
+  <div class="modal-foot"><button class="classic" data-close="settingsModal" type="button">cancel</button><button class="classic accent" id="saveSettings" type="button">save</button></div>
+</div></div>
+
+<div class="backdrop" id="linkAccountsModal"><div class="modal auth-box">
+  <div class="modal-head"><span>link accounts</span><button class="close" data-close="linkAccountsModal" type="button">×</button></div>
+  <div class="modal-body">
+    <div class="field"><label>degree account</label><input id="degreeLinkUsername" disabled></div>
+    <div class="hint" id="linkAccountsStatus">This connects your Aurora and degreeSNS identities on this account.</div>
+    <div class="cross-description">Aurora badge: <b>Aurora's achievement is lying</b><br>degreeSNS badge: <b>degreeSNS's achievement is telling the truth</b></div>
+  </div>
+  <div class="modal-foot"><button class="classic" data-close="linkAccountsModal" type="button">cancel</button><button class="classic accent" id="linkAccountsSubmit" type="button">link degree account</button></div>
+</div></div>
+
+<div class="backdrop" id="communityBrowseModal"><div class="modal">
+  <div class="modal-head"><span>communities</span><button class="close" data-close="communityBrowseModal" type="button">×</button></div>
+  <div class="modal-body"><div id="communityGrid" class="community-grid"></div></div>
 </div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (() => {
-  const SUPABASE_URL = 'https://tojtsvnjbebdjxdtuhxq.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_9-80fso2pcykNvuWlCGJ3Q_JJeEJ2P5';
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  const state = { user:null, profile:null, communities:[], posts:[], votes:new Map(), saves:new Set(), sort:'hot', search:'', currentPost:null, authMode:'signin' };
+  'use strict';
+  const API_URL = 'https://tojtsvnjbebdjxdtuhxq.supabase.co';
+  const API_KEY = 'sb_publishable_9-80fso2pcykNvuWlCGJ3Q_JJeEJ2P5';
+  const client = window.supabase.createClient(API_URL, API_KEY);
+  const state = {user:null,profile:null,communities:[],joined:new Set(),posts:[],votes:new Map(),saves:new Set(),sort:'hot',search:'',communityFilter:null,currentPost:null,replyTo:null,authMode:'signin',linked:false,badges:[]};
   const $ = id => document.getElementById(id);
-  const escapeHTML = s => String(s ?? '').replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
-  const toast = (msg, error=false) => { const el=document.createElement('div'); el.className='toast'+(error?' error':''); el.textContent=msg; $('toastRoot').appendChild(el); setTimeout(()=>el.remove(),3200); };
-  const timeAgo = d => { const s=Math.max(1,Math.floor((Date.now()-new Date(d).getTime())/1000)); if(s<60)return s+'s ago'; const m=Math.floor(s/60); if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; const day=Math.floor(h/24); if(day<30)return day+'d ago'; return new Date(d).toLocaleDateString(); };
-  const svg = (type) => type === 'up' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4.5 12h4.8v8h5.4v-8h4.8z"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20 7.5-8h-4.8V4H9.3v8H4.5z"/></svg>';
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const toast = (message,error=false) => { const el=document.createElement('div'); el.className='toast'+(error?' error':''); el.textContent=message; $('toastRoot').appendChild(el); setTimeout(()=>el.remove(),3200); };
+  const ago = value => { const seconds=Math.max(1,Math.floor((Date.now()-new Date(value).getTime())/1000)); if(seconds<60)return seconds+'s'; const m=Math.floor(seconds/60); if(m<60)return m+'m'; const h=Math.floor(m/60); if(h<24)return h+'h'; const d=Math.floor(h/24); if(d<30)return d+'d'; return new Date(value).toLocaleDateString(); };
+  const voteSvg = type => type === 'up' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4.5 12h4.8v8h5.4v-8h4.8z"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20 7.5-8h-4.8V4H9.3v8H4.5z"/></svg>';
+  const profileInitial = name => esc((name || 'A').slice(0,1).toUpperCase());
+
+  function openModal(id){$(id).classList.add('open');}
+  function closeModal(id){$(id).classList.remove('open');}
+  function requireAuth(){if(!state.user){openAuth('signin');return false}return true}
+
+  function openAuth(mode='signin'){
+    state.authMode=mode;
+    const signup=mode==='signup';
+    $('authTitle').textContent=signup?'create account':'sign in';
+    $('usernameField').classList.toggle('hidden',!signup);
+    $('authSubmit').textContent=signup?'create account':'sign in';
+    $('switchAuth').textContent=signup?'back to sign in':'create account';
+    $('authPassword').autocomplete=signup?'new-password':'current-password';
+    $('authMessage').textContent='';
+    openModal('authModal');
+  }
 
   async function loadSession(){
-    const {data:{session}} = await db.auth.getSession();
-    state.user = session?.user || null;
-    await refreshProfile();
+    const {data:{session}}=await client.auth.getSession();
+    state.user=session?.user||null;
+    await loadProfile();
+    await loadJoined();
+    await loadCrossLink();
     updateAccountUI();
   }
-  async function refreshProfile(){
+
+  async function loadProfile(){
     state.profile=null;
-    if(!state.user) return;
-    const {data,error}=await db.from('aurora_profiles').select('*').eq('id',state.user.id).maybeSingle();
-    if(!error) state.profile=data;
+    if(!state.user)return;
+    const {data}=await client.from('aurora_profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('id',state.user.id).maybeSingle();
+    state.profile=data||null;
   }
+
+  async function loadJoined(){
+    state.joined.clear();
+    if(!state.user)return;
+    const {data}=await client.from('aurora_memberships').select('community_id').eq('user_id',state.user.id);
+    (data||[]).forEach(x=>state.joined.add(x.community_id));
+  }
+
+  function renderBadges(badges=state.badges){
+    if(!badges?.length) return '';
+    return '<div class="badge-strip">'+badges.map(b=>'<span class="platform-badge" title="'+esc(b.description)+'">'+esc(b.name)+'</span>').join('')+'</div>';
+  }
+
+  async function loadCrossLink(){
+    state.linked=false;state.badges=[];
+    if(!state.user)return;
+    const [linkRes,badgeRes]=await Promise.all([
+      client.from('platform_account_links').select('user_id,aurora_profile_id,degreesns_profile_id').eq('user_id',state.user.id).maybeSingle(),
+      client.from('aurora_badges').select('slug,name,description,created_at').eq('user_id',state.user.id).order('created_at',{ascending:true})
+    ]);
+    state.linked=!!linkRes.data;state.badges=badgeRes.data||[];
+  }
+
+  async function openLinkAccounts(){
+    if(!requireAuth())return;
+    const {data:degreeProfile}=await client.from('degreesns_profiles').select('username,display_name').eq('id',state.user.id).maybeSingle();
+    $('degreeLinkUsername').value=degreeProfile?.username?'@'+degreeProfile.username:'no degreeSNS account found';
+    $('linkAccountsStatus').textContent=state.linked?'Your Aurora and degreeSNS accounts are already linked.':degreeProfile?'Link the two accounts to unlock the cross-platform badges.':'Open degreeSNS and finish creating your account first.';
+    $('linkAccountsSubmit').textContent=state.linked?'linked':'link degree account';
+    $('linkAccountsSubmit').disabled=state.linked||!degreeProfile;
+    openModal('linkAccountsModal');
+  }
+
+  async function linkAccounts(){
+    if(!requireAuth()||state.linked)return;
+    $('linkAccountsSubmit').disabled=true;$('linkAccountsStatus').textContent='linking...';
+    const {error}=await client.rpc('link_aurora_and_degreesns');
+    if(error){$('linkAccountsSubmit').disabled=false;$('linkAccountsStatus').textContent=error.message||'Could not link accounts.';toast('could not link accounts',true);return}
+    await loadCrossLink();updateAccountUI();$('linkAccountsStatus').textContent='Accounts linked. Both badges are now active.';$('linkAccountsSubmit').textContent='linked';toast('accounts linked');
+  }
+
   function updateAccountUI(){
-    const signed=!!state.user;
-    $('authBtn').textContent = signed ? 'sign out' : 'sign in';
-    $('accountPanel').innerHTML = signed
-      ? '<span class="status-dot online"></span> signed in as <b>'+escapeHTML(state.profile?.username || state.user.email || 'user')+'</b><br><span class="tiny">'+escapeHTML(state.profile?.bio || 'ready to post and vote')+'</span>'
-      : '<span class="status-dot"></span>not signed in<br><span class="tiny">sign in to vote, post, comment, save, and join.</span>';
-    $('loginHint').textContent = signed ? 'posting as '+(state.profile?.username||'user') : 'sign in required';
+    if(state.user){
+      $('authBtn').textContent='sign out';
+      $('accountPanel').innerHTML='<div class="profile-head"><div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div><div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><div class="statline"><span>account <b>active</b></span><span>joined <b>'+esc(ago(state.profile?.created_at||new Date().toISOString()))+' ago</b></span></div>'+renderBadges()+'<div class="link-box"><button class="classic" id="linkDegreeBtn" type="button">'+(state.linked?'degree account linked':'link degree account')+'</button></div>';
+      $('loginHint').textContent='posting as '+(state.profile?.username||'user');
+    }else{
+      $('authBtn').textContent='sign in';
+      $('accountPanel').innerHTML='<div class="hint">not signed in</div><div class="hint" style="margin-top:5px">Sign in to vote, post, comment, save, join communities and edit your profile.</div>';
+      $('loginHint').textContent='sign in required';
+    }
   }
+
   async function loadCommunities(){
-    const {data,error}=await db.from('aurora_communities').select('*').order('name');
-    if(error){toast('could not load communities: '+error.message,true);return}
+    const {data,error}=await client.from('aurora_communities').select('id,name,title,description,created_by,created_at').order('name');
+    if(error){toast('could not load communities',true);return}
     state.communities=data||[];
-    $('communityList').innerHTML=state.communities.map(c=>'<div class="join-row"><div><div class="community-name">r/'+escapeHTML(c.name)+'</div><div class="community-desc">'+escapeHTML(c.description)+'</div></div><button class="classic-button" data-community="'+c.id+'">join</button></div>').join('') || '<div class="tiny">no communities yet.</div>';
-    $('communityList').querySelectorAll('[data-community]').forEach(b=>b.addEventListener('click',()=>joinCommunity(b.dataset.community)));
-    $('postCommunity').innerHTML=state.communities.map(c=>'<option value="'+c.id+'">r/'+escapeHTML(c.name)+'</option>').join('');
+    renderCommunitySidebar();
+    renderCommunityGrid();
+    $('postCommunity').innerHTML=state.communities.map(c=>'<option value="'+c.id+'">r/'+esc(c.name)+' — '+esc(c.title)+'</option>').join('');
   }
-  async function joinCommunity(id){
-    if(!state.user){openAuth();return}
-    const {error}=await db.from('aurora_memberships').upsert({user_id:state.user.id,community_id:id},{onConflict:'user_id,community_id'});
-    if(error) toast(error.message,true); else toast('joined community');
+
+  function renderCommunitySidebar(){
+    $('communityList').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="join-row"><div><div class="community-name"><a href="#" data-community-link="'+c.id+'">r/'+esc(c.name)+'</a></div><div class="community-desc">'+esc(c.description||c.title)+'</div></div><button class="classic" data-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="hint">no communities yet.</div>';
+    $('communityList').querySelectorAll('[data-join]').forEach(b=>b.addEventListener('click',()=>toggleJoin(b.dataset.join)));
+    $('communityList').querySelectorAll('[data-community-link]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();setCommunity(a.dataset.communityLink)}));
   }
-  function postQuery(){
-    let q=db.from('aurora_posts').select('id,community_id,author_id,title,body,url,image_url,flair,spoiler,nsfw,locked,score,comment_count,created_at');
-    q=q.order(state.sort==='new'?'created_at':'score',{ascending:false}).limit(60);
-    return q;
+
+  function renderCommunityGrid(){
+    $('communityGrid').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="community-card"><h3><a href="#" data-community-link="'+c.id+'">r/'+esc(c.name)+'</a></h3><p>'+esc(c.description||'No description.')+'</p><button class="classic '+(joined?'':'accent')+'" data-grid-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="empty">No communities yet.</div>';
+    $('communityGrid').querySelectorAll('[data-grid-join]').forEach(b=>b.addEventListener('click',()=>toggleJoin(b.dataset.gridJoin)));
+    $('communityGrid').querySelectorAll('[data-community-link]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();closeModal('communityBrowseModal');setCommunity(a.dataset.communityLink);}));
   }
+
+  async function toggleJoin(id){
+    if(!requireAuth())return;
+    if(state.joined.has(id)){
+      const {error}=await client.from('aurora_memberships').delete().match({user_id:state.user.id,community_id:id});
+      if(error){toast('could not leave community',true);return}
+      state.joined.delete(id);toast('left community');
+    }else{
+      const {error}=await client.from('aurora_memberships').upsert({user_id:state.user.id,community_id:id},{onConflict:'user_id,community_id'});
+      if(error){toast('could not join community',true);return}
+      state.joined.add(id);toast('joined community');
+    }
+    renderCommunitySidebar();renderCommunityGrid();
+  }
+
+  function setCommunity(id){
+    const c=state.communities.find(x=>x.id===id); if(!c)return;
+    state.communityFilter=id;$('feedTitle').textContent='r/'+c.name;
+    document.querySelectorAll('.side-item').forEach(x=>x.classList.remove('active'));
+    loadPosts();
+  }
+
+  function clearCommunity(){state.communityFilter=null;$('feedTitle').textContent='all communities';loadPosts();}
+
   async function loadPosts(){
-    $('feedStatus').textContent='loading…';
-    const {data,error}=await postQuery();
-    if(error){$('feedStatus').textContent=''; $('feed').innerHTML='<div class="empty">'+escapeHTML(error.message)+'</div>';return}
+    $('feedStatus').textContent='loading...';
+    let query=client.from('aurora_posts').select('id,community_id,author_id,title,body,url,image_url,flair,spoiler,nsfw,locked,score,comment_count,created_at,updated_at').limit(100);
+    if(state.communityFilter)query=query.eq('community_id',state.communityFilter);
+    if(state.sort==='new')query=query.order('created_at',{ascending:false}); else if(state.sort==='top')query=query.order('score',{ascending:false}); else query=query.order('created_at',{ascending:false});
+    const {data,error}=await query;
+    if(error){$('feedStatus').textContent='';$('feed').innerHTML='<div class="empty">Could not load the feed.</div>';return}
     let list=data||[];
     if(state.search.trim()){
-      const s=state.search.toLowerCase(); list=list.filter(p=>(p.title+' '+p.body+' '+(p.aurora_communities?.name||'')+' '+(p.aurora_profiles?.username||'')).toLowerCase().includes(s));
+      const needle=state.search.trim().toLowerCase();
+      const communityMap=new Map(state.communities.map(c=>[c.id,c]));
+      list=list.filter(p=>{
+        const c=communityMap.get(p.community_id);return (p.title+' '+p.body+' '+(c?.name||'')+' '+(c?.title||'')).toLowerCase().includes(needle);
+      });
     }
-    if(state.sort==='hot') list.sort((a,b)=>hotScore(b)-hotScore(a));
-    if(state.sort==='rising') list.sort((a,b)=>risingScore(b)-risingScore(a));
-    if(list.length){
-      const ids=[...new Set(list.map(p=>p.author_id))];
-      const {data:profiles}=await db.from('aurora_profiles').select('id,username,display_name').in('id',ids);
-      const pm=new Map((profiles||[]).map(x=>[x.id,x]));
-      const cm=new Map(state.communities.map(x=>[x.id,x]));
-      list=list.map(p=>({...p, aurora_profiles:pm.get(p.author_id)||null, aurora_communities:cm.get(p.community_id)||null}));
-    }
+    if(state.sort==='hot')list.sort((a,b)=>hotScore(b)-hotScore(a));
+    if(state.sort==='rising')list.sort((a,b)=>risingScore(b)-risingScore(a));
+    if(state.sort==='top')list.sort((a,b)=>b.score-a.score);
     state.posts=list;
-    await loadUserState();
+    await loadVoteAndSaveState();
+    await attachProfiles();
     renderFeed();
     $('feedStatus').textContent=list.length+' posts';
   }
-  const hotScore=p=>Math.log10(Math.max(1,Math.abs(p.score)+1))*2 + (Date.now()-new Date(p.created_at).getTime())/-(1000*60*60*36);
-  const risingScore=p=>(Math.max(0,p.score)+1)/Math.max(1,(Date.now()-new Date(p.created_at).getTime())/3600000);
-  async function loadUserState(){
-    state.votes.clear(); state.saves.clear();
-    if(!state.user || !state.posts.length) return;
+
+  function hotScore(p){const age=Math.max(.5,(Date.now()-new Date(p.created_at).getTime())/3600000);return (Math.max(0,p.score)+1)/Math.pow(age+2,.72)+Math.log10(Math.max(1,p.score+2));}
+  function risingScore(p){const age=Math.max(.25,(Date.now()-new Date(p.created_at).getTime())/3600000);return (Math.max(0,p.score)+1)/(age+.75);}
+
+  async function attachProfiles(){
+    if(!state.posts.length)return;
+    const ids=[...new Set(state.posts.map(p=>p.author_id))];
+    const {data}=await client.from('aurora_profiles').select('id,username,display_name,avatar_url').in('id',ids);
+    const map=new Map((data||[]).map(p=>[p.id,p]));
+    const communities=new Map(state.communities.map(c=>[c.id,c]));
+    state.posts=state.posts.map(p=>({...p,author:map.get(p.author_id)||null,community:communities.get(p.community_id)||null}));
+  }
+
+  async function loadVoteAndSaveState(){
+    state.votes.clear();state.saves.clear();
+    if(!state.user||!state.posts.length)return;
     const ids=state.posts.map(p=>p.id);
-    const [v,s]=await Promise.all([
-      db.from('aurora_post_votes').select('post_id,value').eq('user_id',state.user.id).in('post_id',ids),
-      db.from('aurora_saves').select('post_id').eq('user_id',state.user.id).in('post_id',ids)
+    const [votes,saves]=await Promise.all([
+      client.from('aurora_post_votes').select('post_id,value').eq('user_id',state.user.id).in('post_id',ids),
+      client.from('aurora_saves').select('post_id').eq('user_id',state.user.id).in('post_id',ids)
     ]);
-    (v.data||[]).forEach(x=>state.votes.set(x.post_id,x.value));
-    (s.data||[]).forEach(x=>state.saves.add(x.post_id));
+    (votes.data||[]).forEach(v=>state.votes.set(v.post_id,v.value));
+    (saves.data||[]).forEach(s=>state.saves.add(s.post_id));
   }
+
   function renderFeed(){
-    if(!state.posts.length){
-      $('feed').innerHTML='<div class="empty"><strong>nothing here yet.</strong><br><span class="tiny">Aurora is ready. Sign in and make the first post.</span></div>';
-      return;
-    }
-    $('feed').innerHTML=state.posts.map(p=>postHTML(p)).join('');
-    $('feed').querySelectorAll('[data-vote]').forEach(b=>b.addEventListener('click',()=>votePost(b.dataset.vote,b.dataset.value)));
-    $('feed').querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>savePost(b.dataset.save)));
-    $('feed').querySelectorAll('[data-comment]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();openComments(b.dataset.comment)}));
-    $('feed').querySelectorAll('[data-permalink]').forEach(b=>b.addEventListener('click',()=>{navigator.clipboard?.writeText(location.href.split('#')[0]+'#'+b.dataset.permalink).then(()=>toast('permalink copied')).catch(()=>toast('copy failed',true))}));
+    if(!state.posts.length){$('feed').innerHTML='<div class="empty">Nothing here yet.<br><span class="hint">Start a discussion or switch to another feed.</span></div>';return}
+    $('feed').innerHTML=state.posts.map(renderPost).join('');
+    wirePostButtons();
   }
-  function postHTML(p){
-    const vote=state.votes.get(p.id)||0, saved=state.saves.has(p.id);
-    const community= p.aurora_communities?.name || 'community';
-    const user= p.aurora_profiles?.username || 'user';
-    const media=p.image_url ? '<img class="post-image" src="'+escapeHTML(p.image_url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
-    const link=p.url ? '<a class="post-link-preview" href="'+escapeHTML(p.url)+'" target="_blank" rel="noopener noreferrer"><strong>open link</strong><span class="tiny">'+escapeHTML(p.url)+'</span></a>' : '';
-    const flags=(p.flair?'<span class="flair">'+escapeHTML(p.flair)+'</span>':'')+(p.spoiler?'<span class="spoiler">spoiler</span>':'')+(p.nsfw?'<span class="nsfw">nsfw</span>':'');
-    return '<article class="post"><div class="vote"><button class="vote-btn up '+(vote===1?'on':'')+'" data-vote="'+p.id+'" data-value="1" title="upvote">'+svg('up')+'</button><div class="score '+(p.score>0?'pos':'')+'">'+escapeHTML(p.score)+'</div><button class="vote-btn down '+(vote===-1?'on':'')+'" data-vote="'+p.id+'" data-value="-1" title="downvote">'+svg('down')+'</button></div><div><h2 class="post-title"><a href="#" data-comment="'+p.id+'">'+escapeHTML(p.title)+'</a></h2><div class="post-meta">'+flags+' r/'+escapeHTML(community)+' · posted by <b>u/'+escapeHTML(user)+'</b> · '+timeAgo(p.created_at)+'</div><div class="post-body">'+escapeHTML(p.body)+'</div>'+media+link+'<div class="post-tools"><button data-comment="'+p.id+'">'+p.comment_count+' comments</button><button data-save="'+p.id+'">'+(saved?'unsave':'save')+'</button><button data-permalink="'+p.id+'">permalink</button><span class="tiny">'+(p.locked?'locked':'')+'</span></div></div></article>';
+
+  function renderPost(p){
+    const vote=state.votes.get(p.id)||0;const saved=state.saves.has(p.id);const title=esc(p.title);const body=esc(p.body);const community=esc(p.community?.name||'community');const username=esc(p.author?.username||'user');
+    let flags=''; if(p.flair)flags+='<span class="badge">'+esc(p.flair)+'</span>'; if(p.spoiler)flags+='<span class="badge spoiler">spoiler</span>'; if(p.nsfw)flags+='<span class="badge nsfw">18+</span>';
+    return '<article class="post" data-post="'+p.id+'"><div class="vote"><button class="vote-btn up '+(vote===1?'on':'')+'" data-vote="1" aria-label="upvote" type="button">'+voteSvg('up')+'</button><div class="score '+(p.score>0?'pos':'')+'">'+p.score+'</div><button class="vote-btn down '+(vote===-1?'on':'')+'" data-vote="-1" aria-label="downvote" type="button">'+voteSvg('down')+'</button></div><div><h2 class="post-title"><a href="#" data-open-comments>'+title+'</a></h2><div class="post-meta">'+flags+'r/<b>'+community+'</b> · u/<b>'+username+'</b> · '+ago(p.created_at)+' ago'+(p.edited_at?' · edited':'')+'</div>'+(body?'<div class="post-body">'+body+'</div>':'')+(p.image_url?'<img class="post-image" loading="lazy" src="'+esc(p.image_url)+'" alt="">':'')+(p.url?'<a class="post-link" href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.url)+'</a>':'')+'<div class="post-tools"><button data-comments type="button">'+p.comment_count+' comment'+(p.comment_count===1?'':'s')+'</button><button data-save type="button">'+(saved?'unsave':'save')+'</button><button data-share type="button">share</button><button data-permalink type="button">permalink</button><button data-community-post type="button">r/'+community+'</button>'+(p.locked?'<span class="tiny">locked</span>':'')+'</div></div></article>';
   }
+
+  function wirePostButtons(){
+    document.querySelectorAll('[data-post]').forEach(card=>{
+      const id=card.dataset.post;
+      card.querySelectorAll('[data-vote]').forEach(btn=>btn.addEventListener('click',()=>votePost(id,Number(btn.dataset.vote))));
+      card.querySelector('[data-comments]').addEventListener('click',()=>openComments(id));
+      card.querySelector('[data-open-comments]').addEventListener('click',e=>{e.preventDefault();openComments(id)});
+      card.querySelector('[data-save]').addEventListener('click',()=>savePost(id));
+      card.querySelector('[data-share]').addEventListener('click',()=>sharePost(id));
+      card.querySelector('[data-permalink]').addEventListener('click',()=>permalink(id));
+      card.querySelector('[data-community-post]').addEventListener('click',()=>setCommunity(state.posts.find(p=>p.id===id)?.community_id));
+    });
+  }
+
   async function votePost(id,value){
-    if(!state.user){openAuth();return}
+    if(!requireAuth())return;
     const current=state.votes.get(id)||0;
     let result;
-    if(current===Number(value)) result=await db.from('aurora_post_votes').delete().match({post_id:id,user_id:state.user.id});
-    else result=await db.from('aurora_post_votes').upsert({post_id:id,user_id:state.user.id,value:Number(value)},{onConflict:'post_id,user_id'});
-    if(result.error){toast(result.error.message,true);return}
+    if(current===value)result=await client.from('aurora_post_votes').delete().match({post_id:id,user_id:state.user.id});
+    else result=await client.from('aurora_post_votes').upsert({post_id:id,user_id:state.user.id,value},{onConflict:'post_id,user_id'});
+    if(result.error){toast('vote failed',true);return}
     await loadPosts();
   }
+
   async function savePost(id){
-    if(!state.user){openAuth();return}
-    if(state.saves.has(id)){
-      const {error}=await db.from('aurora_saves').delete().match({post_id:id,user_id:state.user.id}); if(error) toast(error.message,true);
-    }else{
-      const {error}=await db.from('aurora_saves').insert({post_id:id,user_id:state.user.id}); if(error) toast(error.message,true);
-    }
+    if(!requireAuth())return;
+    let result;
+    if(state.saves.has(id))result=await client.from('aurora_saves').delete().match({post_id:id,user_id:state.user.id});
+    else result=await client.from('aurora_saves').insert({post_id:id,user_id:state.user.id});
+    if(result.error){toast('could not update saved posts',true);return}
+    toast(state.saves.has(id)?'removed from saved':'saved');
     await loadPosts();
   }
+
+  function sharePost(id){
+    const url=new URL(location.href);url.hash='post-'+id;
+    if(navigator.clipboard)navigator.clipboard.writeText(url.href).then(()=>toast('link copied')).catch(()=>toast(url.href)); else toast(url.href);
+  }
+  function permalink(id){location.hash='post-'+id;const card=document.querySelector('[data-post="'+id+'"]');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});}
+
   async function openComments(id){
-    state.currentPost=state.posts.find(p=>p.id===id)||null;
-    if(!state.currentPost) return;
-    $('commentsTitle').textContent='comments on: '+state.currentPost.title;
-    $('commentBody').value='';
-    $('commentsModal').classList.add('open');
-    const {data,error}=await db.from('aurora_comments').select('id,parent_id,body,score,author_id,created_at').eq('post_id',id).order('created_at',{ascending:true});
-    if(error){$('commentsList').innerHTML='<div class="tiny">'+escapeHTML(error.message)+'</div>';return}
-    const cids=[...new Set((data||[]).map(c=>c.author_id))];
-    const {data:commentProfiles}=cids.length?await db.from('aurora_profiles').select('id,username').in('id',cids):{data:[]};
-    const cpm=new Map((commentProfiles||[]).map(x=>[x.id,x]));
-    $('commentsList').innerHTML=(data||[]).map(c=>'<div class="comment"><div class="comment-head">u/'+escapeHTML(cpm.get(c.author_id)?.username||'user')+' · '+timeAgo(c.created_at)+' · score '+escapeHTML(c.score)+'</div><div class="comment-body">'+escapeHTML(c.body)+'</div><div class="comment-tools"><button data-cvote="'+c.id+'" data-value="1" class="comment-vote">'+svg('up')+'</button><button data-cvote="'+c.id+'" data-value="-1" class="comment-vote">'+svg('down')+'</button></div></div>').join('') || '<div class="tiny">no comments yet. start the thread.</div>';
+    const post=state.posts.find(p=>p.id===id);if(!post)return;
+    state.currentPost=post;state.replyTo=null;$('replyLabel').textContent='add a comment';$('commentBody').value='';$('commentsTitle').textContent='comments on: '+post.title;openModal('commentsModal');await loadComments();
+  }
+
+  async function loadComments(){
+    if(!state.currentPost)return;
+    const {data,error}=await client.from('aurora_comments').select('id,parent_id,body,score,author_id,created_at,updated_at').eq('post_id',state.currentPost.id).order('created_at',{ascending:true});
+    if(error){$('commentsList').innerHTML='<div class="empty">Could not load comments.</div>';return}
+    const ids=[...new Set((data||[]).map(c=>c.author_id))];const {data:profiles}=ids.length?await client.from('aurora_profiles').select('id,username,display_name').in('id',ids):{data:[]};const pm=new Map((profiles||[]).map(p=>[p.id,p]));
+    const votes=new Map();
+    if(state.user&&data?.length){const r=await client.from('aurora_comment_votes').select('comment_id,value').eq('user_id',state.user.id).in('comment_id',data.map(c=>c.id));(r.data||[]).forEach(v=>votes.set(v.comment_id,v.value));}
+    const byParent=new Map();(data||[]).forEach(c=>{const key=c.parent_id||'root';if(!byParent.has(key))byParent.set(key,[]);byParent.get(key).push(c);});
+    const renderTree=(parent,depth=0)=> (byParent.get(parent)||[]).map(c=>{const v=votes.get(c.id)||0;return '<div class="comment depth-'+Math.min(depth,3)+'"><div class="comment-head">u/<b>'+esc(pm.get(c.author_id)?.username||'user')+'</b> · '+ago(c.created_at)+' ago'+(c.updated_at!==c.created_at?' · edited':'')+' · score '+c.score+'</div><div class="comment-body">'+esc(c.body)+'</div><div class="comment-tools"><button class="comment-vote '+(v===1?'on':'')+'" data-cvote="'+c.id+'" data-value="1" type="button">'+voteSvg('up')+'</button><button class="comment-vote '+(v===-1?'on':'')+'" data-cvote="'+c.id+'" data-value="-1" type="button">'+voteSvg('down')+'</button><button data-reply="'+c.id+'" type="button">reply</button></div>'+renderTree(c.id,depth+1)+'</div>';}).join('');
+    $('commentsList').innerHTML=renderTree('root')||'<div class="hint">No comments yet. Start the thread.</div>';
     $('commentsList').querySelectorAll('[data-cvote]').forEach(b=>b.addEventListener('click',()=>voteComment(b.dataset.cvote,Number(b.dataset.value))));
+    $('commentsList').querySelectorAll('[data-reply]').forEach(b=>b.addEventListener('click',()=>setReply(b.dataset.reply,pm.get((data||[]).find(c=>c.id===b.dataset.reply)?.author_id)?.username)));
   }
+
+  function setReply(id,username){state.replyTo=id;$('replyLabel').textContent='replying to u/'+(username||'user');$('commentBody').focus();}
+  function clearReply(){state.replyTo=null;$('replyLabel').textContent='add a comment';$('commentBody').value='';}
+
   async function voteComment(id,value){
-    if(!state.user){openAuth();return}
-    const {data}=await db.from('aurora_comment_votes').select('value').match({comment_id:id,user_id:state.user.id}).maybeSingle();
-    const current=data?.value||0;
-    let r;
-    if(current===value) r=await db.from('aurora_comment_votes').delete().match({comment_id:id,user_id:state.user.id});
-    else r=await db.from('aurora_comment_votes').upsert({comment_id:id,user_id:state.user.id,value},{onConflict:'comment_id,user_id'});
-    if(r.error) toast(r.error.message,true); else openComments(state.currentPost.id);
+    if(!requireAuth())return;
+    const currentRow=await client.from('aurora_comment_votes').select('value').match({comment_id:id,user_id:state.user.id}).maybeSingle();const current=currentRow.data?.value||0;let result;
+    if(current===value)result=await client.from('aurora_comment_votes').delete().match({comment_id:id,user_id:state.user.id});
+    else result=await client.from('aurora_comment_votes').upsert({comment_id:id,user_id:state.user.id,value},{onConflict:'comment_id,user_id'});
+    if(result.error){toast('comment vote failed',true);return}await loadComments();
   }
-  async function createPostFromModal(){
-    if(!state.user){openAuth();return}
-    const row={community_id:$('postCommunity').value,author_id:state.user.id,title:$('postTitle').value.trim(),body:$('postBody').value.trim(),url:$('postUrl').value.trim()||null,image_url:$('postImage').value.trim()||null};
-    if(!row.community_id || !row.title){toast('community and title are required',true);return}
-    const {error}=await db.from('aurora_posts').insert(row);
-    if(error){toast(error.message,true);return}
-    $('postModal').classList.remove('open'); ['postTitle','postBody','postUrl','postImage'].forEach(id=>$(id).value=''); toast('post published'); await loadPosts();
+
+  async function submitComment(){
+    if(!requireAuth()||!state.currentPost)return;
+    if(state.currentPost.locked){toast('this thread is locked',true);return}
+    const body=$('commentBody').value.trim();if(!body){toast('write a comment first',true);return}
+    const row={post_id:state.currentPost.id,author_id:state.user.id,body,parent_id:state.replyTo||null};
+    const {error}=await client.from('aurora_comments').insert(row);if(error){toast('could not publish comment',true);return}
+    clearReply();toast('comment posted');await loadComments();await loadPosts();
   }
-  async function quickPost(){
-    if(!state.user){openAuth();return}
-    const title=$('quickTitle').value.trim(), body=$('quickBody').value.trim(); if(!title){toast('write a title first',true);return}
-    const c=state.communities[0]; if(!c){toast('create a community first',true);return}
-    const {error}=await db.from('aurora_posts').insert({community_id:c.id,author_id:state.user.id,title,body});
-    if(error){toast(error.message,true);return}
-    $('quickTitle').value='';$('quickBody').value='';document.querySelector('.compose').classList.remove('expanded');toast('post published');await loadPosts();
+
+  async function publishPost({advanced=false}={}){
+    if(!requireAuth())return;
+    const source=advanced?{community:$('postCommunity').value,title:$('postTitle').value.trim(),body:$('postBody').value.trim(),url:$('postUrl').value.trim(),image:$('postImage').value.trim(),flair:$('postFlair').value.trim(),flag:$('postFlag').value}:{community:state.communities[0]?.id,title:$('quickTitle').value.trim(),body:$('quickBody').value.trim(),url:'',image:'',flair:'',flag:'normal'};
+    if(!source.community||!source.title){toast('choose a community and write a title',true);return}
+    const row={community_id:source.community,author_id:state.user.id,title:source.title,body:source.body||'',url:source.url||null,image_url:source.image||null,flair:source.flair||null,spoiler:source.flag==='spoiler',nsfw:source.flag==='nsfw'};
+    const {error}=await client.from('aurora_posts').insert(row);if(error){toast('could not publish post',true);return}
+    if(advanced){['postTitle','postBody','postUrl','postImage','postFlair'].forEach(id=>$(id).value='');$('postFlag').value='normal';closeModal('postModal');}else{$('quickTitle').value='';$('quickBody').value='';$('compose').classList.remove('expanded');}
+    toast('post published');await loadPosts();
   }
+
   async function createCommunity(){
-    if(!state.user){openAuth();return}
-    let name=$('communityName').value.trim().replace(/^r\//,'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,32); const title=$('communityTitle').value.trim(); const description=$('communityDesc').value.trim();
-    if(name.length<2||!title){toast('name and title are required',true);return}
-    const {data,error}=await db.from('aurora_communities').insert({name,title,description,created_by:state.user.id}).select().single();
-    if(error){toast(error.message,true);return}
-    await db.from('aurora_memberships').insert({user_id:state.user.id,community_id:data.id});
-    $('communityModal').classList.remove('open'); $('communityName').value='';$('communityTitle').value='';$('communityDesc').value=''; toast('community created'); loadCommunities();
+    if(!requireAuth())return;
+    const name=$('communityName').value.trim().replace(/^r\//i,'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);const title=$('communityTitle').value.trim();const description=$('communityDesc').value.trim();
+    if(name.length<2||!title){toast('community name and title are required',true);return}
+    const {data,error}=await client.from('aurora_communities').insert({name,title,description,created_by:state.user.id}).select().single();
+    if(error){toast('could not create community',true);return}
+    await client.from('aurora_memberships').insert({user_id:state.user.id,community_id:data.id});state.joined.add(data.id);
+    ['communityName','communityTitle','communityDesc'].forEach(id=>$(id).value='');closeModal('communityModal');await loadCommunities();toast('community created');setCommunity(data.id);
   }
-  function openAuth(mode='signin'){state.authMode=mode;updateAuthModal();$('authModal').classList.add('open');}
-  function updateAuthModal(){
-    const signup=state.authMode==='signup'; $('authTitle').textContent=signup?'create account':'sign in'; $('usernameField').style.display=signup?'block':'none'; $('authSubmit').textContent=signup?'create account':'sign in'; $('switchAuth').textContent=signup?'back to sign in':'create account'; $('authMessage').textContent='';
+
+  async function openSaved(){
+    if(!requireAuth())return;
+    state.communityFilter=null;$('feedTitle').textContent='saved posts';$('feedStatus').textContent='loading...';
+    const {data,error}=await client.from('aurora_saves').select('post_id,created_at').eq('user_id',state.user.id).order('created_at',{ascending:false}).limit(100);
+    if(error||!data?.length){$('feed').innerHTML='<div class="empty">No saved posts yet.</div>';$('feedStatus').textContent='0 posts';return}
+    const ids=data.map(x=>x.post_id);const {data:posts}=await client.from('aurora_posts').select('id,community_id,author_id,title,body,url,image_url,flair,spoiler,nsfw,locked,score,comment_count,created_at,updated_at').in('id',ids);
+    state.posts=(posts||[]).sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));await attachProfiles();await loadVoteAndSaveState();renderFeed();$('feedStatus').textContent=state.posts.length+' posts';
   }
+
+  async function openProfile(){
+    if(!requireAuth())return;
+    const {data:posts}=await client.from('aurora_posts').select('id,title,score,comment_count,created_at,community_id').eq('author_id',state.user.id).order('created_at',{ascending:false}).limit(30);
+    const communities=new Map(state.communities.map(c=>[c.id,c]));
+    $('profileBody').innerHTML='<div class="profile-head">'+(state.profile?.avatar_url?'<img class="avatar" src="'+esc(state.profile.avatar_url)+'" alt="">':'<div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div>')+'<div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><p>'+esc(state.profile?.bio||'No bio yet.')+'</p><div class="statline"><span>posts <b>'+((posts||[]).length)+'</b></span><span>communities joined <b>'+state.joined.size+'</b></span><span>account <b>'+ago(state.profile?.created_at||new Date().toISOString())+' ago</b></span></div>'+renderBadges()+'<div class="profile-posts">'+((posts||[]).map(p=>'<div class="mini-post"><a class="mini-post-title" href="#" data-profile-post="'+p.id+'">'+esc(p.title)+'</a><div class="tiny">r/'+esc(communities.get(p.community_id)?.name||'community')+' · '+p.score+' score · '+p.comment_count+' comments · '+ago(p.created_at)+' ago</div></div>').join('')||'<div class="hint">No posts yet.</div>')+'</div>';
+    $('profileBody').querySelectorAll('[data-profile-post]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();closeModal('profileModal');openPostById(a.dataset.profilePost)}));
+    openModal('profileModal');
+  }
+
+  async function openPostById(id){
+    const {data}=await client.from('aurora_posts').select('id,community_id,author_id,title,body,url,image_url,flair,spoiler,nsfw,locked,score,comment_count,created_at,updated_at').eq('id',id).maybeSingle();
+    if(!data)return;state.posts=[data];await loadVoteAndSaveState();await attachProfiles();openComments(id);
+  }
+
+  function openSettings(){
+    if(!requireAuth())return;
+    $('settingDisplayName').value=state.profile?.display_name||'';$('settingAvatar').value=state.profile?.avatar_url||'';$('settingBio').value=state.profile?.bio||'';$('settingAccountInfo').textContent='u/'+(state.profile?.username||'user')+' · '+(state.user.email||'');openModal('settingsModal');
+  }
+
+  async function saveSettings(){
+    if(!requireAuth())return;
+    const patch={display_name:$('settingDisplayName').value.trim()||state.profile?.username||'user',avatar_url:$('settingAvatar').value.trim()||null,bio:$('settingBio').value.trim()||null,updated_at:new Date().toISOString()};
+    const {data,error}=await client.from('aurora_profiles').update(patch).eq('id',state.user.id).select().maybeSingle();
+    if(error){toast('could not save settings',true);return}
+    state.profile=data||{...state.profile,...patch};updateAccountUI();closeModal('settingsModal');toast('settings saved');
+  }
+
   async function authSubmit(){
-    $('authMessage').textContent='working…';
-    if(state.authMode==='signup'){
-      const username=$('authUsername').value.trim().replace(/[^A-Za-z0-9_]/g,'_').slice(0,32), email=$('authEmail').value.trim(), password=$('authPassword').value;
-      if(username.length<2||!email||password.length<6){$('authMessage').textContent='username, email, and a 6+ character password are required.';return}
-      const {error}=await db.auth.signUp({email,password,options:{data:{username,display_name:username}}});
-      if(error){$('authMessage').textContent=error.message;return}
-      $('authMessage').textContent='account created. check your email if confirmation is enabled.'; toast('account created');
-      return;
-    }
-    const {error}=await db.auth.signInWithPassword({email:$('authEmail').value.trim(),password:$('authPassword').value});
-    if(error){$('authMessage').textContent=error.message;return}
-    $('authModal').classList.remove('open'); await loadSession(); await loadPosts(); toast('signed in');
+    $('authMessage').textContent='working...';
+    const email=$('authEmail').value.trim(),password=$('authPassword').value;const signup=state.authMode==='signup';
+    if(!email||!password){$('authMessage').textContent='email and password are required.';return}
+    if(signup){const username=$('authUsername').value.trim().replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);if(username.length<2){$('authMessage').textContent='choose a username with at least 2 characters.';return}const {data,error}=await client.auth.signUp({email,password,options:{data:{username,display_name:username}}});if(error){$('authMessage').textContent=error.message;return}if(data.session){closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('account created');}else{$('authMessage').textContent='account created. check your email if confirmation is enabled.';}}
+    else{const {error}=await client.auth.signInWithPassword({email,password});if(error){$('authMessage').textContent=error.message;return}closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('signed in');}
   }
-  async function signOut(){await db.auth.signOut({scope:'local'});state.user=null;state.profile=null;updateAccountUI();await loadPosts();toast('signed out');}
-  function initEvents(){
-    document.querySelectorAll('[data-view]').forEach(x=>x.addEventListener('click',e=>{e.preventDefault();state.sort=x.dataset.view==='new'?'new':'hot';document.querySelectorAll('[data-view]').forEach(y=>y.classList.remove('active'));x.classList.add('active');loadPosts();}));
-    document.querySelectorAll('[data-sort]').forEach(x=>x.addEventListener('click',()=>{state.sort=x.dataset.sort;document.querySelectorAll('[data-sort]').forEach(y=>y.classList.toggle('active',y===x));loadPosts();}));
-    $('search').addEventListener('input',()=>{state.search=$('search').value;loadPosts()});
-    $('authBtn').addEventListener('click',()=>state.user?signOut():openAuth());
-    $('themeBtn').addEventListener('click',()=>{document.documentElement.classList.toggle('dark');$('themeBtn').textContent=document.documentElement.classList.contains('dark')?'light mode':'dark mode';localStorage.setItem('aurora-theme',document.documentElement.classList.contains('dark')?'dark':'light')});
-    $('expandCompose').addEventListener('click',()=>document.querySelector('.compose').classList.toggle('expanded'));
-    $('quickSubmit').addEventListener('click',quickPost);$('quickCancel').addEventListener('click',()=>document.querySelector('.compose').classList.remove('expanded'));
-    $('createBtn').addEventListener('click',()=>state.user?$('postModal').classList.add('open'):openAuth());$('communityBtn').addEventListener('click',()=>state.user?$('communityModal').classList.add('open'):openAuth());
-    $('createPostSubmit').addEventListener('click',createPostFromModal);$('createCommunitySubmit').addEventListener('click',createCommunity);$('commentSubmit').addEventListener('click',async()=>{if(!state.user){openAuth();return}const body=$('commentBody').value.trim();if(!body||!state.currentPost)return;const {error}=await db.from('aurora_comments').insert({post_id:state.currentPost.id,author_id:state.user.id,body});if(error)toast(error.message,true);else{$('commentBody').value='';await openComments(state.currentPost.id);await loadPosts();}});
-    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).classList.remove('open')));
-    $('switchAuth').addEventListener('click',()=>{state.authMode=state.authMode==='signin'?'signup':'signin';updateAuthModal()});$('authSubmit').addEventListener('click',authSubmit);
-    $('profileLink').addEventListener('click',e=>{e.preventDefault();toast(state.user?'profile editing is next on the roadmap':'sign in to view your profile')});$('settingsLink').addEventListener('click',e=>{e.preventDefault();toast('settings are coming with profile customization')});
+
+  async function signOut(){await client.auth.signOut({scope:'local'});state.user=null;state.profile=null;state.joined.clear();updateAccountUI();await loadPosts();toast('signed out');}
+
+  function setView(view){
+    document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
+    state.communityFilter=null;$('feedTitle').textContent=view==='home'?'all communities':view;
+    if(view==='saved')return openSaved();
+    if(view==='communities'){openModal('communityBrowseModal');renderCommunityGrid();return}
+    state.sort=view==='new'?'new':view==='rising'?'rising':view==='popular'?'top':'hot';
+    document.querySelectorAll('[data-sort]').forEach(x=>x.classList.toggle('active',x.dataset.sort===state.sort));loadPosts();
   }
-  async function boot(){
+
+  function init(){
     if(localStorage.getItem('aurora-theme')==='dark'){document.documentElement.classList.add('dark');$('themeBtn').textContent='light mode'}
-    initEvents();
-    await loadSession(); await loadCommunities(); await loadPosts();
-    db.auth.onAuthStateChange(async()=>{await loadSession();await loadPosts();});
+    document.querySelectorAll('[data-view]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();setView(el.dataset.view)}));
+    document.querySelectorAll('[data-sort]').forEach(el=>el.addEventListener('click',()=>{state.sort=el.dataset.sort;document.querySelectorAll('[data-sort]').forEach(x=>x.classList.toggle('active',x===el));loadPosts();}));
+    $('search').addEventListener('input',()=>{state.search=$('search').value;loadPosts()});
+    $('authBtn').addEventListener('click',()=>state.user?signOut():openAuth());$('accountPanel').addEventListener('click',e=>{if(e.target.closest('#linkDegreeBtn'))openLinkAccounts()});$('linkAccountsSubmit').addEventListener('click',linkAccounts);
+    $('themeBtn').addEventListener('click',()=>{document.documentElement.classList.toggle('dark');const dark=document.documentElement.classList.contains('dark');$('themeBtn').textContent=dark?'light mode':'dark mode';localStorage.setItem('aurora-theme',dark?'dark':'light')});
+    $('resetTheme').addEventListener('click',e=>{e.preventDefault();localStorage.removeItem('aurora-theme');document.documentElement.classList.remove('dark');$('themeBtn').textContent='dark mode';toast('theme reset')});
+    $('expandCompose').addEventListener('click',()=>{if(requireAuth()){$('compose').classList.toggle('expanded')}});$('quickSubmit').addEventListener('click',()=>publishPost());$('quickCancel').addEventListener('click',()=>{$('compose').classList.remove('expanded');$('quickTitle').value='';$('quickBody').value=''});
+    $('createPostBtn').addEventListener('click',()=>{if(requireAuth())openModal('postModal')});$('createCommunityBtn').addEventListener('click',()=>{if(requireAuth())openModal('communityModal')});$('browseCommunitiesBtn').addEventListener('click',()=>{renderCommunityGrid();openModal('communityBrowseModal')});
+    $('createPostSubmit').addEventListener('click',()=>publishPost({advanced:true}));$('createCommunitySubmit').addEventListener('click',createCommunity);$('commentSubmit').addEventListener('click',submitComment);$('cancelReply').addEventListener('click',clearReply);$('profileLink').addEventListener('click',e=>{e.preventDefault();openProfile()});$('settingsLink').addEventListener('click',e=>{e.preventDefault();openSettings()});
+    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
+    $('switchAuth').addEventListener('click',()=>openAuth(state.authMode==='signin'?'signup':'signin'));$('authSubmit').addEventListener('click',authSubmit);
+    client.auth.onAuthStateChange(async()=>{setTimeout(async()=>{await loadSession();await loadCommunities();await loadPosts()},0)});
   }
+
+  async function boot(){init();await loadSession();await loadCommunities();await loadPosts();}
   boot();
 })();
 </script>
