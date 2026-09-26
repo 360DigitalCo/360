@@ -641,8 +641,25 @@
     }
 
     async function loadProfile(){
-      const {data,error}=await sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at,theme,created_at,updated_at").eq("id",currentUserId()).single();
-      if(error)throw error; state.profile=data; renderUser(); restoreTheme(); if(data.theme==="dark")applyTheme("dark",false); else if(data.theme==="light")applyTheme("light",false); await refreshCounts();
+      const uid=currentUserId();
+      if(!uid)throw new Error("Your session is no longer active.");
+      let {data,error}=await sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at,theme,created_at,updated_at").eq("id",uid).maybeSingle();
+      if(error)throw error;
+      if(!data){
+        const meta=state.authUser?.user_metadata||{};
+        const base=String(meta.username||state.authUser?.email?.split("@")[0]||"user").replace(/[^A-Za-z0-9_]/g,"").slice(0,20)||"user";
+        let username=base.length>=3?base:`user_${uid.slice(0,8)}`;
+        if(username.length>24)username=username.slice(0,24);
+        let payload={id:uid,username,display_name:String(meta.display_name||username).slice(0,50)||username,bio:String(meta.bio||"").slice(0,160)};
+        let created=await sb.from("degreesns_profiles").insert(payload).select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at,theme,created_at,updated_at").single();
+        if(created.error && created.error.code==="23505"){
+          payload.username=`user_${uid.replace(/-/g,"").slice(0,16)}`;
+          created=await sb.from("degreesns_profiles").insert(payload).select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at,theme,created_at,updated_at").single();
+        }
+        if(created.error)throw created.error;
+        data=created.data;
+      }
+      state.profile=data; renderUser(); restoreTheme(); if(data.theme==="dark")applyTheme("dark",false); else if(data.theme==="light")applyTheme("light",false); await refreshCounts();
     }
 
     async function loadLists(){
@@ -878,10 +895,48 @@
 
     function renderSettings(){restoreTheme();}
 
-    async function showApp(){authScreen.classList.add("hidden");app.style.display="block";await loadProfile();renderRightAccount();await loadBookmarks();await loadLists();await loadConnect();await loadHome();await loadRightNews();await loadFollowState();await loadRightRail();await loadNotifications();subscribeSocial();await loadConversations();renderSettings();}
+    async function showApp(){
+      authScreen.classList.add("hidden");
+      app.style.display="none";
+      await loadProfile();
+      renderRightAccount();
+      app.style.display="block";
+      const tasks=[
+        ["bookmarks",loadBookmarks],
+        ["lists",loadLists],
+        ["connections",loadConnect],
+        ["timeline",loadHome],
+        ["news",loadRightNews],
+        ["follows",loadFollowState],
+        ["sidebar",loadRightRail],
+        ["notifications",loadNotifications],
+        ["conversations",loadConversations]
+      ];
+      for(const [name,fn] of tasks){
+        try{await fn();}
+        catch(e){console.warn(`degreeSNS ${name} bootstrap failed`,e);}
+      }
+      try{subscribeSocial();}catch(e){console.warn("degreeSNS realtime bootstrap failed",e);}
+      try{renderSettings();}catch(e){console.warn("degreeSNS settings bootstrap failed",e);}
+    }
     function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
 
-    async function signIn(e){e.preventDefault();$("loginError").classList.remove("show");try{const {data,error}=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});if(error)throw error;if(!data.session)throw new Error("No active session was returned.");notify("Signed in.");}catch(ex){$("loginError").textContent=ex.message||"Could not sign in.";$("loginError").classList.add("show");}}
+    async function signIn(e){
+      e.preventDefault();$("loginError").classList.remove("show");
+      try{
+        const {data,error}=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});
+        if(error)throw error;
+        if(!data.session||!data.user)throw new Error("No active session was returned.");
+        state.authUser=data.user;
+        await showApp();
+        notify("Signed in.");
+      }catch(ex){
+        console.error("degreeSNS sign-in",ex);
+        $("loginError").textContent=ex.message||"Could not sign in.";
+        $("loginError").classList.add("show");
+        try{if(!state.authUser)await sb.auth.signOut({scope:"local"});}catch{}
+      }
+    }
 
     async function signUp(e){e.preventDefault();$("signupError").classList.remove("show");const displayName=$("signupDisplayName").value.trim(),username=$("signupUsername").value.trim(),email=$("signupEmail").value.trim(),password=$("signupPassword").value,confirm=$("signupConfirm").value,bio=$("signupBio").value.trim();try{if(!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error("Username must be 3–24 letters, numbers, or underscores.");if(password!==confirm)throw new Error("Passwords do not match.");const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.href,data:{display_name:displayName,username,bio}}});if(error)throw error;if(data.session){notify("Account created.");}else{notify("Account created. Check your email to verify it, then sign in.");document.querySelector('[data-auth-view="login"]').click();$("loginEmail").value=email;}}catch(ex){$("signupError").textContent=ex.message||"Could not create your account.";$("signupError").classList.add("show");}}
 
@@ -1048,7 +1103,12 @@
       if(session?.user){state.authUser=session.user;try{await showApp();}catch(e){console.error(e);notify(e.message||"Could not load degreeSNS.");}}
       sb.auth.onAuthStateChange(async (event,session)=>{
         if(event==="PASSWORD_RECOVERY"){authScreen.classList.remove("hidden");app.style.display="none";$("loginView").classList.add("hidden");$("signupView").classList.add("hidden");$("resetView").classList.remove("hidden");return;}
-        if(session?.user){state.authUser=session.user;setTimeout(()=>showApp().catch(e=>notify(e.message||"Could not load degreeSNS.")),0);}else{state.authUser=null;state.profile=null;showAuth();}
+        if(session?.user){
+          state.authUser=session.user;
+          if(!app || app.style.display!=="block"){
+            setTimeout(()=>showApp().catch(e=>{console.error("degreeSNS auth restore",e);notify(e.message||"Could not load degreeSNS.");}),0);
+          }
+        }else{state.authUser=null;state.profile=null;showAuth();}
       });
     }
 
