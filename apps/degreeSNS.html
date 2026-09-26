@@ -138,10 +138,6 @@
     .composer-tool{height:28px;padding:0 8px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted);font-size:9px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
     .composer-tool:hover{color:var(--blue);border-color:rgba(29,161,242,.38)}
     .composer-tool svg{width:13px;height:13px}
-    .composer-attachment{margin-top:7px;display:none;position:relative;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt)}
-    .composer-attachment.show{display:block}
-    .composer-attachment img{display:block;width:100%;max-height:240px;object-fit:cover}
-    .composer-attachment button{position:absolute;top:5px;right:5px;width:24px;height:24px;border:1px solid rgba(0,0,0,.18);border-radius:50%;background:rgba(255,255,255,.92);color:#445;line-height:1;font-weight:700}
     .composer-link{display:none;margin-top:7px;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt)}
     .composer-link.show{display:grid;grid-template-columns:90px minmax(0,1fr)}
     .composer-link img{width:90px;height:78px;object-fit:cover;background:var(--page)}
@@ -204,9 +200,21 @@
     .poll-remove{width:32px;height:32px}
     .composer-chip{display:inline-flex;align-items:center;padding:5px 8px;margin:7px 6px 0 0;border:1px solid var(--border-dark);border-radius:4px;color:var(--muted);font-size:10px;background:var(--panel)}
     .composer-quote{display:none;margin-top:9px;border-left:3px solid var(--blue);padding:8px 10px;background:var(--panel-alt);font-size:11px}.composer-quote.show{display:block}
-    .media-preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.media-preview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:7px}.media-preview-item{position:relative;min-width:0}.media-preview-item img{display:block;width:100%;height:88px;object-fit:cover;border:1px solid var(--border);border-radius:4px;background:var(--page)}.media-preview-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;padding:0;border:1px solid rgba(0,0,0,.18);border-radius:50%;background:rgba(255,255,255,.94);color:#333;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.18)}.media-preview-remove:hover{background:#fff;color:var(--danger)}
+        .media-preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
     .media-preview-grid img{width:100%;height:82px;object-fit:cover;border-radius:4px;border:1px solid var(--border)}
-    .post-media-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:9px}
+    .media-preview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:7px}
+    .media-preview-item{position:relative;min-width:0}
+    .media-preview-item img{display:block;width:100%;height:88px;object-fit:cover;border:1px solid var(--border);border-radius:4px;background:var(--page)}
+    .media-preview-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;padding:0;border:1px solid rgba(0,0,0,.18);border-radius:50%;background:rgba(255,255,255,.94);color:#333;font-size:14px;line-height:20px;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+    .media-preview-remove:hover{background:#fff;color:var(--danger)}
+    .post-media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px}
+    .post-media-grid img{display:block;width:100%;height:min(320px,42vw);min-height:180px;object-fit:cover;border-radius:5px;border:1px solid var(--border)}
+    .roadmap-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px;max-width:100%;overflow:hidden}
+    .roadmap-gallery.one{grid-template-columns:1fr}
+    .roadmap-gallery img{display:block;width:100%;height:220px;object-fit:cover;border:1px solid var(--border);border-radius:5px;background:var(--page);min-width:0}
+    .roadmap-gallery.one img{height:min(420px,52vw);min-height:220px}
+
     .post-media-grid img{width:100%;max-height:320px;object-fit:cover;border-radius:5px;border:1px solid var(--border)}
     .post-gif{display:block;width:min(100%,420px);max-height:340px;object-fit:contain;margin-top:9px;border:1px solid var(--border);border-radius:5px;background:var(--page)}
     .poll-card{margin-top:9px;padding:10px;border:1px solid var(--border);border-radius:5px;background:var(--panel-alt)}
@@ -353,7 +361,6 @@
           <section id="homeView" class="view active">
             <div class="panel composer" id="composer">
               <div class="composer-main"><div class="composer-avatar"><div class="avatar-initial" id="composerAvatar"></div></div><textarea id="postText" maxlength="280" placeholder="What’s happening? Try :smile: :heart: :fire:"></textarea></div>
-              <div class="composer-attachment" id="composerAttachment"><img id="composerAttachmentImage" alt="Selected image"><button type="button" class="classic-button" id="removeComposerImage" aria-label="Remove image">×</button></div>
               <div class="composer-link" id="composerLinkPreview"><img id="composerLinkImage" alt=""><div class="composer-link-copy"><div class="composer-link-title" id="composerLinkTitle"></div><div class="composer-link-desc" id="composerLinkDesc"></div><div class="composer-link-site" id="composerLinkSite"></div></div></div>
               <div class="composer-tools">
                 <label class="composer-tool classic-button" title="Add image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="1"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m5 17 5-5 3 3 2-2 4 4"></path></svg><span>Photo</span><input id="postImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden></label>
@@ -1093,7 +1100,7 @@
     }
     function clearComposerImage(){
       if(state.composerImageObjectUrl)URL.revokeObjectURL(state.composerImageObjectUrl);
-      state.composerImageObjectUrl=null;state.composerImage=null;$('postImageFile').value='';$('composerAttachment').classList.remove('show');$('composerAttachmentImage').removeAttribute('src');
+      state.composerImageObjectUrl=null;state.composerImage=null;$('postImageFile').value='';$('composerAttachment')?.classList.remove('show');$('composerAttachmentImage')?.removeAttribute('src');
     }
     async function uploadPostImage(){
       const file=state.composerImage;if(!file)return null;
@@ -1186,7 +1193,6 @@
     $("forgotPassword").addEventListener("click",forgotPassword);
     $("signOut").addEventListener("click",signOut); $("settingsSignOut").addEventListener("click",signOut);
     $("postText").addEventListener("input",updateCounter); $("postText").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")publish()}); $("publishPost").addEventListener("click",publish);
-    $("postImageFile")?.addEventListener("change",e=>{const file=e.target.files?.[0];if(!file)return;if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>5242880){notify("Choose a PNG, JPG, WebP or GIF up to 5 MB.");e.target.value="";return;}clearComposerImage();state.composerImage=file;state.composerImageObjectUrl=URL.createObjectURL(file);$("composerAttachmentImage").src=state.composerImageObjectUrl;$("composerAttachment").classList.add("show");updateCounter();});
     $("removeComposerImage")?.addEventListener("click",clearComposerImage);
     $("insertEmojiHint")?.addEventListener("click",()=>{const ta=$("postText");ta.focus();const code=" :smile:";const start=ta.selectionStart??ta.value.length;ta.value=ta.value.slice(0,start)+code+ta.value.slice(ta.selectionEnd??start);ta.selectionStart=ta.selectionEnd=start+code.length;updateCounter();scheduleLinkPreview();});
     $("postText").addEventListener("input",scheduleLinkPreview);
@@ -1460,7 +1466,25 @@
 
     // Event wiring
     $("publishPost")?.addEventListener("click",e=>{e.preventDefault();e.stopImmediatePropagation();roadmapPublish();},true);
-    $("postImageFile")?.addEventListener("change",e=>{state.composerImages=[...(e.target.files||[])].slice(0,4).filter(f=>/^image\/(png|jpeg|webp|gif)$/.test(f.type)&&f.size<=5242880);state.composerImageUrls=state.composerImages.map(f=>URL.createObjectURL(f));$("composerMediaGrid").innerHTML=state.composerImageUrls.map(u=>`<img src="${esc(u)}" alt="Selected image">`).join("");});
+    $("postImageFile")?.addEventListener("change",e=>{
+      for(const url of (state.composerImageUrls||[]))try{URL.revokeObjectURL(url)}catch{}
+      const files=[...(e.target.files||[])].slice(0,4).filter(f=>/^image\/(png|jpeg|webp|gif)$/.test(f.type)&&f.size<=5242880);
+      state.composerImages=files;
+      state.composerImageUrls=files.map(f=>URL.createObjectURL(f));
+      $("composerMediaGrid").innerHTML=state.composerImageUrls.map((u,i)=>`<div class="media-preview-item"><img src="${esc(u)}" alt="Selected image ${i+1}" decoding="async"><button type="button" class="media-preview-remove classic-button" data-remove-composer-image="${i}" aria-label="Remove image">×</button></div>`).join("");
+      updateCounter();
+    });
+    $("composerMediaGrid")?.addEventListener("click",e=>{
+      const b=e.target.closest("[data-remove-composer-image]");
+      if(!b)return;
+      const i=Number(b.dataset.removeComposerImage);
+      try{URL.revokeObjectURL(state.composerImageUrls?.[i])}catch{}
+      state.composerImages.splice(i,1);
+      state.composerImageUrls.splice(i,1);
+      $("composerMediaGrid").innerHTML=state.composerImageUrls.map((u,n)=>`<div class="media-preview-item"><img src="${esc(u)}" alt="Selected image ${n+1}" decoding="async"><button type="button" class="media-preview-remove classic-button" data-remove-composer-image="${n}" aria-label="Remove image">×</button></div>`).join("");
+      $("postImageFile").value="";
+      updateCounter();
+    });
     $("composerPollBtn")?.addEventListener("click",()=>{$("composerAdvanced").classList.add("show");$("pollBuilder").classList.toggle("hidden");state.composerPoll=!$("pollBuilder").classList.contains("hidden");initPoll();});
     $("pollAddOption")?.addEventListener("click",()=>{if($("pollRows").children.length<4)addPollRow();});
     $("composerGifBtn")?.addEventListener("click",openGifPicker);
@@ -1521,11 +1545,19 @@
       return `<div class="quoted-post"><div class="field-help">Quoted post</div><button class="secondary classic-button" data-rm-open-post="${esc(qid)}">Open quoted post</button></div>`;
     }
     function roadmapGallery(post){
-      let arr=[...(post.media_items||[])];
-      if(!arr.length&&post.media_url)arr=[{media_url:post.media_url,alt_text:"Posted image"}];
+      const seen=new Set();
+      const arr=[];
+      for(const item of (post.media_items||[])){
+        const url=String(item?.media_url||"").trim();
+        if(!url||seen.has(url))continue;
+        seen.add(url);
+        arr.push({...item,media_url:url});
+      }
+      const legacy=String(post.media_url||"").trim();
+      if(legacy&&!seen.has(legacy)){seen.add(legacy);arr.unshift({media_url:legacy,alt_text:"Posted image"});}
       if(!arr.length)return "";
       const cls=arr.length===1?"one":"";
-      return `<div class="roadmap-gallery ${cls}">${arr.slice(0,4).map(m=>`<img src="${esc(m.media_url)}" alt="${esc(m.alt_text||"Posted image")}" loading="${localStorage.getItem(CUSTOM_KEY)?.includes("mediaAutoplayToggle")?"lazy":"lazy"}">`).join("")}</div>`;
+      return `<div class="roadmap-gallery ${cls}">${arr.slice(0,4).map(m=>`<img src="${esc(m.media_url)}" alt="${esc(m.alt_text||"Posted image")}" loading="lazy" decoding="async">`).join("")}</div>`;
     }
     function roadmapPollMarkup(post){
       const p=post.poll;if(!p)return "";let opts=[];try{opts=Array.isArray(p.options)?p.options:JSON.parse(p.options||"[]")}catch(_){return "";}
