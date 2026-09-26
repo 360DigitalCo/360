@@ -578,6 +578,8 @@
     let openConversation = null;
     let openConversationByFriend = null;
     let sendMessage = null;
+    let loadMessages = null;
+    let renderMessages = null;
 
     const state = {
       authUser: null,
@@ -612,7 +614,8 @@
       socialChannel: null,
       feedChannel: null,
       notificationChannel: null,
-      busy: false
+      busy: false,
+      appBootPromise: null
     };
 
     const $ = id => document.getElementById(id);
@@ -1010,12 +1013,15 @@
     function renderSettings(){restoreTheme();}
 
     async function showApp(){
-      authScreen.classList.add("hidden");
-      app.style.display="none";
-      await loadProfile();
-      renderRightAccount();
-      app.style.display="block";
-      const tasks=[
+      if(!currentUserId()) throw new Error("Your session is no longer active.");
+      if(state.appBootPromise) return state.appBootPromise;
+      state.appBootPromise=(async()=>{
+        app.style.display="none";
+        await loadProfile();
+        renderRightAccount();
+        authScreen.classList.add("hidden");
+        app.style.display="block";
+        const tasks=[
         ["bookmarks",loadBookmarks],
         ["lists",loadLists],
         ["connections",loadConnect],
@@ -1031,8 +1037,10 @@
         try{await fn();}
         catch(e){console.warn(`degreeSNS ${name} bootstrap failed`,e);}
       }
-      try{subscribeSocial();}catch(e){console.warn("degreeSNS realtime bootstrap failed",e);}
-      try{renderSettings();}catch(e){console.warn("degreeSNS settings bootstrap failed",e);}
+        try{subscribeSocial();}catch(e){console.warn("degreeSNS realtime bootstrap failed",e);}
+        try{renderSettings();}catch(e){console.warn("degreeSNS settings bootstrap failed",e);}
+      })();
+      try{return await state.appBootPromise;}finally{state.appBootPromise=null;}
     }
     function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.chatMessageChannel){sb.removeChannel(state.chatMessageChannel);state.chatMessageChannel=null;}if(state.chatPresenceChannel){sb.removeChannel(state.chatPresenceChannel);state.chatPresenceChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}state.activeConversation=null;state.messages=[];document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
 
@@ -1061,7 +1069,6 @@
         console.error("degreeSNS sign-in",ex);
         $("loginError").textContent=ex.message||"Could not sign in.";
         $("loginError").classList.add("show");
-        try{if(!state.authUser)await sb.auth.signOut({scope:"local"});}catch{}
       }
     }
 
@@ -1234,7 +1241,9 @@
           if(!app || app.style.display!=="block"){
             setTimeout(()=>showApp().catch(e=>{console.error("degreeSNS auth restore",e);notify(e.message||"Could not load degreeSNS.");}),0);
           }
-        }else{state.authUser=null;state.profile=null;showAuth();}
+        }else if(event==="SIGNED_OUT" || (event==="INITIAL_SESSION" && !state.authUser)){
+          state.authUser=null;state.profile=null;state.appBootPromise=null;showAuth();
+        }
       });
     }
 
@@ -1394,9 +1403,9 @@
       const body=$("postText").value.trim(),preview=state.composerLinkPreview,cw=$("contentWarningInput")?.value.trim()||null;
       if(!body&&!state.composerImages.length&&!state.composerGifUrl&&!state.composerPoll){notify("Write something or attach media.");return;}
       if(body.length>280){notify("Posts are limited to 280 characters.");return;}
-      try{$("publishPost").disabled=true;const urls=await uploadRoadmapImages();const ins=await sb.from("degreesns_posts").insert({user_id:currentUserId(),body:body||" ",media_url:urls[0]||null,media_type:state.composerImages[0]?.type||null,link_url:preview?.url||extractFirstUrl(body)||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null,link_site:preview?.site||null,quote_post_id:state.composerQuoteId||null,sensitive_media:!!state.composerSensitive,content_warning:cw,gif_url:state.composerGifUrl||null,gif_provider:state.composerGifUrl?"giphy":null,gif_id:state.composerGifId||null}).select("id").single();if(ins.error)throw ins.error;
-        if(urls.length){const mr=await sb.from("degreesns_post_media").insert(urls.map((u,i)=>({post_id:ins.data.id,user_id:currentUserId(),media_url:u,media_type:state.composerImages[i].type,position:i})));if(mr.error)throw mr.error;}
-        if(state.composerPoll){const options=[...$("pollRows").querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);if(options.length<2)throw new Error("A poll needs at least two options.");const pr=await sb.from("degreesns_polls").insert({post_id:ins.data.id,question:body||"Poll",options,closes_at:new Date(Date.now()+Number($("pollDuration").value||24)*3600000).toISOString(),multiple_choices:$("pollMultiple").checked});if(pr.error)throw pr.error;}
+      try{$("publishPost").disabled=true;const urls=await uploadRoadmapImages();const postId=crypto.randomUUID();const ins=await sb.from("degreesns_posts").insert({id:postId,user_id:currentUserId(),body:body||" ",media_url:urls[0]||null,media_type:state.composerImages[0]?.type||null,link_url:preview?.url||extractFirstUrl(body)||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null,link_site:preview?.site||null,quote_post_id:state.composerQuoteId||null,sensitive_media:!!state.composerSensitive,content_warning:cw,gif_url:state.composerGifUrl||null,gif_provider:state.composerGifUrl?"giphy":null,gif_id:state.composerGifId||null});if(ins.error)throw ins.error;
+        if(urls.length){const mr=await sb.from("degreesns_post_media").insert(urls.map((u,i)=>({post_id:postId,user_id:currentUserId(),media_url:u,media_type:state.composerImages[i].type,position:i})));if(mr.error)throw mr.error;}
+        if(state.composerPoll){const options=[...$("pollRows").querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);if(options.length<2)throw new Error("A poll needs at least two options.");const pr=await sb.from("degreesns_polls").insert({post_id:postId,question:body||"Poll",options,closes_at:new Date(Date.now()+Number($("pollDuration").value||24)*3600000).toISOString(),multiple_choices:$("pollMultiple").checked});if(pr.error)throw pr.error;}
         if(state.composerDraftId)await sb.from("degreesns_drafts").delete().eq("id",state.composerDraftId).eq("user_id",currentUserId());
         $("postText").value="";state.composerImages=[];state.composerImageUrls=[];state.composerQuoteId=null;state.composerPoll=false;state.composerSensitive=false;state.composerGifUrl=null;state.composerGifId=null;state.composerDraftId=null;$("composerMediaGrid").innerHTML="";$("composerQuote").classList.remove("show");$("composerAdvanced").classList.remove("show");$("pollBuilder").classList.add("hidden");$("cwBuilder").classList.add("hidden");$("contentWarningInput").value="";updateCounter();notify("Post published.");await roadmapLoadHome(true);await refreshCounts();
       }catch(e){notify(e.message||"Could not publish the post.");}finally{$("publishPost").disabled=false;}
@@ -1962,9 +1971,9 @@
       const body=$("postText").value.trim(),preview=state.composerLinkPreview,cw=$("contentWarningInput")?.value.trim()||null;
       if(!body&&!state.composerImages.length&&!state.composerGifUrl&&!state.composerPoll){notify("Write something or attach media.");return;}
       if(body.length>280){notify("Posts are limited to 280 characters.");return;}
-      try{$("publishPost").disabled=true;const urls=await uploadRoadmapImages();const ins=await sb.from("degreesns_posts").insert({user_id:currentUserId(),body:body||" ",media_url:urls[0]||null,media_type:state.composerImages[0]?.type||null,link_url:preview?.url||extractFirstUrl(body)||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null,link_site:preview?.site||null,quote_post_id:state.composerQuoteId||null,news_id:state.composerNewsId||null,sensitive_media:!!state.composerSensitive,content_warning:cw,protected:!!state.composerProtected,gif_url:state.composerGifUrl||null,gif_provider:state.composerGifUrl?"giphy":null,gif_id:state.composerGifId||null}).select("id").single();if(ins.error)throw ins.error;
-        if(urls.length){const mr=await sb.from("degreesns_post_media").insert(urls.map((u,i)=>({post_id:ins.data.id,user_id:currentUserId(),media_url:u,media_type:state.composerImages[i].type,position:i})));if(mr.error)throw mr.error;}
-        if(state.composerPoll){const options=[...$("pollRows").querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);if(options.length<2)throw new Error("A poll needs at least two options.");const pr=await sb.from("degreesns_polls").insert({post_id:ins.data.id,question:body||"Poll",options,closes_at:new Date(Date.now()+Number($("pollDuration").value||24)*3600000).toISOString(),multiple_choices:$("pollMultiple").checked});if(pr.error)throw pr.error;}
+      try{$("publishPost").disabled=true;const urls=await uploadRoadmapImages();const postId=crypto.randomUUID();const ins=await sb.from("degreesns_posts").insert({id:postId,user_id:currentUserId(),body:body||" ",media_url:urls[0]||null,media_type:state.composerImages[0]?.type||null,link_url:preview?.url||extractFirstUrl(body)||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null,link_site:preview?.site||null,quote_post_id:state.composerQuoteId||null,news_id:state.composerNewsId||null,sensitive_media:!!state.composerSensitive,content_warning:cw,protected:!!state.composerProtected,gif_url:state.composerGifUrl||null,gif_provider:state.composerGifUrl?"giphy":null,gif_id:state.composerGifId||null});if(ins.error)throw ins.error;
+        if(urls.length){const mr=await sb.from("degreesns_post_media").insert(urls.map((u,i)=>({post_id:postId,user_id:currentUserId(),media_url:u,media_type:state.composerImages[i].type,position:i})));if(mr.error)throw mr.error;}
+        if(state.composerPoll){const options=[...$("pollRows").querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);if(options.length<2)throw new Error("A poll needs at least two options.");const pr=await sb.from("degreesns_polls").insert({post_id:postId,question:body||"Poll",options,closes_at:new Date(Date.now()+Number($("pollDuration").value||24)*3600000).toISOString(),multiple_choices:$("pollMultiple").checked});if(pr.error)throw pr.error;}
         if(state.composerDraftId)await sb.from("degreesns_drafts").delete().eq("id",state.composerDraftId).eq("user_id",currentUserId());
         $("postText").value="";state.composerImages=[];state.composerImageUrls=[];state.composerQuoteId=null;state.composerNewsId=null;state.composerPoll=false;state.composerSensitive=!!state.profile?.sensitive_media_default;state.composerProtected=!!state.profile?.is_private;state.composerGifUrl=null;state.composerGifId=null;state.composerDraftId=null;$("composerMediaGrid").innerHTML="";$("composerQuote").classList.remove("show");$("composerAdvanced").classList.remove("show");$("pollBuilder").classList.add("hidden");$("cwBuilder").classList.add("hidden");$("contentWarningInput").value="";if($("composerProtected"))$("composerProtected").checked=state.composerProtected;updateCounter();notify("Post published.");await roadmapLoadHomeComplete(true);await refreshCounts();
       }catch(e){notify(e.message||"Could not publish the post.");}finally{$("publishPost").disabled=false;}
