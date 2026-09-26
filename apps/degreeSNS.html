@@ -580,6 +580,9 @@
     let sendMessage = null;
     let loadMessages = null;
     let renderMessages = null;
+    // Compatibility binding used by RSS/news actions. Keep it initialized so no feature can
+    // throw a ReferenceError while the roadmap news implementation is being installed.
+    let loadRoadmapNews = null;
 
     const state = {
       authUser: null,
@@ -1756,6 +1759,7 @@
       $("newsContent").innerHTML=state.newsCache.length?state.newsCache.map(n=>{const x=stats.get(n.id)||{likes:0,reposts:0,liked:false,reposted:false,saved:n.id?saveSet.has(n.id):false};return `<article class="news-card" data-news-id="${esc(n.id||"")}"><div class="news-thumb">${n.image_url?`<img src="${esc(n.image_url)}" alt="" loading="lazy">`:""}</div><div><div><span class="news-source">${esc(n.source||"News")}</span><span class="news-date">${n.published_at?esc(roadmapTimestamp(n.published_at)):""}</span></div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a><div class="news-meta">${esc(n.language||"English")}</div><div class="news-actions"><button class="news-action classic-button ${x.liked?"active-like":""}" data-news-action="like">Like <span>${x.likes}</span></button><button class="news-action classic-button ${x.reposted?"active-repost":""}" data-news-action="repost">Repost <span>${x.reposts}</span></button><button class="news-action classic-button ${x.saved?"active-bookmark":""}" data-news-action="save">Save</button><button class="news-action classic-button" data-news-action="quote">Discuss</button><button class="news-action classic-button" data-news-action="share">Share</button>${n.source_id?`<button class="news-action classic-button" data-news-action="follow-source" data-source-id="${esc(n.source_id)}">Follow source</button><button class="news-action classic-button" data-news-action="hide-source" data-source-id="${esc(n.source_id)}">Hide source</button>`:""}</div></div></article>`;}).join(""):empty("No headlines found.","Try another category or sync a custom RSS feed.");
     }
     loadNews=loadRoadmapNewsComplete;
+    loadRoadmapNews=loadRoadmapNewsComplete;
 
     async function newsAction(action, card){
       const n=state.newsCache.find(x=>(x.id||"")===card.dataset.newsId);if(!n){notify("This story is not available yet.");return;}
@@ -2325,6 +2329,7 @@
       }catch{}
     };
     loadNews=loadRoadmapNewsComplete;
+    loadRoadmapNews=loadRoadmapNewsComplete;
 
 
     // Final runtime bindings: all wrappers are installed before boot/auth restoration can call showApp().
