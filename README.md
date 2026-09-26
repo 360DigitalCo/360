@@ -1,6 +1,6 @@
 # 360
 
-![Version](https://img.shields.io/badge/version-3.6.0-blue)
+![Version](https://img.shields.io/badge/version-3.6.2-blue)
 ![License](https://img.shields.io/badge/License-AGPL_v3-blue.svg)
 [![Copyright](https://img.shields.io/badge/Copyright-%C2%A9%202026%20360Digital%2C%20Co.-black)](https://github.com/360DigitalCo)
 [![Windows](https://img.shields.io/badge/Windows-Supported-0078D6?logo=windows&logoColor=white)](#)
@@ -204,6 +204,8 @@ See the **LICENSE**, **NOTICE**, and **COPYRIGHT** files for additional informat
 The rest is for you to find out. :)
 
 **Enjoy 360!**
+
+<img src="./applications/account/src/favicon.svg" style="vertical-align: middle" height="20" width="20" /> <span style="vertical-align: middle; display: inline-block">.</span>
 
 ```
 proton please collab
