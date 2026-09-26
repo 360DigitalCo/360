@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>degreeSNS</title>
-  <link rel="icon" type="image/png" href="assets/images/degreesns.png">
+  <link rel="icon" type="image/png" href="../assets/images/degreesns.png">
 
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1296,7 +1296,7 @@ html[data-bg="blue"] body{background:#f1f8ff}
     state.composerDraftId = null;
     state.searchKind = "all";
     state.newsMode = "latest";
-    const ROADMAP_POST_SELECT = "id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id,quote_post_id,quoted_post_id,edited_at,view_count,sensitive_media,content_warning,gif_url,gif_provider,gif_id,poll_id,reply_permissions";
+    const ROADMAP_POST_SELECT = "id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id,quote_post_id,quoted_post_id,edited_at,view_count,sensitive_media,content_warning,gif_url,gif_provider,gif_id,poll_id,reply_permissions,protected";
     const GIF_KEY_NAME = "degreesns.giphyKey";
 
     function roadmapTimestamp(v){
@@ -2023,9 +2023,6 @@ html[data-bg="blue"] body{background:#f1f8ff}
 
 
     /* ===== degreeSNS roadmap final pass ===== */
-    // Keep core post selects synchronized with protected-post support.
-    if(!ROADMAP_POST_SELECT.includes(",protected")) ROADMAP_POST_SELECT += ",protected";
-
     // Friends count is a first-class profile metric.
     const oldRefreshCountsFinal=refreshCounts;
     refreshCounts=async function(){
