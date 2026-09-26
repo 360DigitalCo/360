@@ -218,7 +218,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
   <div class="modal-head"><span>settings</span><button class="close" data-close="settingsModal" type="button">×</button></div>
   <div class="modal-body">
     <div class="field inline"><div><label>display name</label><input id="settingDisplayName" maxlength="60"></div><div><label>avatar url</label><input id="settingAvatar" type="url"></div></div>
-    <div class="field"><label>bio</label><textarea id="settingBio" rows="5" maxlength="500"></textarea></div>
+    <div class="field"><label>bio</label><textarea id="settingBio" rows="5" maxlength="500"></textarea></div><div class="field inline"><div><label>location</label><input id="settingLocation" maxlength="100" placeholder="NYC"></div><div><label>website</label><input id="settingWebsite" type="url" placeholder="https://example.com"></div></div>
     <div class="field"><label>account</label><div class="hint" id="settingAccountInfo"></div></div>
   </div>
   <div class="modal-foot"><button class="classic" data-close="settingsModal" type="button">cancel</button><button class="classic accent" id="saveSettings" type="button">save</button></div>
@@ -282,8 +282,18 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
   async function loadProfile(){
     state.profile=null;
     if(!state.user)return;
-    const {data}=await client.from('aurora_profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('id',state.user.id).maybeSingle();
-    state.profile=data||null;
+    try{await client.rpc('sync_degree_profile_to_aurora')}catch(e){/* Aurora-only accounts can exist without degreeSNS. */}
+    const selectFields='id,username,display_name,bio,avatar_url,location,website_url,banner_url,status,status_expires_at,created_at,updated_at';
+    const {data,error}=await client.from('aurora_profiles').select(selectFields).eq('id',state.user.id).maybeSingle();
+    if(error){console.warn('Aurora profile lookup failed',error);return}
+    if(data){state.profile=data;return}
+
+    const {data:degreeProfile}=await client.from('degreesns_profiles').select('username,display_name,bio,avatar_url,location,website_url,banner_url,status,status_expires_at').eq('id',state.user.id).maybeSingle();
+    const raw=degreeProfile?.username || state.user.user_metadata?.username || ('user_'+state.user.id.replace(/-/g,'').slice(0,10));
+    const username=String(raw).replace(/[^A-Za-z0-9_]/g,'_').slice(0,32) || ('user_'+state.user.id.replace(/-/g,'').slice(0,10));
+    const payload={id:state.user.id,username,display_name:degreeProfile?.display_name || state.user.user_metadata?.display_name || username,bio:degreeProfile?.bio || '',avatar_url:degreeProfile?.avatar_url || null,location:degreeProfile?.location || null,website_url:degreeProfile?.website_url || null,banner_url:degreeProfile?.banner_url || null,status:degreeProfile?.status || null,status_expires_at:degreeProfile?.status_expires_at || null};
+    const created=await client.from('aurora_profiles').insert(payload).select(selectFields).single();
+    if(!created.error) state.profile=created.data;
   }
 
   async function loadJoined(){
@@ -322,8 +332,19 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     if(!requireAuth()||state.linked)return;
     $('linkAccountsSubmit').disabled=true;$('linkAccountsStatus').textContent='linking...';
     const {error}=await client.rpc('link_aurora_and_degreesns');
-    if(error){$('linkAccountsSubmit').disabled=false;$('linkAccountsStatus').textContent=error.message||'Could not link accounts.';toast('could not link accounts',true);return}
-    await loadCrossLink();updateAccountUI();$('linkAccountsStatus').textContent='Accounts linked. Both badges are now active.';$('linkAccountsSubmit').textContent='linked';toast('accounts linked');
+    if(error){
+      $('linkAccountsSubmit').disabled=false;
+      const detail=error.message || error.details || error.hint || 'Could not link accounts.';
+      $('linkAccountsStatus').textContent=detail;
+      toast('could not link accounts',true);
+      return;
+    }
+    await loadProfile();
+    await loadCrossLink();
+    updateAccountUI();
+    $('linkAccountsStatus').textContent='Accounts linked. Both badges are now active.';
+    $('linkAccountsSubmit').textContent='linked';
+    toast('accounts linked');
   }
 
   function updateAccountUI(){
@@ -554,7 +575,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     if(!requireAuth())return;
     const {data:posts}=await client.from('aurora_posts').select('id,title,score,comment_count,created_at,community_id').eq('author_id',state.user.id).order('created_at',{ascending:false}).limit(30);
     const communities=new Map(state.communities.map(c=>[c.id,c]));
-    $('profileBody').innerHTML='<div class="profile-head">'+(state.profile?.avatar_url?'<img class="avatar" src="'+esc(state.profile.avatar_url)+'" alt="">':'<div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div>')+'<div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><p>'+esc(state.profile?.bio||'No bio yet.')+'</p><div class="statline"><span>posts <b>'+((posts||[]).length)+'</b></span><span>communities joined <b>'+state.joined.size+'</b></span><span>account <b>'+ago(state.profile?.created_at||new Date().toISOString())+' ago</b></span></div>'+renderBadges()+'<div class="profile-posts">'+((posts||[]).map(p=>'<div class="mini-post"><a class="mini-post-title" href="#" data-profile-post="'+p.id+'">'+esc(p.title)+'</a><div class="tiny">a-'+esc(communities.get(p.community_id)?.name||'community')+' · '+p.score+' score · '+p.comment_count+' comments · '+ago(p.created_at)+' ago</div></div>').join('')||'<div class="hint">No posts yet.</div>')+'</div>';
+    $('profileBody').innerHTML='<div class="profile-head">'+(state.profile?.avatar_url?'<img class="avatar" src="'+esc(state.profile.avatar_url)+'" alt="">':'<div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div>')+'<div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><p>'+esc(state.profile?.bio||'No bio yet.')+'</p>'+(state.profile?.location?'<div class="tiny">location: '+esc(state.profile.location)+'</div>':'')+(state.profile?.website_url?'<div class="tiny"><a href="'+esc(state.profile.website_url)+'" target="_blank" rel="noopener">'+esc(state.profile.website_url)+'</a></div>':'')+'<div class="statline"><span>posts <b>'+((posts||[]).length)+'</b></span><span>communities joined <b>'+state.joined.size+'</b></span><span>account <b>'+ago(state.profile?.created_at||new Date().toISOString())+' ago</b></span></div>'+renderBadges()+'<div class="profile-posts">'+((posts||[]).map(p=>'<div class="mini-post"><a class="mini-post-title" href="#" data-profile-post="'+p.id+'">'+esc(p.title)+'</a><div class="tiny">a-'+esc(communities.get(p.community_id)?.name||'community')+' · '+p.score+' score · '+p.comment_count+' comments · '+ago(p.created_at)+' ago</div></div>').join('')||'<div class="hint">No posts yet.</div>')+'</div>';
     $('profileBody').querySelectorAll('[data-profile-post]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();closeModal('profileModal');openPostById(a.dataset.profilePost)}));
     openModal('profileModal');
   }
@@ -566,12 +587,18 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
 
   function openSettings(){
     if(!requireAuth())return;
-    $('settingDisplayName').value=state.profile?.display_name||'';$('settingAvatar').value=state.profile?.avatar_url||'';$('settingBio').value=state.profile?.bio||'';$('settingAccountInfo').textContent='u/'+(state.profile?.username||'user')+' · '+(state.user.email||'');openModal('settingsModal');
+    $('settingDisplayName').value=state.profile?.display_name||'';
+    $('settingAvatar').value=state.profile?.avatar_url||'';
+    $('settingBio').value=state.profile?.bio||'';
+    $('settingLocation').value=state.profile?.location||'';
+    $('settingWebsite').value=state.profile?.website_url||'';
+    $('settingAccountInfo').textContent='u/'+(state.profile?.username||'user')+' · '+(state.user.email||'');
+    openModal('settingsModal');
   }
 
   async function saveSettings(){
     if(!requireAuth())return;
-    const patch={display_name:$('settingDisplayName').value.trim()||state.profile?.username||'user',avatar_url:$('settingAvatar').value.trim()||null,bio:$('settingBio').value.trim()||null,updated_at:new Date().toISOString()};
+    const patch={display_name:$('settingDisplayName').value.trim()||state.profile?.username||'user',avatar_url:$('settingAvatar').value.trim()||null,bio:$('settingBio').value.trim()||null,location:$('settingLocation').value.trim()||null,website_url:$('settingWebsite').value.trim()||null,updated_at:new Date().toISOString()};
     const {data,error}=await client.from('aurora_profiles').update(patch).eq('id',state.user.id).select().maybeSingle();
     if(error){toast('could not save settings',true);return}
     state.profile=data||{...state.profile,...patch};updateAccountUI();closeModal('settingsModal');toast('settings saved');
