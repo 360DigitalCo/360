@@ -240,57 +240,6 @@
 
   .badge.live .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
   .badge.error .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-
-  .security-panel {
-    display: none;
-    margin-top: 14px;
-    border-top: 1px solid var(--glass-border);
-    padding-top: 14px;
-  }
-
-  .security-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .security-stat {
-    padding: 10px 12px;
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.06);
-  }
-
-  .security-stat strong { display: block; font-size: 18px; }
-  .security-stat span { color: var(--text-dim); font-size: 11px; }
-
-  .security-log {
-    max-height: 220px;
-    overflow: auto;
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    background: rgba(15,18,38,0.32);
-  }
-
-  .security-entry {
-    display: grid;
-    grid-template-columns: 78px 1fr auto;
-    gap: 10px;
-    align-items: center;
-    padding: 9px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-size: 11.5px;
-  }
-
-  .security-entry:last-child { border-bottom: 0; }
-  .security-entry .kind { color: var(--text-dim); }
-  .security-entry .target { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .security-entry .flag { color: var(--danger); font-weight: 600; }
-
-  @media (max-width: 720px) {
-    .security-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
 </style>
 </head>
 
@@ -314,22 +263,7 @@
     <button id="modeToggleBtn" onclick="toggleProxyMode()">Mode: Proxy</button>
     <button onclick="toggleFullScreen()">Toggle Full Screen</button>
     <button onclick="reloadCurrent()">Reload</button>
-    <button id="securityBtn" onclick="toggleSecurityPanel()">Security Center</button>
     <span class="badge" id="currentUrlBadge"><span class="dot"></span><span id="badgeText">No page loaded</span></span>
-  </div>
-
-  <div class="security-panel" id="securityPanel">
-    <div class="security-summary">
-      <div class="security-stat"><strong id="securityRequests">0</strong><span>Requests observed</span></div>
-      <div class="security-stat"><strong id="securityTrackers">0</strong><span>Known trackers</span></div>
-      <div class="security-stat"><strong id="securityCrossHost">0</strong><span>Cross-host resources</span></div>
-      <div class="security-stat"><strong id="securitySockets">0</strong><span>WebSocket connections</span></div>
-    </div>
-    <div class="toolbar" style="margin-top:0;margin-bottom:10px;">
-      <button onclick="clearSecurityLog()">Clear Log</button>
-      <span class="badge"><span class="dot" style="background:var(--ok)"></span><span>Monitoring only — request bodies and cookies are not stored</span></span>
-    </div>
-    <div class="security-log" id="securityLog"><div class="security-entry"><span class="kind">Ready</span><span class="target">Security telemetry will appear here when a page loads.</span><span></span></div></div>
   </div>
 
   <p class="note"><strong>Note:</strong> Every asset &mdash; scripts, stylesheets (including their own fonts/background images), images, and live WebSocket connections &mdash; is routed back through the Supabase proxy so pages render and behave close to the original site. In-page navigation (links, forms, SPA routing) is intercepted and re-proxied automatically, and the address bar above updates on every navigation, redirect, hash change, or SPA route change.</p>
@@ -340,7 +274,7 @@
 <div class="frame-wrap">
   <iframe
     id="websiteFrame"
-    sandbox="allow-scripts allow-forms allow-popups allow-downloads">
+    sandbox="allow-same-origin allow-scripts allow-forms allow-popups">
   </iframe>
   <pre id="sourceViewer"></pre>
   <div id="loadingOverlay">
@@ -351,34 +285,24 @@
 
 <script>
 const SUPABASE_PROXY =
-    "https://tojtsvnjbebdjxdtuhxq.supabase.co/functions/v1/web-viewer";
+    "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/web-viewer";
 
+// Raw HTML as returned by the edge function (already rewritten for
+// assets/nav — that's what the iframe actually runs). Shown in Source View.
 let rawHtml = "";
+// The current resolved page URL, used for display + reload.
 let currentUrl = "";
 let sourceMode = false;
-let proxyMode = "proxy";
-let renderToken = 0;
-let readyTimer = null;
-let usingFrameFallback = false;
-let securityLog = [];
-
-const securityState = {
-    requests: 0,
-    trackers: 0,
-    crossHost: 0,
-    sockets: 0,
-    seen: new Set()
-};
+let proxyMode = "proxy"; // "proxy" | "direct"
 
 function proxify(targetUrl) {
     return SUPABASE_PROXY + "?url=" + encodeURIComponent(targetUrl) +
         (proxyMode === "direct" ? "&mode=direct" : "");
 }
 
-function setLoading(isLoading, text = "Loading page…") {
-    document.getElementById("loadingOverlay").style.display = isLoading ? "flex" : "none";
-    const overlayText = document.querySelector("#loadingOverlay div:last-child");
-    if (overlayText) overlayText.textContent = text;
+function setLoading(isLoading) {
+    document.getElementById("loadingOverlay").style.display =
+        isLoading ? "flex" : "none";
 }
 
 function setBadge(text, state) {
@@ -391,10 +315,17 @@ function setBadge(text, state) {
 function normalizeInputUrl(raw) {
     let url = raw.trim();
     if (!url) return "";
-    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-    try { return new URL(url).toString(); } catch { return ""; }
+    if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+    }
+    return url;
 }
 
+// This is the single place that keeps the address bar in sync — every
+// navigation path (initial load, in-page link clicks, SPA pushState,
+// hash changes, redirects, form submits, escape-hatch recovery) funnels
+// through setCurrentUrl so the input and badge never drift from what's
+// actually showing in the iframe.
 function setCurrentUrl(url) {
     if (!url) return;
     currentUrl = url;
@@ -402,167 +333,47 @@ function setCurrentUrl(url) {
     setBadge(currentUrl, "live");
 }
 
-function cleanLoggedUrl(url) {
-    try {
-        const u = new URL(url);
-        u.search = "";
-        u.hash = "";
-        return u.toString();
-    } catch {
-        return String(url || "").slice(0, 500);
-    }
-}
-
-function loadSecurityLog() {
-    try {
-        const parsed = JSON.parse(localStorage.getItem("360-web-viewer-security") || "[]");
-        securityLog = Array.isArray(parsed) ? parsed.slice(-250) : [];
-    } catch { securityLog = []; }
-    renderSecurityLog();
-}
-
-function saveSecurityLog() {
-    try { localStorage.setItem("360-web-viewer-security", JSON.stringify(securityLog.slice(-250))); } catch {}
-}
-
-function addSecurityEvent(event) {
-    if (!event || !event.url) return;
-    const url = cleanLoggedUrl(event.url);
-    const key = `${event.type || "request"}|${url}|${event.method || "GET"}|${event.tracker ? 1 : 0}|${event.status || ""}`;
-    if (securityState.seen.has(key)) return;
-    securityState.seen.add(key);
-
-    securityState.requests++;
-    if (event.tracker) securityState.trackers++;
-    if (event.crossHost) securityState.crossHost++;
-    if (event.type === "websocket") securityState.sockets++;
-
-    securityLog.push({
-        type: event.type || "request",
-        url,
-        method: event.method || "GET",
-        tracker: !!event.tracker,
-        category: event.category || "",
-        status: event.status || "",
-        ts: Date.now()
-    });
-    if (securityLog.length > 250) securityLog = securityLog.slice(-250);
-    saveSecurityLog();
-    renderSecurityStats();
-    renderSecurityLog();
-}
-
-function renderSecurityStats() {
-    document.getElementById("securityRequests").textContent = securityState.requests;
-    document.getElementById("securityTrackers").textContent = securityState.trackers;
-    document.getElementById("securityCrossHost").textContent = securityState.crossHost;
-    document.getElementById("securitySockets").textContent = securityState.sockets;
-}
-
-function renderSecurityLog() {
-    const box = document.getElementById("securityLog");
-    if (!securityLog.length) {
-        box.innerHTML = '<div class="security-entry"><span class="kind">Ready</span><span class="target">Security telemetry will appear here when a page loads.</span><span></span></div>';
-        return;
-    }
-    box.innerHTML = securityLog.slice().reverse().map(item => {
-        const flag = item.tracker ? `<span class="flag">${escapeHtml(item.category || "tracker")}</span>` : `<span>${item.status || "observed"}</span>`;
-        return `<div class="security-entry"><span class="kind">${escapeHtml(item.type)}</span><span class="target" title="${escapeHtml(item.url)}">${escapeHtml(item.method)} · ${escapeHtml(item.url)}</span>${flag}</div>`;
-    }).join("");
-}
-
-function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
-}
-
-function resetPageSecurityState() {
-    securityState.requests = 0;
-    securityState.trackers = 0;
-    securityState.crossHost = 0;
-    securityState.sockets = 0;
-    securityState.seen = new Set();
-    renderSecurityStats();
-}
-
-function clearSecurityLog() {
-    securityLog = [];
-    resetPageSecurityState();
-    saveSecurityLog();
-    renderSecurityLog();
-}
-
-function toggleSecurityPanel() {
-    const panel = document.getElementById("securityPanel");
-    const open = panel.style.display === "block";
-    panel.style.display = open ? "none" : "block";
-}
-
-function buildFormBody(data) {
-    if (!data || !Array.isArray(data.entries)) return null;
-    if ((data.enctype || "").toLowerCase().includes("multipart/form-data")) {
-        const fd = new FormData();
-        for (const item of data.entries) fd.append(item.name, item.value);
-        return fd;
-    }
-    if ((data.enctype || "").toLowerCase().includes("text/plain")) {
-        return data.entries.map(item => `${item.name}=${item.value instanceof Blob ? "[file]" : item.value}`).join("\n");
-    }
-    const params = new URLSearchParams();
-    for (const item of data.entries) params.append(item.name, item.value instanceof Blob ? "[file]" : item.value);
-    return params;
-}
-
-async function fetchAndRender(url, method = "GET", body = null, headers = {}) {
-    const token = ++renderToken;
-    usingFrameFallback = false;
-    clearTimeout(readyTimer);
-    setLoading(true, "Loading page…");
+async function fetchAndRender(url, method) {
+    setLoading(true);
     document.getElementById("errorMessage").textContent = "";
-    resetPageSecurityState();
-    setBadge("Loading…");
 
     try {
         const response = await fetch(proxify(url), {
-            method,
-            body: method === "GET" || method === "HEAD" ? undefined : body,
-            headers: { "X-360-Page-Url": currentUrl || url, ...headers }
+            method: method === "post" ? "POST" : "GET",
         });
 
+        if (!response.ok) {
+            throw new Error("Server responded with " + response.status);
+        }
+
         const html = await response.text();
-        if (!response.ok) throw new Error(`Server responded with ${response.status}: ${html.slice(0, 180)}`);
 
+        // The edge function already does all the rewriting (base tag,
+        // asset rewriting, nav interception, service worker neutralizing,
+        // live WebSocket relay) — the front end just renders what comes back.
         rawHtml = html;
-        const finalUrl = response.headers.get("X-Final-Url") || url;
-        setCurrentUrl(finalUrl);
+        setCurrentUrl(response.headers.get("X-Final-Url") || url);
+
         document.getElementById("websiteFrame").srcdoc = html;
-        setBadge(finalUrl, "live");
 
-        readyTimer = setTimeout(() => {
-            if (token !== renderToken) return;
-            usingFrameFallback = true;
-            setLoading(true, "Switching to isolated proxy frame…");
-            const frame = document.getElementById("websiteFrame");
-            frame.srcdoc = "";
-            frame.src = proxify(finalUrl);
-            setBadge("Proxy frame fallback", "live");
-        }, 6500);
+        if (sourceMode) {
+            document.getElementById("sourceViewer").textContent = rawHtml;
+        }
 
-        if (sourceMode) document.getElementById("sourceViewer").textContent = rawHtml;
     } catch (err) {
         console.error(err);
         document.getElementById("errorMessage").textContent =
-            "Unable to load this page: " + (err?.message || err);
+            "Failed to load site: " + err.message;
         setBadge("Failed to load", "error");
     } finally {
-        // Keep the overlay until the injected page reports ready.
-        if (token !== renderToken) setLoading(false);
+        setLoading(false);
     }
 }
 
 function loadWebsite() {
     const url = normalizeInputUrl(document.getElementById("urlInput").value);
     if (!url) {
-        document.getElementById("errorMessage").textContent = "Enter a valid HTTP or HTTPS URL.";
+        alert("Enter a URL");
         return;
     }
     fetchAndRender(url);
@@ -581,91 +392,27 @@ function toggleProxyMode() {
     if (currentUrl) fetchAndRender(currentUrl);
 }
 
+// The edge function's injected script postMessages navigation/meta/dialog
+// events back up to us instead of navigating the iframe directly — the
+// iframe is sandboxed and cross-origin, so it has no other way to reach
+// us. This listener is what actually closes the loop: without it,
+// clicking a link inside the proxied page asks us to navigate, and
+// nothing was listening.
 window.addEventListener("message", function(event) {
     const data = event.data;
     if (!data || typeof data !== "object") return;
 
     switch (data.type) {
-        case "360-ready":
-            clearTimeout(readyTimer);
-            setLoading(false);
-            setCurrentUrl(data.url || currentUrl);
-            if (data.title) document.title = `${data.title} — Web Viewer`;
-            if (data.icon) {
-                let icon = document.querySelector('link[data-360-favicon]');
-                if (!icon) {
-                    icon = document.createElement('link');
-                    icon.rel = 'icon';
-                    icon.dataset["360-favicon"] = "1";
-                    document.head.appendChild(icon);
-                }
-                icon.href = data.icon;
-            }
-            break;
-
         case "360-navigate":
-            fetchAndRender(data.url, data.method || "GET");
+            fetchAndRender(data.url, data.method);
             break;
-
-        case "360-form": {
-            const body = buildFormBody(data);
-            const headers = {};
-            if ((data.enctype || "").includes("multipart/form-data")) {
-                // Let fetch generate the boundary.
-            } else if ((data.enctype || "").includes("text/plain")) {
-                headers["Content-Type"] = "text/plain;charset=UTF-8";
-            } else {
-                headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
-            }
-            fetchAndRender(data.url, data.method || "POST", body, headers);
-            break;
-        }
 
         case "360-meta":
-            if (data.url) setCurrentUrl(data.url);
-            if (data.title) document.title = `${data.title} — Web Viewer`;
-            if (data.icon) {
-                let icon = document.querySelector('link[data-360-favicon]');
-                if (!icon) {
-                    icon = document.createElement('link');
-                    icon.rel = 'icon';
-                    icon.dataset["360-favicon"] = "1";
-                    document.head.appendChild(icon);
-                }
-                icon.href = data.icon;
-            }
-            break;
-
-        case "360-security":
-            addSecurityEvent(data.event);
-            break;
-
-        case "360-download":
+            // In-page SPA navigation (pushState/replaceState/hashchange) —
+            // just reflect the new URL, no re-fetch needed.
             if (data.url) {
-                (async () => {
-                    try {
-                        const response = await fetch(proxify(data.url), { headers: { "X-360-Page-Url": currentUrl } });
-                        if (!response.ok) throw new Error(`Download failed (${response.status})`);
-                        const blob = await response.blob();
-                        const objectUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = objectUrl;
-                        a.download = data.filename || new URL(data.url).pathname.split("/").pop() || "download";
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-                    } catch (error) {
-                        showError(`Download failed: ${error.message || error}`);
-                    }
-                })();
+                setCurrentUrl(data.url);
             }
-            break;
-
-        case "360-open":
-            // Keep the viewer as a viewer, not a tabbed browser: open in the
-            // current viewer so _blank does not escape the security gateway.
-            if (data.url) fetchAndRender(data.url);
             break;
 
         case "360-alert":
@@ -686,6 +433,7 @@ function toggleViewMode() {
     const iframe = document.getElementById("websiteFrame");
     const sourceViewer = document.getElementById("sourceViewer");
     const btn = document.getElementById("viewToggleBtn");
+
     sourceMode = !sourceMode;
 
     if (sourceMode) {
@@ -701,28 +449,53 @@ function toggleViewMode() {
 }
 
 function toggleFullScreen() {
-    const target = sourceMode ? document.getElementById("sourceViewer") : document.getElementById("websiteFrame");
-    if (target.requestFullscreen) target.requestFullscreen();
-    else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
-    else if (target.msRequestFullscreen) target.msRequestFullscreen();
+    const target = sourceMode
+        ? document.getElementById("sourceViewer")
+        : document.getElementById("websiteFrame");
+
+    if (target.requestFullscreen) {
+        target.requestFullscreen();
+    } else if (target.webkitRequestFullscreen) {
+        target.webkitRequestFullscreen();
+    } else if (target.msRequestFullscreen) {
+        target.msRequestFullscreen();
+    }
 }
 
-document.getElementById("urlInput").addEventListener("keydown", function(e) {
-    if (e.key === "Enter") loadWebsite();
-});
+document
+    .getElementById("urlInput")
+    .addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            loadWebsite();
+        }
+    });
 
+// ── Escape-hatch net ──
+// Some navigations never fire our click/submit listeners or postMessage
+// at all — most commonly a page doing `window.location.href = "..."`
+// directly, which can't be intercepted from JS the way assign()/replace()
+// can. When that happens the iframe just navigates itself straight to
+// the real, un-proxied URL: CSS breaks, forms 404, everything looks
+// "broken" even though our interceptor script never saw anything wrong.
+//
+// Since we render via srcdoc, our own content always lives at
+// "about:srcdoc". If the iframe's location is ever anything else, the
+// page escaped on its own — so we catch it here and re-route it back
+// through the proxy immediately (which also re-syncs the address bar).
 document.getElementById("websiteFrame").addEventListener("load", function() {
-    // The normal render is srcdoc. When that doesn't execute the gateway's
-    // ready handshake, the timer above switches to a direct proxy frame. That
-    // fallback is the web-view-like path: the target never receives frame
-    // control, because the viewer function is the iframe's origin.
-    if (usingFrameFallback) {
-        setLoading(false);
-        setBadge(currentUrl, "live");
+    let frameHref;
+    try {
+        frameHref = this.contentWindow.location.href;
+    } catch (e) {
+        // Cross-origin access blocked — shouldn't happen with
+        // allow-same-origin + srcdoc, but bail safely if it does.
+        return;
+    }
+
+    if (frameHref && frameHref !== "about:srcdoc" && frameHref !== "about:blank") {
+        fetchAndRender(frameHref);
     }
 });
-
-loadSecurityLog();
 </script>
 
 </body>
