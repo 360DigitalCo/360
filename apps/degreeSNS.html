@@ -133,6 +133,39 @@
     .request-strip{padding:11px 12px;background:rgba(29,161,242,.06);border-bottom:1px solid var(--border);font-size:11px;color:var(--text)}.friend-section-title{padding:11px 12px 7px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.2px}.inline-empty{padding:18px 12px;color:var(--muted);font-size:10px;text-align:center}
     .profile-edit{display:grid;grid-template-columns:1fr 1fr;gap:10px}.profile-edit .full{grid-column:1/-1}.field-help{margin-top:4px;color:var(--muted);font-size:9px;line-height:1.35}.account-email{padding:8px 0;color:var(--muted);font-size:11px}
     .list-open{cursor:pointer}.list-open:hover{background:rgba(29,161,242,.04)}
+
+    .composer-tools{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+    .composer-tool{height:28px;padding:0 8px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted);font-size:9px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+    .composer-tool:hover{color:var(--blue);border-color:rgba(29,161,242,.38)}
+    .composer-tool svg{width:13px;height:13px}
+    .composer-attachment{margin-top:7px;display:none;position:relative;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt)}
+    .composer-attachment.show{display:block}
+    .composer-attachment img{display:block;width:100%;max-height:240px;object-fit:cover}
+    .composer-attachment button{position:absolute;top:5px;right:5px;width:24px;height:24px;border:1px solid rgba(0,0,0,.18);border-radius:50%;background:rgba(255,255,255,.92);color:#445;line-height:1;font-weight:700}
+    .composer-link{display:none;margin-top:7px;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt)}
+    .composer-link.show{display:grid;grid-template-columns:90px minmax(0,1fr)}
+    .composer-link img{width:90px;height:78px;object-fit:cover;background:var(--page)}
+    .composer-link-copy{padding:8px}
+    .composer-link-title{font-size:10px;font-weight:800;line-height:1.3}
+    .composer-link-desc{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
+    .composer-link-site{margin-top:4px;color:var(--blue);font-size:8px;font-weight:700}
+    .post-media{margin-top:8px;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt)}
+    .post-media img{display:block;width:100%;max-height:420px;object-fit:cover}
+    .post-link-card{display:grid;grid-template-columns:110px minmax(0,1fr);margin-top:8px;border:1px solid var(--border);border-radius:5px;overflow:hidden;background:var(--panel-alt);color:var(--text)}
+    .post-link-card:hover{text-decoration:none;border-color:rgba(29,161,242,.4)}
+    .post-link-card img{width:110px;height:90px;object-fit:cover;background:var(--page)}
+    .post-link-copy{padding:8px}
+    .post-link-title{font-size:10px;font-weight:800;line-height:1.35}
+    .post-link-desc{margin-top:4px;color:var(--muted);font-size:9px;line-height:1.35}
+    .post-link-site{margin-top:5px;color:var(--blue);font-size:8px;font-weight:700}
+    .emoji-shortcode{width:1.18em;height:1.18em;vertical-align:-.18em;object-fit:contain}
+    .news-actions{display:flex;align-items:center;gap:3px;margin-top:7px}
+    .news-action{height:25px;padding:0 7px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted);font-size:9px;display:inline-flex;align-items:center;gap:4px}
+    .news-action:hover{color:var(--blue);border-color:rgba(29,161,242,.35)}
+    .news-action.active-like{color:var(--danger)}
+    .news-action.active-repost{color:var(--success)}
+    .news-action svg{width:12px;height:12px}
+
     .news-rail .news-rail-item{display:block;padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text)}.news-rail .news-rail-item:last-child{border-bottom:0}.news-rail .news-rail-source{display:block;color:var(--blue);font-size:9px;font-weight:700}.news-rail .news-rail-title{display:block;margin-top:3px;font-size:10px;line-height:1.35}
     .settings-danger{margin-top:8px}
     @media (max-width:1050px){.news-card{grid-template-columns:100px minmax(0,1fr)}.news-thumb{width:100px;height:70px}.chat-shell{grid-template-columns:170px minmax(0,1fr)}}
@@ -269,7 +302,14 @@
         <section class="center-column">
           <section id="homeView" class="view active">
             <div class="panel composer" id="composer">
-              <div class="composer-main"><div class="composer-avatar"><div class="avatar-initial" id="composerAvatar"></div></div><textarea id="postText" maxlength="280" placeholder="What's happening?"></textarea></div>
+              <div class="composer-main"><div class="composer-avatar"><div class="avatar-initial" id="composerAvatar"></div></div><textarea id="postText" maxlength="280" placeholder="What’s happening? Try :smile: :heart: :fire:"></textarea></div>
+              <div class="composer-attachment" id="composerAttachment"><img id="composerAttachmentImage" alt="Selected image"><button type="button" class="classic-button" id="removeComposerImage" aria-label="Remove image">×</button></div>
+              <div class="composer-link" id="composerLinkPreview"><img id="composerLinkImage" alt=""><div class="composer-link-copy"><div class="composer-link-title" id="composerLinkTitle"></div><div class="composer-link-desc" id="composerLinkDesc"></div><div class="composer-link-site" id="composerLinkSite"></div></div></div>
+              <div class="composer-tools">
+                <label class="composer-tool classic-button" title="Add image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="1"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m5 17 5-5 3 3 2-2 4 4"></path></svg><span>Photo</span><input id="postImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                <button type="button" class="composer-tool classic-button" id="insertEmojiHint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8 14c1 2 2.5 3 4 3s3-1 4-3"></path><path d="M8.5 9h.01M15.5 9h.01"></path></svg><span>Shortcodes</span></button>
+                <span class="field-help" style="margin-left:auto">Links unfurl automatically.</span>
+              </div>
               <div class="composer-bottom"><span class="counter" id="counter">280</span><button class="post-btn classic-button" id="publishPost" disabled>Post</button></div>
             </div>
             <div class="timeline-head"><span>Home</span><span class="timeline-sub" id="homeSub">Posts from people you follow</span></div>
@@ -311,7 +351,7 @@
               <section class="message-pane">
                 <div class="message-head"><div><div class="message-head-name" id="chatTitle">Select a friend</div><div class="message-head-sub" id="chatSubtitle">Live messages with your friends.</div></div></div>
                 <div id="messageList" class="message-list"></div>
-                <div class="chat-compose"><textarea id="messageInput" maxlength="4000" placeholder="Write a message" disabled></textarea><button class="post-btn classic-button" id="sendMessage" disabled>Send</button></div>
+                <div class="chat-compose"><textarea id="messageInput" maxlength="4000" placeholder="Write a message — try :wave: or :heart:" disabled></textarea><button class="post-btn classic-button" id="sendMessage" disabled>Send</button></div>
               </section>
             </div>
           </section>
@@ -414,6 +454,12 @@
       news: [],
       newsQuery: "",
       newsTimer: null,
+      newsItems: new Map(),
+      emojiShortcodes: new Map(),
+      composerImage: null,
+      composerImageObjectUrl: null,
+      composerLinkPreview: null,
+      composerLinkTimer: null,
       chatChannel: null,
       socialChannel: null,
       feedChannel: null,
@@ -476,14 +522,58 @@
       return String(profile.status);
     }
     function statusMarkup(profile){const text=activeStatus(profile);return text?`<div class="profile-status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2"></circle></svg><span class="profile-status-text">${mentionAndEmoji(text)}</span></div>`:"";}
+    const EMOJI_FALLBACKS = {
+      ':smile:':'😄', ':grin:':'😁', ':joy:':'😂', ':rofl:':'🤣', ':laughing:':'😆', ':sweat_smile:':'😅', ':wink:':'😉',
+      ':blush:':'😊', ':heart_eyes:':'😍', ':kissing_heart:':'😘', ':thinking:':'🤔', ':neutral_face:':'😐', ':expressionless:':'😑',
+      ':sweat:':'😓', ':cry:':'😢', ':sob:':'😭', ':angry:':'😠', ':rage:':'😡', ':sunglasses:':'😎', ':nerd_face:':'🤓',
+      ':confused:':'😕', ':upside_down:':'🙃', ':rolling_eyes:':'🙄', ':eyes:':'👀', ':shushing_face:':'🤫', ':zipper_mouth:':'🤐',
+      ':face_with_raised_eyebrow:':'🤨', ':skull:':'💀', ':ghost:':'👻', ':poop:':'💩', ':alien:':'👽', ':robot:':'🤖',
+      ':heart:':'❤️', ':blue_heart:':'💙', ':green_heart:':'💚', ':yellow_heart:':'💛', ':purple_heart:':'💜', ':black_heart:':'🖤',
+      ':broken_heart:':'💔', ':sparkles:':'✨', ':star:':'⭐', ':fire:':'🔥', ':boom:':'💥', ':100:':'💯', ':tada:':'🎉',
+      ':warning:':'⚠️', ':check:':'✅', ':x:':'❌', ':question:':'❓', ':exclamation:':'❗', ':arrow_up:':'⬆️',
+      ':arrow_down:':'⬇️', ':point_up:':'☝️', ':point_right:':'👉', ':point_left:':'👈', ':point_down:':'👇', ':clap:':'👏',
+      ':pray:':'🙏', ':wave:':'👋', ':ok_hand:':'👌', ':thumbsup:':'👍', ':+1:':'👍', ':thumbsdown:':'👎', ':-1:':'👎',
+      ':muscle:':'💪', ':raised_hands:':'🙌', ':handshake:':'🤝', ':ear:':'👂', ':brain:':'🧠',
+      ':rocket:':'🚀', ':trophy:':'🏆', ':medal:':'🏅', ':soccer:':'⚽', ':basketball:':'🏀', ':football:':'🏈',
+      ':baseball:':'⚾', ':video_game:':'🎮', ':computer:':'💻', ':keyboard:':'⌨️', ':iphone:':'📱', ':camera:':'📷',
+      ':bulb:':'💡', ':book:':'📖', ':pencil:':'✏️', ':memo:':'📝', ':link:':'🔗', ':lock:':'🔒', ':unlock:':'🔓',
+      ':bell:':'🔔', ':speech_balloon:':'💬', ':email:':'✉️', ':calendar:':'📅', ':clock:':'⏰', ':gift:':'🎁',
+      ':coffee:':'☕', ':pizza:':'🍕', ':burger:':'🍔', ':fries:':'🍟', ':apple:':'🍎', ':banana:':'🍌', ':cake:':'🍰',
+      ':cookie:':'🍪', ':icecream:':'🍦', ':dog:':'🐶', ':cat:':'🐱', ':mouse:':'🐭', ':fox:':'🦊', ':unicorn:':'🦄',
+      ':sunny:':'☀️', ':cloud:':'☁️', ':rainbow:':'🌈', ':snowflake:':'❄️', ':zap:':'⚡', ':earth_americas:':'🌎'
+    };
+    const EMOJI_SHORTCODE_RE = /(^|[^\w])(:[+\-\w]+:)(?!\w)/g;
+    async function loadEmojiShortcodes(){
+      const cacheKey='degreesns.emojiCodes';
+      try{
+        const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');
+        if(cached?.savedAt && Date.now()-cached.savedAt<86400000 && cached.map){state.emojiShortcodes=new Map(Object.entries(cached.map));return;}
+      }catch{}
+      try{
+        const r=await fetch('https://api.github.com/emojis',{headers:{Accept:'application/vnd.github+json'}});
+        if(!r.ok)throw new Error('Emoji service unavailable');
+        const obj=await r.json(), map={};
+        Object.entries(obj||{}).forEach(([name,url])=>{map[':'+name.toLowerCase()+':']=url;});
+        state.emojiShortcodes=new Map(Object.entries(map));
+        localStorage.setItem(cacheKey,JSON.stringify({savedAt:Date.now(),map}));
+      }catch(e){state.emojiShortcodes=new Map();console.warn('Could not load full emoji shortcode catalog:',e);}
+    }
+    function shortcodeValue(code){const key=String(code||'').toLowerCase();return state.emojiShortcodes.get(key)||EMOJI_FALLBACKS[key]||null;}
+    function shortcodeHtml(text){
+      const source=esc(String(text??''));
+      return source.replace(EMOJI_SHORTCODE_RE,(full,prefix,code)=>{
+        const value=shortcodeValue(code);if(!value)return full;
+        if(typeof value==='string' && value.startsWith('http'))return prefix+`<img class="emoji-shortcode" src="${esc(value)}" alt="${esc(code)}" title="${esc(code)}" loading="lazy">`;
+        return prefix+value;
+      });
+    }
     function mentionAndEmoji(text) {
-      let safe=esc(text);
+      let safe=shortcodeHtml(text);
       safe=safe.replace(/(^|\s)(#[A-Za-z0-9_]+)/g,'$1<span class="hashtag">$2</span>');
       safe=safe.replace(/(^|\s)(@[A-Za-z0-9_]+)/g,'$1<span class="mention">$2</span>');
-      const el=document.createElement("div"); el.innerHTML=safe;
-      window.twemoji?.parse?.(el,{folder:"svg",ext:".svg"});
-      return el.innerHTML;
+      const el=document.createElement('div');el.innerHTML=safe;window.twemoji?.parse?.(el,{folder:'svg',ext:'.svg'});return el.innerHTML;
     }
+
     function getProfiles(ids) {
       const unique=[...new Set(ids.filter(Boolean))];
       if(!unique.length)return Promise.resolve([]);
@@ -514,10 +604,16 @@
       return posts.map(p=>{const a=authorMap.get(p.user_id)||{id:p.user_id,display_name:"User",username:"user"};return {...p,author:a,author_name:a.display_name,author_username:a.username,likes_count:likeCounts.get(p.id)||0,reposts_count:repostCounts.get(p.id)||0,replies_count:replyCounts.get(p.id)||0,liked_by_me:liked.has(p.id),reposted_by_me:reposted.has(p.id),bookmarked:bookmarked.has(p.id)}});
     }
 
+    function postLinkMarkup(post){
+      if(!post?.link_url)return '';
+      const image=post.link_image_url?`<img src="${esc(post.link_image_url)}" alt="" loading="lazy">`:`<div style="width:110px;height:90px;background:var(--page)"></div>`;
+      return `<a class="post-link-card" href="${esc(post.link_url)}" target="_blank" rel="noopener">${image}<div class="post-link-copy"><div class="post-link-title">${esc(post.link_title||post.link_url)}</div>${post.link_description?`<div class="post-link-desc">${esc(post.link_description)}</div>`:''}${post.link_site?`<div class="post-link-site">${esc(post.link_site)}</div>`:''}</div></a>`;
+    }
     function postTemplate(post) {
       const mine=post.user_id===currentUserId();
       const status=activeStatus(post.author);
-      return `<article class="post" data-post-id="${esc(post.id)}"><div class="post-avatar" data-user-profile="${esc(post.user_id)}">${avatarMarkup(post.author)}</div><div><div class="post-head"><button class="post-profile-link post-name" data-user-profile="${esc(post.user_id)}">${esc(post.author_name)}</button><span class="post-handle">@${esc(post.author_username)}</span>${status?`<span class="post-status">${esc(status)}</span>`:""}<span class="post-time">· ${relativeTime(post.created_at)}</span></div><div class="post-body">${mentionAndEmoji(post.body)}</div><div class="post-actions"><button class="post-action classic-button ${post.liked_by_me?"active-like":""}" data-action="like" title="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.9c0 5.4-8.8 10.1-8.8 10.1S3.2 14.3 3.2 8.9A4.9 4.9 0 0 1 8 4a5.2 5.2 0 0 1 4 2.1A5.2 5.2 0 0 1 16 4a4.9 4.9 0 0 1 4.8 4.9Z"></path></svg><span>${post.likes_count||0}</span></button><button class="post-action classic-button ${post.reposted_by_me?"active-repost":""}" data-action="repost" title="Repost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 4 4 4-4 4"></path><path d="M3 8h18"></path><path d="m7 20-4-4 4-4"></path><path d="M21 16H3"></path></svg><span>${post.reposts_count||0}</span></button><button class="post-action classic-button ${post.bookmarked?"active-bookmark":""}" data-action="bookmark" title="Bookmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v17l-6-3-6 3z"></path></svg></button><button class="post-action classic-button" data-action="reply" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 3v-5.5A7.5 7.5 0 0 1 11.5 4H13A7.5 7.5 0 0 1 20 11.5Z"></path></svg><span>${post.replies_count||0}</span></button><button class="post-action classic-button" data-action="list" title="Add to list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"></path><path d="M9 9h6M9 12h6M9 15h4"></path></svg></button><button class="post-action classic-button" data-action="share" title="Copy post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15 15 9"></path><path d="M7 7h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2-2v-2"></path><path d="M13 5h6v6"></path><path d="M13 11 19 5"></path></svg></button></div></div>${mine?`<button class="post-delete classic-button" data-action="delete" title="Delete post">×</button>`:""}</article>`;
+      const media=post.media_url?`<div class="post-media"><img src="${esc(post.media_url)}" alt="Posted image" loading="lazy"></div>`:'';
+      return `<article class="post" data-post-id="${esc(post.id)}"><div class="post-avatar" data-user-profile="${esc(post.user_id)}">${avatarMarkup(post.author)}</div><div><div class="post-head"><button class="post-profile-link post-name" data-user-profile="${esc(post.user_id)}">${esc(post.author_name)}</button><span class="post-handle">@${esc(post.author_username)}</span>${status?`<span class="post-status">${mentionAndEmoji(status)}</span>`:''}<span class="post-time">· ${relativeTime(post.created_at)}</span></div><div class="post-body">${mentionAndEmoji(post.body)}</div>${media}${postLinkMarkup(post)}<div class="post-actions"><button class="post-action classic-button ${post.liked_by_me?'active-like':''}" data-action="like" title="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.9c0 5.4-8.8 10.1-8.8 10.1S3.2 14.3 3.2 8.9A4.9 4.9 0 0 1 8 4a5.2 5.2 0 0 1 4 2.1A5.2 5.2 0 0 1 16 4a4.9 4.9 0 0 1 4.8 4.9Z"></path></svg><span>${post.likes_count||0}</span></button><button class="post-action classic-button ${post.reposted_by_me?'active-repost':''}" data-action="repost" title="Repost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 4 4 4-4 4"></path><path d="M3 8h18"></path><path d="m7 20-4-4 4-4"></path><path d="M21 16H3"></path></svg><span>${post.reposts_count||0}</span></button><button class="post-action classic-button ${post.bookmarked?'active-bookmark':''}" data-action="bookmark" title="Bookmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v17l-6-3-6 3z"></path></svg></button><button class="post-action classic-button" data-action="reply" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 3v-5.5A7.5 7.5 0 0 1 11.5 4H13A7.5 7.5 0 0 1 20 11.5Z"></path></svg><span>${post.replies_count||0}</span></button><button class="post-action classic-button" data-action="list" title="Add to list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"></path><path d="M9 9h6M9 12h6M9 15h4"></path></svg></button><button class="post-action classic-button" data-action="share" title="Copy post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15 15 9"></path><path d="M7 7h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2-2v-2"></path><path d="M13 5h6v6"></path><path d="M13 11 19 5"></path></svg></button></div></div>${mine?`<button class="post-delete classic-button" data-action="delete" title="Delete post">×</button>`:''}</article>`;
     }
 
     function renderUser() {
@@ -598,7 +694,7 @@
     async function loadHome(){
       const {data:f,error:fe}=await sb.from("degreesns_follows").select("following_id").eq("follower_id",currentUserId()); if(fe)throw fe;
       const ids=[currentUserId(),...(f||[]).map(x=>x.following_id)];
-      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("user_id",ids).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error;
+      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").in("user_id",ids).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error;
       state.posts=await decoratePosts(data); renderPostList("homeTimeline",state.posts,"Your timeline is empty.","Follow friends or make your first post.");
     }
 
@@ -606,11 +702,11 @@
       const tab=state.profileTab;
       let posts=[];
       if(tab==="posts"){
-        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("user_id",currentUserId()).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error; posts=data||[];
+        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").eq("user_id",currentUserId()).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error; posts=data||[];
       } else if(tab==="replies"){
-        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("user_id",currentUserId()).not("parent_id","is",null).order("created_at",{ascending:false}).limit(80); if(error)throw error; posts=data||[];
+        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").eq("user_id",currentUserId()).not("parent_id","is",null).order("created_at",{ascending:false}).limit(80); if(error)throw error; posts=data||[];
       } else {
-        const {data:likes,error}=await sb.from("degreesns_post_likes").select("post_id,created_at").eq("user_id",currentUserId()).order("created_at",{ascending:false}).limit(80); if(error)throw error; const ids=(likes||[]).map(x=>x.post_id); if(ids.length){const {data,error:pe}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("id",ids).order("created_at",{ascending:false});if(pe)throw pe;posts=data||[];}
+        const {data:likes,error}=await sb.from("degreesns_post_likes").select("post_id,created_at").eq("user_id",currentUserId()).order("created_at",{ascending:false}).limit(80); if(error)throw error; const ids=(likes||[]).map(x=>x.post_id); if(ids.length){const {data,error:pe}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").in("id",ids).order("created_at",{ascending:false});if(pe)throw pe;posts=data||[];}
       }
       const decorated=await decoratePosts(posts); renderPostList("profileTimeline",decorated,tab==="posts"?"No posts yet.":tab==="replies"?"No replies yet.":"No liked posts yet.","Your activity will appear here.");
     }
@@ -618,7 +714,7 @@
     async function loadBookmarksView(){
       const ids=[...state.bookmarks];
       if(!ids.length){$("bookmarksContent").innerHTML=empty("No bookmarks yet.","Use the bookmark icon on a post to save it here.");return;}
-      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
+      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
       const posts=await decoratePosts(data); renderPostList("bookmarksContent",posts,"No bookmarks yet.","Use the bookmark icon on a post to save it here.");
     }
 
@@ -630,7 +726,7 @@
         const list=state.lists.find(x=>x.id===state.listOpenId);
         if(!list){state.listOpenId=null;return loadListsView();}
         const ids=list.post_ids||[]; if(!ids.length){target.innerHTML=`<div class="list"><div><div class="list-name">${esc(list.name)}</div><div class="list-count">No posts in this list.</div></div><button class="secondary classic-button" data-list-close>Back</button></div>`;return;}
-        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
+        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
         target.innerHTML=`<div class="list"><div><div class="list-name">${esc(list.name)}</div><div class="list-count">${ids.length} saved posts</div></div><button class="secondary classic-button" data-list-close>Back</button></div>`+(await decoratePosts(data)).map(postTemplate).join(""); window.twemoji?.parse?.(target,{folder:"svg",ext:".svg"}); return;
       }
       target.innerHTML=state.lists.length?state.lists.map(l=>`<div class="list list-open" data-list-open="${esc(l.id)}"><div><div class="list-name">${esc(l.name)}</div><div class="list-count">${(l.post_ids||[]).length} saved posts</div></div><button class="post-btn classic-button" data-list-delete="${esc(l.id)}">Delete</button></div>`).join(""):empty("No lists yet.","Create a list to organize saved posts.");
@@ -639,7 +735,7 @@
     async function loadDiscover(query=""){
       const raw=query.trim().slice(0,60); const q=raw.replace(/[,%()]/g," ").trim();
       const userQuery=q?sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at").or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).neq("id",currentUserId()).order("username").limit(20):sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at").neq("id",currentUserId()).order("username").limit(12);
-      const postQuery=q?sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").is("parent_id",null).ilike("body",`%${q}%`).order("created_at",{ascending:false}).limit(40):sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").is("parent_id",null).order("created_at",{ascending:false}).limit(30);
+      const postQuery=q?sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").is("parent_id",null).ilike("body",`%${q}%`).order("created_at",{ascending:false}).limit(40):sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").is("parent_id",null).order("created_at",{ascending:false}).limit(30);
       const [{data:users,error:ue},{data:posts,error:pe}]=await Promise.all([userQuery,postQuery]); if(ue)throw ue;if(pe)throw pe; state.users=users||[];
       const decorated=await decoratePosts(posts); const friendsSet=new Set(state.friends.map(f=>f.user_id));
       let html=`<div class="friend-section-title">People</div>`;
@@ -719,16 +815,38 @@
 
     async function loadRightNews(){try{const {data,error}=await sb.functions.invoke("degreesns-news-v2",{body:{q:"technology OR science OR world",limit:5}});if(error)throw error;const articles=data?.articles||[];$("rightNews").innerHTML=articles.length?articles.map(a=>`<a class="news-rail-item" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="news-rail-source">${esc(a.source)}</span><span class="news-rail-title">${esc(a.title)}</span></a>`).join(""):`<div class="right-body">No headlines available right now.</div>`;}catch(e){console.warn(e);$("rightNews").innerHTML=`<div class="right-body">News is temporarily unavailable.</div>`;}}
 
-    async function loadNews(query=state.newsQuery){
-      state.newsQuery=query;
-      $("newsContent").innerHTML=`<div class="news-loading">Loading headlines…</div>`;
-      const {data,error}=await sb.functions.invoke("degreesns-news-v2",{body:{q:query,limit:24}});
-      if(error)throw error;
-      state.news=data?.articles||[]; renderNews();
+    async function syncNewsItems(){
+      if(!state.news.length)return;
+      try{
+        const rows=state.news.map(a=>({url:a.url,title:a.title||a.url,description:a.description||null,image_url:a.image||null,source:a.source||'News',published_at:a.publishedAt||null,language:a.language||'English'}));
+        const {data,error}=await sb.from('degreesns_news_items').upsert(rows,{onConflict:'url'}).select();if(error)throw error;state.newsItems=new Map((data||[]).map(x=>[x.url,x]));
+      }catch(e){console.warn('News interaction sync failed:',e);}
     }
-    function renderNews(){
-      const el=$("newsContent"); if(!state.news.length){el.innerHTML=empty("No headlines found.","Try another search or category.");return;}
-      el.innerHTML=state.news.map(a=>`<article class="news-card"><div class="news-thumb">${a.image?`<img src="${esc(a.image)}" alt="" loading="lazy">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v14H4z"></path><path d="m5 16 4-4 3 3 2-2 5 5"></path><circle cx="9" cy="9" r="1.5"></circle></svg>`}</div><div><div><span class="news-source">${esc(a.source||"News")}</span><span class="news-date">${a.publishedAt?esc(relativeTime(a.publishedAt)):""}</span></div><a class="news-title" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><div class="news-meta">${esc(a.language||"English")}</div></div></article>`).join("");}
+    async function decorateNews(){
+      const ids=[...state.newsItems.values()].map(x=>x.id);if(!ids.length)return new Map();
+      const [likes,reposts]=await Promise.all([sb.from('degreesns_news_likes').select('news_id,user_id').in('news_id',ids),sb.from('degreesns_news_reposts').select('news_id,user_id').in('news_id',ids)]);
+      if(likes.error)throw likes.error;if(reposts.error)throw reposts.error;const out=new Map();
+      (likes.data||[]).forEach(x=>{const n=out.get(x.news_id)||{likes:0,reposts:0,liked:false,reposted:false};n.likes++;if(x.user_id===currentUserId())n.liked=true;out.set(x.news_id,n);});
+      (reposts.data||[]).forEach(x=>{const n=out.get(x.news_id)||{likes:0,reposts:0,liked:false,reposted:false};n.reposts++;if(x.user_id===currentUserId())n.reposted=true;out.set(x.news_id,n);});return out;
+    }
+    async function loadNews(query=state.newsQuery){
+      state.newsQuery=query;$('newsContent').innerHTML='<div class="news-loading">Loading headlines…</div>';
+      const {data,error}=await sb.functions.invoke('degreesns-news-v2',{body:{q:query,limit:24}});if(error)throw error;state.news=data?.articles||[];await syncNewsItems();await renderNews();
+    }
+    async function toggleNewsInteraction(kind,url){
+      const row=state.newsItems.get(url);if(!row)throw new Error('News item is still loading.');const table=kind==='like'?'degreesns_news_likes':'degreesns_news_reposts';
+      const {data:existing,error:ee}=await sb.from(table).select('news_id').eq('news_id',row.id).eq('user_id',currentUserId()).maybeSingle();if(ee)throw ee;
+      if(existing){const {error}=await sb.from(table).delete().eq('news_id',row.id).eq('user_id',currentUserId());if(error)throw error;if(kind==='repost'){await sb.from('degreesns_posts').delete().eq('user_id',currentUserId()).eq('news_id',row.id);}}
+      else{
+        const {error}=await sb.from(table).insert({news_id:row.id,user_id:currentUserId()});if(error)throw error;
+        if(kind==='repost'){const {error:pe}=await sb.from('degreesns_posts').insert({user_id:currentUserId(),body:`Reposted from ${row.source||'News'}: ${row.title}`,link_url:row.url,link_title:row.title,link_description:row.description,link_image_url:row.image_url,link_site:row.source,news_id:row.id});if(pe)throw pe;}
+      }
+      await renderNews();if(kind==='repost')await refreshCurrent();notify(existing?(kind==='like'?'News like removed.':'News repost removed.'):(kind==='like'?'News liked.':'News reposted to your timeline.'));
+    }
+    async function renderNews(){
+      const el=$('newsContent');if(!state.news.length){el.innerHTML=empty('No headlines found.','Try another search or category.');return;}const counts=await decorateNews();
+      el.innerHTML=state.news.map(a=>{const n=state.newsItems.get(a.url),c=n?(counts.get(n.id)||{likes:0,reposts:0,liked:false,reposted:false}):{likes:0,reposts:0,liked:false,reposted:false};return `<article class="news-card"><div class="news-thumb">${a.image?`<img src="${esc(a.image)}" alt="" loading="lazy">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v14H4z"></path><path d="m5 16 4-4 3 3 2-2 5 5"></path><circle cx="9" cy="9" r="1.5"></circle></svg>`}</div><div><div><span class="news-source">${esc(a.source||'News')}</span><span class="news-date">${a.publishedAt?esc(relativeTime(a.publishedAt)):''}</span></div><a class="news-title" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><div class="news-meta">${esc(a.language||'English')}</div><div class="news-actions"><button class="news-action classic-button ${c.liked?'active-like':''}" data-news-action="like" data-news-url="${esc(a.url)}" title="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.9c0 5.4-8.8 10.1-8.8 10.1S3.2 14.3 3.2 8.9A4.9 4.9 0 0 1 8 4a5.2 5.2 0 0 1 4 2.1A5.2 5.2 0 0 1 16 4a4.9 4.9 0 0 1 4.8 4.9Z"></path></svg><span>${c.likes}</span></button><button class="news-action classic-button ${c.reposted?'active-repost':''}" data-news-action="repost" data-news-url="${esc(a.url)}" title="Repost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 4 4 4-4 4"></path><path d="M3 8h18"></path><path d="m7 20-4-4 4-4"></path><path d="M21 16H3"></path></svg><span>${c.reposts}</span></button><a class="news-action classic-button" href="${esc(a.url)}" target="_blank" rel="noopener" title="Open story"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4h6v6"></path><path d="M10 14 20 4"></path><path d="M19 13v6H5V5h6"></path></svg><span>Read</span></a></div></div></article>`;}).join('');
+    }
 
     async function performSearch(q){$("discoverSearch").value=q; navigate("discover"); await loadDiscover(q);}
 
@@ -772,10 +890,48 @@
 
     async function signOut(){try{const {error}=await sb.auth.signOut();if(error)throw error;notify("Signed out.");}catch(e){notify(e.message||"Sign out failed.");}}
 
-    async function publish(){const body=$("postText").value.trim();if(!body)return;if(body.length>280){notify("Posts are limited to 280 characters.");return;}try{const {error}=await sb.from("degreesns_posts").insert({user_id:currentUserId(),body});if(error)throw error;$("postText").value="";updateCounter();notify("Post published.");await loadHome();await refreshCounts();}catch(e){notify(e.message||"Could not publish the post.");}}
-    function updateCounter(){const left=280-$("postText").value.length;$("counter").textContent=left;$("counter").classList.toggle("warning",left<=20);$("publishPost").disabled=left>=280||left<0||!$("postText").value.trim();}
+    function extractFirstUrl(text){const m=String(text||'').match(/https?:\/\/[^\s<]+/i);return m?m[0].replace(/[),.!?;:]+$/,''):'';}
+    function showComposerLink(preview){
+      const box=$('composerLinkPreview');
+      if(!preview){box.classList.remove('show');$('composerLinkImage').removeAttribute('src');$('composerLinkTitle').textContent='';$('composerLinkDesc').textContent='';$('composerLinkSite').textContent='';return;}
+      if(preview.image)$('composerLinkImage').src=preview.image;else $('composerLinkImage').removeAttribute('src');
+      $('composerLinkTitle').textContent=preview.title||preview.url;$('composerLinkDesc').textContent=preview.description||'';$('composerLinkSite').textContent=preview.site||'';box.classList.add('show');
+    }
+    async function fetchLinkPreview(url){
+      const response=await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=true`,{headers:{Accept:'application/json'}});
+      if(!response.ok)throw new Error('Preview service unavailable');
+      const json=await response.json(),data=json?.data||{};
+      let host='';try{host=new URL(url).hostname.replace(/^www\./,'');}catch{}
+      return {url,title:data.title||url,description:data.description||'',image:data.image?.url||data.logo?.url||'',site:data.publisher||data.source||host};
+    }
+    function scheduleLinkPreview(){
+      clearTimeout(state.composerLinkTimer);const url=extractFirstUrl($('postText').value);
+      if(!url){state.composerLinkPreview=null;showComposerLink(null);return;}
+      state.composerLinkTimer=setTimeout(async()=>{try{const preview=await fetchLinkPreview(url);if(extractFirstUrl($('postText').value)===url){state.composerLinkPreview=preview;showComposerLink(preview);}}catch(e){state.composerLinkPreview=null;showComposerLink(null);console.warn(e);}},450);
+    }
+    function clearComposerImage(){
+      if(state.composerImageObjectUrl)URL.revokeObjectURL(state.composerImageObjectUrl);
+      state.composerImageObjectUrl=null;state.composerImage=null;$('postImageFile').value='';$('composerAttachment').classList.remove('show');$('composerAttachmentImage').removeAttribute('src');
+    }
+    async function uploadPostImage(){
+      const file=state.composerImage;if(!file)return null;
+      if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>5242880)throw new Error('Choose a PNG, JPG, WebP or GIF up to 5 MB.');
+      const ext=file.name.split('.').pop()?.toLowerCase()||'jpg',path=`${currentUserId()}/${crypto.randomUUID()}.${ext}`;
+      const {error}=await sb.storage.from('degreesns-post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});if(error)throw error;
+      const {data}=sb.storage.from('degreesns-post-media').getPublicUrl(path);return data.publicUrl;
+    }
+    async function publish(){
+      const body=$('postText').value.trim(),preview=state.composerLinkPreview;
+      if(!body&&!state.composerImage){notify('Write something or attach an image.');return;} if(body.length>280){notify('Posts are limited to 280 characters.');return;}
+      try{
+        $('publishPost').disabled=true;const mediaUrl=await uploadPostImage();
+        const payload={user_id:currentUserId(),body:body||' ',media_url:mediaUrl,media_type:state.composerImage?.type||null,link_url:preview?.url||extractFirstUrl(body)||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null,link_site:preview?.site||null};
+        const {error}=await sb.from('degreesns_posts').insert(payload);if(error)throw error;
+        $('postText').value='';clearComposerImage();state.composerLinkPreview=null;showComposerLink(null);updateCounter();notify('Post published.');await loadHome();await refreshCounts();
+      }catch(e){notify(e.message||'Could not publish the post.');}finally{$('publishPost').disabled=false;updateCounter();}
+    }
 
-    async function openReplyModal(postId){state.replyTo=postId;const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("parent_id",postId).order("created_at",{ascending:true}).limit(100);if(error)throw error;const replies=await decoratePosts(data);$("replyThread").innerHTML=replies.length?replies.map(postTemplate).join(""):`<div class="inline-empty">No replies yet.</div>`;window.twemoji?.parse?.($("replyThread"),{folder:"svg",ext:".svg"});$("replyModal").classList.add("open");$("replyText").focus();}
+    async function openReplyModal(postId){state.replyTo=postId;const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").eq("parent_id",postId).order("created_at",{ascending:true}).limit(100);if(error)throw error;const replies=await decoratePosts(data);$("replyThread").innerHTML=replies.length?replies.map(postTemplate).join(""):`<div class="inline-empty">No replies yet.</div>`;window.twemoji?.parse?.($("replyThread"),{folder:"svg",ext:".svg"});$("replyModal").classList.add("open");$("replyText").focus();}
     async function sendReply(){const body=$("replyText").value.trim();if(!body||!state.replyTo)return;try{const {data:parent,error:pe}=await sb.from("degreesns_posts").select("user_id").eq("id",state.replyTo).single();if(pe)throw pe;const {error}=await sb.from("degreesns_posts").insert({user_id:currentUserId(),parent_id:state.replyTo,body});if(error)throw error;await createNotification("reply",parent.user_id,state.replyTo);$("replyText").value="";$("replyModal").classList.remove("open");state.replyTo=null;notify("Reply posted.");await refreshCurrent();}catch(e){notify(e.message||"Could not reply.");}}
 
     async function toggleInteraction(kind,postId){
@@ -797,7 +953,7 @@
 
     async function sendFriendRequest(userId){const {data:existing,error:ee}=await sb.from("degreesns_friend_requests").select("id,status,sender_id,receiver_id").or(`sender_id.eq.${currentUserId()},receiver_id.eq.${currentUserId()}`).in("status",["pending","accepted"]);if(ee)throw ee;const same=(existing||[]).find(r=>[r.sender_id,r.receiver_id].includes(userId));if(same){notify(same.status==="accepted"?"You are already friends.":"Friend request already exists.");return;}const {error}=await sb.from("degreesns_friend_requests").insert({sender_id:currentUserId(),receiver_id:userId});if(error)throw error;await createNotification("friend_request",userId);await loadConnect();notify("Friend request sent.");}
     async function acceptFriendRequest(id){const {data:req,error}=await sb.rpc("degreesns_accept_friend_request",{p_request_id:id});if(error)throw error;if(!req?.id)throw new Error("That friend request is no longer pending.");await createNotification("friend_accept",req.sender_id);await loadConnect();await loadConversations();notify("Friend request accepted.");}
-    async function updateFriendRequest(id,status){if(status==="accepted"){await acceptFriendRequest(id);return;}const {error}=await sb.from("degreesns_friend_requests").update({status:"declined",updated_at:new Date().toISOString()}).eq("id",id).eq("receiver_id",currentUserId()).eq("status","pending");if(error)throw error;await loadConnect();notify("Friend request declined.");}
+    async function updateFriendRequest(id,status){if(status==="accepted"){await acceptFriendRequest(id);return;}if(status!=="declined")throw new Error("Unknown friend request action.");const {error}=await sb.from("degreesns_friend_requests").update({status:"declined",updated_at:new Date().toISOString()}).eq("id",id).eq("receiver_id",currentUserId()).eq("status","pending");if(error)throw error;await loadConnect();notify("Friend request declined.");}
     async function removeFriend(userId){const req=friendRequestFor(userId);if(!req) return;const {error}=await sb.from("degreesns_friend_requests").delete().eq("id",req.id);if(error)throw error;await loadConnect();notify("Friend removed.");}
     async function toggleFollow(userId){const {data:existing,error}=await sb.from("degreesns_follows").select("following_id").eq("follower_id",currentUserId()).eq("following_id",userId).maybeSingle();if(error)throw error;if(existing){const {error:e}=await sb.from("degreesns_follows").delete().eq("follower_id",currentUserId()).eq("following_id",userId);if(e)throw e;notify("Unfollowed.");}else{const {error:e}=await sb.from("degreesns_follows").insert({follower_id:currentUserId(),following_id:userId});if(e)throw e;await createNotification("follow",userId);}await loadFollowState();await refreshCounts();await loadConnect();await loadRightRail();if(state.currentView==="discover")await loadDiscover($("discoverSearch").value);}
 
@@ -827,7 +983,7 @@
         const [following,followers,posts,followed]=await Promise.all([
           sb.from("degreesns_follows").select("following_id",{count:"exact",head:true}).eq("follower_id",userId),
           sb.from("degreesns_follows").select("follower_id",{count:"exact",head:true}).eq("following_id",userId),
-          sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("user_id",userId).is("parent_id",null).order("created_at",{ascending:false}).limit(20),
+          sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at,media_url,media_type,link_url,link_title,link_description,link_image_url,link_site,news_id").eq("user_id",userId).is("parent_id",null).order("created_at",{ascending:false}).limit(20),
           sb.from("degreesns_follows").select("following_id").eq("follower_id",currentUserId()).eq("following_id",userId).maybeSingle()
         ]);
         const decorated=await decoratePosts(posts.data||[]);const isFollowing=!!followed.data;const isFriend=!!friendRequestFor(userId)&&friendRequestFor(userId).status==="accepted";
@@ -838,7 +994,7 @@
     async function handlePublicProfileAction(e){const b=e.target.closest("[data-public-action]");if(!b)return;try{const id=b.dataset.userId;const action=b.dataset.publicAction;if(action==="follow")await toggleFollow(id);else if(action==="friend")await sendFriendRequest(id);else if(action==="chat"){await $("closeProfileModal").click();await navigate("chat");await openConversationByFriend(id);}await openUserProfile(id);}catch(ex){notify(ex.message||"Profile action failed.");}}
 
     async function handlePersonActions(e){const b=e.target.closest("[data-person-action]");if(!b)return;const id=b.dataset.userId;try{if(b.dataset.personAction==="friend")await sendFriendRequest(id);else if(b.dataset.personAction==="follow")await toggleFollow(id);else if(b.dataset.personAction==="remove")await removeFriend(id);else if(b.dataset.personAction==="chat"){await navigate("chat");await openConversationByFriend(id);}}catch(ex){notify(ex.message||"Action failed.");}}
-    async function handleFriendRequest(e){const b=e.target.closest("[data-friend-request]");if(!b)return;e.preventDefault();b.disabled=true;try{await updateFriendRequest(b.dataset.requestId,b.dataset.friendRequest);}catch(ex){notify(ex.message||"Could not update request.");}finally{b.disabled=false;}}
+    async function handleFriendRequest(e){const b=e.target.closest("[data-friend-request]");if(!b)return;e.preventDefault();b.disabled=true;try{const requested=b.dataset.friendRequest;const status=requested==="accept"?"accepted":requested==="decline"?"declined":requested;await updateFriendRequest(b.dataset.requestId,status);}catch(ex){notify(ex.message||"Could not update request.");}finally{b.disabled=false;}}
 
     document.addEventListener("click",e=>{const b=e.target.closest("[data-list-open]");if(b){state.listOpenId=b.dataset.listOpen;navigate("lists");return;}if(e.target.closest("[data-list-close]")){state.listOpenId=null;navigate("lists");return;}const d=e.target.closest("[data-list-delete]");if(d){deleteList(d.dataset.listDelete).catch(ex=>notify(ex.message||"Could not delete list."));return;}const p=e.target.closest("[data-user-profile]");if(p){e.preventDefault();openUserProfile(p.dataset.userProfile);return;}const v=e.target.closest("[data-view]");if(v){navigate(v.dataset.view);}});
 
@@ -848,6 +1004,10 @@
     $("forgotPassword").addEventListener("click",forgotPassword);
     $("signOut").addEventListener("click",signOut); $("settingsSignOut").addEventListener("click",signOut);
     $("postText").addEventListener("input",updateCounter); $("postText").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")publish()}); $("publishPost").addEventListener("click",publish);
+    $("postImageFile")?.addEventListener("change",e=>{const file=e.target.files?.[0];if(!file)return;if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>5242880){notify("Choose a PNG, JPG, WebP or GIF up to 5 MB.");e.target.value="";return;}clearComposerImage();state.composerImage=file;state.composerImageObjectUrl=URL.createObjectURL(file);$("composerAttachmentImage").src=state.composerImageObjectUrl;$("composerAttachment").classList.add("show");updateCounter();});
+    $("removeComposerImage")?.addEventListener("click",clearComposerImage);
+    $("insertEmojiHint")?.addEventListener("click",()=>{const ta=$("postText");ta.focus();const code=" :smile:";const start=ta.selectionStart??ta.value.length;ta.value=ta.value.slice(0,start)+code+ta.value.slice(ta.selectionEnd??start);ta.selectionStart=ta.selectionEnd=start+code.length;updateCounter();scheduleLinkPreview();});
+    $("postText").addEventListener("input",scheduleLinkPreview);
     $("topPost").addEventListener("click",()=>{navigate("home");setTimeout(()=>$("postText").focus(),0)});
     $("themeToggle").addEventListener("click",toggleTheme); $("settingsTheme").addEventListener("click",toggleTheme);
     $("saveProfile").addEventListener("click",saveProfile); $("createList").addEventListener("click",createList);
@@ -873,6 +1033,7 @@
     $("globalSearchBtn").addEventListener("click",()=>performSearch($("globalSearch").value.trim()).catch(ex=>notify(ex.message||"Search failed."))); $("globalSearch").addEventListener("keydown",e=>{if(e.key==="Enter")$("globalSearchBtn").click()}); $("discoverSearch").addEventListener("input",()=>loadDiscover($("discoverSearch").value).catch(ex=>console.warn(ex)));
     $("newsSearchButton").addEventListener("click",()=>loadNews($("newsSearch").value.trim()).catch(ex=>notify(ex.message||"News search failed."))); $("newsRefresh").addEventListener("click",()=>loadNews(state.newsQuery).catch(ex=>notify(ex.message||"News refresh failed."))); $("newsSearch").addEventListener("keydown",e=>{if(e.key==="Enter")$("newsSearchButton").click()});
     $("newsFilters").addEventListener("click",e=>{const b=e.target.closest("[data-news-query]");if(!b)return;document.querySelectorAll("#newsFilters .filter-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("newsSearch").value=b.dataset.newsQuery;loadNews(b.dataset.newsQuery).catch(ex=>notify(ex.message||"News filter failed."));});
+    $("newsContent").addEventListener("click",e=>{const b=e.target.closest("[data-news-action]");if(!b)return;e.preventDefault();toggleNewsInteraction(b.dataset.newsAction,b.dataset.newsUrl).catch(ex=>notify(ex.message||"Could not update news reaction."));});
 
     document.querySelectorAll("[data-auth-view]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-auth-view]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");$("loginView").classList.toggle("hidden",btn.dataset.authView!=="login");$("signupView").classList.toggle("hidden",btn.dataset.authView!=="signup");$("resetView").classList.add("hidden");}));
 
@@ -882,7 +1043,7 @@
     $("motionToggle")?.addEventListener("click",()=>{const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");setCustomization("motion",c.motion===false);});
 
     async function boot(){
-      pressFx(); restoreTheme(); updateCounter();
+      pressFx(); restoreTheme(); loadCustomization(); updateCounter(); await loadEmojiShortcodes();
       const {data:{session}}=await sb.auth.getSession();
       if(session?.user){state.authUser=session.user;try{await showApp();}catch(e){console.error(e);notify(e.message||"Could not load degreeSNS.");}}
       sb.auth.onAuthStateChange(async (event,session)=>{
