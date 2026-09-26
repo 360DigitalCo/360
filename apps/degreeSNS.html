@@ -253,6 +253,45 @@
     html[data-bg="paper"] body{background-image:linear-gradient(rgba(0,0,0,.018) 1px,transparent 1px);background-size:100% 4px}html[data-bg="blue"] body{background:#f1f8ff}.profile-theme-sky .profile-page-body{background:#eef8ff}.profile-theme-night .profile-page-body{background:#17212b;color:#fff}
     @media(max-width:900px){.achievement-grid{grid-template-columns:1fr 1fr}}
     html.font-small{font-size:96%}html.font-large{font-size:112%}html.density-compact .post{padding-top:8px;padding-bottom:8px}html.density-spacious .post{padding-top:18px;padding-bottom:18px}html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation:none!important;transition:none!important}
+
+    /* Final UI stabilization: chat + news */
+    .news-list{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+    .news-card{grid-template-columns:148px minmax(0,1fr);align-items:start;min-width:0}
+    .news-card>div:last-child{min-width:0}
+    .news-thumb{width:148px;height:94px;position:relative;flex:none;background:var(--page)}
+    .news-thumb img{display:block;width:100%;height:100%;object-fit:cover;background:var(--page)}
+    .news-thumb.image-failed::after{content:'Image unavailable';display:flex;align-items:center;justify-content:center;position:absolute;inset:0;color:var(--muted);font-size:9px;background:var(--page)}
+    .news-thumb.loading::before{content:'';width:18px;height:18px;border:2px solid var(--border-dark);border-top-color:var(--blue);border-radius:50%;animation:degreesNewsSpin .8s linear infinite;position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;z-index:2}
+    @keyframes degreesNewsSpin{to{transform:rotate(360deg)}}
+    .news-source{max-width:55%;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+    .news-title{overflow-wrap:anywhere}
+    .news-actions{flex-wrap:wrap}
+
+    .chat-shell{height:680px;min-height:0;max-height:calc(100vh - 190px);grid-template-columns:270px minmax(0,1fr);overflow:hidden;border:1px solid var(--border);border-radius:5px;background:var(--panel)}
+    .chat-list{min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+    .chat-list-head{height:46px;box-sizing:border-box;display:flex;align-items:center;flex:none}
+    .chat-conversation-tools{flex:none}
+    #conversationList{min-height:0;overflow-y:auto;overflow-x:hidden;flex:1}
+    .conversation-row{padding:0 6px}
+    .conversation{box-sizing:border-box;min-width:0;align-items:center}
+    .conversation>div:last-child{min-width:0}
+    .conversation-avatar{flex:none}
+    .message-pane{min-height:0;height:100%;background:var(--panel)}
+    .message-head{flex:none}
+    .message-head>div:first-child{min-width:0}
+    .message-head-name,.message-head-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    .message-list{min-height:0;flex:1;scroll-behavior:auto;overscroll-behavior:contain}
+    .message{width:fit-content;max-width:min(78%,680px);box-sizing:border-box}
+    .message-tools{opacity:.72}
+    .message:hover .message-tools{opacity:1}
+    .chat-tools{display:flex;align-items:center;gap:6px;padding:7px 10px;border-top:1px solid var(--border);background:var(--panel-alt);flex:none;min-height:38px;box-sizing:border-box}
+    .chat-tools .field-help{margin:0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .chat-compose{flex:none}
+    .chat-compose textarea{box-sizing:border-box;min-width:0}
+    @media(max-width:1100px){.chat-shell{grid-template-columns:235px minmax(0,1fr)}}
+    @media(max-width:900px){.chat-shell{height:720px;max-height:none}.message{max-width:84%}.news-card{grid-template-columns:120px minmax(0,1fr)}.news-thumb{width:120px}}
+    @media(max-width:700px){.chat-shell{height:auto;max-height:none;display:grid;grid-template-columns:1fr}.chat-list{max-height:220px;border-right:0;border-bottom:1px solid var(--border)}#conversationList{max-height:150px}.message-pane{min-height:520px}.message-list{min-height:330px}.news-card{grid-template-columns:1fr}.news-thumb{width:100%;height:170px}}
+
 </style>
 </head>
 <body>
@@ -1756,10 +1795,19 @@
       rows.sort((a,b)=>new Date(b.published_at||0)-new Date(a.published_at||0));state.newsCache=rows.slice(0,60);
       const ids=state.newsCache.filter(x=>x.id).map(x=>x.id);let likes=[],reposts=[];if(ids.length){likes=(await sb.from("degreesns_news_likes").select("news_id,user_id").in("news_id",ids)).data||[];reposts=(await sb.from("degreesns_news_reposts").select("news_id,user_id").in("news_id",ids)).data||[];}
       const stats=new Map();for(const n of likes){const x=stats.get(n.news_id)||{likes:0,reposts:0,liked:false,reposted:false,saved:saveSet.has(n.news_id)};x.likes++;x.liked=x.liked||n.user_id===currentUserId();stats.set(n.news_id,x);}for(const n of reposts){const x=stats.get(n.news_id)||{likes:0,reposts:0,liked:false,reposted:false,saved:saveSet.has(n.news_id)};x.reposts++;x.reposted=x.reposted||n.user_id===currentUserId();stats.set(n.news_id,x);}
-      $("newsContent").innerHTML=state.newsCache.length?state.newsCache.map(n=>{const x=stats.get(n.id)||{likes:0,reposts:0,liked:false,reposted:false,saved:n.id?saveSet.has(n.id):false};return `<article class="news-card" data-news-id="${esc(n.id||"")}"><div class="news-thumb">${n.image_url?`<img src="${esc(n.image_url)}" alt="" loading="lazy">`:""}</div><div><div><span class="news-source">${esc(n.source||"News")}</span><span class="news-date">${n.published_at?esc(roadmapTimestamp(n.published_at)):""}</span></div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a><div class="news-meta">${esc(n.language||"English")}</div><div class="news-actions"><button class="news-action classic-button ${x.liked?"active-like":""}" data-news-action="like">Like <span>${x.likes}</span></button><button class="news-action classic-button ${x.reposted?"active-repost":""}" data-news-action="repost">Repost <span>${x.reposts}</span></button><button class="news-action classic-button ${x.saved?"active-bookmark":""}" data-news-action="save">Save</button><button class="news-action classic-button" data-news-action="quote">Discuss</button><button class="news-action classic-button" data-news-action="share">Share</button>${n.source_id?`<button class="news-action classic-button" data-news-action="follow-source" data-source-id="${esc(n.source_id)}">Follow source</button><button class="news-action classic-button" data-news-action="hide-source" data-source-id="${esc(n.source_id)}">Hide source</button>`:""}</div></div></article>`;}).join(""):empty("No headlines found.","Try another category or sync a custom RSS feed.");
+      $("newsContent").innerHTML=state.newsCache.length?state.newsCache.map(n=>{const x=stats.get(n.id)||{likes:0,reposts:0,liked:false,reposted:false,saved:n.id?saveSet.has(n.id):false};const image=n.image_url?`<img class="news-preview-image" src="${esc(n.image_url)}" alt="" loading="lazy" decoding="async">`:`<svg class="news-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v14H4z"></path><path d="m5 16 4-4 3 3 2-2 5 5"></path><circle cx="9" cy="9" r="1.5"></circle></svg>`;return `<article class="news-card" data-news-id="${esc(n.id||"")}" data-news-url="${esc(n.url||"")}"><div class="news-thumb${n.image_url?"":" loading"}">${image}</div><div><div><span class="news-source">${esc(n.source||"News")}</span><span class="news-date">${n.published_at?esc(roadmapTimestamp(n.published_at)):""}</span></div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a><div class="news-meta">${esc(n.language||"English")}</div>${n.description?`<div class="news-meta news-description">${esc(n.description).slice(0,220)}</div>`:""}<div class="news-actions"><button class="news-action classic-button ${x.liked?"active-like":""}" data-news-action="like">Like <span>${x.likes}</span></button><button class="news-action classic-button ${x.reposted?"active-repost":""}" data-news-action="repost">Repost <span>${x.reposts}</span></button><button class="news-action classic-button ${x.saved?"active-bookmark":""}" data-news-action="save">Save</button><button class="news-action classic-button" data-news-action="quote">Discuss</button><button class="news-action classic-button" data-news-action="share">Share</button>${n.source_id?`<button class="news-action classic-button" data-news-action="follow-source" data-source-id="${esc(n.source_id)}">Follow source</button><button class="news-action classic-button" data-news-action="hide-source" data-source-id="${esc(n.source_id)}">Hide source</button>`:""}</div></div></article>`;}).join(""):empty("No headlines found.","Try another category or sync a custom RSS feed.");
+      hydrateNewsPreviewImages();
+    }
+    async function hydrateNewsPreviewImages(){
+      const cards=[...document.querySelectorAll("#newsContent .news-card")].filter(card=>{const img=card.querySelector(".news-preview-image");return !img && card.dataset.newsUrl;}).slice(0,24);
+      let cursor=0;
+      const worker=async()=>{while(cursor<cards.length){const card=cards[cursor++];const url=card.dataset.newsUrl;const thumb=card.querySelector(".news-thumb");if(!thumb||thumb.dataset.previewLoading)return;thumb.dataset.previewLoading="1";thumb.classList.add("loading");try{const preview=await fetchLinkPreview(url);if(preview?.image){const item=state.newsCache.find(n=>n.url===url);if(item)item.image_url=preview.image;thumb.classList.remove("loading");thumb.classList.remove("image-failed");thumb.innerHTML=`<img class="news-preview-image" src="${esc(preview.image)}" alt="" loading="lazy" decoding="async">`;const img=thumb.querySelector("img");img.addEventListener("error",()=>{thumb.classList.add("image-failed");thumb.classList.remove("loading");img.style.display="none"},{once:true});}else{thumb.classList.remove("loading");thumb.classList.add("image-failed");}}catch{thumb.classList.remove("loading");thumb.classList.add("image-failed");}}};
+      await Promise.all([worker(),worker(),worker(),worker()]);
     }
     loadNews=loadRoadmapNewsComplete;
     loadRoadmapNews=loadRoadmapNewsComplete;
+
+    document.addEventListener("error",e=>{if(e.target?.matches?.("#newsContent .news-preview-image")){const img=e.target;const thumb=img.closest(".news-thumb");if(thumb){thumb.classList.add("image-failed");thumb.classList.remove("loading");img.style.display="none";}}},true);
 
     async function newsAction(action, card){
       const n=state.newsCache.find(x=>(x.id||"")===card.dataset.newsId);if(!n){notify("This story is not available yet.");return;}
