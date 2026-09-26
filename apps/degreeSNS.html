@@ -409,6 +409,7 @@
       .chat-tools{flex-wrap:wrap}
       .chat-tools .field-help{order:4;flex-basis:100%}
     }
+.platform-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #9bb9cf;background:linear-gradient(#ffffff,#e9f1f7);color:#25618c;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;margin:2px 4px 2px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.95)}.platform-badge::before{content:"◆";font-size:8px}.cross-account-box{margin-top:8px;padding:8px;border:1px solid var(--border);background:var(--panel-alt)}.cross-account-copy{font-size:10px;line-height:14px;color:var(--muted)}.cross-account-title{font-weight:700;color:var(--text);font-size:11px;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -613,7 +614,7 @@
               <div class="profile-page-avatar"><div class="avatar-initial" id="profileAvatar"></div></div>
               <div class="profile-page-name" id="profileName"></div>
               <div class="profile-page-handle" id="profileHandle"></div>
-              <div class="profile-page-bio" id="profileBio"></div><div class="profile-info-line" id="profileInfoLine"></div><div class="profile-status" id="profileStatus"></div>
+              <div class="profile-page-bio" id="profileBio"></div><div class="profile-info-line" id="profileInfoLine"></div><div class="profile-status" id="profileStatus"></div><div id="profilePlatformBadges" class="profile-badges"></div>
               <div class="profile-metrics"><div class="profile-metric"><strong id="profilePosts">0</strong><span>Posts</span></div><div class="profile-metric"><strong id="profileFollowing">0</strong><span>Following</span></div><div class="profile-metric"><strong id="profileFollowers">0</strong><span>Followers</span></div><div class="profile-metric"><strong id="profileFriends">0</strong><span>Friends</span></div></div>
               <div class="profile-actions"><button class="profile-action-btn primary classic-button" id="profileEditButton">Edit profile</button><button class="profile-action-btn classic-button" id="profileShareButton">Share profile</button></div>
             </div>
@@ -647,6 +648,7 @@
               <div class="account-email">Email: <strong id="settingsEmail"></strong></div>
               <button class="primary classic-button" id="saveProfile">Save profile</button>
             </div>
+            <div class="section"><h3>Aurora</h3><div id="auroraLinkSection"></div></div>
             <div class="section"><h3>Appearance</h3>
               <div class="setting-row"><div><div class="setting-name">Dark mode</div><div class="setting-desc">Off by default.</div></div><button class="switch classic-button" id="settingsTheme" aria-label="Toggle dark mode"><span></span></button></div>
               <div class="setting-row"><div><div class="setting-name">Accent color</div><div class="setting-desc">Choose the color used throughout degreeSNS.</div></div><select class="setting-select" id="accentSelect"><option value="blue">Classic blue</option><option value="sky">Sky</option><option value="violet">Violet</option><option value="green">Green</option><option value="orange">Orange</option></select></div>
@@ -926,17 +928,51 @@
       return `<article class="post" data-post-id="${esc(post.id)}"><div class="post-avatar" data-user-profile="${esc(post.user_id)}">${avatarMarkup(post.author)}</div><div><div class="post-head"><button class="post-profile-link post-name" data-user-profile="${esc(post.user_id)}">${esc(post.author_name)}</button><span class="post-handle">@${esc(post.author_username)}</span>${status?`<span class="post-status">${mentionAndEmoji(status)}</span>`:''}<span class="post-time">· ${relativeTime(post.created_at)}</span></div><div class="post-body">${mentionAndEmoji(post.body)}</div>${media}${postLinkMarkup(post)}<div class="post-actions"><button class="post-action classic-button ${post.liked_by_me?'active-like':''}" data-action="like" title="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.9c0 5.4-8.8 10.1-8.8 10.1S3.2 14.3 3.2 8.9A4.9 4.9 0 0 1 8 4a5.2 5.2 0 0 1 4 2.1A5.2 5.2 0 0 1 16 4a4.9 4.9 0 0 1 4.8 4.9Z"></path></svg><span>${post.likes_count||0}</span></button><button class="post-action classic-button ${post.reposted_by_me?'active-repost':''}" data-action="repost" title="Repost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 4 4 4-4 4"></path><path d="M3 8h18"></path><path d="m7 20-4-4 4-4"></path><path d="M21 16H3"></path></svg><span>${post.reposts_count||0}</span></button><button class="post-action classic-button ${post.bookmarked?'active-bookmark':''}" data-action="bookmark" title="Bookmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v17l-6-3-6 3z"></path></svg></button><button class="post-action classic-button" data-action="reply" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 3v-5.5A7.5 7.5 0 0 1 11.5 4H13A7.5 7.5 0 0 1 20 11.5Z"></path></svg><span>${post.replies_count||0}</span></button><button class="post-action classic-button" data-action="list" title="Add to list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"></path><path d="M9 9h6M9 12h6M9 15h4"></path></svg></button><button class="post-action classic-button" data-action="share" title="Copy post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15 15 9"></path><path d="M7 7h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2-2v-2"></path><path d="M13 5h6v6"></path><path d="M13 11 19 5"></path></svg></button></div></div>${mine?`<button class="post-delete classic-button" data-action="delete" title="Delete post">×</button>`:''}</article>`;
     }
 
+    async function loadCrossPlatformState(){
+      const id=currentUserId();
+      if(!id){return {linked:false,badges:[]};}
+      const [linkRes,badgeRes]=await Promise.all([
+        sb.from("platform_account_links").select("user_id,aurora_profile_id,degreesns_profile_id").eq("user_id",id).maybeSingle(),
+        sb.from("degreesns_badges").select("slug,name,description,created_at").eq("user_id",id).order("created_at",{ascending:true})
+      ]);
+      return {linked:!!linkRes.data,badges:badgeRes.data||[]};
+    }
+
+    function crossBadgeMarkup(badges){
+      return (badges||[]).map(b=>`<span class="platform-badge" title="${esc(b.description)}">${esc(b.name)}</span>`).join("");
+    }
+
+    async function renderAuroraLinkSection(){
+      const box=$("auroraLinkSection"); if(!box)return;
+      const c=await loadCrossPlatformState();
+      box.innerHTML=`<div class="cross-account-box"><div class="cross-account-title">Link your Aurora account</div><div class="cross-account-copy">One identity across degreeSNS and Aurora. Linking unlocks a badge on both platforms.</div><div style="margin-top:7px">${crossBadgeMarkup(c.badges)}</div><div style="margin-top:7px"><button class="secondary classic-button" id="linkAuroraAccountBtn" ${c.linked?"disabled":""}>${c.linked?"Aurora linked":"link Aurora account"}</button></div><div class="field-help" style="margin-top:6px">Aurora badge: <b>Aurora's achievement is lying</b><br>degreeSNS badge: <b>degreeSNS's achievement is telling the truth</b></div></div>`;
+    }
+
+    async function linkAuroraAccount(){
+      const {error}=await sb.rpc("link_aurora_and_degreesns");
+      if(error){notify(error.message||"Could not link Aurora.");return;}
+      await renderAuroraLinkSection();
+      await renderRoadmapProfileExtras();
+      notify("Aurora account linked.");
+    }
+
     function renderUser() {
       if(!state.profile)return;
       const p=state.profile;
       ["railAvatar","composerAvatar","profileAvatar"].forEach(id=>{const el=$(id);if(el)el.innerHTML=avatarMarkup(p);});
       $("railName").textContent=p.display_name||""; $("railHandle").textContent=`@${p.username||"user"}`; $("railBio").textContent=p.bio||""; $("railStatus").innerHTML=statusMarkup(p);
-      $("profileName").textContent=p.display_name||""; $("profileHandle").textContent=`@${p.username||"user"}`; $("profileBio").textContent=p.bio||""; $("profileStatus").innerHTML=statusMarkup(p);
+      $("profileName").textContent=p.display_name||""; $("profileHandle").textContent=`@${p.username||"user"}`; $("profileBio").textContent=p.bio||""; $("profileStatus").innerHTML=statusMarkup(p); renderProfileCrossBadge().catch(()=>{});
       $("profilePageBanner").style.backgroundImage=p.banner_url?`url("${p.banner_url}")`:""; document.querySelector(".profile-banner").style.backgroundImage=p.banner_url?`url("${p.banner_url}")`:"";
       $("settingsDisplayName").value=p.display_name||""; $("settingsUsername").value=p.username||""; $("settingsBio").value=p.bio||""; $("settingsStatus").value=activeStatus(p); $("settingsEmail").textContent=state.authUser?.email||"";
       $("settingsAvatarPreview").innerHTML=avatarMarkup(p);
       $("settingsBannerPreview").innerHTML=p.banner_url?`<img src="${esc(p.banner_url)}" alt="">`:"";
       const expiry=$("settingsStatusExpiry"); if(expiry) expiry.value=p.status_expires_at?(new Date(p.status_expires_at).getTime()>Date.now()+6*24*3600000?"7d":new Date(p.status_expires_at).getTime()>Date.now()+22*3600000?"1d":new Date(p.status_expires_at).getTime()>Date.now()+3*3600000?"4h":"1h"):"never";
+    }
+
+    async function renderProfileCrossBadge(userId=currentUserId()){
+      const el=$("profilePlatformBadges"); if(!el||!userId)return;
+      const {data}=await sb.from("degreesns_badges").select("slug,name,description").eq("user_id",userId).eq("slug","aurora-link");
+      el.innerHTML=crossBadgeMarkup(data||[]);
     }
 
     async function refreshCounts(){
@@ -1344,6 +1380,7 @@
     async function handlePersonActions(e){const b=e.target.closest("[data-person-action]");if(!b)return;const id=b.dataset.userId;try{if(b.dataset.personAction==="friend")await sendFriendRequest(id);else if(b.dataset.personAction==="follow")await toggleFollow(id);else if(b.dataset.personAction==="remove")await removeFriend(id);else if(b.dataset.personAction==="chat"){await navigate("chat");await openConversationByFriend(id);}}catch(ex){notify(ex.message||"Action failed.");}}
     async function handleFriendRequest(e){const b=e.target.closest("[data-friend-request]");if(!b)return;e.preventDefault();b.disabled=true;try{const requested=b.dataset.friendRequest;const status=requested==="accept"?"accepted":requested==="decline"?"declined":requested;await updateFriendRequest(b.dataset.requestId,status);}catch(ex){notify(ex.message||"Could not update request.");}finally{b.disabled=false;}}
 
+    document.addEventListener("click",e=>{if(e.target.closest("#linkAuroraAccountBtn")){linkAuroraAccount();return;}});
     document.addEventListener("click",e=>{const b=e.target.closest("[data-list-open]");if(b){state.listOpenId=b.dataset.listOpen;navigate("lists");return;}if(e.target.closest("[data-list-close]")){state.listOpenId=null;navigate("lists");return;}const d=e.target.closest("[data-list-delete]");if(d){deleteList(d.dataset.listDelete).catch(ex=>notify(ex.message||"Could not delete list."));return;}const p=e.target.closest("[data-user-profile]");if(p){e.preventDefault();openUserProfile(p.dataset.userProfile);return;}const v=e.target.closest("[data-view]");if(v){navigate(v.dataset.view);}});
 
     $("loginForm").addEventListener("submit",signIn);
@@ -1464,6 +1501,8 @@
     async function loadRoadmapProfileExtras(){
       const {data,error}=await sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,banner_url,status,status_expires_at,theme,created_at,updated_at,location,website_url,is_private,pinned_post_id,show_education,high_school,college,creator_mode,verified,verification_label,reply_permissions,dm_permissions,mention_permissions,sensitive_media_default,content_warning_default,background_style").eq("id",currentUserId()).maybeSingle();
       if(error)throw error;if(data){state.profile=data;renderUser();renderRoadmapSettings();}
+      await renderAuroraLinkSection();
+      await renderProfileCrossBadge();
       const a=await sb.from("degreesns_activity_summary").select("*").eq("user_id",currentUserId()).maybeSingle();if($("profileAchievements"))$("profileAchievements").innerHTML=achievementMarkup(a.data||{});
     }
 
@@ -1846,10 +1885,11 @@
       ]);
       const isFollowing=!!followed.data;const freqs=friend.data||[];const fr=freqs.find(r=>[r.sender_id,r.receiver_id].includes(userId));const isFriend=fr?.status==="accepted";
       const decorated=await decoratePosts(posts.data||[]);
+      const {data:platformBadges}=await sb.from("degreesns_badges").select("slug,name,description").eq("user_id",userId).eq("slug","aurora-link");
       const mutualText=shared.data?.length?"Follows you":"";
       const school=p.show_education&&((p.high_school||p.college)?`<div class="field-help">Education: ${esc([p.high_school,p.college].filter(Boolean).join(" · "))}</div>`:"");
       const pinned= p.pinned_post_id ? decorated.find(x=>x.id===p.pinned_post_id) : null;
-      $("publicProfileContent").innerHTML=`<div class="profile-page-banner" style="height:100px;background-image:${p.banner_url?`url('${esc(p.banner_url)}')`:"none"}"></div><div class="profile-page-body"><div class="profile-page-avatar">${avatarMarkup(p)}</div><div class="profile-page-name">${esc(p.display_name)}${p.verified?` <span class="post-verified">✓</span>`:""}</div><div class="profile-page-handle">@${esc(p.username)}</div><div class="profile-page-bio">${roadmapBodyMarkup(p.bio||"")}</div>${statusMarkup(p)}<div class="profile-badges">${p.creator_mode?`<span class="profile-badge">Creator</span>`:""}${p.verified?`<span class="profile-badge">Verified${p.verification_label?` · ${esc(p.verification_label)}`:""}</span>`:""}${mutualText?`<span class="profile-badge">${esc(mutualText)}</span>`:""}</div>${locationMarkup(p)}${websiteMarkup(p)}<div class="field-help">Joined ${esc(new Date(p.created_at).toLocaleDateString())}</div>${school}<div class="profile-metrics"><div class="profile-metric"><strong>${following.count||0}</strong><span>Following</span></div><div class="profile-metric"><strong>${followers.count||0}</strong><span>Followers</span></div><div class="profile-metric"><strong>${decorated.length}</strong><span>Posts shown</span></div></div><div class="public-profile-actions"><button class="profile-action-btn primary classic-button" data-public-action="follow" data-user-id="${esc(p.id)}">${isFollowing?"Following":"Follow"}</button><button class="profile-action-btn classic-button" data-public-action="friend" data-user-id="${esc(p.id)}">${isFriend?"Friends":fr?.status==="pending"?"Request sent":"Add friend"}</button><button class="profile-action-btn classic-button" data-public-action="chat" data-user-id="${esc(p.id)}">Message</button></div><div class="roadmap-actions-menu"><button class="secondary classic-button" data-public-action="block" data-user-id="${esc(p.id)}">Block</button><button class="secondary classic-button" data-public-action="mute" data-user-id="${esc(p.id)}">Mute</button><button class="secondary classic-button" data-public-action="report" data-user-id="${esc(p.id)}">Report</button><button class="secondary classic-button" data-public-action="share" data-user-id="${esc(p.id)}">Copy profile link</button></div></div><div class="timeline-head" style="margin-top:0;border-radius:0"><span>Posts</span><span class="timeline-sub">@${esc(p.username)}</span></div><div id="publicProfileTimeline">${pinned?`<div class="field-help" style="padding:8px">Pinned post</div>${postTemplate(pinned)}`:""}${decorated.length?decorated.map(x=>x.id===p.pinned_post_id?"":postTemplate(x)).join(""):empty("No posts yet.","This profile has not posted yet.")}</div>`;
+      $("publicProfileContent").innerHTML=`<div class="profile-page-banner" style="height:100px;background-image:${p.banner_url?`url('${esc(p.banner_url)}')`:"none"}"></div><div class="profile-page-body"><div class="profile-page-avatar">${avatarMarkup(p)}</div><div class="profile-page-name">${esc(p.display_name)}${p.verified?` <span class="post-verified">✓</span>`:""}</div><div class="profile-page-handle">@${esc(p.username)}</div><div class="profile-page-bio">${roadmapBodyMarkup(p.bio||"")}</div>${statusMarkup(p)}<div class="profile-badges">${p.creator_mode?`<span class="profile-badge">Creator</span>`:""}${p.verified?`<span class="profile-badge">Verified${p.verification_label?` · ${esc(p.verification_label)}`:""}</span>`:""}${mutualText?`<span class="profile-badge">${esc(mutualText)}</span>`:""}${crossBadgeMarkup(platformBadges||[])}</div>${locationMarkup(p)}${websiteMarkup(p)}<div class="field-help">Joined ${esc(new Date(p.created_at).toLocaleDateString())}</div>${school}<div class="profile-metrics"><div class="profile-metric"><strong>${following.count||0}</strong><span>Following</span></div><div class="profile-metric"><strong>${followers.count||0}</strong><span>Followers</span></div><div class="profile-metric"><strong>${decorated.length}</strong><span>Posts shown</span></div></div><div class="public-profile-actions"><button class="profile-action-btn primary classic-button" data-public-action="follow" data-user-id="${esc(p.id)}">${isFollowing?"Following":"Follow"}</button><button class="profile-action-btn classic-button" data-public-action="friend" data-user-id="${esc(p.id)}">${isFriend?"Friends":fr?.status==="pending"?"Request sent":"Add friend"}</button><button class="profile-action-btn classic-button" data-public-action="chat" data-user-id="${esc(p.id)}">Message</button></div><div class="roadmap-actions-menu"><button class="secondary classic-button" data-public-action="block" data-user-id="${esc(p.id)}">Block</button><button class="secondary classic-button" data-public-action="mute" data-user-id="${esc(p.id)}">Mute</button><button class="secondary classic-button" data-public-action="report" data-user-id="${esc(p.id)}">Report</button><button class="secondary classic-button" data-public-action="share" data-user-id="${esc(p.id)}">Copy profile link</button></div></div><div class="timeline-head" style="margin-top:0;border-radius:0"><span>Posts</span><span class="timeline-sub">@${esc(p.username)}</span></div><div id="publicProfileTimeline">${pinned?`<div class="field-help" style="padding:8px">Pinned post</div>${postTemplate(pinned)}`:""}${decorated.length?decorated.map(x=>x.id===p.pinned_post_id?"":postTemplate(x)).join(""):empty("No posts yet.","This profile has not posted yet.")}</div>`;
       window.twemoji?.parse?.($("publicProfileContent"),{folder:"svg",ext:".svg"});$("profileModal").classList.add("open");
     }
     openUserProfile=openUserProfileComplete;
