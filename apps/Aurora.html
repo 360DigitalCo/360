@@ -198,7 +198,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     <div class="field"><label>community name</label><input id="communityName" maxlength="32" placeholder="technology"></div>
     <div class="field"><label>title</label><input id="communityTitle" maxlength="80"></div>
     <div class="field"><label>description</label><textarea id="communityDesc" rows="4" maxlength="500"></textarea></div>
-    <div class="hint">Names become r/name and may contain letters, numbers and underscores.</div>
+    <div class="hint">Names become a-name and may contain letters, numbers and underscores.</div>
   </div>
   <div class="modal-foot"><button class="classic" data-close="communityModal" type="button">cancel</button><button class="classic accent" id="createCommunitySubmit" type="button">create</button></div>
 </div></div>
@@ -344,17 +344,17 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     state.communities=data||[];
     renderCommunitySidebar();
     renderCommunityGrid();
-    $('postCommunity').innerHTML=state.communities.map(c=>'<option value="'+c.id+'">r/'+esc(c.name)+' — '+esc(c.title)+'</option>').join('');
+    $('postCommunity').innerHTML=state.communities.map(c=>'<option value="'+c.id+'">a-'+esc(c.name)+' — '+esc(c.title)+'</option>').join('');
   }
 
   function renderCommunitySidebar(){
-    $('communityList').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="join-row"><div><div class="community-name"><a href="#" data-community-link="'+c.id+'">r/'+esc(c.name)+'</a></div><div class="community-desc">'+esc(c.description||c.title)+'</div></div><button class="classic" data-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="hint">no communities yet.</div>';
+    $('communityList').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="join-row"><div><div class="community-name"><a href="#" data-community-link="'+c.id+'">a-'+esc(c.name)+'</a></div><div class="community-desc">'+esc(c.description||c.title)+'</div></div><button class="classic" data-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="hint">no communities yet.</div>';
     $('communityList').querySelectorAll('[data-join]').forEach(b=>b.addEventListener('click',()=>toggleJoin(b.dataset.join)));
     $('communityList').querySelectorAll('[data-community-link]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();setCommunity(a.dataset.communityLink)}));
   }
 
   function renderCommunityGrid(){
-    $('communityGrid').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="community-card"><h3><a href="#" data-community-link="'+c.id+'">r/'+esc(c.name)+'</a></h3><p>'+esc(c.description||'No description.')+'</p><button class="classic '+(joined?'':'accent')+'" data-grid-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="empty">No communities yet.</div>';
+    $('communityGrid').innerHTML=state.communities.map(c=>{const joined=state.joined.has(c.id);return '<div class="community-card"><h3><a href="#" data-community-link="'+c.id+'">a-'+esc(c.name)+'</a></h3><p>'+esc(c.description||'No description.')+'</p><button class="classic '+(joined?'':'accent')+'" data-grid-join="'+c.id+'" type="button">'+(joined?'leave':'join')+'</button></div>';}).join('')||'<div class="empty">No communities yet.</div>';
     $('communityGrid').querySelectorAll('[data-grid-join]').forEach(b=>b.addEventListener('click',()=>toggleJoin(b.dataset.gridJoin)));
     $('communityGrid').querySelectorAll('[data-community-link]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();closeModal('communityBrowseModal');setCommunity(a.dataset.communityLink);}));
   }
@@ -375,7 +375,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
 
   function setCommunity(id){
     const c=state.communities.find(x=>x.id===id); if(!c)return;
-    state.communityFilter=id;$('feedTitle').textContent='r/'+c.name;
+    state.communityFilter=id;$('feedTitle').textContent='a-'+c.name;
     document.querySelectorAll('.side-item').forEach(x=>x.classList.remove('active'));
     loadPosts();
   }
@@ -440,7 +440,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
   function renderPost(p){
     const vote=state.votes.get(p.id)||0;const saved=state.saves.has(p.id);const title=esc(p.title);const body=esc(p.body);const community=esc(p.community?.name||'community');const username=esc(p.author?.username||'user');
     let flags=''; if(p.flair)flags+='<span class="badge">'+esc(p.flair)+'</span>'; if(p.spoiler)flags+='<span class="badge spoiler">spoiler</span>'; if(p.nsfw)flags+='<span class="badge nsfw">18+</span>';
-    return '<article class="post" data-post="'+p.id+'"><div class="vote"><button class="vote-btn up '+(vote===1?'on':'')+'" data-vote="1" aria-label="upvote" type="button">'+voteSvg('up')+'</button><div class="score '+(p.score>0?'pos':'')+'">'+p.score+'</div><button class="vote-btn down '+(vote===-1?'on':'')+'" data-vote="-1" aria-label="downvote" type="button">'+voteSvg('down')+'</button></div><div><h2 class="post-title"><a href="#" data-open-comments>'+title+'</a></h2><div class="post-meta">'+flags+'r/<b>'+community+'</b> · u/<b>'+username+'</b> · '+ago(p.created_at)+' ago'+(p.edited_at?' · edited':'')+'</div>'+(body?'<div class="post-body">'+body+'</div>':'')+(p.image_url?'<img class="post-image" loading="lazy" src="'+esc(p.image_url)+'" alt="">':'')+(p.url?'<a class="post-link" href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.url)+'</a>':'')+'<div class="post-tools"><button data-comments type="button">'+p.comment_count+' comment'+(p.comment_count===1?'':'s')+'</button><button data-save type="button">'+(saved?'unsave':'save')+'</button><button data-share type="button">share</button><button data-permalink type="button">permalink</button><button data-community-post type="button">r/'+community+'</button>'+(p.locked?'<span class="tiny">locked</span>':'')+'</div></div></article>';
+    return '<article class="post" data-post="'+p.id+'"><div class="vote"><button class="vote-btn up '+(vote===1?'on':'')+'" data-vote="1" aria-label="upvote" type="button">'+voteSvg('up')+'</button><div class="score '+(p.score>0?'pos':'')+'">'+p.score+'</div><button class="vote-btn down '+(vote===-1?'on':'')+'" data-vote="-1" aria-label="downvote" type="button">'+voteSvg('down')+'</button></div><div><h2 class="post-title"><a href="#" data-open-comments>'+title+'</a></h2><div class="post-meta">'+flags+'a-<b>'+community+'</b> · u/<b>'+username+'</b> · '+ago(p.created_at)+' ago'+(p.edited_at?' · edited':'')+'</div>'+(body?'<div class="post-body">'+body+'</div>':'')+(p.image_url?'<img class="post-image" loading="lazy" src="'+esc(p.image_url)+'" alt="">':'')+(p.url?'<a class="post-link" href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.url)+'</a>':'')+'<div class="post-tools"><button data-comments type="button">'+p.comment_count+' comment'+(p.comment_count===1?'':'s')+'</button><button data-save type="button">'+(saved?'unsave':'save')+'</button><button data-share type="button">share</button><button data-permalink type="button">permalink</button><button data-community-post type="button">a-'+community+'</button>'+(p.locked?'<span class="tiny">locked</span>':'')+'</div></div></article>';
   }
 
   function wirePostButtons(){
@@ -533,7 +533,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
 
   async function createCommunity(){
     if(!requireAuth())return;
-    const name=$('communityName').value.trim().replace(/^r\//i,'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);const title=$('communityTitle').value.trim();const description=$('communityDesc').value.trim();
+    const name=$('communityName').value.trim().replace(/^a-/i,'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);const title=$('communityTitle').value.trim();const description=$('communityDesc').value.trim();
     if(name.length<2||!title){toast('community name and title are required',true);return}
     const {data,error}=await client.from('aurora_communities').insert({name,title,description,created_by:state.user.id}).select().single();
     if(error){toast('could not create community',true);return}
@@ -554,7 +554,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     if(!requireAuth())return;
     const {data:posts}=await client.from('aurora_posts').select('id,title,score,comment_count,created_at,community_id').eq('author_id',state.user.id).order('created_at',{ascending:false}).limit(30);
     const communities=new Map(state.communities.map(c=>[c.id,c]));
-    $('profileBody').innerHTML='<div class="profile-head">'+(state.profile?.avatar_url?'<img class="avatar" src="'+esc(state.profile.avatar_url)+'" alt="">':'<div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div>')+'<div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><p>'+esc(state.profile?.bio||'No bio yet.')+'</p><div class="statline"><span>posts <b>'+((posts||[]).length)+'</b></span><span>communities joined <b>'+state.joined.size+'</b></span><span>account <b>'+ago(state.profile?.created_at||new Date().toISOString())+' ago</b></span></div>'+renderBadges()+'<div class="profile-posts">'+((posts||[]).map(p=>'<div class="mini-post"><a class="mini-post-title" href="#" data-profile-post="'+p.id+'">'+esc(p.title)+'</a><div class="tiny">r/'+esc(communities.get(p.community_id)?.name||'community')+' · '+p.score+' score · '+p.comment_count+' comments · '+ago(p.created_at)+' ago</div></div>').join('')||'<div class="hint">No posts yet.</div>')+'</div>';
+    $('profileBody').innerHTML='<div class="profile-head">'+(state.profile?.avatar_url?'<img class="avatar" src="'+esc(state.profile.avatar_url)+'" alt="">':'<div class="avatar-fallback">'+profileInitial(state.profile?.display_name||state.profile?.username)+'</div>')+'<div><div class="profile-name">'+esc(state.profile?.display_name||state.profile?.username||'user')+'</div><div class="profile-user">u/'+esc(state.profile?.username||'user')+'</div></div></div><p>'+esc(state.profile?.bio||'No bio yet.')+'</p><div class="statline"><span>posts <b>'+((posts||[]).length)+'</b></span><span>communities joined <b>'+state.joined.size+'</b></span><span>account <b>'+ago(state.profile?.created_at||new Date().toISOString())+' ago</b></span></div>'+renderBadges()+'<div class="profile-posts">'+((posts||[]).map(p=>'<div class="mini-post"><a class="mini-post-title" href="#" data-profile-post="'+p.id+'">'+esc(p.title)+'</a><div class="tiny">a-'+esc(communities.get(p.community_id)?.name||'community')+' · '+p.score+' score · '+p.comment_count+' comments · '+ago(p.created_at)+' ago</div></div>').join('')||'<div class="hint">No posts yet.</div>')+'</div>';
     $('profileBody').querySelectorAll('[data-profile-post]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();closeModal('profileModal');openPostById(a.dataset.profilePost)}));
     openModal('profileModal');
   }
