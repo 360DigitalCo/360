@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurora</title>
+<link rel="icon" href="../assets/images/AURORA.png">
+<meta name="theme-color" content="#d93a00">
+<style>
+:root{
+  --accent:#d93a00;--accent-2:#e24a16;--accent-dark:#a92c00;
+  --bg:#f4f4f4;--panel:#fff;--panel-2:#fafafa;--line:#cfcfcf;
+  --text:#222;--muted:#6b6b6b;--link:#c43b00;--shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.08);
+}
+html.dark{--bg:#151515;--panel:#202020;--panel-2:#252525;--line:#3b3b3b;--text:#e6e6e6;--muted:#a4a4a4;--link:#ff7440;--shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 2px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;font-size:13px}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.topbar{height:46px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(0,0,0,.05);display:flex;align-items:center;gap:12px;padding:0 14px;position:sticky;top:0;z-index:50}
+.brand{font-size:24px;font-weight:700;letter-spacing:-1px;white-space:nowrap;margin-right:5px}.brand-a{color:var(--accent)}.brand-rest{color:var(--text)}
+.top-search{width:min(420px,34vw);height:28px;border:1px solid #bcbcbc;background:#fff;padding:4px 8px;border-radius:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+html.dark .top-search{background:#111;color:#eee;border-color:#4d4d4d}
+.spacer{flex:1}.top-links{display:flex;gap:9px;align-items:center;white-space:nowrap}.top-links a{font-size:12px}.top-button,.classic-button{border:1px solid #aaa;border-radius:2px;background:linear-gradient(#fff,#e8e8e8);color:#333;padding:4px 9px;box-shadow:var(--shadow);font-weight:700}.top-button:active,.classic-button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.2)}
+html.dark .top-button,html.dark .classic-button{background:linear-gradient(#3a3a3a,#2a2a2a);color:#eee;border-color:#555}
+.layout{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:180px minmax(0,1fr) 280px;gap:10px;padding:10px}
+.sidebar,.rightbar{min-width:0}.side-box{background:var(--panel);border:1px solid var(--line);margin-bottom:10px;box-shadow:var(--shadow)}
+.side-title{background:linear-gradient(#f9f9f9,#e7e7e7);color:#555;border-bottom:1px solid var(--line);font-weight:700;padding:6px 8px;font-size:11px;text-transform:uppercase}.dark .side-title{color:#ddd}
+html.dark .side-title{background:linear-gradient(#313131,#252525)}
+.side-item{display:block;padding:7px 9px;border-bottom:1px solid rgba(0,0,0,.05);color:var(--text)}.side-item:last-child{border-bottom:0}.side-item.active{background:#eee;font-weight:700;color:var(--accent)}html.dark .side-item.active{background:#2d2d2d}
+.side-item:hover{background:var(--panel-2);text-decoration:none}.tiny{font-size:11px;color:var(--muted)}
+.main{min-width:0}.feed-head{border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);padding:7px 8px;margin-bottom:8px}.tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.tab{border:1px solid transparent;padding:4px 7px;font-weight:700;color:var(--muted)}.tab.active{color:var(--accent);border-color:var(--line);background:#f2f2f2;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}html.dark .tab.active{background:#2d2d2d}.feed-actions{display:flex;gap:6px;align-items:center;margin-top:7px}
+.post{display:grid;grid-template-columns:42px minmax(0,1fr);gap:6px;background:var(--panel);border:1px solid var(--line);margin-bottom:7px;box-shadow:var(--shadow);padding:7px 8px}.vote{display:flex;flex-direction:column;align-items:center;padding-top:1px;gap:3px}.vote svg{width:21px;height:21px;display:block;fill:none;stroke:#999;stroke-width:1.8}.vote-btn{border:0;background:transparent;padding:0;line-height:0}.vote-btn:hover svg{stroke:var(--accent)}.vote-btn.up.on svg{fill:var(--accent);stroke:var(--accent)}.vote-btn.down.on svg{fill:var(--accent-dark);stroke:var(--accent-dark)}.score{font-size:12px;font-weight:700;color:var(--muted)}.score.pos{color:var(--accent)}
+.post-title{font-size:16px;line-height:20px;font-weight:700;margin:0 0 3px}.post-title a{color:var(--text)}.post-title a:hover{color:var(--accent)}.post-meta{font-size:10px;color:var(--muted);margin-bottom:6px}.post-meta b{color:var(--link)}.post-body{font-size:13px;line-height:18px;white-space:pre-wrap;overflow-wrap:anywhere}.post-body.link-only{color:var(--muted)}.post-image{max-width:100%;max-height:430px;margin-top:8px;border:1px solid var(--line);display:block;background:#eee}.post-link-preview{display:block;border:1px solid var(--line);background:var(--panel-2);margin-top:8px;padding:7px}.post-link-preview strong{display:block;margin-bottom:2px}.post-tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:11px}.post-tools button,.post-tools a{border:0;background:none;padding:0;color:var(--muted);font-weight:700}.post-tools button:hover,.post-tools a:hover{color:var(--accent);text-decoration:none}.flair{display:inline-block;background:#eee;border:1px solid #ccc;color:#555;padding:1px 4px;font-size:10px;margin-right:5px}.nsfw,.spoiler{border:1px solid var(--accent);color:var(--accent);padding:1px 4px;font-size:10px;margin-left:3px}.empty{padding:35px;text-align:center;color:var(--muted);border:1px dashed var(--line);background:var(--panel)}
+.right-box{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);margin-bottom:10px}.right-inner{padding:8px}.join-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.08)}.join-row:last-child{border-bottom:0}.community-name{font-weight:700}.community-desc{font-size:11px;color:var(--muted);line-height:15px}.user-card{padding:9px}.user-card strong{font-size:14px}.compose{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);padding:7px;margin-bottom:8px}.compose-row{display:flex;gap:6px}.compose input{flex:1;border:1px solid #bbb;padding:6px;background:#fff}html.dark .compose input,html.dark textarea{background:#161616;color:#eee;border-color:#4b4b4b}.compose textarea{display:none;width:100%;min-height:75px;margin-top:6px;border:1px solid #bbb;padding:6px;background:#fff;resize:vertical}.compose.expanded textarea{display:block}.compose.expanded .compose-more{display:flex}.compose-more{display:none;gap:6px;margin-top:6px}
+.toast{position:fixed;right:14px;bottom:14px;background:#222;color:#fff;border:1px solid #111;padding:8px 11px;z-index:100;box-shadow:0 3px 12px rgba(0,0,0,.25);max-width:330px}.toast.error{background:#7d1900}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding-top:70px;z-index:200}.modal-backdrop.open{display:flex}.modal{width:min(620px,94vw);background:var(--panel);border:1px solid #888;box-shadow:0 6px 30px rgba(0,0,0,.35)}.modal-head{padding:8px 10px;background:linear-gradient(#f9f9f9,#e5e5e5);border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between}.modal-body{padding:10px}.field{margin-bottom:8px}.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}.field input,.field textarea,.field select{width:100%;border:1px solid #aaa;background:#fff;padding:6px}html.dark .field input,html.dark .field textarea,html.dark .field select{background:#171717;color:#eee;border-color:#555}.modal-foot{padding:8px 10px;border-top:1px solid var(--line);display:flex;gap:6px;justify-content:flex-end}.close-btn{border:0;background:none;color:#777;font-size:18px;line-height:1}.comment{border-top:1px solid var(--line);padding:7px 0 0;margin-top:8px}.comment-head{font-size:10px;color:var(--muted)}.comment-body{line-height:17px;margin:4px 0}.comment-tools{font-size:10px}.comment-tools button{border:0;background:none;color:var(--muted);padding:0;margin-right:7px}.comment-vote svg{width:14px;height:14px;vertical-align:middle;stroke:currentColor;fill:none;stroke-width:1.8}.comment-vote:hover svg{stroke:var(--accent)}.comment-tools button:hover{color:var(--accent)}
+.footer{max-width:1320px;margin:0 auto;padding:16px 12px 28px;color:var(--muted);font-size:10px;text-align:center}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6b6b6b;margin-right:5px}.status-dot.online{background:#4b8a32}
+@media(max-width:1050px){.layout{grid-template-columns:155px minmax(0,1fr)}.rightbar{display:none}.top-search{width:min(330px,32vw)}}
+@media(max-width:720px){.topbar{height:auto;min-height:46px;flex-wrap:wrap;padding:7px}.top-search{order:3;width:100%}.layout{grid-template-columns:1fr;padding:6px}.sidebar{display:none}.post{grid-template-columns:34px minmax(0,1fr)}.brand{font-size:22px}.top-links a{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-a">A</span><span class="brand-rest">urora</span></div>
+  <input id="search" class="top-search" placeholder="search Aurora" autocomplete="off">
+  <div class="spacer"></div>
+  <div class="top-links">
+    <a href="#" data-view="home">home</a><a href="#" data-view="popular">popular</a><a href="#" data-view="new">new</a>
+    <button class="top-button" id="themeBtn">dark mode</button>
+    <button class="top-button" id="authBtn">sign in</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-box">
+      <div class="side-title">navigate</div>
+      <a class="side-item active" href="#" data-view="home">home</a>
+      <a class="side-item" href="#" data-view="popular">popular</a>
+      <a class="side-item" href="#" data-view="new">new</a>
+      <a class="side-item" href="#" data-view="saved">saved</a>
+      <a class="side-item" href="#" data-view="communities">communities</a>
+    </div>
+    <div class="side-box">
+      <div class="side-title">account</div>
+      <a class="side-item" href="#" id="profileLink">profile</a>
+      <a class="side-item" href="#" id="settingsLink">settings</a>
+    </div>
+    <div class="side-box">
+      <div class="side-title">aurora</div>
+      <div class="side-item tiny">A classic discussion web, rebuilt on Supabase.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="userCard" class="compose">
+      <div class="compose-row"><input id="quickTitle" placeholder="what's happening?" maxlength="240"><button class="classic-button" id="expandCompose">post</button></div>
+      <textarea id="quickBody" placeholder="body text (optional)"></textarea>
+      <div class="compose-more"><button class="classic-button" id="quickSubmit">submit post</button><button class="classic-button" id="quickCancel">cancel</button><span class="tiny" id="loginHint"></span></div>
+    </div>
+    <div class="feed-head">
+      <div class="tabs">
+        <button class="tab active" data-sort="hot">hot</button>
+        <button class="tab" data-sort="top">top</button>
+        <button class="tab" data-sort="new">new</button>
+        <button class="tab" data-sort="rising">rising</button>
+      </div>
+      <div class="feed-actions"><button class="classic-button" id="createBtn">create post</button><button class="classic-button" id="communityBtn">new community</button><span class="tiny" id="feedStatus"></span></div>
+    </div>
+    <section id="feed"></section>
+  </main>
+
+  <aside class="rightbar">
+    <div class="right-box">
+      <div class="side-title">about Aurora</div>
+      <div class="right-inner"><strong>Peak old-web discussion.</strong><p class="tiny">Communities, posts, votes, comments, saves, and profiles backed by Supabase.</p></div>
+    </div>
+    <div class="right-box">
+      <div class="side-title">communities</div>
+      <div class="right-inner" id="communityList"></div>
+    </div>
+    <div class="right-box">
+      <div class="side-title">account</div>
+      <div class="right-inner" id="accountPanel"><span class="status-dot"></span>not signed in<br><span class="tiny">sign in to vote, post, comment, save, and join.</span></div>
+    </div>
+  </aside>
+</div>
+
+<div class="footer">Aurora · classic HTML web styling · powered by Supabase</div>
+<div id="toastRoot"></div>
+
+<div class="modal-backdrop" id="authModal"><div class="modal">
+  <div class="modal-head"><span id="authTitle">sign in</span><button class="close-btn" data-close="authModal">×</button></div>
+  <div class="modal-body">
+    <div class="field" id="usernameField"><label>username</label><input id="authUsername" maxlength="32" autocomplete="username"></div>
+    <div class="field"><label>email</label><input id="authEmail" type="email" autocomplete="email"></div>
+    <div class="field"><label>password</label><input id="authPassword" type="password" autocomplete="current-password"></div>
+    <div class="tiny" id="authMessage"></div>
+  </div>
+  <div class="modal-foot"><button class="classic-button" id="switchAuth">create account</button><button class="classic-button" id="authSubmit">sign in</button></div>
+</div></div>
+
+<div class="modal-backdrop" id="postModal"><div class="modal">
+  <div class="modal-head"><span>create post</span><button class="close-btn" data-close="postModal">×</button></div>
+  <div class="modal-body">
+    <div class="field"><label>community</label><select id="postCommunity"></select></div>
+    <div class="field"><label>title</label><input id="postTitle" maxlength="300"></div>
+    <div class="field"><label>body</label><textarea id="postBody" rows="7"></textarea></div>
+    <div class="field"><label>link URL (optional)</label><input id="postUrl" placeholder="https://"></div>
+    <div class="field"><label>image URL (optional)</label><input id="postImage" placeholder="https://"></div>
+  </div>
+  <div class="modal-foot"><button class="classic-button" data-close="postModal">cancel</button><button class="classic-button" id="createPostSubmit">publish</button></div>
+</div></div>
+
+<div class="modal-backdrop" id="communityModal"><div class="modal">
+  <div class="modal-head"><span>new community</span><button class="close-btn" data-close="communityModal">×</button></div>
+  <div class="modal-body">
+    <div class="field"><label>community name</label><input id="communityName" placeholder="for example technology"></div>
+    <div class="field"><label>title</label><input id="communityTitle"></div>
+    <div class="field"><label>description</label><textarea id="communityDesc" rows="4"></textarea></div>
+  </div>
+  <div class="modal-foot"><button class="classic-button" data-close="communityModal">cancel</button><button class="classic-button" id="createCommunitySubmit">create</button></div>
+</div></div>
+
+<div class="modal-backdrop" id="commentsModal"><div class="modal">
+  <div class="modal-head"><span id="commentsTitle">comments</span><button class="close-btn" data-close="commentsModal">×</button></div>
+  <div class="modal-body"><div id="commentsList"></div><div class="field" style="margin-top:10px"><label>add a comment</label><textarea id="commentBody" rows="4" placeholder="say something..."></textarea></div></div>
+  <div class="modal-foot"><button class="classic-button" data-close="commentsModal">close</button><button class="classic-button" id="commentSubmit">reply</button></div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const SUPABASE_URL = 'https://tojtsvnjbebdjxdtuhxq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_9-80fso2pcykNvuWlCGJ3Q_JJeEJ2P5';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const state = { user:null, profile:null, communities:[], posts:[], votes:new Map(), saves:new Set(), sort:'hot', search:'', currentPost:null, authMode:'signin' };
+  const $ = id => document.getElementById(id);
+  const escapeHTML = s => String(s ?? '').replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
+  const toast = (msg, error=false) => { const el=document.createElement('div'); el.className='toast'+(error?' error':''); el.textContent=msg; $('toastRoot').appendChild(el); setTimeout(()=>el.remove(),3200); };
+  const timeAgo = d => { const s=Math.max(1,Math.floor((Date.now()-new Date(d).getTime())/1000)); if(s<60)return s+'s ago'; const m=Math.floor(s/60); if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; const day=Math.floor(h/24); if(day<30)return day+'d ago'; return new Date(d).toLocaleDateString(); };
+  const svg = (type) => type === 'up' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 4.5 12h4.8v8h5.4v-8h4.8z"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20 7.5-8h-4.8V4H9.3v8H4.5z"/></svg>';
+
+  async function loadSession(){
+    const {data:{session}} = await db.auth.getSession();
+    state.user = session?.user || null;
+    await refreshProfile();
+    updateAccountUI();
+  }
+  async function refreshProfile(){
+    state.profile=null;
+    if(!state.user) return;
+    const {data,error}=await db.from('aurora_profiles').select('*').eq('id',state.user.id).maybeSingle();
+    if(!error) state.profile=data;
+  }
+  function updateAccountUI(){
+    const signed=!!state.user;
+    $('authBtn').textContent = signed ? 'sign out' : 'sign in';
+    $('accountPanel').innerHTML = signed
+      ? '<span class="status-dot online"></span> signed in as <b>'+escapeHTML(state.profile?.username || state.user.email || 'user')+'</b><br><span class="tiny">'+escapeHTML(state.profile?.bio || 'ready to post and vote')+'</span>'
+      : '<span class="status-dot"></span>not signed in<br><span class="tiny">sign in to vote, post, comment, save, and join.</span>';
+    $('loginHint').textContent = signed ? 'posting as '+(state.profile?.username||'user') : 'sign in required';
+  }
+  async function loadCommunities(){
+    const {data,error}=await db.from('aurora_communities').select('*').order('name');
+    if(error){toast('could not load communities: '+error.message,true);return}
+    state.communities=data||[];
+    $('communityList').innerHTML=state.communities.map(c=>'<div class="join-row"><div><div class="community-name">r/'+escapeHTML(c.name)+'</div><div class="community-desc">'+escapeHTML(c.description)+'</div></div><button class="classic-button" data-community="'+c.id+'">join</button></div>').join('') || '<div class="tiny">no communities yet.</div>';
+    $('communityList').querySelectorAll('[data-community]').forEach(b=>b.addEventListener('click',()=>joinCommunity(b.dataset.community)));
+    $('postCommunity').innerHTML=state.communities.map(c=>'<option value="'+c.id+'">r/'+escapeHTML(c.name)+'</option>').join('');
+  }
+  async function joinCommunity(id){
+    if(!state.user){openAuth();return}
+    const {error}=await db.from('aurora_memberships').upsert({user_id:state.user.id,community_id:id},{onConflict:'user_id,community_id'});
+    if(error) toast(error.message,true); else toast('joined community');
+  }
+  function postQuery(){
+    let q=db.from('aurora_posts').select('id,community_id,author_id,title,body,url,image_url,flair,spoiler,nsfw,locked,score,comment_count,created_at');
+    q=q.order(state.sort==='new'?'created_at':'score',{ascending:false}).limit(60);
+    return q;
+  }
+  async function loadPosts(){
+    $('feedStatus').textContent='loading…';
+    const {data,error}=await postQuery();
+    if(error){$('feedStatus').textContent=''; $('feed').innerHTML='<div class="empty">'+escapeHTML(error.message)+'</div>';return}
+    let list=data||[];
+    if(state.search.trim()){
+      const s=state.search.toLowerCase(); list=list.filter(p=>(p.title+' '+p.body+' '+(p.aurora_communities?.name||'')+' '+(p.aurora_profiles?.username||'')).toLowerCase().includes(s));
+    }
+    if(state.sort==='hot') list.sort((a,b)=>hotScore(b)-hotScore(a));
+    if(state.sort==='rising') list.sort((a,b)=>risingScore(b)-risingScore(a));
+    if(list.length){
+      const ids=[...new Set(list.map(p=>p.author_id))];
+      const {data:profiles}=await db.from('aurora_profiles').select('id,username,display_name').in('id',ids);
+      const pm=new Map((profiles||[]).map(x=>[x.id,x]));
+      const cm=new Map(state.communities.map(x=>[x.id,x]));
+      list=list.map(p=>({...p, aurora_profiles:pm.get(p.author_id)||null, aurora_communities:cm.get(p.community_id)||null}));
+    }
+    state.posts=list;
+    await loadUserState();
+    renderFeed();
+    $('feedStatus').textContent=list.length+' posts';
+  }
+  const hotScore=p=>Math.log10(Math.max(1,Math.abs(p.score)+1))*2 + (Date.now()-new Date(p.created_at).getTime())/-(1000*60*60*36);
+  const risingScore=p=>(Math.max(0,p.score)+1)/Math.max(1,(Date.now()-new Date(p.created_at).getTime())/3600000);
+  async function loadUserState(){
+    state.votes.clear(); state.saves.clear();
+    if(!state.user || !state.posts.length) return;
+    const ids=state.posts.map(p=>p.id);
+    const [v,s]=await Promise.all([
+      db.from('aurora_post_votes').select('post_id,value').eq('user_id',state.user.id).in('post_id',ids),
+      db.from('aurora_saves').select('post_id').eq('user_id',state.user.id).in('post_id',ids)
+    ]);
+    (v.data||[]).forEach(x=>state.votes.set(x.post_id,x.value));
+    (s.data||[]).forEach(x=>state.saves.add(x.post_id));
+  }
+  function renderFeed(){
+    if(!state.posts.length){
+      $('feed').innerHTML='<div class="empty"><strong>nothing here yet.</strong><br><span class="tiny">Aurora is ready. Sign in and make the first post.</span></div>';
+      return;
+    }
+    $('feed').innerHTML=state.posts.map(p=>postHTML(p)).join('');
+    $('feed').querySelectorAll('[data-vote]').forEach(b=>b.addEventListener('click',()=>votePost(b.dataset.vote,b.dataset.value)));
+    $('feed').querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>savePost(b.dataset.save)));
+    $('feed').querySelectorAll('[data-comment]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();openComments(b.dataset.comment)}));
+    $('feed').querySelectorAll('[data-permalink]').forEach(b=>b.addEventListener('click',()=>{navigator.clipboard?.writeText(location.href.split('#')[0]+'#'+b.dataset.permalink).then(()=>toast('permalink copied')).catch(()=>toast('copy failed',true))}));
+  }
+  function postHTML(p){
+    const vote=state.votes.get(p.id)||0, saved=state.saves.has(p.id);
+    const community= p.aurora_communities?.name || 'community';
+    const user= p.aurora_profiles?.username || 'user';
+    const media=p.image_url ? '<img class="post-image" src="'+escapeHTML(p.image_url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+    const link=p.url ? '<a class="post-link-preview" href="'+escapeHTML(p.url)+'" target="_blank" rel="noopener noreferrer"><strong>open link</strong><span class="tiny">'+escapeHTML(p.url)+'</span></a>' : '';
+    const flags=(p.flair?'<span class="flair">'+escapeHTML(p.flair)+'</span>':'')+(p.spoiler?'<span class="spoiler">spoiler</span>':'')+(p.nsfw?'<span class="nsfw">nsfw</span>':'');
+    return '<article class="post"><div class="vote"><button class="vote-btn up '+(vote===1?'on':'')+'" data-vote="'+p.id+'" data-value="1" title="upvote">'+svg('up')+'</button><div class="score '+(p.score>0?'pos':'')+'">'+escapeHTML(p.score)+'</div><button class="vote-btn down '+(vote===-1?'on':'')+'" data-vote="'+p.id+'" data-value="-1" title="downvote">'+svg('down')+'</button></div><div><h2 class="post-title"><a href="#" data-comment="'+p.id+'">'+escapeHTML(p.title)+'</a></h2><div class="post-meta">'+flags+' r/'+escapeHTML(community)+' · posted by <b>u/'+escapeHTML(user)+'</b> · '+timeAgo(p.created_at)+'</div><div class="post-body">'+escapeHTML(p.body)+'</div>'+media+link+'<div class="post-tools"><button data-comment="'+p.id+'">'+p.comment_count+' comments</button><button data-save="'+p.id+'">'+(saved?'unsave':'save')+'</button><button data-permalink="'+p.id+'">permalink</button><span class="tiny">'+(p.locked?'locked':'')+'</span></div></div></article>';
+  }
+  async function votePost(id,value){
+    if(!state.user){openAuth();return}
+    const current=state.votes.get(id)||0;
+    let result;
+    if(current===Number(value)) result=await db.from('aurora_post_votes').delete().match({post_id:id,user_id:state.user.id});
+    else result=await db.from('aurora_post_votes').upsert({post_id:id,user_id:state.user.id,value:Number(value)},{onConflict:'post_id,user_id'});
+    if(result.error){toast(result.error.message,true);return}
+    await loadPosts();
+  }
+  async function savePost(id){
+    if(!state.user){openAuth();return}
+    if(state.saves.has(id)){
+      const {error}=await db.from('aurora_saves').delete().match({post_id:id,user_id:state.user.id}); if(error) toast(error.message,true);
+    }else{
+      const {error}=await db.from('aurora_saves').insert({post_id:id,user_id:state.user.id}); if(error) toast(error.message,true);
+    }
+    await loadPosts();
+  }
+  async function openComments(id){
+    state.currentPost=state.posts.find(p=>p.id===id)||null;
+    if(!state.currentPost) return;
+    $('commentsTitle').textContent='comments on: '+state.currentPost.title;
+    $('commentBody').value='';
+    $('commentsModal').classList.add('open');
+    const {data,error}=await db.from('aurora_comments').select('id,parent_id,body,score,author_id,created_at').eq('post_id',id).order('created_at',{ascending:true});
+    if(error){$('commentsList').innerHTML='<div class="tiny">'+escapeHTML(error.message)+'</div>';return}
+    const cids=[...new Set((data||[]).map(c=>c.author_id))];
+    const {data:commentProfiles}=cids.length?await db.from('aurora_profiles').select('id,username').in('id',cids):{data:[]};
+    const cpm=new Map((commentProfiles||[]).map(x=>[x.id,x]));
+    $('commentsList').innerHTML=(data||[]).map(c=>'<div class="comment"><div class="comment-head">u/'+escapeHTML(cpm.get(c.author_id)?.username||'user')+' · '+timeAgo(c.created_at)+' · score '+escapeHTML(c.score)+'</div><div class="comment-body">'+escapeHTML(c.body)+'</div><div class="comment-tools"><button data-cvote="'+c.id+'" data-value="1" class="comment-vote">'+svg('up')+'</button><button data-cvote="'+c.id+'" data-value="-1" class="comment-vote">'+svg('down')+'</button></div></div>').join('') || '<div class="tiny">no comments yet. start the thread.</div>';
+    $('commentsList').querySelectorAll('[data-cvote]').forEach(b=>b.addEventListener('click',()=>voteComment(b.dataset.cvote,Number(b.dataset.value))));
+  }
+  async function voteComment(id,value){
+    if(!state.user){openAuth();return}
+    const {data}=await db.from('aurora_comment_votes').select('value').match({comment_id:id,user_id:state.user.id}).maybeSingle();
+    const current=data?.value||0;
+    let r;
+    if(current===value) r=await db.from('aurora_comment_votes').delete().match({comment_id:id,user_id:state.user.id});
+    else r=await db.from('aurora_comment_votes').upsert({comment_id:id,user_id:state.user.id,value},{onConflict:'comment_id,user_id'});
+    if(r.error) toast(r.error.message,true); else openComments(state.currentPost.id);
+  }
+  async function createPostFromModal(){
+    if(!state.user){openAuth();return}
+    const row={community_id:$('postCommunity').value,author_id:state.user.id,title:$('postTitle').value.trim(),body:$('postBody').value.trim(),url:$('postUrl').value.trim()||null,image_url:$('postImage').value.trim()||null};
+    if(!row.community_id || !row.title){toast('community and title are required',true);return}
+    const {error}=await db.from('aurora_posts').insert(row);
+    if(error){toast(error.message,true);return}
+    $('postModal').classList.remove('open'); ['postTitle','postBody','postUrl','postImage'].forEach(id=>$(id).value=''); toast('post published'); await loadPosts();
+  }
+  async function quickPost(){
+    if(!state.user){openAuth();return}
+    const title=$('quickTitle').value.trim(), body=$('quickBody').value.trim(); if(!title){toast('write a title first',true);return}
+    const c=state.communities[0]; if(!c){toast('create a community first',true);return}
+    const {error}=await db.from('aurora_posts').insert({community_id:c.id,author_id:state.user.id,title,body});
+    if(error){toast(error.message,true);return}
+    $('quickTitle').value='';$('quickBody').value='';document.querySelector('.compose').classList.remove('expanded');toast('post published');await loadPosts();
+  }
+  async function createCommunity(){
+    if(!state.user){openAuth();return}
+    let name=$('communityName').value.trim().replace(/^r\//,'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,32); const title=$('communityTitle').value.trim(); const description=$('communityDesc').value.trim();
+    if(name.length<2||!title){toast('name and title are required',true);return}
+    const {data,error}=await db.from('aurora_communities').insert({name,title,description,created_by:state.user.id}).select().single();
+    if(error){toast(error.message,true);return}
+    await db.from('aurora_memberships').insert({user_id:state.user.id,community_id:data.id});
+    $('communityModal').classList.remove('open'); $('communityName').value='';$('communityTitle').value='';$('communityDesc').value=''; toast('community created'); loadCommunities();
+  }
+  function openAuth(mode='signin'){state.authMode=mode;updateAuthModal();$('authModal').classList.add('open');}
+  function updateAuthModal(){
+    const signup=state.authMode==='signup'; $('authTitle').textContent=signup?'create account':'sign in'; $('usernameField').style.display=signup?'block':'none'; $('authSubmit').textContent=signup?'create account':'sign in'; $('switchAuth').textContent=signup?'back to sign in':'create account'; $('authMessage').textContent='';
+  }
+  async function authSubmit(){
+    $('authMessage').textContent='working…';
+    if(state.authMode==='signup'){
+      const username=$('authUsername').value.trim().replace(/[^A-Za-z0-9_]/g,'_').slice(0,32), email=$('authEmail').value.trim(), password=$('authPassword').value;
+      if(username.length<2||!email||password.length<6){$('authMessage').textContent='username, email, and a 6+ character password are required.';return}
+      const {error}=await db.auth.signUp({email,password,options:{data:{username,display_name:username}}});
+      if(error){$('authMessage').textContent=error.message;return}
+      $('authMessage').textContent='account created. check your email if confirmation is enabled.'; toast('account created');
+      return;
+    }
+    const {error}=await db.auth.signInWithPassword({email:$('authEmail').value.trim(),password:$('authPassword').value});
+    if(error){$('authMessage').textContent=error.message;return}
+    $('authModal').classList.remove('open'); await loadSession(); await loadPosts(); toast('signed in');
+  }
+  async function signOut(){await db.auth.signOut({scope:'local'});state.user=null;state.profile=null;updateAccountUI();await loadPosts();toast('signed out');}
+  function initEvents(){
+    document.querySelectorAll('[data-view]').forEach(x=>x.addEventListener('click',e=>{e.preventDefault();state.sort=x.dataset.view==='new'?'new':'hot';document.querySelectorAll('[data-view]').forEach(y=>y.classList.remove('active'));x.classList.add('active');loadPosts();}));
+    document.querySelectorAll('[data-sort]').forEach(x=>x.addEventListener('click',()=>{state.sort=x.dataset.sort;document.querySelectorAll('[data-sort]').forEach(y=>y.classList.toggle('active',y===x));loadPosts();}));
+    $('search').addEventListener('input',()=>{state.search=$('search').value;loadPosts()});
+    $('authBtn').addEventListener('click',()=>state.user?signOut():openAuth());
+    $('themeBtn').addEventListener('click',()=>{document.documentElement.classList.toggle('dark');$('themeBtn').textContent=document.documentElement.classList.contains('dark')?'light mode':'dark mode';localStorage.setItem('aurora-theme',document.documentElement.classList.contains('dark')?'dark':'light')});
+    $('expandCompose').addEventListener('click',()=>document.querySelector('.compose').classList.toggle('expanded'));
+    $('quickSubmit').addEventListener('click',quickPost);$('quickCancel').addEventListener('click',()=>document.querySelector('.compose').classList.remove('expanded'));
+    $('createBtn').addEventListener('click',()=>state.user?$('postModal').classList.add('open'):openAuth());$('communityBtn').addEventListener('click',()=>state.user?$('communityModal').classList.add('open'):openAuth());
+    $('createPostSubmit').addEventListener('click',createPostFromModal);$('createCommunitySubmit').addEventListener('click',createCommunity);$('commentSubmit').addEventListener('click',async()=>{if(!state.user){openAuth();return}const body=$('commentBody').value.trim();if(!body||!state.currentPost)return;const {error}=await db.from('aurora_comments').insert({post_id:state.currentPost.id,author_id:state.user.id,body});if(error)toast(error.message,true);else{$('commentBody').value='';await openComments(state.currentPost.id);await loadPosts();}});
+    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).classList.remove('open')));
+    $('switchAuth').addEventListener('click',()=>{state.authMode=state.authMode==='signin'?'signup':'signin';updateAuthModal()});$('authSubmit').addEventListener('click',authSubmit);
+    $('profileLink').addEventListener('click',e=>{e.preventDefault();toast(state.user?'profile editing is next on the roadmap':'sign in to view your profile')});$('settingsLink').addEventListener('click',e=>{e.preventDefault();toast('settings are coming with profile customization')});
+  }
+  async function boot(){
+    if(localStorage.getItem('aurora-theme')==='dark'){document.documentElement.classList.add('dark');$('themeBtn').textContent='light mode'}
+    initEvents();
+    await loadSession(); await loadCommunities(); await loadPosts();
+    db.auth.onAuthStateChange(async()=>{await loadSession();await loadPosts();});
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
