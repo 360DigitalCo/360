@@ -20,7 +20,7 @@ SPDX-License-Identifier: Apache-2.0!
 - This program aims to comply with all TOS's for code used, and we do not intend to misuse/illegally use code. 
 Before taking an action to legal matter, please reach out to us at admin@360-search.com and we will respectfully remove anything strike-worthy.
 - This program uses cached data for speed! It is instantly deleted!
-- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes.
+- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes. (9//26/26, removed all analytics and refferals)
 THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S TO CREATE A FUNCTIONING METASEARCH ENGINE AND GOOGLE'S CSE PERFORMS BEST IN THE 
  - FRONTEND.
 ============================================================================================================================================================= !-->
@@ -2829,6 +2829,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     function fetchSuggestions(q) {
       if (!q.trim()) return;
       if (q === lastSuggestQuery) return;
+      // Respect Do Not Track — skip autocomplete requests that send partial queries
+      if (navigator.doNotTrack === '1') return;
       lastSuggestQuery = q;
 
       // Mirror to GCSE for its own autocomplete — suppress observer
@@ -2904,35 +2906,42 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     /* ─────────────────────────────────
        RECENT SEARCHES — shown when the search bar is focused while empty.
-       Plain localStorage on a real shipped page (not a Claude artifact),
-       so this is safe to use. Lives only in this browser — never sent to
-       any server, never synced to an account, and not part of the
-       cross-device Settings360 sync used elsewhere on this page.
+       Queries are stored as SHA-256 hashes so the server (Settings360 sync)
+       and anyone with localStorage access never sees raw search terms.
+       The plaintext is kept only in-memory for display within this session.
     ───────────────────────────────── */
     const RECENT_KEY = '360_recent_searches';
+    const _recentPlain = []; // in-memory plaintext list, not persisted
+
+    async function hashQuery(q) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(q.trim().toLowerCase()));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
     function getRecentSearches() {
-      try {
-        const local = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        const remote = Settings360.get('recentSearches');
-        if (!Array.isArray(remote) || !remote.length) return local;
-        // Merge: remote is authoritative for signed-in users; keep local-only items too
-        const merged = [...remote];
-        local.forEach(s => { if (!merged.some(r => r.toLowerCase() === s.toLowerCase())) merged.push(s); });
-        return merged.slice(0, 8);
-      } catch { return []; }
+      // Returns plaintext from the in-memory list only
+      return [..._recentPlain];
     }
-    function addRecentSearch(q) {
+    async function addRecentSearch(q) {
       if (!q?.trim()) return;
-      let list = getRecentSearches().filter(s => s.toLowerCase() !== q.toLowerCase());
-      list.unshift(q);
-      list = list.slice(0, 8);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-      Settings360.set('recentSearches', list);
+      const norm = q.trim();
+      const lower = norm.toLowerCase();
+      // Deduplicate in-memory list
+      const idx = _recentPlain.findIndex(s => s.toLowerCase() === lower);
+      if (idx !== -1) _recentPlain.splice(idx, 1);
+      _recentPlain.unshift(norm);
+      if (_recentPlain.length > 8) _recentPlain.pop();
+      // Store only hashes — never the raw query
+      const hashes = await Promise.all(_recentPlain.map(hashQuery));
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(hashes)); } catch {}
+      // Do not sync plaintext to Settings360 / Supabase
     }
-    function removeRecentSearch(q) {
-      const list = getRecentSearches().filter(s => s !== q);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-      Settings360.set('recentSearches', list);
+    async function removeRecentSearch(q) {
+      const lower = q.toLowerCase();
+      const idx = _recentPlain.findIndex(s => s.toLowerCase() === lower);
+      if (idx !== -1) _recentPlain.splice(idx, 1);
+      const hashes = await Promise.all(_recentPlain.map(hashQuery));
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(hashes)); } catch {}
     }
 
     function showRecentSearches() {
@@ -2978,7 +2987,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       });
       document.getElementById('clear-recent-btn')?.addEventListener('mousedown', e => {
         e.preventDefault();
-        localStorage.setItem(RECENT_KEY, '[]');
+        _recentPlain.length = 0;
+        try { localStorage.setItem(RECENT_KEY, '[]'); } catch {}
         hideSuggestions();
       });
     }
@@ -4715,13 +4725,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     // Seed all persisted preferences from the user's account on load
     Settings360.init(sb360).then(() => {
-      const remoteRecent = Settings360.get('recentSearches');
-      if (Array.isArray(remoteRecent) && remoteRecent.length) {
-        const local = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        const merged = [...remoteRecent];
-        local.forEach(s => { if (!merged.some(r => r.toLowerCase() === s.toLowerCase())) merged.push(s); });
-        localStorage.setItem(RECENT_KEY, JSON.stringify(merged.slice(0, 8)));
-      }
+      // Note: recentSearches are no longer synced to/from the server —
+      // only SHA-256 hashes are kept locally, and plaintext is in-memory only.
     });
 
     initFromUrl();
