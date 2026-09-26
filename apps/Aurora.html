@@ -176,6 +176,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     <div class="field"><label>email</label><input id="authEmail" type="email" autocomplete="email"></div>
     <div class="field"><label>password</label><input id="authPassword" type="password" autocomplete="current-password"></div>
     <div id="authMessage" class="auth-message"></div>
+    <button class="classic" id="resendConfirmation" type="button" style="display:none;margin-top:8px">resend confirmation email</button>
   </div>
   <div class="modal-foot"><button class="classic" id="switchAuth" type="button">create account</button><button class="classic accent" id="authSubmit" type="button">sign in</button></div>
 </div></div>
@@ -289,6 +290,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     $('switchAuth').textContent=signup?'back to sign in':'create account';
     $('authPassword').autocomplete=signup?'new-password':'current-password';
     $('authMessage').textContent='';
+    $('resendConfirmation').style.display='none';
     openModal('authModal');
   }
 
@@ -733,12 +735,47 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
     state.profile=data||{...state.profile,...patch};updateAccountUI();closeModal('settingsModal');toast('settings saved');
   }
 
+  async function resendConfirmation(){
+    const email=$('authEmail').value.trim();
+    if(!email){$('authMessage').textContent='enter your email first.';return}
+    const redirectTo=(location.protocol==='http:'||location.protocol==='https:')?location.href:null;
+    $('authMessage').textContent='sending confirmation email...';
+    const {error}=await client.auth.resend({type:'signup',email,options:redirectTo?{emailRedirectTo:redirectTo}:undefined});
+    if(error){$('authMessage').textContent=error.message;return}
+    $('authMessage').textContent='confirmation email sent. check your inbox and spam folder.';
+  }
+
   async function authSubmit(){
     $('authMessage').textContent='working...';
+    $('resendConfirmation').style.display='none';
     const email=$('authEmail').value.trim(),password=$('authPassword').value;const signup=state.authMode==='signup';
     if(!email||!password){$('authMessage').textContent='email and password are required.';return}
-    if(signup){const username=$('authUsername').value.trim().replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);if(username.length<2){$('authMessage').textContent='choose a username with at least 2 characters.';return}const {data,error}=await client.auth.signUp({email,password,options:{data:{username,display_name:username}}});if(error){$('authMessage').textContent=error.message;return}if(data.session){closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('account created');}else{$('authMessage').textContent='account created. check your email if confirmation is enabled.';}}
-    else{const {error}=await client.auth.signInWithPassword({email,password});if(error){$('authMessage').textContent=error.message;return}closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('signed in');}
+    if(signup){
+      const username=$('authUsername').value.trim().replace(/[^A-Za-z0-9_]/g,'_').slice(0,32);
+      if(username.length<2){$('authMessage').textContent='choose a username with at least 2 characters.';return}
+      const redirectTo=(location.protocol==='http:'||location.protocol==='https:')?location.href:null;
+      const options={data:{username,display_name:username}};
+      if(redirectTo)options.emailRedirectTo=redirectTo;
+      const {data,error}=await client.auth.signUp({email,password,options});
+      if(error){$('authMessage').textContent=error.message;return}
+      if(data.session){closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('account created');}
+      else{
+        $('authMessage').textContent='account created. confirm your email before signing in.';
+        $('resendConfirmation').style.display='inline-block';
+      }
+    } else {
+      const {error}=await client.auth.signInWithPassword({email,password});
+      if(error){
+        if(error.code==='email_not_confirmed' || /email not confirmed/i.test(error.message)){
+          $('authMessage').textContent='confirm your email before signing in.';
+          $('resendConfirmation').style.display='inline-block';
+        } else {
+          $('authMessage').textContent='invalid email or password.';
+        }
+        return;
+      }
+      closeModal('authModal');await loadSession();await loadCommunities();await loadPosts();toast('signed in');
+    }
   }
 
   async function signOut(){await client.auth.signOut({scope:'local'});state.user=null;state.profile=null;state.joined.clear();updateAccountUI();await loadPosts();toast('signed out');}
@@ -774,7 +811,7 @@ html.dark .modal-head{background:linear-gradient(#363636,#292929)}
       }
     });
     $('saveSettings').addEventListener('click',saveSettings);
-    $('switchAuth').addEventListener('click',()=>openAuth(state.authMode==='signin'?'signup':'signin'));$('authSubmit').addEventListener('click',authSubmit);
+    $('switchAuth').addEventListener('click',()=>openAuth(state.authMode==='signin'?'signup':'signin'));$('authSubmit').addEventListener('click',authSubmit);$('resendConfirmation').addEventListener('click',resendConfirmation);
     client.auth.onAuthStateChange(async()=>{setTimeout(async()=>{await loadSession();await loadCommunities();await loadPosts()},0)});
   }
 
