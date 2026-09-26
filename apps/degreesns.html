@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>degreeSNS</title>
+  <link rel="icon" type="image/png" href="assets/images/degreesns.png">
+
+  <!-- Supabase JS v2. Remove/replace the config below to enable the hosted backend. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Twemoji is used only when rendering emoji entered by users. -->
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
+
+  <style>
+    :root {
+      --blue:#1da1f2;
+      --blue-dark:#148bd0;
+      --page:#f5f8fa;
+      --panel:#fff;
+      --panel-alt:#fafcfd;
+      --text:#292f33;
+      --muted:#8899a6;
+      --border:#dfe7ec;
+      --border-dark:#ccd6dd;
+      --danger:#e0245e;
+      --success:#17bf63;
+      --button-top:#35b5f5;
+      --button-bottom:#1499e0;
+      --shadow:0 1px 2px rgba(0,0,0,.05);
+      --radius:5px;
+    }
+
+    html[data-theme="dark"] {
+      --page:#0d151a;
+      --panel:#152027;
+      --panel-alt:#111b20;
+      --text:#f1f5f7;
+      --muted:#8fa4b0;
+      --border:#26363f;
+      --border-dark:#344852;
+      --blue:#1da1f2;
+      --blue-dark:#148bd0;
+      --button-top:#2c9ddf;
+      --button-bottom:#117db9;
+      --shadow:0 1px 3px rgba(0,0,0,.34);
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--text);background:var(--page)}
+    body{background:linear-gradient(to bottom,var(--panel) 0 48px,color-mix(in srgb,var(--page) 88%,var(--border) 12%) 48px 49px,var(--page) 49px)}
+    button,input,textarea{font:inherit}
+    button{cursor:pointer}
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+    svg{display:block}
+    .hidden{display:none!important}
+
+    /* Classic glossy press/dent effect. */
+    .classic-button{--px:50%;--py:50%;position:relative;overflow:hidden;transform:translateY(0) scale(1);transition:transform .075s ease,box-shadow .075s ease,background .075s ease;isolation:isolate}
+    .classic-button::before{content:"";position:absolute;inset:0;z-index:-1;opacity:0;background:radial-gradient(circle 36px at var(--px) var(--py),rgba(255,255,255,.36),rgba(255,255,255,.08) 35%,transparent 72%);transition:opacity .06s ease}
+    .classic-button::after{content:"";position:absolute;left:var(--px);top:var(--py);width:5px;height:5px;transform:translate(-50%,-50%) scale(0);border-radius:50%;background:rgba(0,0,0,.15);pointer-events:none;transition:transform .18s cubic-bezier(.18,.89,.32,1.27),opacity .18s ease}
+    .classic-button.pressed{transform:translateY(2px) scale(.985);box-shadow:inset 0 2px 5px rgba(0,0,0,.18),inset 0 1px rgba(0,0,0,.1),0 0 rgba(0,0,0,0);background:linear-gradient(to bottom,var(--button-bottom),var(--button-top))!important}
+    .classic-button.pressed::before{opacity:1}.classic-button.pressed::after{transform:translate(-50%,-50%) scale(13);opacity:.12}
+
+    /* Auth */
+    #authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .auth-wrap{width:min(410px,100%)}
+    .auth-logo{height:82px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center}
+    .auth-logo img{max-width:180px;max-height:72px;object-fit:contain}
+    .brand-fallback{color:var(--blue);font-size:36px;font-weight:800;letter-spacing:-2px}
+    .auth-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 2px 9px rgba(0,0,0,.08);overflow:hidden}
+    .auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)}
+    .auth-tab{height:42px;border:0;border-bottom:2px solid transparent;background:var(--panel);color:var(--muted);font-size:12px;font-weight:700}
+    .auth-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .auth-body{padding:20px}
+    .auth-title{margin:0;font-size:21px;line-height:1.2}.auth-subtitle{margin:6px 0 16px;color:var(--muted);font-size:12px;line-height:1.45}
+    .auth-error{display:none;padding:9px 10px;margin-bottom:13px;border:1px solid rgba(224,36,94,.35);border-radius:4px;background:rgba(224,36,94,.08);color:var(--danger);font-size:11px;line-height:1.4}.auth-error.show{display:block}
+    .field{margin-bottom:13px}.field label{display:block;margin-bottom:5px;color:var(--muted);font-size:11px;font-weight:700}.field input,.field textarea{width:100%;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text);padding:0 11px}.field input{height:38px}.field textarea{min-height:72px;padding-top:9px;resize:vertical}.field input:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.12)}
+    .auth-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.check input{margin:0}
+    .primary{height:34px;padding:0 15px;border:1px solid #0e8ed3;border-radius:4px;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff;font-size:12px;font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.08)}
+    .auth-foot{padding:12px 20px;border-top:1px solid var(--border);background:var(--panel-alt);color:var(--muted);font-size:10px;text-align:center}
+    .mode-note{margin-top:10px;color:var(--muted);font-size:10px;line-height:1.45;text-align:center}
+
+    /* App shell */
+    #app{display:none}.topbar{position:sticky;top:0;z-index:50;height:48px;background:linear-gradient(var(--panel),var(--panel-alt));border-bottom:1px solid var(--border-dark);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+    .topbar-inner{width:min(1180px,calc(100% - 20px));height:48px;margin:auto;display:flex;align-items:center}.nav-left,.nav-right{display:flex;align-items:center;gap:2px}.nav-right{margin-left:auto;gap:6px}.brand{position:absolute;left:50%;transform:translateX(-50%);height:38px;display:flex;align-items:center;justify-content:center;width:120px}.brand img{max-width:120px;max-height:31px;object-fit:contain}.brand-text{display:none;color:var(--blue);font-size:20px;font-weight:800;letter-spacing:-1px}
+    .nav-btn{height:34px;padding:0 11px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}.nav-btn svg{width:15px;height:15px}.nav-btn:hover,.nav-btn.active{color:var(--blue);background:rgba(29,161,242,.07);border-color:rgba(29,161,242,.18)}
+    .search{position:relative}.search input{width:180px;height:30px;padding:0 33px 0 12px;border:1px solid var(--border-dark);border-radius:15px;outline:0;background:var(--page);color:var(--text);font-size:11px;transition:.16s ease}.search input:focus{width:220px;background:var(--panel);border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.1)}.search-btn{position:absolute;top:0;right:0;width:31px;height:30px;border:0;background:transparent;color:var(--muted)}
+    .icon-btn{width:31px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted)}.icon-btn:hover{color:var(--blue);border-color:rgba(29,161,242,.4)}.icon-btn svg{width:15px;height:15px}.icon-btn .sun{display:block}.icon-btn .moon{display:none}html[data-theme="dark"] .icon-btn .sun{display:none}html[data-theme="dark"] .icon-btn .moon{display:block}
+    .post-top-btn{height:30px;padding:0 14px;border:1px solid #0d91d7;border-radius:4px;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff;font-size:12px;font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.08)}
+
+    .page{width:min(1180px,calc(100% - 20px));margin:18px auto 50px}.columns{display:grid;grid-template-columns:275px minmax(430px,590px) 260px;gap:13px;align-items:start}.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+    /* Left rail */
+    .profile-card{overflow:hidden}.profile-banner{height:76px;background:linear-gradient(135deg,#34b5f5,#178dce)}.profile-content{padding:0 13px 14px}.profile-avatar{width:62px;height:62px;margin-top:-31px;border:4px solid var(--panel);border-radius:5px;overflow:hidden;background:#66757f;box-shadow:0 1px 3px rgba(0,0,0,.16)}.avatar-initial{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#66757f;color:#fff;font-weight:800}.profile-name{margin-top:7px;font-size:17px;font-weight:700}.profile-handle{margin-top:1px;color:var(--muted);font-size:11px}.profile-bio{margin-top:9px;color:var(--muted);font-size:12px;line-height:1.45}.profile-stats{margin-top:12px;padding-top:10px;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border)}.stat-label{display:block;color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase}.stat-value{display:block;margin-top:2px;color:var(--blue);font-size:14px;font-weight:700}.side-menu{margin-top:10px;padding:3px}.side-item{width:100%;padding:8px 10px;border:0;border-radius:3px;background:transparent;color:var(--muted);text-align:left;font-size:12px}.side-item:hover{color:var(--blue);background:var(--page)}
+
+    /* Main */
+    .view{display:none}.view.active{display:block}.composer{padding:11px;background:linear-gradient(var(--panel),var(--panel-alt))}.composer-main{display:grid;grid-template-columns:43px 1fr;gap:9px}.composer-avatar{width:43px;height:43px;border-radius:4px;overflow:hidden;background:#66757f}.composer textarea{width:100%;min-height:57px;padding:9px 10px;resize:vertical;border:1px solid #bfe4f8;border-radius:4px;outline:0;background:var(--panel);color:var(--text);font-size:12px;line-height:1.4}.composer textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.09)}.composer-bottom{margin-top:7px;display:flex;align-items:center;justify-content:flex-end;gap:8px}.counter{color:var(--muted);font-size:10px}.counter.warning{color:var(--danger);font-weight:700}.post-btn{height:29px;padding:0 13px;border:1px solid #0d91d7;border-radius:4px;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff;font-size:11px;font-weight:700}.post-btn:disabled{opacity:.45;cursor:not-allowed}
+    .timeline-head{height:41px;margin-top:11px;padding:0 13px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:5px 5px 0 0;background:var(--panel);font-size:13px;font-weight:700}.timeline-sub{color:var(--muted);font-size:10px;font-weight:400}
+    .empty{padding:45px 20px;border:1px solid var(--border);border-top:0;border-radius:0 0 5px 5px;background:var(--panel);text-align:center}.empty svg{width:38px;height:38px;margin:0 auto 10px;color:#9db0bb}.empty h3{margin:0;font-size:14px}.empty p{max-width:300px;margin:5px auto 0;color:var(--muted);font-size:11px;line-height:1.5}
+    .post{position:relative;display:grid;grid-template-columns:45px minmax(0,1fr);gap:9px;padding:12px 13px;border:1px solid var(--border);border-top:0;background:var(--panel)}.post:hover{background:color-mix(in srgb,var(--panel) 94%,var(--blue) 6%);box-shadow:inset 3px 0 var(--blue)}.post:last-child{border-radius:0 0 5px 5px}.post-avatar{width:45px;height:45px;border-radius:4px;overflow:hidden;background:#66757f}.post-head{display:flex;gap:4px;align-items:baseline;padding-right:22px}.post-name{font-size:12px;font-weight:700}.post-handle,.post-time{color:var(--muted);font-size:11px}.post-body{margin-top:5px;font-size:13px;line-height:1.48;overflow-wrap:anywhere}.post-body .mention,.post-body .hashtag{color:var(--blue)}img.emoji{width:1em;height:1em;margin:0 .04em;display:inline-block;vertical-align:-.13em}.post-actions{display:flex;align-items:center;gap:10px;margin-top:8px}.post-action{min-width:37px;padding:2px 3px;display:inline-flex;align-items:center;justify-content:center;gap:4px;border:0;border-radius:3px;background:transparent;color:var(--muted);font-size:10px}.post-action svg{width:14px;height:14px}.post-action:hover{color:var(--blue);background:rgba(29,161,242,.06)}.post-action.active-like{color:var(--danger)}.post-action.active-repost{color:var(--success)}.post-action.active-bookmark{color:var(--blue)}.post-delete{position:absolute;top:7px;right:8px;width:20px;height:20px;border:0;background:transparent;color:transparent;font-size:17px;line-height:1}.post:hover .post-delete{color:var(--border-dark)}.post-delete:hover{color:var(--danger)!important}
+
+    /* Right rail */
+    .right-card{overflow:hidden}.right-title{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700}.right-body{padding:13px;color:var(--muted);font-size:11px;line-height:1.5}.right-row{padding:10px 12px;border-bottom:1px solid var(--border)}.right-row:last-child{border-bottom:0}.right-row-title{font-size:12px;font-weight:700}.right-row-meta{color:var(--muted);font-size:10px;margin-top:2px}
+
+    /* Inner pages */
+    .screen-header{padding:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}.screen-title{font-size:16px;font-weight:700}.screen-subtitle{color:var(--muted);font-size:10px}.section{padding:13px;border-bottom:1px solid var(--border)}.section:last-child{border-bottom:0}.section h3{margin:0 0 8px;font-size:12px}.section p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border)}.setting-row:last-child{border-bottom:0}.setting-name{font-size:12px;font-weight:700}.setting-desc{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}.switch{position:relative;width:39px;height:21px;border:1px solid var(--border-dark);border-radius:12px;background:var(--page);padding:0}.switch span{position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:#9aabb5;transition:left .16s ease,background .16s ease}.switch.on{background:rgba(29,161,242,.16);border-color:var(--blue)}.switch.on span{left:21px;background:var(--blue)}.mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.mini-card{padding:12px;border:1px solid var(--border);border-radius:4px;background:var(--panel-alt)}.mini-card strong{display:block;font-size:13px}.mini-card span{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+    .list-editor{display:grid;grid-template-columns:1fr auto;gap:7px}.list-editor input{height:34px;padding:0 10px;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text)}.list{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}.list:last-child{border-bottom:0}.list-name{font-size:12px;font-weight:700}.list-count{color:var(--muted);font-size:10px}
+    .profile-page{overflow:hidden}.profile-page-banner{height:100px;background:linear-gradient(135deg,#34b5f5,#178dce)}.profile-page-body{padding:0 16px 15px}.profile-page-avatar{width:76px;height:76px;margin-top:-38px;border:4px solid var(--panel);border-radius:5px;background:#66757f;overflow:hidden}.profile-page-name{margin-top:8px;font-size:20px;font-weight:700}.profile-page-handle{color:var(--muted);font-size:11px}.profile-page-bio{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.5}.profile-metrics{display:flex;gap:22px;margin-top:12px}.profile-metric strong{display:block;color:var(--blue);font-size:14px}.profile-metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;font-weight:700}.search-box{padding:12px;border-bottom:1px solid var(--border)}.search-box input{width:100%;height:35px;padding:0 10px;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text)}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;padding:20px}.modal-backdrop.open{display:flex}.modal{width:min(520px,100%);background:var(--panel);border:1px solid var(--border);border-radius:5px;box-shadow:0 10px 35px rgba(0,0,0,.24);overflow:hidden}.modal-head{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700}.modal-close{width:27px;height:27px;border:0;background:transparent;color:var(--muted);font-size:18px}.modal-close:hover{color:var(--danger)}.modal-body{padding:13px}.reply-box{min-height:90px;width:100%;padding:10px;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text);resize:vertical}.modal-actions{margin-top:9px;display:flex;justify-content:flex-end;gap:7px}
+
+    /* Toast */
+    .toast{position:fixed;left:50%;bottom:18px;z-index:500;transform:translateX(-50%) translateY(14px);padding:9px 14px;border:1px solid #0f9be8;border-radius:4px;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff;font-size:11px;font-weight:700;opacity:0;pointer-events:none;transition:.18s ease}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    @media (max-width:1000px){.columns{grid-template-columns:225px minmax(0,1fr)}.right-column{display:none}}
+    @media (max-width:700px){.nav-left{display:none}.brand{left:12px;transform:none}.search{display:none}.columns{grid-template-columns:1fr}.left-column{display:none}.page{width:calc(100% - 10px);margin-top:10px}.auth-logo{height:65px}}
+  
+    /* degreeSNS: social, news and chat surfaces */
+    .nav-btn.small-hide-label .nav-label{display:inline}
+    .screen-toolbar{display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--border);background:var(--panel-alt)}
+    .screen-toolbar input{flex:1;height:34px;padding:0 10px;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text)}
+    .secondary{height:31px;padding:0 11px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--text);font-size:11px;font-weight:700}
+    .danger{border-color:rgba(224,36,94,.4);color:var(--danger)}
+    .tabs-row{display:flex;gap:5px;padding:11px 12px;border-bottom:1px solid var(--border);overflow:auto}
+    .filter-btn{white-space:nowrap;height:28px;padding:0 10px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted);font-size:10px;font-weight:700}
+    .filter-btn.active{color:var(--blue);border-color:rgba(29,161,242,.45);background:rgba(29,161,242,.08)}
+    .person-card{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--border)}
+    .person-card:last-child{border-bottom:0}.person-avatar{width:42px;height:42px;border-radius:4px;background:#66757f;overflow:hidden}.person-main{min-width:0}.person-name{font-size:12px;font-weight:700}.person-handle{margin-top:2px;color:var(--muted);font-size:10px}.person-bio{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.person-actions{display:flex;gap:5px;align-items:center}.mini-btn{height:27px;padding:0 8px;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--text);font-size:10px;font-weight:700}.mini-btn.primary-mini{border-color:#0d91d7;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff}.mini-btn.good{color:var(--success);border-color:rgba(23,191,99,.35)}
+    .news-list{background:var(--panel)}.news-card{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:12px;border-bottom:1px solid var(--border)}.news-card:last-child{border-bottom:0}.news-thumb{width:120px;height:78px;border-radius:4px;border:1px solid var(--border);background:var(--page);overflow:hidden;display:flex;align-items:center;justify-content:center}.news-thumb img{width:100%;height:100%;object-fit:cover}.news-thumb svg{width:28px;height:28px;color:#9db0bb}.news-source{color:var(--blue);font-size:10px;font-weight:700}.news-date{margin-left:5px;color:var(--muted);font-size:9px}.news-title{display:block;margin-top:4px;color:var(--text);font-size:13px;font-weight:700;line-height:1.35}.news-title:hover{text-decoration:underline}.news-meta{margin-top:5px;color:var(--muted);font-size:9px}.news-loading{padding:28px;color:var(--muted);text-align:center;font-size:11px}
+    .chat-shell{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:520px}.chat-list{border-right:1px solid var(--border);background:var(--panel-alt);overflow:auto}.chat-list-head{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700}.conversation{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;width:100%;padding:9px;border:0;border-bottom:1px solid var(--border);background:transparent;text-align:left;color:var(--text)}.conversation:hover,.conversation.active{background:var(--panel)}.conversation-avatar{width:36px;height:36px;border-radius:4px;background:#66757f;overflow:hidden}.conversation-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation-preview{margin-top:2px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.message-pane{display:flex;flex-direction:column;min-width:0}.message-head{min-height:46px;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}.message-head-name{font-size:13px;font-weight:700}.message-head-sub{color:var(--muted);font-size:9px}.message-list{flex:1;padding:13px;overflow:auto;background:var(--page);min-height:370px}.message{max-width:76%;margin:0 0 8px;padding:8px 10px;border:1px solid var(--border);border-radius:5px 5px 5px 1px;background:var(--panel);box-shadow:var(--shadow)}.message.mine{margin-left:auto;border-radius:5px 5px 1px 5px;border-color:#bfe4f8;background:var(--blue-light)}.message-body{font-size:11px;line-height:1.45;overflow-wrap:anywhere}.message-time{margin-top:3px;color:var(--muted);font-size:8px}.chat-compose{display:grid;grid-template-columns:1fr auto;gap:7px;padding:10px;border-top:1px solid var(--border);background:var(--panel)}.chat-compose textarea{width:100%;min-height:39px;max-height:120px;resize:vertical;padding:8px 9px;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text);font-size:11px}.chat-compose textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.09)}
+    .request-strip{padding:11px 12px;background:rgba(29,161,242,.06);border-bottom:1px solid var(--border);font-size:11px;color:var(--text)}.friend-section-title{padding:11px 12px 7px;font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.2px}.inline-empty{padding:18px 12px;color:var(--muted);font-size:10px;text-align:center}
+    .profile-edit{display:grid;grid-template-columns:1fr 1fr;gap:10px}.profile-edit .full{grid-column:1/-1}.field-help{margin-top:4px;color:var(--muted);font-size:9px;line-height:1.35}.account-email{padding:8px 0;color:var(--muted);font-size:11px}
+    .list-open{cursor:pointer}.list-open:hover{background:rgba(29,161,242,.04)}
+    .news-rail .news-rail-item{display:block;padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text)}.news-rail .news-rail-item:last-child{border-bottom:0}.news-rail .news-rail-source{display:block;color:var(--blue);font-size:9px;font-weight:700}.news-rail .news-rail-title{display:block;margin-top:3px;font-size:10px;line-height:1.35}
+    .settings-danger{margin-top:8px}
+    @media (max-width:1050px){.news-card{grid-template-columns:100px minmax(0,1fr)}.news-thumb{width:100px;height:70px}.chat-shell{grid-template-columns:170px minmax(0,1fr)}}
+    @media (max-width:700px){.topbar-inner{overflow:hidden}.nav-left{display:none}.brand{left:10px;transform:none}.nav-right{margin-left:auto}.post-top-btn{padding:0 10px}.chat-shell{grid-template-columns:1fr}.chat-list{border-right:0;border-bottom:1px solid var(--border);max-height:180px}.message-list{min-height:320px}.profile-edit{grid-template-columns:1fr}.news-card{grid-template-columns:1fr}.news-thumb{width:100%;height:150px}.person-card{grid-template-columns:38px minmax(0,1fr)}.person-actions{grid-column:2}.news-rail{display:none}}
+</style>
+</head>
+<body>
+  <link rel="preload" as="image" href="assets/images/degreesns.png">
+
+  <section id="authScreen">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <img src="assets/images/degreesns.png" alt="degreeSNS" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden')">
+        <div class="brand-fallback hidden">degreeSNS</div>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active classic-button" data-auth-view="login">Sign in</button>
+          <button class="auth-tab classic-button" data-auth-view="signup">Create account</button>
+        </div>
+
+        <div class="auth-body">
+          <div id="loginView">
+            <h1 class="auth-title">Sign in to degreeSNS</h1>
+            <p class="auth-subtitle">Classic social networking for the web.</p>
+            <div class="auth-error" id="loginError"></div>
+            <form id="loginForm">
+              <div class="field"><label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="email" required></div>
+              <div class="field"><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required></div>
+              <div class="auth-row"><button class="secondary classic-button" type="button" id="forgotPassword">Forgot password?</button><button class="primary classic-button" type="submit">Sign in</button></div>
+            </form>
+          </div>
+
+          <div id="signupView" class="hidden">
+            <h1 class="auth-title">Join degreeSNS</h1>
+            <p class="auth-subtitle">Create your account and start with an empty timeline.</p>
+            <div class="auth-error" id="signupError"></div>
+            <form id="signupForm">
+              <div class="field"><label for="signupDisplayName">Display name</label><input id="signupDisplayName" maxlength="50" required></div>
+              <div class="field"><label for="signupUsername">Username</label><input id="signupUsername" maxlength="24" minlength="3" pattern="[A-Za-z0-9_]+" required><div class="field-help">3–24 letters, numbers, or underscores.</div></div>
+              <div class="field"><label for="signupEmail">Email</label><input id="signupEmail" type="email" autocomplete="email" required></div>
+              <div class="field"><label for="signupPassword">Password</label><input id="signupPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+              <div class="field"><label for="signupConfirm">Confirm password</label><input id="signupConfirm" type="password" minlength="8" autocomplete="new-password" required></div>
+              <div class="field"><label for="signupBio">Bio</label><textarea id="signupBio" maxlength="160"></textarea></div>
+              <div class="auth-row"><span></span><button class="primary classic-button" type="submit">Create account</button></div>
+            </form>
+          </div>
+
+          <div id="resetView" class="hidden">
+            <h1 class="auth-title">Set a new password</h1>
+            <p class="auth-subtitle">Choose a new password for your degreeSNS account.</p>
+            <div class="auth-error" id="resetError"></div>
+            <form id="resetForm">
+              <div class="field"><label for="resetPassword">New password</label><input id="resetPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+              <div class="field"><label for="resetConfirm">Confirm password</label><input id="resetConfirm" type="password" minlength="8" autocomplete="new-password" required></div>
+              <div class="auth-row"><span></span><button class="primary classic-button" type="submit">Update password</button></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="auth-foot">degreeSNS</div>
+      </div>
+      <div class="mode-note">Email authentication, profiles, posts, friends, chat and news are powered by Supabase.</div>
+    </div>
+  </section>
+
+  <div id="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <nav class="nav-left">
+          <button class="nav-btn classic-button active" data-view="home" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg><span class="nav-label">Home</span></button>
+          <button class="nav-btn classic-button" data-view="connect" title="Connect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"></path><circle cx="9.5" cy="7" r="3"></circle><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M21 20v-1a4 4 0 0 0-3-3.87"></path></svg><span class="nav-label">Connect</span></button>
+          <button class="nav-btn classic-button" data-view="discover" title="Discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><path d="m14.7 9.3-2 4-4 2 2-4 4-2z"></path></svg><span class="nav-label">Discover</span></button>
+          <button class="nav-btn classic-button" data-view="news" title="News"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg><span class="nav-label">News</span></button>
+          <button class="nav-btn classic-button" data-view="chat" title="Chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 3z"></path><path d="M8 9h8M8 12h5"></path></svg><span class="nav-label">Chat</span></button>
+          <button class="nav-btn classic-button" data-view="profile" title="Profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3"></circle><path d="M5 21c.8-4 3.1-6 7-6s6.2 2 7 6"></path></svg><span class="nav-label">Profile</span></button>
+        </nav>
+
+        <div class="brand">
+          <img src="assets/images/degreesns.png" alt="degreeSNS" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+          <span class="brand-text">degreeSNS</span>
+        </div>
+
+        <div class="nav-right">
+          <div class="search"><input id="globalSearch" type="search" placeholder="Search degreeSNS" autocomplete="off"><button class="search-btn" id="globalSearchBtn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 5 5"></path></svg></button></div>
+          <button class="icon-btn classic-button" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 15.2A8.5 8.5 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z"></path></svg></button>
+          <button class="post-top-btn classic-button" id="topPost">Post</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="columns">
+        <aside class="left-column">
+          <section class="panel profile-card">
+            <div class="profile-banner"></div>
+            <div class="profile-content">
+              <div class="profile-avatar"><div class="avatar-initial" id="railAvatar"></div></div>
+              <div class="profile-name" id="railName"></div>
+              <div class="profile-handle" id="railHandle"></div>
+              <div class="profile-bio" id="railBio"></div>
+              <div class="profile-stats"><div><span class="stat-label">Posts</span><span class="stat-value" id="railPosts">0</span></div><div><span class="stat-label">Following</span><span class="stat-value" id="railFollowing">0</span></div><div><span class="stat-label">Followers</span><span class="stat-value" id="railFollowers">0</span></div></div>
+            </div>
+          </section>
+          <section class="panel side-menu">
+            <button class="side-item classic-button" data-view="bookmarks">Bookmarks</button>
+            <button class="side-item classic-button" data-view="lists">Lists</button>
+            <button class="side-item classic-button" data-view="settings">Settings</button>
+            <button class="side-item classic-button" id="signOut">Sign out</button>
+          </section>
+        </aside>
+
+        <section class="center-column">
+          <section id="homeView" class="view active">
+            <div class="panel composer" id="composer">
+              <div class="composer-main"><div class="composer-avatar"><div class="avatar-initial" id="composerAvatar"></div></div><textarea id="postText" maxlength="280" placeholder="What's happening?"></textarea></div>
+              <div class="composer-bottom"><span class="counter" id="counter">280</span><button class="post-btn classic-button" id="publishPost" disabled>Post</button></div>
+            </div>
+            <div class="timeline-head"><span>Home</span><span class="timeline-sub" id="homeSub">Posts from people you follow</span></div>
+            <div id="homeTimeline"></div>
+          </section>
+
+          <section id="connectView" class="view panel">
+            <div class="screen-header"><div class="screen-title">Connect</div><div class="screen-subtitle">Friends and requests</div></div>
+            <div id="connectContent"></div>
+          </section>
+
+          <section id="discoverView" class="view panel">
+            <div class="screen-header"><div class="screen-title">Discover</div><div class="screen-subtitle">People and posts</div></div>
+            <div class="search-box"><input id="discoverSearch" placeholder="Search people or posts" autocomplete="off"></div>
+            <div id="discoverContent"></div>
+          </section>
+
+          <section id="newsView" class="view panel">
+            <div class="screen-header"><div class="screen-title">News</div><div class="screen-subtitle">Live headlines through degreeSNS</div></div>
+            <div class="screen-toolbar"><input id="newsSearch" placeholder="Search the news"><button class="secondary classic-button" id="newsSearchButton">Search</button><button class="secondary classic-button" id="newsRefresh">Refresh</button></div>
+            <div class="tabs-row" id="newsFilters">
+              <button class="filter-btn classic-button active" data-news-query="">Top</button>
+              <button class="filter-btn classic-button" data-news-query="technology">Technology</button>
+              <button class="filter-btn classic-button" data-news-query="science">Science</button>
+              <button class="filter-btn classic-button" data-news-query="business">Business</button>
+              <button class="filter-btn classic-button" data-news-query="sports">Sports</button>
+              <button class="filter-btn classic-button" data-news-query="entertainment">Entertainment</button>
+            </div>
+            <div id="newsContent" class="news-list"></div>
+          </section>
+
+          <section id="chatView" class="view panel">
+            <div class="chat-shell">
+              <aside class="chat-list">
+                <div class="chat-list-head">Messages</div>
+                <div id="conversationList"></div>
+              </aside>
+              <section class="message-pane">
+                <div class="message-head"><div><div class="message-head-name" id="chatTitle">Select a friend</div><div class="message-head-sub" id="chatSubtitle">Messages are live with Supabase Realtime.</div></div></div>
+                <div id="messageList" class="message-list"></div>
+                <div class="chat-compose"><textarea id="messageInput" maxlength="4000" placeholder="Write a message" disabled></textarea><button class="post-btn classic-button" id="sendMessage" disabled>Send</button></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="profileView" class="view panel profile-page">
+            <div class="profile-page-banner"></div>
+            <div class="profile-page-body">
+              <div class="profile-page-avatar"><div class="avatar-initial" id="profileAvatar"></div></div>
+              <div class="profile-page-name" id="profileName"></div>
+              <div class="profile-page-handle" id="profileHandle"></div>
+              <div class="profile-page-bio" id="profileBio"></div>
+              <div class="profile-metrics"><div class="profile-metric"><strong id="profilePosts">0</strong><span>Posts</span></div><div class="profile-metric"><strong id="profileFollowing">0</strong><span>Following</span></div><div class="profile-metric"><strong id="profileFollowers">0</strong><span>Followers</span></div></div>
+            </div>
+            <div class="timeline-head" style="margin-top:0;border-radius:0"><span>Posts</span><span class="timeline-sub">Your posts</span></div>
+            <div id="profileTimeline"></div>
+          </section>
+
+          <section id="bookmarksView" class="view panel"><div class="screen-header"><div class="screen-title">Bookmarks</div><div class="screen-subtitle">Saved posts</div></div><div id="bookmarksContent"></div></section>
+
+          <section id="listsView" class="view panel">
+            <div class="screen-header"><div class="screen-title">Lists</div><div class="screen-subtitle">Organize saved posts</div></div>
+            <div class="section"><div class="list-editor"><input id="newListName" maxlength="50" placeholder="New list name"><button class="primary classic-button" id="createList">Create</button></div></div>
+            <div id="listsContent" class="section"></div>
+          </section>
+
+          <section id="settingsView" class="view panel">
+            <div class="screen-header"><div class="screen-title">Settings</div><div class="screen-subtitle">Account and appearance</div></div>
+            <div class="section">
+              <h3>Profile</h3>
+              <div class="profile-edit">
+                <div class="field"><label for="settingsDisplayName">Display name</label><input id="settingsDisplayName" maxlength="50"></div>
+                <div class="field"><label for="settingsUsername">Username</label><input id="settingsUsername" disabled></div>
+                <div class="field full"><label for="settingsBio">Bio</label><textarea id="settingsBio" maxlength="160"></textarea></div>
+              </div>
+              <div class="account-email">Email: <strong id="settingsEmail"></strong></div>
+              <button class="primary classic-button" id="saveProfile">Save profile</button>
+            </div>
+            <div class="section"><h3>Appearance</h3><div class="setting-row"><div><div class="setting-name">Dark mode</div><div class="setting-desc">Off by default. This preference is also saved to your profile.</div></div><button class="switch classic-button" id="settingsTheme" aria-label="Toggle dark mode"><span></span></button></div></div>
+            <div class="section"><h3>Account</h3><div class="setting-row"><div><div class="setting-name">Sign out</div><div class="setting-desc">End your current degreeSNS session.</div></div><button class="primary classic-button danger" id="settingsSignOut">Sign out</button></div></div>
+          </section>
+        </section>
+
+        <aside class="right-column">
+          <section class="panel right-card"><div class="right-title">Latest news</div><div id="rightNews" class="news-rail"></div></section>
+          <section class="panel right-card" style="margin-top:12px"><div class="right-title">Your account</div><div class="right-body" id="rightAccount"></div></section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="replyModal"><div class="modal"><div class="modal-head"><span>Reply</span><button class="modal-close classic-button" id="closeReply">×</button></div><div class="modal-body"><div id="replyThread"></div><textarea class="reply-box" id="replyText" maxlength="280" placeholder="Write a reply"></textarea><div class="modal-actions"><button class="post-btn classic-button" id="sendReply">Reply</button></div></div></div></div>
+  <div class="modal-backdrop" id="listModal"><div class="modal"><div class="modal-head"><span>Add to list</span><button class="modal-close classic-button" id="closeList">×</button></div><div class="modal-body"><div id="listChoices"></div><div class="section" style="padding:0;border:0;margin-top:12px"><div class="list-editor"><input id="listModalNewName" maxlength="50" placeholder="Create a new list"><button class="primary classic-button" id="listModalCreate">Create</button></div></div><div class="modal-actions"><button class="post-btn classic-button" id="saveListMembership">Save</button></div></div></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_9-80fso2pcykNvuWlCGJ3Q_JJeEJ2P5";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+
+    const THEME_KEY = "degreesns.theme";
+    const state = {
+      authUser: null,
+      profile: null,
+      posts: [],
+      users: [],
+      bookmarks: new Set(),
+      lists: [],
+      friendRequests: [],
+      friends: [],
+      follows: new Set(),
+      conversations: [],
+      activeConversation: null,
+      messages: [],
+      currentView: "home",
+      replyTo: null,
+      listPostId: null,
+      listOpenId: null,
+      news: [],
+      newsQuery: "",
+      newsTimer: null,
+      chatChannel: null,
+      socialChannel: null,
+      feedChannel: null,
+      busy: false
+    };
+
+    const $ = id => document.getElementById(id);
+    const authScreen = $("authScreen");
+    const app = $("app");
+    const toast = $("toast");
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>\"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+    }
+    function initials(name) {
+      const parts = String(name || "?").trim().split(/\s+/).filter(Boolean);
+      return (parts.slice(0,2).map(p => p[0]).join("") || "?").toUpperCase();
+    }
+    function currentUserId() { return state.authUser?.id || null; }
+    function notify(message) { toast.textContent = message; toast.classList.add("show"); clearTimeout(notify.t); notify.t = setTimeout(() => toast.classList.remove("show"), 1800); }
+    function pressFx() {
+      document.addEventListener("pointerdown", e => { const b=e.target.closest(".classic-button"); if(!b)return; const r=b.getBoundingClientRect(); b.style.setProperty("--px",`${e.clientX-r.left}px`); b.style.setProperty("--py",`${e.clientY-r.top}px`); b.classList.add("pressed"); });
+      ["pointerup","pointercancel","pointerleave"].forEach(type => document.addEventListener(type, e => e.target.closest?.(".classic-button")?.classList.remove("pressed")));
+    }
+    function applyTheme(theme, persist=true) {
+      const dark = theme === "dark";
+      if(dark) document.documentElement.setAttribute("data-theme","dark"); else document.documentElement.removeAttribute("data-theme");
+      if(persist) localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+      $("settingsTheme")?.classList.toggle("on",dark);
+      $("themeToggle")?.setAttribute("title",dark?"Switch to light mode":"Switch to dark mode");
+    }
+    function restoreTheme() { applyTheme(localStorage.getItem(THEME_KEY)==="dark" ? "dark" : "light", false); }
+    async function persistTheme(theme) {
+      try { if(state.profile) await sb.from("degreesns_profiles").update({theme}).eq("id",currentUserId()); } catch(e) { console.warn(e); }
+    }
+    async function toggleTheme() {
+      const next = document.documentElement.getAttribute("data-theme")==="dark" ? "light" : "dark";
+      applyTheme(next,true); await persistTheme(next); notify(next==="dark"?"Dark mode enabled.":"Light mode enabled.");
+    }
+    function relativeTime(value) {
+      const ms = new Date(value).getTime();
+      const seconds = Math.max(1,Math.floor((Date.now()-ms)/1000));
+      if(seconds<60)return `${seconds}s`;
+      const m=Math.floor(seconds/60); if(m<60)return `${m}m`;
+      const h=Math.floor(m/60); if(h<24)return `${h}h`;
+      return `${Math.floor(h/24)}d`;
+    }
+    function formatClock(value) { return new Date(value).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); }
+    function empty(title,text) { return `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16v11H4z"></path><path d="m4 8 8 5 8-5"></path><path d="M8 19h8"></path></svg><h3>${esc(title)}</h3><p>${esc(text)}</p></div>`; }
+    function userAvatar(name) { return `<div class="avatar-initial">${esc(initials(name))}</div>`; }
+    function mentionAndEmoji(text) {
+      let safe=esc(text);
+      safe=safe.replace(/(^|\s)(#[A-Za-z0-9_]+)/g,'$1<span class="hashtag">$2</span>');
+      safe=safe.replace(/(^|\s)(@[A-Za-z0-9_]+)/g,'$1<span class="mention">$2</span>');
+      const el=document.createElement("div"); el.innerHTML=safe;
+      window.twemoji?.parse?.(el,{folder:"svg",ext:".svg"});
+      return el.innerHTML;
+    }
+    function getProfiles(ids) {
+      const unique=[...new Set(ids.filter(Boolean))];
+      if(!unique.length)return Promise.resolve([]);
+      return sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,theme").in("id",unique).then(({data,error})=>{if(error)throw error;return data||[]});
+    }
+    function profileMap() { const m=new Map(); (state.users||[]).forEach(u=>m.set(u.id,u)); if(state.profile)m.set(state.profile.id,state.profile); return m; }
+    function postAuthor(post) { const p=profileMap().get(post.user_id); return p || {display_name:"User",username:"user",bio:""}; }
+
+    async function decoratePosts(rawPosts) {
+      const posts=rawPosts||[];
+      if(!posts.length)return [];
+      const ids=posts.map(p=>p.id);
+      const userIds=posts.map(p=>p.user_id);
+      const [authors,likes,reposts,replies,marks]=await Promise.all([
+        getProfiles(userIds),
+        sb.from("degreesns_post_likes").select("post_id,user_id").in("post_id",ids),
+        sb.from("degreesns_post_reposts").select("post_id,user_id").in("post_id",ids),
+        sb.from("degreesns_posts").select("id,parent_id").in("parent_id",ids),
+        sb.from("degreesns_bookmarks").select("post_id").eq("user_id",currentUserId()).in("post_id",ids)
+      ]);
+      if(likes.error)throw likes.error; if(reposts.error)throw reposts.error; if(replies.error)throw replies.error; if(marks.error)throw marks.error;
+      const authorMap=new Map((authors||[]).map(a=>[a.id,a]));
+      const likeCounts=new Map(),repostCounts=new Map(),replyCounts=new Map();
+      const liked=new Set(),reposted=new Set(),bookmarked=new Set((marks.data||[]).map(x=>x.post_id));
+      (likes.data||[]).forEach(x=>{likeCounts.set(x.post_id,(likeCounts.get(x.post_id)||0)+1);if(x.user_id===currentUserId())liked.add(x.post_id)});
+      (reposts.data||[]).forEach(x=>{repostCounts.set(x.post_id,(repostCounts.get(x.post_id)||0)+1);if(x.user_id===currentUserId())reposted.add(x.post_id)});
+      (replies.data||[]).forEach(x=>replyCounts.set(x.parent_id,(replyCounts.get(x.parent_id)||0)+1));
+      return posts.map(p=>{const a=authorMap.get(p.user_id)||{display_name:"User",username:"user"};return {...p,author_name:a.display_name,author_username:a.username,likes_count:likeCounts.get(p.id)||0,reposts_count:repostCounts.get(p.id)||0,replies_count:replyCounts.get(p.id)||0,liked_by_me:liked.has(p.id),reposted_by_me:reposted.has(p.id),bookmarked:bookmarked.has(p.id)}});
+    }
+
+    function postTemplate(post) {
+      const mine=post.user_id===currentUserId();
+      return `<article class="post" data-post-id="${esc(post.id)}"><div class="post-avatar">${userAvatar(post.author_name)}</div><div><div class="post-head"><span class="post-name">${esc(post.author_name)}</span><span class="post-handle">@${esc(post.author_username)}</span><span class="post-time">· ${relativeTime(post.created_at)}</span></div><div class="post-body">${mentionAndEmoji(post.body)}</div><div class="post-actions"><button class="post-action classic-button ${post.liked_by_me?"active-like":""}" data-action="like" title="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.9c0 5.4-8.8 10.1-8.8 10.1S3.2 14.3 3.2 8.9A4.9 4.9 0 0 1 8 4a5.2 5.2 0 0 1 4 2.1A5.2 5.2 0 0 1 16 4a4.9 4.9 0 0 1 4.8 4.9Z"></path></svg><span>${post.likes_count||0}</span></button><button class="post-action classic-button ${post.reposted_by_me?"active-repost":""}" data-action="repost" title="Repost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 4 4 4-4 4"></path><path d="M3 8h18"></path><path d="m7 20-4-4 4-4"></path><path d="M21 16H3"></path></svg><span>${post.reposts_count||0}</span></button><button class="post-action classic-button ${post.bookmarked?"active-bookmark":""}" data-action="bookmark" title="Bookmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v17l-6-3-6 3z"></path></svg></button><button class="post-action classic-button" data-action="reply" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 3v-5.5A7.5 7.5 0 0 1 11.5 4H13A7.5 7.5 0 0 1 20 11.5Z"></path></svg><span>${post.replies_count||0}</span></button><button class="post-action classic-button" data-action="list" title="Add to list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"></path><path d="M9 9h6M9 12h6M9 15h4"></path></svg></button><button class="post-action classic-button" data-action="share" title="Copy post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15 15 9"></path><path d="M7 7h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2"></path><path d="M13 5h6v6"></path><path d="M13 11 19 5"></path></svg></button></div></div>${mine?`<button class="post-delete classic-button" data-action="delete" title="Delete post">×</button>`:""}</article>`;
+    }
+
+    function renderUser() {
+      if(!state.profile)return;
+      const p=state.profile; const init=initials(p.display_name);
+      ["railAvatar","composerAvatar","profileAvatar"].forEach(id=>{const el=$(id);if(el)el.textContent=init});
+      $("railName").textContent=p.display_name; $("railHandle").textContent=`@${p.username}`; $("railBio").textContent=p.bio||"";
+      $("profileName").textContent=p.display_name; $("profileHandle").textContent=`@${p.username}`; $("profileBio").textContent=p.bio||"";
+      $("settingsDisplayName").value=p.display_name||""; $("settingsUsername").value=p.username||""; $("settingsBio").value=p.bio||""; $("settingsEmail").textContent=state.authUser?.email||"";
+    }
+
+    async function refreshCounts(){
+      const id=currentUserId(); if(!id)return;
+      const [posts,following,followers]=await Promise.all([
+        sb.from("degreesns_posts").select("id",{count:"exact",head:true}).eq("user_id",id).is("parent_id",null),
+        sb.from("degreesns_follows").select("following_id",{count:"exact",head:true}).eq("follower_id",id),
+        sb.from("degreesns_follows").select("follower_id",{count:"exact",head:true}).eq("following_id",id)
+      ]);
+      $("railPosts").textContent=posts.count||0; $("railFollowing").textContent=following.count||0; $("railFollowers").textContent=followers.count||0;
+      $("profilePosts").textContent=posts.count||0; $("profileFollowing").textContent=following.count||0; $("profileFollowers").textContent=followers.count||0;
+    }
+
+    async function loadProfile(){
+      const {data,error}=await sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url,theme,created_at,updated_at").eq("id",currentUserId()).single();
+      if(error)throw error; state.profile=data; renderUser(); restoreTheme(); if(data.theme==="dark")applyTheme("dark",false); else if(data.theme==="light")applyTheme("light",false); await refreshCounts();
+    }
+
+    async function loadLists(){
+      const {data,error}=await sb.from("degreesns_lists").select("id,name,created_at,degreesns_list_posts(post_id)").eq("user_id",currentUserId()).order("created_at",{ascending:true});
+      if(error)throw error; state.lists=(data||[]).map(l=>({...l,post_ids:(l.degreesns_list_posts||[]).map(x=>x.post_id)}));
+    }
+
+    async function loadBookmarks(){
+      const {data,error}=await sb.from("degreesns_bookmarks").select("post_id,created_at").eq("user_id",currentUserId()).order("created_at",{ascending:false}).limit(100);
+      if(error)throw error; state.bookmarks=new Set((data||[]).map(x=>x.post_id));
+    }
+
+    async function loadHome(){
+      const {data:f,error:fe}=await sb.from("degreesns_follows").select("following_id").eq("follower_id",currentUserId()); if(fe)throw fe;
+      const ids=[currentUserId(),...(f||[]).map(x=>x.following_id)];
+      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("user_id",ids).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error;
+      state.posts=await decoratePosts(data); renderPostList("homeTimeline",state.posts,"Your timeline is empty.","Follow friends or make your first post.");
+    }
+
+    async function loadProfilePosts(){
+      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("user_id",currentUserId()).is("parent_id",null).order("created_at",{ascending:false}).limit(80); if(error)throw error;
+      const posts=await decoratePosts(data); renderPostList("profileTimeline",posts,"No posts yet.","Your posts will appear here.");
+    }
+
+    async function loadBookmarksView(){
+      const ids=[...state.bookmarks];
+      if(!ids.length){$("bookmarksContent").innerHTML=empty("No bookmarks yet.","Use the bookmark icon on a post to save it here.");return;}
+      const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
+      const posts=await decoratePosts(data); renderPostList("bookmarksContent",posts,"No bookmarks yet.","Use the bookmark icon on a post to save it here.");
+    }
+
+    function renderPostList(targetId,posts,title,text){ const target=$(targetId); if(!posts.length){target.innerHTML=empty(title,text);return;} target.innerHTML=posts.map(postTemplate).join(""); window.twemoji?.parse?.(target,{folder:"svg",ext:".svg"}); }
+
+    async function loadListsView(){
+      await loadLists(); const target=$("listsContent");
+      if(state.listOpenId){
+        const list=state.lists.find(x=>x.id===state.listOpenId);
+        if(!list){state.listOpenId=null;return loadListsView();}
+        const ids=list.post_ids||[]; if(!ids.length){target.innerHTML=`<div class="list"><div><div class="list-name">${esc(list.name)}</div><div class="list-count">No posts in this list.</div></div><button class="secondary classic-button" data-list-close>Back</button></div>`;return;}
+        const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").in("id",ids).is("parent_id",null).order("created_at",{ascending:false}); if(error)throw error;
+        target.innerHTML=`<div class="list"><div><div class="list-name">${esc(list.name)}</div><div class="list-count">${ids.length} saved posts</div></div><button class="secondary classic-button" data-list-close>Back</button></div>`+(await decoratePosts(data)).map(postTemplate).join(""); window.twemoji?.parse?.(target,{folder:"svg",ext:".svg"}); return;
+      }
+      target.innerHTML=state.lists.length?state.lists.map(l=>`<div class="list list-open" data-list-open="${esc(l.id)}"><div><div class="list-name">${esc(l.name)}</div><div class="list-count">${(l.post_ids||[]).length} saved posts</div></div><button class="post-btn classic-button" data-list-delete="${esc(l.id)}">Delete</button></div>`).join(""):empty("No lists yet.","Create a list to organize saved posts.");
+    }
+
+    async function loadDiscover(query=""){
+      const q=query.trim();
+      const userQuery=q?sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url").or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).neq("id",currentUserId()).order("username").limit(20):sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url").neq("id",currentUserId()).order("username").limit(12);
+      const postQuery=q?sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").is("parent_id",null).ilike("body",`%${q}%`).order("created_at",{ascending:false}).limit(40):sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").is("parent_id",null).order("created_at",{ascending:false}).limit(30);
+      const [{data:users,error:ue},{data:posts,error:pe}]=await Promise.all([userQuery,postQuery]); if(ue)throw ue;if(pe)throw pe;
+      const decorated=await decoratePosts(posts); const friendsSet=new Set(state.friends.map(f=>f.user_id));
+      let html=`<div class="friend-section-title">People</div>`;
+      html+=users?.length?users.map(u=>personTemplate(u,friendsSet.has(u.id))).join(""):`<div class="inline-empty">No people found.</div>`;
+      html+=`<div class="friend-section-title">Posts</div>`;
+      html+=decorated.length?decorated.map(postTemplate).join(""):empty(q?"No posts found.":"No public posts yet.",q?"Try another search.":"Your discovered feed will fill up as people post.");
+      $("discoverContent").innerHTML=html; window.twemoji?.parse?.($("discoverContent"),{folder:"svg",ext:".svg"});
+    }
+
+    function personTemplate(u,isFriend){
+      const req=friendRequestFor(u.id); let action="Add friend"; let cls="primary-mini";
+      if(isFriend){action="Friends";cls="good"} else if(req?.status==="pending"&&req.sender_id===currentUserId()){action="Requested";cls=""} else if(req?.status==="pending"&&req.receiver_id===currentUserId()){action="Respond";cls="primary-mini"}
+      return `<div class="person-card"><div class="person-avatar">${userAvatar(u.display_name)}</div><div class="person-main"><div class="person-name">${esc(u.display_name)}</div><div class="person-handle">@${esc(u.username)}</div><div class="person-bio">${esc(u.bio||"")}</div></div><div class="person-actions"><button class="mini-btn ${cls} classic-button" data-person-action="friend" data-user-id="${esc(u.id)}">${action}</button>${!isFriend?`<button class="mini-btn classic-button" data-person-action="follow" data-user-id="${esc(u.id)}">Follow</button>`:`<button class="mini-btn classic-button" data-person-action="chat" data-user-id="${esc(u.id)}">Chat</button>`}</div></div>`;
+    }
+
+    function friendRequestFor(userId){ return state.friendRequests.find(r=>r.sender_id===userId||r.receiver_id===userId); }
+
+    async function loadConnect(){
+      const {data:requests,error:re}=await sb.from("degreesns_friend_requests").select("id,sender_id,receiver_id,status,created_at,updated_at").or(`sender_id.eq.${currentUserId()},receiver_id.eq.${currentUserId()}`).order("created_at",{ascending:false}); if(re)throw re; state.friendRequests=requests||[];
+      const accepted=state.friendRequests.filter(r=>r.status==="accepted");
+      const friendIds=accepted.map(r=>r.sender_id===currentUserId()?r.receiver_id:r.sender_id);
+      const friendsProfiles=await getProfiles(friendIds); state.friends=friendsProfiles.map(u=>({...u,user_id:u.id}));
+      const pendingIncoming=state.friendRequests.filter(r=>r.status==="pending"&&r.receiver_id===currentUserId());
+      const incomingProfiles=await getProfiles(pendingIncoming.map(r=>r.sender_id));
+      const incomingMap=new Map(incomingProfiles.map(u=>[u.id,u]));
+      const suggestions=state.friends.length?[]:[];
+      const {data:allProfiles,error:ue}=await sb.from("degreesns_profiles").select("id,username,display_name,bio,avatar_url").neq("id",currentUserId()).order("username").limit(30); if(ue)throw ue;
+      state.users=allProfiles||[];
+      const friendSet=new Set(friendIds); const requestSet=new Set(state.friendRequests.filter(r=>r.status!=="declined").map(r=>r.sender_id===currentUserId()?r.receiver_id:r.sender_id));
+      const suggestionUsers=(allProfiles||[]).filter(u=>!friendSet.has(u.id)&&!requestSet.has(u.id)).slice(0,8);
+      let html="";
+      if(pendingIncoming.length){html+=`<div class="request-strip">You have ${pendingIncoming.length} pending friend request${pendingIncoming.length===1?"":"s"}.</div>`;html+=`<div class="friend-section-title">Friend requests</div>`;html+=pendingIncoming.map(r=>{const u=incomingMap.get(r.sender_id)||{display_name:"User",username:"user"};return `<div class="person-card"><div class="person-avatar">${userAvatar(u.display_name)}</div><div class="person-main"><div class="person-name">${esc(u.display_name)}</div><div class="person-handle">@${esc(u.username)}</div></div><div class="person-actions"><button class="mini-btn primary-mini classic-button" data-friend-request="accept" data-request-id="${esc(r.id)}">Accept</button><button class="mini-btn classic-button" data-friend-request="decline" data-request-id="${esc(r.id)}">Decline</button></div></div>`}).join("");}
+      html+=`<div class="friend-section-title">Friends</div>`; html+=state.friends.length?state.friends.map(u=>`<div class="person-card"><div class="person-avatar">${userAvatar(u.display_name)}</div><div class="person-main"><div class="person-name">${esc(u.display_name)}</div><div class="person-handle">@${esc(u.username)}</div></div><div class="person-actions"><button class="mini-btn primary-mini classic-button" data-person-action="chat" data-user-id="${esc(u.id)}">Chat</button><button class="mini-btn classic-button danger" data-person-action="remove" data-user-id="${esc(u.id)}">Remove</button></div></div>`).join(""):ownEmpty("No friends yet.","Add people from Discover to start building your friends list.");
+      html+=`<div class="friend-section-title">People you may know</div>`; html+=suggestionUsers.length?suggestionUsers.map(u=>personTemplate(u,false)).join(""):ownEmpty("No suggestions yet.","Search Discover to find someone by username or name.");
+      $("connectContent").innerHTML=html;
+    }
+
+    function ownEmpty(title,text){return `<div class="inline-empty"><strong>${esc(title)}</strong><div style="margin-top:4px">${esc(text)}</div></div>`}
+
+    async function loadConversations(){
+      const {data,error}=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").or(`user_a.eq.${currentUserId()},user_b.eq.${currentUserId()}`).order("updated_at",{ascending:false}); if(error)throw error;
+      const convs=data||[]; const otherIds=convs.map(c=>c.user_a===currentUserId()?c.user_b:c.user_a); const profiles=await getProfiles(otherIds); const pMap=new Map(profiles.map(p=>[p.id,p]));
+      const latest={};
+      if(convs.length){const {data:msgs,error:me}=await sb.from("degreesns_messages").select("conversation_id,body,created_at,sender_id").in("conversation_id",convs.map(c=>c.id)).order("created_at",{ascending:false}).limit(Math.min(convs.length*5,100)); if(me)throw me;(msgs||[]).forEach(m=>{if(!latest[m.conversation_id])latest[m.conversation_id]=m});}
+      state.conversations=convs.map(c=>({...c,other:pMap.get(c.user_a===currentUserId()?c.user_b:c.user_a)||{display_name:"User",username:"user"},latest:latest[c.id]}));
+      renderConversationList();
+    }
+    function renderConversationList(){
+      const el=$("conversationList"); if(!state.conversations.length){el.innerHTML=`<div class="inline-empty">No conversations yet.<div style="margin-top:4px">Become friends with someone, then open Chat from Connect.</div></div>`;return;}
+      el.innerHTML=state.conversations.map(c=>`<button class="conversation classic-button ${state.activeConversation?.id===c.id?"active":""}" data-conversation-id="${esc(c.id)}"><div class="conversation-avatar">${userAvatar(c.other.display_name)}</div><div><div class="conversation-name">${esc(c.other.display_name)}</div><div class="conversation-preview">${esc(c.latest?.body||"No messages yet")}</div></div></button>`).join("");
+    }
+
+    async function openConversationByFriend(friendId){
+      const a=currentUserId(), b=friendId; const sorted=[a,b].sort(); const pairKey=`${sorted[0]}:${sorted[1]}`;
+      let {data:conv,error}=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("pair_key",pairKey).maybeSingle();
+      if(error)throw error;
+      if(!conv){
+        const {data:created,error:ce}=await sb.from("degreesns_conversations").insert({user_a:sorted[0],user_b:sorted[1],pair_key:pairKey}).select().single();
+        if(ce){const retry=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("pair_key",pairKey).maybeSingle(); if(retry.error)throw ce; conv=retry.data;} else conv=created;
+      }
+      await openConversation(conv.id);
+    }
+
+    async function openConversation(id){
+      const conv=state.conversations.find(c=>c.id===id)||((await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("id",id).single()).data); if(!conv)throw new Error("Conversation not found.");
+      if(!state.conversations.some(x=>x.id===id)) await loadConversations();
+      const full=state.conversations.find(c=>c.id===id)||conv; state.activeConversation=full; renderConversationList(); $("chatTitle").textContent=full.other?.display_name||"Chat"; $("chatSubtitle").textContent=`@${full.other?.username||"user"}`;
+      await loadMessages(id); subscribeChat(id); $("messageInput").disabled=false; $("sendMessage").disabled=false; $("messageInput").focus();
+    }
+
+    async function loadMessages(id){const {data,error}=await sb.from("degreesns_messages").select("id,conversation_id,sender_id,body,created_at,edited_at,deleted_at").eq("conversation_id",id).order("created_at",{ascending:true}).limit(250);if(error)throw error;state.messages=data||[];renderMessages();}
+    function renderMessages(){const el=$("messageList");if(!state.activeConversation){el.innerHTML=empty("Select a friend","Choose a conversation to start chatting.");return;}if(!state.messages.length){el.innerHTML=`<div class="inline-empty">No messages yet. Start the conversation.</div>`;return;}el.innerHTML=state.messages.map(m=>`<div class="message ${m.sender_id===currentUserId()?"mine":""}"><div class="message-body">${mentionAndEmoji(m.body)}</div><div class="message-time">${formatClock(m.created_at)}</div></div>`).join("");window.twemoji?.parse?.(el,{folder:"svg",ext:".svg"});requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight});}
+
+    function subscribeChat(id){if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}state.chatChannel=sb.channel(`degreesns-chat-${id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_messages",filter:`conversation_id=eq.${id}`},payload=>{if(!state.messages.some(m=>m.id===payload.new.id)){state.messages.push(payload.new);renderMessages();loadConversations().catch(console.warn);}}).subscribe();}
+    function subscribeSocial(){if(state.socialChannel){sb.removeChannel(state.socialChannel);}if(state.feedChannel){sb.removeChannel(state.feedChannel);}state.socialChannel=sb.channel("degreesns-social").on("postgres_changes",{event:"*",schema:"public",table:"degreesns_friend_requests"},payload=>{if([payload.new?.sender_id,payload.new?.receiver_id,payload.old?.sender_id,payload.old?.receiver_id].includes(currentUserId())){loadConnect().catch(console.warn);loadConversations().catch(console.warn);}}).subscribe();state.feedChannel=sb.channel("degreesns-feed").on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_posts"},payload=>{if(payload.new?.user_id!==currentUserId()&&payload.new?.parent_id===null&&state.currentView!=="chat"){refreshCurrent().catch(console.warn);}}).subscribe();}
+
+    async function sendMessage(){const body=$("messageInput").value.trim();const id=state.activeConversation?.id;if(!body||!id)return;const {error}=await sb.from("degreesns_messages").insert({conversation_id:id,sender_id:currentUserId(),body});if(error)throw error;$("messageInput").value="";}
+
+    async function loadRightNews(){try{const {data,error}=await sb.functions.invoke("degreesns-news",{body:{q:"",limit:5}});if(error)throw error;const articles=data?.articles||[];$("rightNews").innerHTML=articles.length?articles.map(a=>`<a class="news-rail-item" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="news-rail-source">${esc(a.source)}</span><span class="news-rail-title">${esc(a.title)}</span></a>`).join(""):`<div class="right-body">No headlines available right now.</div>`;}catch(e){console.warn(e);$("rightNews").innerHTML=`<div class="right-body">News is temporarily unavailable.</div>`;}}
+
+    async function loadNews(query=state.newsQuery){
+      state.newsQuery=query;
+      $("newsContent").innerHTML=`<div class="news-loading">Loading headlines…</div>`;
+      const {data,error}=await sb.functions.invoke("degreesns-news",{body:{q:query,limit:24}});
+      if(error)throw error;
+      state.news=data?.articles||[]; renderNews();
+    }
+    function renderNews(){
+      const el=$("newsContent"); if(!state.news.length){el.innerHTML=empty("No headlines found.","Try another search or category.");return;}
+      el.innerHTML=state.news.map(a=>`<article class="news-card"><div class="news-thumb">${a.image?`<img src="${esc(a.image)}" alt="" loading="lazy">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h16v14H4z"></path><path d="m5 16 4-4 3 3 2-2 5 5"></path><circle cx="9" cy="9" r="1.5"></circle></svg>`}</div><div><div><span class="news-source">${esc(a.source||"News")}</span><span class="news-date">${a.publishedAt?esc(relativeTime(a.publishedAt)):""}</span></div><a class="news-title" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><div class="news-meta">${esc(a.language||"English")}</div></div></article>`).join("");}
+
+    async function performSearch(q){$("discoverSearch").value=q; navigate("discover"); await loadDiscover(q);}
+
+    async function refreshCurrent(){
+      if(!currentUserId())return;
+      try{
+        if(state.currentView==="home")await loadHome();
+        else if(state.currentView==="profile")await loadProfilePosts();
+        else if(state.currentView==="discover")await loadDiscover($("discoverSearch").value);
+        else if(state.currentView==="bookmarks")await loadBookmarksView();
+        else if(state.currentView==="lists")await loadListsView();
+        else if(state.currentView==="connect")await loadConnect();
+      }catch(e){console.warn(e);notify(e.message||"Could not refresh.");}
+    }
+
+    async function navigate(view){state.currentView=view;document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$(view+"View")?.classList.add("active");document.querySelectorAll("[data-view]").forEach(v=>v.classList.toggle("active",v.dataset.view===view));try{
+      if(view==="home")await loadHome();
+      else if(view==="connect")await loadConnect();
+      else if(view==="discover")await loadDiscover($("discoverSearch").value);
+      else if(view==="news"){await loadNews(state.newsQuery);loadRightNews().catch(console.warn)}
+      else if(view==="chat"){await loadConversations(); if(state.activeConversation)await openConversation(state.activeConversation.id); else {$("messageList").innerHTML=empty("Select a friend","Choose a conversation to start chatting.");$("messageInput").disabled=true;$("sendMessage").disabled=true;}}
+      else if(view==="profile")await loadProfilePosts();
+      else if(view==="bookmarks")await loadBookmarksView();
+      else if(view==="lists")await loadListsView();
+      else if(view==="settings")renderSettings();
+    }catch(e){console.error(e);notify(e.message||"Could not load this screen.");}}
+
+    function renderSettings(){restoreTheme();}
+
+    async function showApp(){authScreen.classList.add("hidden");app.style.display="block";await loadProfile();renderRightAccount();await loadBookmarks();await loadLists();await loadConnect();await loadHome();await loadRightNews();subscribeSocial();await loadConversations();renderSettings();}
+    function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
+
+    async function signIn(e){e.preventDefault();$("loginError").classList.remove("show");try{const {data,error}=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});if(error)throw error;if(!data.session)throw new Error("No active session was returned.");notify("Signed in.");}catch(ex){$("loginError").textContent=ex.message||"Could not sign in.";$("loginError").classList.add("show");}}
+
+    async function signUp(e){e.preventDefault();$("signupError").classList.remove("show");const displayName=$("signupDisplayName").value.trim(),username=$("signupUsername").value.trim(),email=$("signupEmail").value.trim(),password=$("signupPassword").value,confirm=$("signupConfirm").value,bio=$("signupBio").value.trim();try{if(!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error("Username must be 3–24 letters, numbers, or underscores.");if(password!==confirm)throw new Error("Passwords do not match.");const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.href,data:{display_name:displayName,username,bio}}});if(error)throw error;if(data.session){notify("Account created.");}else{notify("Account created. Check your email to verify it, then sign in.");document.querySelector('[data-auth-view="login"]').click();$("loginEmail").value=email;}}catch(ex){$("signupError").textContent=ex.message||"Could not create your account.";$("signupError").classList.add("show");}}
+
+    async function forgotPassword(){const email=$("loginEmail").value.trim();if(!email){$("loginError").textContent="Enter your email first.";$("loginError").classList.add("show");return;}try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});if(error)throw error;notify("Password reset email sent.");}catch(e){$("loginError").textContent=e.message||"Could not send reset email.";$("loginError").classList.add("show");}}
+    async function resetPassword(e){e.preventDefault();$("resetError").classList.remove("show");const p=$("resetPassword").value,c=$("resetConfirm").value;if(p!==c){$("resetError").textContent="Passwords do not match.";$("resetError").classList.add("show");return;}try{const {error}=await sb.auth.updateUser({password:p});if(error)throw error;notify("Password updated.");await sb.auth.signOut();}catch(ex){$("resetError").textContent=ex.message||"Could not update your password.";$("resetError").classList.add("show");}}
+
+    async function signOut(){try{const {error}=await sb.auth.signOut();if(error)throw error;notify("Signed out.");}catch(e){notify(e.message||"Sign out failed.");}}
+
+    async function publish(){const body=$("postText").value.trim();if(!body)return;if(body.length>280){notify("Posts are limited to 280 characters.");return;}try{const {error}=await sb.from("degreesns_posts").insert({user_id:currentUserId(),body});if(error)throw error;$("postText").value="";updateCounter();notify("Post published.");await loadHome();await refreshCounts();}catch(e){notify(e.message||"Could not publish the post.");}}
+    function updateCounter(){const left=280-$("postText").value.length;$("counter").textContent=left;$("counter").classList.toggle("warning",left<=20);$("publishPost").disabled=left>=280||left<0||!$("postText").value.trim();}
+
+    async function openReplyModal(postId){state.replyTo=postId;const {data,error}=await sb.from("degreesns_posts").select("id,user_id,parent_id,body,created_at,updated_at").eq("parent_id",postId).order("created_at",{ascending:true}).limit(100);if(error)throw error;const replies=await decoratePosts(data);$("replyThread").innerHTML=replies.length?replies.map(postTemplate).join(""):`<div class="inline-empty">No replies yet.</div>`;window.twemoji?.parse?.($("replyThread"),{folder:"svg",ext:".svg"});$("replyModal").classList.add("open");$("replyText").focus();}
+    async function sendReply(){const body=$("replyText").value.trim();if(!body||!state.replyTo)return;try{const {error}=await sb.from("degreesns_posts").insert({user_id:currentUserId(),parent_id:state.replyTo,body});if(error)throw error;$("replyText").value="";$("replyModal").classList.remove("open");state.replyTo=null;notify("Reply posted.");await refreshCurrent();}catch(e){notify(e.message||"Could not reply.");}}
+
+    async function toggleInteraction(kind,postId){
+      const table=kind==="like"?"degreesns_post_likes":"degreesns_post_reposts";
+      const {data:existing,error:findError}=await sb.from(table).select("post_id").eq("post_id",postId).eq("user_id",currentUserId()).maybeSingle();if(findError)throw findError;
+      if(existing){const {error}=await sb.from(table).delete().eq("post_id",postId).eq("user_id",currentUserId());if(error)throw error;}else{const {error}=await sb.from(table).insert({post_id:postId,user_id:currentUserId()});if(error)throw error;}
+      await refreshCurrent();
+    }
+    async function toggleBookmark(postId){const {data:existing,error}=await sb.from("degreesns_bookmarks").select("post_id").eq("post_id",postId).eq("user_id",currentUserId()).maybeSingle();if(error)throw error;if(existing){const {error:e}=await sb.from("degreesns_bookmarks").delete().eq("post_id",postId).eq("user_id",currentUserId());if(e)throw e;}else{const {error:e}=await sb.from("degreesns_bookmarks").insert({post_id:postId,user_id:currentUserId()});if(e)throw e;}await loadBookmarks();await refreshCurrent();}
+    async function deletePost(postId){const {data:post,error:pe}=await sb.from("degreesns_posts").select("user_id").eq("id",postId).single();if(pe)throw pe;if(post.user_id!==currentUserId())throw new Error("You can only delete your own posts.");const {error}=await sb.from("degreesns_posts").delete().eq("id",postId);if(error)throw error;notify("Post deleted.");await refreshCurrent();await refreshCounts();}
+
+    async function openListModal(postId){state.listPostId=postId;await loadLists();const ids=state.lists.filter(l=>(l.post_ids||[]).includes(postId)).map(l=>l.id);$("listChoices").innerHTML=state.lists.length?state.lists.map(l=>`<label class="setting-row" style="cursor:pointer"><div><div class="setting-name">${esc(l.name)}</div><div class="setting-desc">${(l.post_ids||[]).length} saved posts</div></div><input type="checkbox" value="${esc(l.id)}" ${ids.includes(l.id)?"checked":""}></label>`).join(""):`<div class="inline-empty">Create a list first.</div>`;$("listModal").classList.add("open");}
+    async function saveListMembership(){const ids=[...$("listChoices").querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);const currentLists=state.lists;try{for(const l of currentLists){const should=ids.includes(l.id),has=(l.post_ids||[]).includes(state.listPostId);if(should&&!has){await sb.from("degreesns_list_posts").insert({list_id:l.id,post_id:state.listPostId});}if(!should&&has){await sb.from("degreesns_list_posts").delete().eq("list_id",l.id).eq("post_id",state.listPostId);}}await loadLists();$("listModal").classList.remove("open");notify("Lists updated.");}catch(e){notify(e.message||"Could not update lists.");}}
+
+    async function createList(){const name=$("newListName").value.trim();if(!name)return;try{const {error}=await sb.from("degreesns_lists").insert({user_id:currentUserId(),name});if(error)throw error;$("newListName").value="";await loadListsView();notify("List created.");}catch(e){notify(e.message||"Could not create the list.");}}
+    async function deleteList(id){const {error}=await sb.from("degreesns_lists").delete().eq("id",id).eq("user_id",currentUserId());if(error)throw error;state.listOpenId=null;await loadListsView();notify("List deleted.");}
+
+    async function sendFriendRequest(userId){const {data:existing,error:ee}=await sb.from("degreesns_friend_requests").select("id,status,sender_id,receiver_id").or(`sender_id.eq.${currentUserId()},receiver_id.eq.${currentUserId()}`).in("status",["pending","accepted"]);if(ee)throw ee;const same=(existing||[]).find(r=>[r.sender_id,r.receiver_id].includes(userId));if(same){notify(same.status==="accepted"?"You are already friends.":"Friend request already exists.");return;}const {error}=await sb.from("degreesns_friend_requests").insert({sender_id:currentUserId(),receiver_id:userId});if(error)throw error;await loadConnect();notify("Friend request sent.");}
+    async function updateFriendRequest(id,status){const {error}=await sb.from("degreesns_friend_requests").update({status}).eq("id",id).eq("receiver_id",currentUserId());if(error)throw error;await loadConnect();notify(status==="accepted"?"Friend request accepted.":"Friend request declined.");}
+    async function removeFriend(userId){const req=friendRequestFor(userId);if(!req) return;const {error}=await sb.from("degreesns_friend_requests").delete().eq("id",req.id);if(error)throw error;await loadConnect();notify("Friend removed.");}
+    async function toggleFollow(userId){const {data:existing,error}=await sb.from("degreesns_follows").select("following_id").eq("follower_id",currentUserId()).eq("following_id",userId).maybeSingle();if(error)throw error;if(existing){const {error:e}=await sb.from("degreesns_follows").delete().eq("follower_id",currentUserId()).eq("following_id",userId);if(e)throw e;notify("Unfollowed.");}else{const {error:e}=await sb.from("degreesns_follows").insert({follower_id:currentUserId(),following_id:userId});if(e)throw e;notify("Following.");}await refreshCounts();await loadDiscover($("discoverSearch").value);}
+
+    async function saveProfile(){const displayName=$("settingsDisplayName").value.trim();const bio=$("settingsBio").value.trim();if(!displayName)return;try{const {data,error}=await sb.from("degreesns_profiles").update({display_name:displayName,bio}).eq("id",currentUserId()).select().single();if(error)throw error;state.profile={...state.profile,...data};renderUser();notify("Profile saved.");}catch(e){notify(e.message||"Could not save your profile.");}}
+
+    function renderRightAccount(){if(!state.profile)return;$("rightAccount").innerHTML=`<div><strong>${esc(state.profile.display_name)}</strong></div><div style="margin-top:2px">@${esc(state.profile.username)}</div><div style="margin-top:7px">${esc(state.authUser?.email||"")}</div><div style="margin-top:8px"><button class="secondary classic-button" data-view="settings">Settings</button></div>`;}
+
+    function bindViewButtons(){document.querySelectorAll("[data-view]").forEach(el=>{el.addEventListener("click",()=>navigate(el.dataset.view));});}
+
+    async function handlePostActions(e){const action=e.target.closest("[data-action]");if(!action)return;const post=action.closest(".post");if(!post)return;const id=post.dataset.postId;try{switch(action.dataset.action){case "like":await toggleInteraction("like",id);break;case "repost":await toggleInteraction("repost",id);break;case "bookmark":await toggleBookmark(id);break;case "reply":await openReplyModal(id);break;case "delete":await deletePost(id);break;case "list":await openListModal(id);break;case "share":await navigator.clipboard?.writeText(findRenderedBody(post));notify("Post copied.");break;}}catch(ex){notify(ex.message||"Action failed.");}}
+    function findRenderedBody(post){return post.querySelector(".post-body")?.innerText||"";}
+
+    async function handlePersonActions(e){const b=e.target.closest("[data-person-action]");if(!b)return;const id=b.dataset.userId;try{if(b.dataset.personAction==="friend")await sendFriendRequest(id);else if(b.dataset.personAction==="follow")await toggleFollow(id);else if(b.dataset.personAction==="remove")await removeFriend(id);else if(b.dataset.personAction==="chat"){await navigate("chat");await openConversationByFriend(id);}}catch(ex){notify(ex.message||"Action failed.");}}
+    async function handleFriendRequest(e){const b=e.target.closest("[data-friend-request]");if(!b)return;try{await updateFriendRequest(b.dataset.requestId,b.dataset.friendRequest);}catch(ex){notify(ex.message||"Could not update request.");}}
+
+    document.addEventListener("click",e=>{const b=e.target.closest("[data-list-open]");if(b){state.listOpenId=b.dataset.listOpen;navigate("lists");return;}if(e.target.closest("[data-list-close]")){state.listOpenId=null;navigate("lists");return;}const d=e.target.closest("[data-list-delete]");if(d){deleteList(d.dataset.listDelete).catch(ex=>notify(ex.message||"Could not delete list."));return;}const v=e.target.closest("[data-view]");if(v){navigate(v.dataset.view);}});
+
+    $("loginForm").addEventListener("submit",signIn);
+    $("signupForm").addEventListener("submit",signUp);
+    $("resetForm").addEventListener("submit",resetPassword);
+    $("forgotPassword").addEventListener("click",forgotPassword);
+    $("signOut").addEventListener("click",signOut); $("settingsSignOut").addEventListener("click",signOut);
+    $("postText").addEventListener("input",updateCounter); $("postText").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")publish()}); $("publishPost").addEventListener("click",publish);
+    $("topPost").addEventListener("click",()=>{navigate("home");setTimeout(()=>$("postText").focus(),0)});
+    $("themeToggle").addEventListener("click",toggleTheme); $("settingsTheme").addEventListener("click",toggleTheme);
+    $("saveProfile").addEventListener("click",saveProfile); $("createList").addEventListener("click",createList);
+    $("homeTimeline").addEventListener("click",handlePostActions); $("profileTimeline").addEventListener("click",handlePostActions); $("bookmarksContent").addEventListener("click",handlePostActions); $("discoverContent").addEventListener("click",handlePostActions); $("listsContent").addEventListener("click",handlePostActions); $("replyThread").addEventListener("click",handlePostActions);
+    $("connectContent").addEventListener("click",handlePersonActions); $("connectContent").addEventListener("click",handleFriendRequest); $("discoverContent").addEventListener("click",handlePersonActions);
+    $("closeReply").addEventListener("click",()=>$("replyModal").classList.remove("open")); $("sendReply").addEventListener("click",sendReply); $("replyModal").addEventListener("click",e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove("open")});
+    $("closeList").addEventListener("click",()=>$("listModal").classList.remove("open")); $("saveListMembership").addEventListener("click",saveListMembership); $("listModalCreate").addEventListener("click",async()=>{const name=$("listModalNewName").value.trim();if(!name)return;try{const {error}=await sb.from("degreesns_lists").insert({user_id:currentUserId(),name});if(error)throw error;$("listModalNewName").value="";await loadLists();await openListModal(state.listPostId);notify("List created.");}catch(e){notify(e.message||"Could not create list.")}}); $("listModal").addEventListener("click",e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove("open")});
+    $("sendMessage").addEventListener("click",()=>sendMessage().catch(e=>notify(e.message||"Could not send message."))); $("messageInput").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")sendMessage().catch(ex=>notify(ex.message||"Could not send message."));}); $("conversationList").addEventListener("click",e=>{const b=e.target.closest("[data-conversation-id]");if(b)openConversation(b.dataset.conversationId).catch(ex=>notify(ex.message||"Could not open chat."));});
+    $("globalSearchBtn").addEventListener("click",()=>performSearch($("globalSearch").value.trim()).catch(ex=>notify(ex.message||"Search failed."))); $("globalSearch").addEventListener("keydown",e=>{if(e.key==="Enter")$("globalSearchBtn").click()}); $("discoverSearch").addEventListener("input",()=>loadDiscover($("discoverSearch").value).catch(ex=>console.warn(ex)));
+    $("newsSearchButton").addEventListener("click",()=>loadNews($("newsSearch").value.trim()).catch(ex=>notify(ex.message||"News search failed."))); $("newsRefresh").addEventListener("click",()=>loadNews(state.newsQuery).catch(ex=>notify(ex.message||"News refresh failed."))); $("newsSearch").addEventListener("keydown",e=>{if(e.key==="Enter")$("newsSearchButton").click()});
+    $("newsFilters").addEventListener("click",e=>{const b=e.target.closest("[data-news-query]");if(!b)return;document.querySelectorAll("#newsFilters .filter-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("newsSearch").value=b.dataset.newsQuery;loadNews(b.dataset.newsQuery).catch(ex=>notify(ex.message||"News filter failed."));});
+
+    document.querySelectorAll("[data-auth-view]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-auth-view]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");$("loginView").classList.toggle("hidden",btn.dataset.authView!=="login");$("signupView").classList.toggle("hidden",btn.dataset.authView!=="signup");$("resetView").classList.add("hidden");}));
+
+    async function boot(){
+      pressFx(); restoreTheme(); updateCounter();
+      const {data:{session}}=await sb.auth.getSession();
+      if(session?.user){state.authUser=session.user;try{await showApp();}catch(e){console.error(e);notify(e.message||"Could not load degreeSNS.");}}
+      sb.auth.onAuthStateChange(async (event,session)=>{
+        if(event==="PASSWORD_RECOVERY"){authScreen.classList.remove("hidden");app.style.display="none";$("loginView").classList.add("hidden");$("signupView").classList.add("hidden");$("resetView").classList.remove("hidden");return;}
+        if(session?.user){state.authUser=session.user;setTimeout(()=>showApp().catch(e=>notify(e.message||"Could not load degreeSNS.")),0);}else{state.authUser=null;state.profile=null;showAuth();}
+      });
+    }
+
+    restoreTheme();
+    boot();
+  })();
+  </script>
+</body>
+</html>
