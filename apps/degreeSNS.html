@@ -66,7 +66,7 @@
     #authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
     .auth-wrap{width:min(410px,100%)}
     .auth-logo{height:82px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center}
-    .auth-logo img{max-width:180px;max-height:72px;object-fit:contain}
+    .auth-logo .brand-fallback{display:block;color:var(--blue);font-size:34px;font-weight:800;letter-spacing:-1.8px}
     .brand-fallback{color:var(--blue);font-size:36px;font-weight:800;letter-spacing:-2px}
     .auth-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 2px 9px rgba(0,0,0,.08);overflow:hidden}
     .auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)}
@@ -83,7 +83,7 @@
 
     /* App shell */
     #app{display:none}.topbar{position:sticky;top:0;z-index:50;height:48px;background:linear-gradient(var(--panel),var(--panel-alt));border-bottom:1px solid var(--border-dark);box-shadow:0 1px 2px rgba(0,0,0,.05)}
-    .topbar-inner{width:min(1180px,calc(100% - 20px));height:48px;margin:auto;display:flex;align-items:center}.nav-left,.nav-right{display:flex;align-items:center;gap:2px}.nav-right{margin-left:auto;gap:6px}.brand{position:absolute;left:50%;transform:translateX(-50%);height:38px;display:flex;align-items:center;justify-content:center;width:120px}.brand img{max-width:120px;max-height:31px;object-fit:contain}.brand-text{display:none;color:var(--blue);font-size:20px;font-weight:800;letter-spacing:-1px}
+    .topbar-inner{width:min(1180px,calc(100% - 20px));height:48px;margin:auto;display:flex;align-items:center}.nav-left,.nav-right{display:flex;align-items:center;gap:2px}.nav-right{margin-left:auto;gap:6px}.brand{position:absolute;left:50%;transform:translateX(-50%);height:38px;display:flex;align-items:center;justify-content:center;width:120px}.brand img{max-width:120px;max-height:31px;object-fit:contain}.brand-text{display:block;color:var(--blue);font-size:20px;font-weight:800;letter-spacing:-1px}
     .nav-btn{height:34px;padding:0 11px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}.nav-btn svg{width:15px;height:15px}.nav-btn:hover,.nav-btn.active{color:var(--blue);background:rgba(29,161,242,.07);border-color:rgba(29,161,242,.18)}
     .search{position:relative}.search input{width:180px;height:30px;padding:0 33px 0 12px;border:1px solid var(--border-dark);border-radius:15px;outline:0;background:var(--page);color:var(--text);font-size:11px;transition:.16s ease}.search input:focus{width:220px;background:var(--panel);border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.1)}.search-btn{position:absolute;top:0;right:0;width:31px;height:30px;border:0;background:transparent;color:var(--muted)}
     .icon-btn{width:31px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-dark);border-radius:4px;background:linear-gradient(var(--panel),var(--panel-alt));color:var(--muted)}.icon-btn:hover{color:var(--blue);border-color:rgba(29,161,242,.4)}.icon-btn svg{width:15px;height:15px}.icon-btn .sun{display:block}.icon-btn .moon{display:none}html[data-theme="dark"] .icon-btn .sun{display:none}html[data-theme="dark"] .icon-btn .moon{display:block}
@@ -195,10 +195,7 @@
 
   <section id="authScreen">
     <div class="auth-wrap">
-      <div class="auth-logo">
-        <img src="assets/images/degreesns.png" alt="degreeSNS" onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden')">
-        <div class="brand-fallback hidden">degreeSNS</div>
-      </div>
+      <div class="auth-logo"><div class="brand-fallback">degreeSNS</div></div>
 
       <div class="auth-card">
         <div class="auth-tabs">
@@ -264,10 +261,7 @@
           <button class="nav-btn classic-button" data-view="profile" title="Profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3"></circle><path d="M5 21c.8-4 3.1-6 7-6s6.2 2 7 6"></path></svg><span class="nav-label">Profile</span></button>
         </nav>
 
-        <div class="brand">
-          <img src="assets/images/degreesns.png" alt="degreeSNS" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-          <span class="brand-text">degreeSNS</span>
-        </div>
+        <div class="brand"><span class="brand-text">degreeSNS</span></div>
 
         <div class="nav-right">
           <div class="search"><input id="globalSearch" type="search" placeholder="Search degreeSNS" autocomplete="off"><button class="search-btn" id="globalSearchBtn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 5 5"></path></svg></button></div>
@@ -920,6 +914,18 @@
       try{renderSettings();}catch(e){console.warn("degreeSNS settings bootstrap failed",e);}
     }
     function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
+
+    function updateCounter(){
+      const ta=$("postText");
+      const counter=$("counter");
+      const publishBtn=$("publishPost");
+      if(!ta || !counter || !publishBtn) return;
+      const length=ta.value.length;
+      const remaining=280-length;
+      counter.textContent=String(Math.max(remaining,0));
+      counter.classList.toggle("warning",remaining<0 || (remaining>=0 && remaining<=20));
+      publishBtn.disabled=(length===0 && !state.composerImage) || remaining<0;
+    }
 
     async function signIn(e){
       e.preventDefault();$("loginError").classList.remove("show");
