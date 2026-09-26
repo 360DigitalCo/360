@@ -23,6 +23,75 @@
   let editCatRules  = [];
   let pendingAttachments = []; // [{ filename, content_type, content (base64), size }]
 
+  // ── E2EE ───────────────────────────────────────────────────
+  // AES-GCM 256-bit. Key is derived per-user via HKDF from their stable
+  // Supabase user ID + a fixed domain salt. The raw key never leaves the
+  // browser; only the encrypted ciphertext reaches Supabase.
+  // Encryption is applied only for 360-to-360 mail (@360-search.com both
+  // sides) — external SMTP delivery requires the edge function to read the
+  // plaintext, so we cannot encrypt those.
+  const E2EE_SALT = new TextEncoder().encode("360-mail-e2ee-v1");
+  let _e2eeKey = null; // resolved once per session after boot
+
+  async function deriveKey(userId) {
+    const raw = new TextEncoder().encode(userId);
+    const baseKey = await crypto.subtle.importKey("raw", raw, "HKDF", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "HKDF", hash: "SHA-256", salt: E2EE_SALT, info: new Uint8Array(0) },
+      baseKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async function e2eeKey() {
+    if (!_e2eeKey) _e2eeKey = await deriveKey(currentUser.id);
+    return _e2eeKey;
+  }
+
+  async function e2eeEncrypt(plaintext) {
+    const key = await e2eeKey();
+    const iv  = crypto.getRandomValues(new Uint8Array(12));
+    const enc = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(plaintext)
+    );
+    // pack as "iv_b64:cipher_b64" — a format the decrypt side can split on
+    const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+    return "e2ee:" + b64(iv.buffer) + ":" + b64(enc);
+  }
+
+  async function e2eeDecrypt(packed) {
+    if (!packed || !packed.startsWith("e2ee:")) return packed; // not encrypted
+    const key = await e2eeKey();
+    const [, ivB64, ctB64] = packed.split(":");
+    const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: b64d(ivB64) },
+      key,
+      b64d(ctB64)
+    );
+    return new TextDecoder().decode(plain);
+  }
+
+  function is360Address(addr) {
+    return (addr || "").toLowerCase().endsWith("@360-search.com");
+  }
+
+  // Decrypt an email object in-place; returns it for chaining
+  async function decryptEmail(e) {
+    if (!e || !e.e2ee) return e;
+    try {
+      if (e.subject)   e.subject   = await e2eeDecrypt(e.subject);
+      if (e.body_html) e.body_html = await e2eeDecrypt(e.body_html);
+      if (e.body_text) e.body_text = await e2eeDecrypt(e.body_text);
+      e._decrypted = true;
+    } catch { e._decryptFailed = true; }
+    return e;
+  }
+
   // ── DOM helpers ────────────────────────────────────────────
   const $ = id => document.getElementById(id);
 
@@ -98,6 +167,8 @@
       return;
     }
     allEmails = data || [];
+    // Decrypt any E2EE emails in-place before rendering
+    await Promise.all(allEmails.filter(e => e.e2ee).map(decryptEmail));
     updateBadge(); applyFilter();
   }
 
@@ -212,10 +283,20 @@
   // since real-world email HTML relies on full documents, <style> blocks,
   // table layout attributes, and classes — none of which is a script-execution
   // risk once it's confined to a sandbox iframe with no allow-scripts.
-  function purifyEmailBody(html) {
+  function purifyEmailBody(html, blockImages) {
     if (!window.DOMPurify) return esc(html);
     DOMPurify.addHook("afterSanitizeAttributes", node => {
       if (node.tagName === "A") { node.setAttribute("target","_blank"); node.setAttribute("rel","noopener noreferrer"); }
+      // Replace remote img src with a blank placeholder to block tracking pixels
+      if (blockImages && node.tagName === "IMG") {
+        const src = node.getAttribute("src") || "";
+        if (src && !src.startsWith("data:") && !src.startsWith("cid:")) {
+          node.dataset.blockedSrc = src;
+          node.removeAttribute("src");
+          node.setAttribute("alt", node.getAttribute("alt") || "[image]");
+          node.style.cssText = "opacity:.25;max-width:100%;";
+        }
+      }
     });
     const clean = DOMPurify.sanitize(html, {
       WHOLE_DOCUMENT: true,
@@ -231,24 +312,25 @@
     DOMPurify.removeHook("afterSanitizeAttributes");
     return clean;
   }
-  function buildEmailSrcdoc(html) {
-    const clean = purifyEmailBody(html || "");
+  function buildEmailSrcdoc(html, blockImages) {
+    const clean = purifyEmailBody(html || "", blockImages);
     const dark  = document.body.classList.contains("dark");
     const baseCss = `body{margin:0;padding:12px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;`
       + `font-size:14px;line-height:1.7;color:${dark?'#e2e8f0':'#1e293b'};background:transparent;`
       + `word-wrap:break-word;overflow-wrap:break-word;} img{max-width:100%;height:auto;} `
       + `a{color:${dark?'#60a5fa':'#3b82f6'};} table{max-width:100%;}`;
+    // no-referrer so links opened from email don't leak the mail URL as referer
+    const noRef = `<meta name="referrer" content="no-referrer">`;
     if (/<html[\s>]/i.test(clean)) {
-      // Full document — respect its own styling, just inject our base as a fallback floor
-      return clean.replace(/<head[^>]*>/i, m => `${m}<style>${baseCss}</style>`);
+      return clean.replace(/<head[^>]*>/i, m => `${m}${noRef}<style>${baseCss}</style>`);
     }
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${baseCss}</style></head><body>${clean}</body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">${noRef}<style>${baseCss}</style></head><body>${clean}</body></html>`;
   }
-  function renderEmailIframe(html) {
+  function renderEmailIframe(html, blockImages) {
     const iframe = document.createElement("iframe");
     iframe.className = "mail-body-iframe";
     iframe.setAttribute("sandbox", "allow-same-origin allow-popups");
-    iframe.srcdoc = buildEmailSrcdoc(html);
+    iframe.srcdoc = buildEmailSrcdoc(html, blockImages);
     iframe.addEventListener("load", () => {
       try { iframe.style.height = iframe.contentWindow.document.documentElement.scrollHeight + "px"; }
       catch { iframe.style.height = "320px"; }
@@ -276,6 +358,8 @@
 
     // Badges
     const badges = [];
+    if (e.e2ee && !e._decryptFailed) badges.push(`<span class="mrh-badge e2ee">🔐 End-to-end encrypted</span>`);
+    if (e._decryptFailed)            badges.push(`<span class="mrh-badge burn">⚠️ Decryption failed</span>`);
     if (e.status === "scheduled") badges.push(`<span class="mrh-badge scheduled">⏰ Scheduled — ${esc(fmtDate(e.scheduled_at))}</span>`);
     if (e.expires_at)             badges.push(`<span class="mrh-badge">⏳ Expires ${esc(fmtDate(e.expires_at))}</span>`);
     if (e.self_destruct)          badges.push(`<span class="mrh-badge burn">🔥 Self-destructs after reading</span>`);
@@ -284,6 +368,7 @@
     // Body — HTML renders inside a sandboxed iframe (real email HTML is
     // often a full <html><head><body> document; injecting that into a
     // page <div> via innerHTML is invalid nesting and breaks layout/styles).
+    // Remote images are blocked by default to prevent tracking pixels.
     const body = $("rdBody");
     body.innerHTML = "";
     if (willBurn) {
@@ -292,8 +377,21 @@
       banner.textContent = "🔥 This message will self-destruct now that you've opened it.";
       body.appendChild(banner);
     }
-    if (e.body_html)       body.appendChild(renderEmailIframe(e.body_html));
-    else if (e.body_text)  { const pre = document.createElement("pre"); pre.className = "mail-body-plain"; pre.textContent = e.body_text; body.appendChild(pre); }
+    if (e.body_html) {
+      // Show "Load images" bar above the iframe
+      const imgBar = document.createElement("div");
+      imgBar.className = "mail-img-bar";
+      imgBar.innerHTML = `<span>Remote images are blocked to prevent tracking.</span><button class="mail-img-load-btn">Load images</button>`;
+      body.appendChild(imgBar);
+      let iframe = renderEmailIframe(e.body_html, true);
+      body.appendChild(iframe);
+      imgBar.querySelector(".mail-img-load-btn").addEventListener("click", () => {
+        imgBar.remove();
+        iframe.remove();
+        iframe = renderEmailIframe(e.body_html, false);
+        body.appendChild(iframe);
+      });
+    } else if (e.body_text)  { const pre = document.createElement("pre"); pre.className = "mail-body-plain"; pre.textContent = e.body_text; body.appendChild(pre); }
     else                   { const d = document.createElement("div"); d.className = "mail-body-plain"; d.style.opacity = ".4"; d.textContent = "No message body."; body.appendChild(d); }
 
     // Attachments display
@@ -451,6 +549,7 @@
     $("composeBtn").addEventListener("click", () => openCompose());
     $("composeClose").addEventListener("click", closeCompose);
     $("cSendBtn").addEventListener("click", sendMail);
+    $("cTo").addEventListener("input", updateE2EEIndicator);
     setupRichEditor();
     setupAttachmentPicker();
     setupMailOptions();
@@ -595,6 +694,20 @@
     $("cScheduleBtn").innerHTML = "<span>⏰</span> Schedule";
     $("composeModal").classList.add("open");
     setTimeout(() => $("cTo").focus(), 80);
+    updateE2EEIndicator();
+  }
+
+  function updateE2EEIndicator() {
+    const to = $("cTo").value.trim();
+    const el = $("cE2eeIndicator");
+    if (!el) return;
+    if (is360Address(to) && is360Address(mailAddress)) {
+      el.textContent = "🔐 End-to-end encrypted";
+      el.className = "compose-e2ee on";
+    } else {
+      el.textContent = to ? "🔓 Not encrypted (external recipient)" : "";
+      el.className = "compose-e2ee off";
+    }
   }
 
   function closeCompose() { $("composeModal").classList.remove("open"); }
@@ -636,14 +749,31 @@
 
     try {
       const { data: { session } } = await sb.auth.getSession();
+
+      // Encrypt for 360-to-360 mail — external recipients need plaintext for SMTP routing
+      const e2ee = is360Address(to) && is360Address(mailAddress);
+      const payload = {
+        to, expiresAt, selfDestruct, scheduledAt,
+        attachments: pendingAttachments.map(a => ({ filename: a.filename, content_type: a.content_type, content: a.content })),
+      };
+      if (e2ee) {
+        btn.innerHTML = "<span>🔐</span> Encrypting…";
+        payload.subject  = await e2eeEncrypt(subject);
+        payload.html     = await e2eeEncrypt(html);
+        payload.text     = await e2eeEncrypt(text);
+        payload.e2ee     = true;
+      } else {
+        payload.subject = subject;
+        payload.html    = html;
+        payload.text    = text;
+        payload.e2ee    = false;
+      }
+      btn.innerHTML = "<span>⏳</span> Sending…";
+
       const res = await fetch(`${SB_URL}/functions/v1/send-email`, {
         method: "POST",
         headers: { "Content-Type":"application/json", "Authorization":`Bearer ${session.access_token}`, "apikey":SB_ANON },
-        body: JSON.stringify({
-          to, subject, html, text,
-          attachments: pendingAttachments.map(a => ({ filename: a.filename, content_type: a.content_type, content: a.content })),
-          expiresAt, selfDestruct, scheduledAt,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message || json.error || "Send failed");
