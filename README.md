@@ -197,7 +197,7 @@ Copyright © 2026 **360Digital, Co.**
 
 The **360**, **360Digital**, **360Digital, Co.** names, logos, branding, icons, and visual identity are not licensed under the AGPL and may be protected by trademark and other applicable laws. No trademark rights are granted under this license.
 
-See the **LICENSE**, **NOTICE**, and **COPYRIGHT** files for additional information.
+See the **LICENSE**, **NOTICE**, and **COPYRIGHT** files for additional information. For further inquiry about data handling and your safety on 360, read our [**ToS**](https://360-search.com/tos) and [**Privacy Policy**](https://360-search.com/privacypolicy) which normally get updated every time a major data handling update is pushed/
 
 ---
 
