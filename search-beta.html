@@ -39,9 +39,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>360 — Search</title>
-  <meta name="description" content="360 Search — private, ad-free results from the web. Open any result anonymously through the built-in proxy viewer so sites never see your IP or browsing history." />
+  <meta name="description" content="360 Search — private, ad-free metasearch. Open any result anonymously in a built-in proxy viewer without exposing your IP or browsing history to the site." />
   <meta property="og:title" content="360 — Search" />
-  <meta property="og:description" content="Private metasearch with one-click anonymous viewing. Browse results without leaving a trace — no ads, no tracking, no profile. We refuse URL referrals as well!" />
+  <meta property="og:description" content="Private metasearch with one-click anonymous viewing. Browse results without leaving a trace — no ads, no tracking, no profile. We also refuse URL refferals!" />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/png" href="favicon-32x32.png" />
   <link rel="manifest" href="manifest.json" />
@@ -740,9 +740,99 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     .result-snippet { font-size: 14px; color: var(--mut); line-height: 1.55; margin-top: 4px; }
     body.dark .result-snippet { color: var(--mutd); }
     .result-anon-row { margin-top: 6px; }
-    .result-anon-link { font-size: 11.5px; color: var(--mut); text-decoration: none; opacity: 0.7; }
+    .result-anon-link {
+      font-size: 11.5px; color: var(--mut); text-decoration: none;
+      opacity: 0.68; cursor: pointer; background: none; border: none; padding: 0;
+    }
     .result-anon-link:hover { opacity: 1; text-decoration: underline; }
     body.dark .result-anon-link { color: var(--mutd); }
+
+    /* ── Anonymous viewer overlay — mirrors #img-lightbox ── */
+    #anon-viewer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      flex-direction: column;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #anon-viewer.open { display: flex; animation: lbFadeIn 0.18s ease; }
+    .av-topbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .av-url-label {
+      flex: 1;
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .av-close {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .av-close:hover { background: rgba(255,255,255,0.22); }
+    .av-frame-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    #anon-iframe {
+      width: 100%; height: 100%;
+      border: none;
+      display: block;
+      background: #fff;
+    }
+    #anon-loading {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+    }
+    #anon-loading.visible { display: flex; }
+    #anon-loading .av-spinner {
+      width: 30px; height: 30px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: var(--a);
+      border-radius: 50%;
+      animation: spin360 0.75s linear infinite;
+    }
+    #anon-error {
+      display: none;
+      position: absolute;
+      inset: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+    #anon-error.visible { display: flex; }
 
     .result-thumbnail {
       width: 110px; height: 74px;
@@ -1382,6 +1472,19 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           </a>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Anonymous viewer overlay -->
+  <div id="anon-viewer">
+    <div class="av-topbar">
+      <span class="av-url-label" id="av-url-label"></span>
+      <button class="av-close" id="av-close-btn" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="av-frame-wrap">
+      <iframe id="anon-iframe" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+      <div id="anon-loading"><div class="av-spinner"></div>Loading anonymously&hellip;</div>
+      <div id="anon-error">Failed to load page through proxy.</div>
     </div>
   </div>
 
@@ -3012,6 +3115,64 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     });
 
     /* ─────────────────────────────────
+       ANONYMOUS VIEWER
+       Uses the same Supabase proxy as web-viewer.html — fetches through
+       the edge function and renders via srcdoc so the target site never
+       sees the user's IP or cookies.
+    ───────────────────────────────── */
+    const ANON_PROXY = "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/web-viewer";
+
+    const anonViewer  = document.getElementById('anon-viewer');
+    const anonIframe  = document.getElementById('anon-iframe');
+    const anonLoading = document.getElementById('anon-loading');
+    const anonError   = document.getElementById('anon-error');
+    const anonUrlLabel = document.getElementById('av-url-label');
+
+    function openAnonViewer(url) {
+      anonViewer.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      anonUrlLabel.textContent = url;
+      anonIframe.srcdoc = '';
+      anonError.classList.remove('visible');
+      anonLoading.classList.add('visible');
+
+      fetch(ANON_PROXY + '?url=' + encodeURIComponent(url))
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(html => {
+          anonLoading.classList.remove('visible');
+          anonIframe.srcdoc = html;
+        })
+        .catch(() => {
+          anonLoading.classList.remove('visible');
+          anonError.classList.add('visible');
+        });
+    }
+
+    function closeAnonViewer() {
+      anonViewer.classList.remove('open');
+      document.body.style.overflow = '';
+      anonIframe.srcdoc = '';
+    }
+
+    document.getElementById('av-close-btn').addEventListener('click', closeAnonViewer);
+    anonViewer.addEventListener('click', e => { if (e.target === anonViewer) closeAnonViewer(); });
+
+    // Delegate clicks on .result-anon-link buttons (rendered dynamically)
+    resultsArea.addEventListener('click', e => {
+      const btn = e.target.closest('[data-anon-url]');
+      if (btn) {
+        e.preventDefault();
+        openAnonViewer(btn.getAttribute('data-anon-url'));
+      }
+    });
+
+    // Escape closes whichever overlay is open — piggyback on the existing listener
+    // by handling it in the anon viewer's own block so the two don't conflict.
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && anonViewer.classList.contains('open')) closeAnonViewer();
+    });
+
+    /* ─────────────────────────────────
        VOICE SEARCH — Web Speech API.
        Not supported in Firefox; button stays hidden there rather than
        doing nothing when clicked.
@@ -3890,7 +4051,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
                 <a class="result-title" href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${escHtml(r.title)}</a>
                 ${r.snippet ? `<div class="result-snippet">${r.snippet}</div>` : ''}
                 <div class="result-anon-row">
-                  <a class="result-anon-link" href="/apps/web-viewer.html?url=${encodeURIComponent(r.href)}" target="_blank" rel="noopener noreferrer">View anonymously</a>
+                  <button class="result-anon-link" data-anon-url="${escHtml(r.href)}">View anonymously</button>
                 </div>
               </div>
               ${r.thumb ? `<img class="result-thumbnail" src="${escHtml(r.thumb)}" alt="" loading="lazy" onerror="this.remove()"/>` : ''}
