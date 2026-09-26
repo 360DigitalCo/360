@@ -553,6 +553,12 @@
     });
 
     const THEME_KEY = "degreesns.theme";
+    let loadConversations = null;
+    let renderConversationList = null;
+    let openConversation = null;
+    let openConversationByFriend = null;
+    let sendMessage = null;
+
     const state = {
       authUser: null,
       profile: null,
@@ -902,44 +908,7 @@
 
     function ownEmpty(title,text){return `<div class="inline-empty"><strong>${esc(title)}</strong><div style="margin-top:4px">${esc(text)}</div></div>`}
 
-    async function loadConversations(){
-      const {data,error}=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").or(`user_a.eq.${currentUserId()},user_b.eq.${currentUserId()}`).order("updated_at",{ascending:false}); if(error)throw error;
-      const convs=data||[]; const otherIds=convs.map(c=>c.user_a===currentUserId()?c.user_b:c.user_a); const profiles=await getProfiles(otherIds); const pMap=new Map(profiles.map(p=>[p.id,p]));
-      const latest={};
-      if(convs.length){const {data:msgs,error:me}=await sb.from("degreesns_messages").select("conversation_id,body,created_at,sender_id").in("conversation_id",convs.map(c=>c.id)).order("created_at",{ascending:false}).limit(Math.min(convs.length*5,100)); if(me)throw me;(msgs||[]).forEach(m=>{if(!latest[m.conversation_id])latest[m.conversation_id]=m});}
-      state.conversations=convs.map(c=>({...c,other:pMap.get(c.user_a===currentUserId()?c.user_b:c.user_a)||{display_name:"User",username:"user"},latest:latest[c.id]}));
-      renderConversationList();
-    }
-    function renderConversationList(){
-      const el=$("conversationList"); if(!state.conversations.length){el.innerHTML=`<div class="inline-empty">No conversations yet.<div style="margin-top:4px">Become friends with someone, then open Chat from Connect.</div></div>`;return;}
-      el.innerHTML=state.conversations.map(c=>`<button class="conversation classic-button ${state.activeConversation?.id===c.id?"active":""}" data-conversation-id="${esc(c.id)}"><div class="conversation-avatar">${avatarMarkup(c.other)}</div><div><div class="conversation-name">${esc(c.other.display_name)}</div><div class="conversation-preview">${esc(c.latest?.body||"No messages yet")}</div></div></button>`).join("");
-    }
-
-    async function openConversationByFriend(friendId){
-      const a=currentUserId(), b=friendId; const sorted=[a,b].sort(); const pairKey=`${sorted[0]}:${sorted[1]}`;
-      let {data:conv,error}=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("pair_key",pairKey).maybeSingle();
-      if(error)throw error;
-      if(!conv){
-        const {data:created,error:ce}=await sb.from("degreesns_conversations").insert({user_a:sorted[0],user_b:sorted[1],pair_key:pairKey}).select().single();
-        if(ce){const retry=await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("pair_key",pairKey).maybeSingle(); if(retry.error)throw ce; conv=retry.data;} else conv=created;
-      }
-      await openConversation(conv.id);
-    }
-
-    async function openConversation(id){
-      const conv=state.conversations.find(c=>c.id===id)||((await sb.from("degreesns_conversations").select("id,user_a,user_b,pair_key,created_at,updated_at").eq("id",id).single()).data); if(!conv)throw new Error("Conversation not found.");
-      if(!state.conversations.some(x=>x.id===id)) await loadConversations();
-      const full=state.conversations.find(c=>c.id===id)||conv; state.activeConversation=full; renderConversationList(); $("chatTitle").textContent=full.other?.display_name||"Chat"; $("chatSubtitle").textContent=`@${full.other?.username||"user"}`;
-      await loadMessages(id); subscribeChat(id); $("messageInput").disabled=false; $("sendMessage").disabled=false; $("messageInput").focus();
-    }
-
-    async function loadMessages(id){const {data,error}=await sb.from("degreesns_messages").select("id,conversation_id,sender_id,body,created_at,edited_at,deleted_at").eq("conversation_id",id).order("created_at",{ascending:true}).limit(250);if(error)throw error;state.messages=data||[];renderMessages();}
-    function renderMessages(){const el=$("messageList");if(!state.activeConversation){el.innerHTML=empty("Select a friend","Choose a conversation to start chatting.");return;}if(!state.messages.length){el.innerHTML=`<div class="inline-empty">No messages yet. Start the conversation.</div>`;return;}el.innerHTML=state.messages.map(m=>`<div class="message ${m.sender_id===currentUserId()?"mine":""}"><div class="message-body">${mentionAndEmoji(m.body)}</div><div class="message-time">${formatClock(m.created_at)}</div></div>`).join("");window.twemoji?.parse?.(el,{folder:"svg",ext:".svg"});requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight});}
-
-    function subscribeChat(id){if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}state.chatChannel=sb.channel(`degreesns-chat-${id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_messages",filter:`conversation_id=eq.${id}`},payload=>{if(!state.messages.some(m=>m.id===payload.new.id)){state.messages.push(payload.new);renderMessages();loadConversations().catch(console.warn);}}).subscribe();}
-    function subscribeSocial(){if(state.socialChannel){sb.removeChannel(state.socialChannel);}if(state.feedChannel){sb.removeChannel(state.feedChannel);}state.socialChannel=sb.channel("degreesns-social").on("postgres_changes",{event:"*",schema:"public",table:"degreesns_friend_requests"},payload=>{if([payload.new?.sender_id,payload.new?.receiver_id,payload.old?.sender_id,payload.old?.receiver_id].includes(currentUserId())){loadConnect().catch(console.warn);loadConversations().catch(console.warn);}}).subscribe();state.feedChannel=sb.channel("degreesns-feed").on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_posts"},payload=>{if(payload.new?.user_id!==currentUserId()&&payload.new?.parent_id===null&&state.currentView!=="chat"){refreshCurrent().catch(console.warn);}}).subscribe(); if(state.notificationChannel){sb.removeChannel(state.notificationChannel);}state.notificationChannel=sb.channel("degreesns-notifications").on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_notifications",filter:`user_id=eq.${currentUserId()}`},()=>loadNotifications().catch(console.warn)).subscribe();}
-
-    async function sendMessage(){const body=$("messageInput").value.trim();const id=state.activeConversation?.id;if(!body||!id)return;const {error}=await sb.from("degreesns_messages").insert({conversation_id:id,sender_id:currentUserId(),body});if(error)throw error;$("messageInput").value="";}
+    // Canonical chat implementation is installed below in the final messaging section.
 
     async function createNotification(type,userId,postId=null){
       if(!userId||userId===currentUserId())return;
@@ -1041,7 +1010,7 @@
       try{subscribeSocial();}catch(e){console.warn("degreeSNS realtime bootstrap failed",e);}
       try{renderSettings();}catch(e){console.warn("degreeSNS settings bootstrap failed",e);}
     }
-    function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
+    function showAuth(){app.style.display="none";authScreen.classList.remove("hidden");state.currentView="home";if(state.chatChannel){sb.removeChannel(state.chatChannel);state.chatChannel=null;}if(state.chatMessageChannel){sb.removeChannel(state.chatMessageChannel);state.chatMessageChannel=null;}if(state.chatPresenceChannel){sb.removeChannel(state.chatPresenceChannel);state.chatPresenceChannel=null;}if(state.socialChannel){sb.removeChannel(state.socialChannel);state.socialChannel=null;}if(state.feedChannel){sb.removeChannel(state.feedChannel);state.feedChannel=null;}if(state.notificationChannel){sb.removeChannel(state.notificationChannel);state.notificationChannel=null;}state.activeConversation=null;state.messages=[];document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("homeView").classList.add("active");}
 
     function updateCounter(){
       const ta=$("postText");
@@ -2010,15 +1979,189 @@
       const b=e.target.closest("[data-conversation-id]");if(b)openConversationComplete(b.dataset.conversationId).catch(x=>notify(x.message||"Could not open conversation."));
     });
 
-    // Message link previews and actual media/GIF sending.
-    roadmapSendMessageComplete=async function(){
-      const body=$("messageInput").value.trim();if(!body&&!state.chatGifUrl&&!state.chatImageFile)return;if(!state.activeConversation)return;
-      if(state.activeConversation.request_status==="pending"&&state.activeConversation.user_a!==currentUserId()&&state.activeConversation.user_b!==currentUserId())throw new Error("Accept the message request before replying.");
-      let mediaUrl=null,mediaType=null;const file=state.chatImageFile;if(file){if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>5242880)throw new Error("Choose an image up to 5 MB.");const ext=file.name.split(".").pop()?.toLowerCase()||"jpg",path=`${currentUserId()}/chat-${crypto.randomUUID()}.${ext}`;const up=await sb.storage.from("degreesns-post-media").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(up.error)throw up.error;mediaUrl=sb.storage.from("degreesns-post-media").getPublicUrl(path).data.publicUrl;mediaType=file.type;}
-      let preview=null;const url=extractFirstUrl(body);const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");if(url&&c.linkPreviewToggle!==false){try{preview=await fetchLinkPreview(url)}catch{}}
-      const payload={conversation_id:state.activeConversation.id,sender_id:currentUserId(),body:body||" ",media_url:mediaUrl,media_type:mediaType,reply_to_id:state.messageReplyToId||null,gif_url:state.chatGifUrl||null,gif_provider:state.chatGifUrl?"giphy":null,gif_id:state.chatGifId||null,link_url:preview?.url||url||null,link_title:preview?.title||null,link_description:preview?.description||null,link_image_url:preview?.image||null};const {error}=await sb.from("degreesns_messages").insert(payload);if(error)throw error;
-      $("messageInput").value="";state.chatImageFile=null;$("chatImageFile").value="";state.chatGifUrl=null;state.chatGifId=null;state.messageReplyToId=null;$("chatTypingState").textContent="";$("chatReplyClear").classList.remove("show");await loadMessagesComplete(state.activeConversation.id);await loadConversationsComplete();
+    // Chat stability patch: use one canonical conversation/message flow.
+    state.chatMessageChannel = null;
+    state.chatImageFile = null;
+    state.chatGifUrl = state.chatGifUrl || null;
+    state.chatGifId = state.chatGifId || null;
+    state.messageReplyToId = state.messageReplyToId || null;
+
+    function stopChatMessagesChannel(){
+      if(state.chatMessageChannel){ sb.removeChannel(state.chatMessageChannel); state.chatMessageChannel=null; }
+    }
+
+    function subscribeChatMessagesStable(conversationId){
+      stopChatMessagesChannel();
+      const channel=sb.channel(`degreesns-messages-${conversationId}-${currentUserId()}`)
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'degreesns_messages',filter:`conversation_id=eq.${conversationId}`},payload=>{
+          if(state.activeConversation?.id!==conversationId) return;
+          if(!state.messages.some(m=>m.id===payload.new.id)) state.messages.push(payload.new);
+          renderMessagesComplete();
+          loadConversationsComplete().catch(()=>{});
+        })
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'degreesns_messages',filter:`conversation_id=eq.${conversationId}`},payload=>{
+          if(state.activeConversation?.id!==conversationId) return;
+          const i=state.messages.findIndex(m=>m.id===payload.new.id);
+          if(i>=0) state.messages[i]=payload.new; else state.messages.push(payload.new);
+          renderMessagesComplete();
+          loadConversationsComplete().catch(()=>{});
+        })
+        .on('postgres_changes',{event:'DELETE',schema:'public',table:'degreesns_messages',filter:`conversation_id=eq.${conversationId}`},payload=>{
+          if(state.activeConversation?.id!==conversationId) return;
+          state.messages=state.messages.filter(m=>m.id!==payload.old.id);
+          renderMessagesComplete();
+          loadConversationsComplete().catch(()=>{});
+        })
+        .subscribe();
+      state.chatMessageChannel=channel;
+    }
+
+    loadConversationsComplete=async function(){
+      const me=currentUserId();
+      if(!me) return;
+      const {data,error}=await sb.from('degreesns_conversations')
+        .select('id,user_a,user_b,pair_key,created_at,updated_at,requester_id,request_status')
+        .or(`user_a.eq.${me},user_b.eq.${me}`)
+        .order('updated_at',{ascending:false});
+      if(error) throw error;
+      const convs=data||[];
+      const otherIds=[...new Set(convs.map(c=>c.user_a===me?c.user_b:c.user_a))];
+      const profiles=await getProfiles(otherIds);
+      const pMap=new Map(profiles.map(p=>[p.id,p]));
+      const latest={};
+      if(convs.length){
+        const {data:msgs,error:meErr}=await sb.from('degreesns_messages')
+          .select('conversation_id,body,created_at,sender_id,deleted_at,gif_url,media_url')
+          .in('conversation_id',convs.map(c=>c.id))
+          .order('created_at',{ascending:false})
+          .limit(Math.min(500,convs.length*20));
+        if(meErr) throw meErr;
+        for(const msg of (msgs||[])) if(!latest[msg.conversation_id]) latest[msg.conversation_id]=msg;
+      }
+      state.conversations=convs.map(c=>({
+        ...c,
+        other:pMap.get(c.user_a===me?c.user_b:c.user_a)||{id:c.user_a===me?c.user_b:c.user_a,display_name:'User',username:'user'},
+        latest:latest[c.id]||null
+      }));
+      renderConversationListComplete();
     };
+    loadConversations=loadConversationsComplete;
+
+    openConversationComplete=async function(id){
+      const me=currentUserId();
+      if(!me) throw new Error('Sign in to use chat.');
+      await loadConversationsComplete();
+      let conv=state.conversations.find(c=>c.id===id);
+      if(!conv){
+        const {data,error}=await sb.from('degreesns_conversations')
+          .select('id,user_a,user_b,pair_key,created_at,updated_at,requester_id,request_status')
+          .eq('id',id).maybeSingle();
+        if(error) throw error;
+        conv=data;
+      }
+      if(!conv) throw new Error('Conversation not found.');
+      const otherId=conv.user_a===me?conv.user_b:conv.user_a;
+      conv={...conv,other:conv.other||state.conversations.find(c=>c.id===conv.id)?.other||{id:otherId,display_name:'User',username:'user'}};
+      state.activeConversation=conv;
+      renderConversationListComplete();
+      $('chatTitle').textContent=conv.other.display_name||'Conversation';
+      $('chatSubtitle').textContent=`@${conv.other.username||'user'}`;
+      await loadMessagesComplete(conv.id);
+      subscribeChatMessagesStable(conv.id);
+      await openChatPresence(conv.id,conv.other).catch(()=>{});
+      const recipientPending=conv.request_status==='pending' && conv.requester_id!==me;
+      $('messageInput').disabled=recipientPending;
+      $('sendMessage').disabled=recipientPending;
+      $('messageInput').placeholder=recipientPending?'Accept the message request to reply.':'Write a message — try :wave: or :heart:';
+      if(!recipientPending) $('messageInput').focus();
+    };
+    openConversation=openConversationComplete;
+
+    openConversationByUser=async function(userId){
+      const me=currentUserId();
+      if(!me) throw new Error('Sign in to use chat.');
+      if(me===userId) throw new Error('You cannot message yourself.');
+      const sorted=[me,userId].sort();
+      const pairKey=`${sorted[0]}:${sorted[1]}`;
+      let {data:conv,error}=await sb.from('degreesns_conversations')
+        .select('id,user_a,user_b,pair_key,created_at,updated_at,requester_id,request_status')
+        .eq('pair_key',pairKey).maybeSingle();
+      if(error) throw error;
+      if(!conv){
+        const created=await sb.from('degreesns_conversations')
+          .insert({user_a:sorted[0],user_b:sorted[1],pair_key:pairKey})
+          .select('id,user_a,user_b,pair_key,created_at,updated_at,requester_id,request_status')
+          .single();
+        if(created.error) throw created.error;
+        conv=created.data;
+      }
+      await loadConversationsComplete();
+      await openConversationComplete(conv.id);
+    };
+    openConversationByFriend=openConversationByUser;
+
+    roadmapSendMessageComplete=async function(){
+      const me=currentUserId();
+      const conv=state.activeConversation;
+      if(!me||!conv) throw new Error('Select a conversation first.');
+      if(conv.request_status==='pending' && conv.requester_id!==me) throw new Error('Accept this message request before replying.');
+      const input=$('messageInput');
+      const body=input.value.trim();
+      const hasGif=!!state.chatGifUrl;
+      const file=state.chatImageFile;
+      if(!body&&!hasGif&&!file) return;
+      if(body.length>4000) throw new Error('Messages are limited to 4000 characters.');
+
+      let mediaUrl=null,mediaType=null;
+      if(file){
+        if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>5242880) throw new Error('Choose an image up to 5 MB.');
+        const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+        const path=`${me}/chat-${crypto.randomUUID()}.${ext}`;
+        const up=await sb.storage.from('degreesns-post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+        if(up.error) throw up.error;
+        mediaUrl=sb.storage.from('degreesns-post-media').getPublicUrl(path).data.publicUrl;
+        mediaType=file.type;
+      }
+
+      let linkUrl=extractFirstUrl(body)||null, preview=null;
+      try{
+        const custom=JSON.parse(localStorage.getItem(CUSTOM_KEY)||'{}');
+        if(linkUrl && custom.linkPreviewToggle!==false) preview=await fetchLinkPreview(linkUrl);
+      }catch{}
+
+      const payload={
+        conversation_id:conv.id,
+        sender_id:me,
+        body:body||' ',
+        media_url:mediaUrl,
+        media_type:mediaType,
+        reply_to_id:state.messageReplyToId||null,
+        gif_url:state.chatGifUrl||null,
+        gif_provider:state.chatGifUrl?'giphy':null,
+        gif_id:state.chatGifId||null,
+        link_url:preview?.url||linkUrl,
+        link_title:preview?.title||null,
+        link_description:preview?.description||null,
+        link_image_url:preview?.image||null
+      };
+      const {data,error}=await sb.from('degreesns_messages').insert(payload).select(ROADMAP_MESSAGE_SELECT).single();
+      if(error) throw error;
+      if(data && !state.messages.some(m=>m.id===data.id)) state.messages.push(data);
+      input.value='';
+      state.chatImageFile=null;
+      state.chatGifUrl=null;
+      state.chatGifId=null;
+      state.messageReplyToId=null;
+      $('chatImageFile').value='';
+      $('chatTypingState').textContent='';
+      $('chatReplyClear').classList.remove('show');
+      renderMessagesComplete();
+      await loadConversationsComplete();
+    };
+
+    $('messageInput')?.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();roadmapSendMessageComplete().catch(x=>notify(x.message||'Could not send message.'));}
+    });
 
     // #verifysudomodesction — reserved security pass: reauthentication, email change, password reset, session controls, and sensitive-action gating.
     // Public deep links can also be used when the app is already on screen.
