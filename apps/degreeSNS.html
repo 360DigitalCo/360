@@ -6,7 +6,7 @@
   <title>degreeSNS</title>
   <link rel="icon" type="image/png" href="assets/images/degreesns.png">
 
-  <!-- Supabase JS v2. Remove/replace the config below to enable the hosted backend. -->
+  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Twemoji is used only when rendering emoji entered by users. -->
   <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
@@ -137,10 +137,13 @@
     .settings-danger{margin-top:8px}
     @media (max-width:1050px){.news-card{grid-template-columns:100px minmax(0,1fr)}.news-thumb{width:100px;height:70px}.chat-shell{grid-template-columns:170px minmax(0,1fr)}}
     @media (max-width:700px){.topbar-inner{overflow:hidden}.nav-left{display:none}.brand{left:10px;transform:none}.nav-right{margin-left:auto}.post-top-btn{padding:0 10px}.chat-shell{grid-template-columns:1fr}.chat-list{border-right:0;border-bottom:1px solid var(--border);max-height:180px}.message-list{min-height:320px}.profile-edit{grid-template-columns:1fr}.news-card{grid-template-columns:1fr}.news-thumb{width:100%;height:150px}.person-card{grid-template-columns:38px minmax(0,1fr)}.person-actions{grid-column:2}.news-rail{display:none}}
+
+    .setting-select{height:31px;min-width:125px;padding:0 8px;border:1px solid var(--border-dark);border-radius:4px;background:var(--panel);color:var(--text);font-size:10px;outline:0}.setting-select:focus{border-color:var(--blue)}
+    html[data-accent="sky"]{--blue:#168de2;--blue-dark:#0874c1;--blue-light:#e8f5ff;--button-top:#39aef0;--button-bottom:#168fd0}html[data-accent="violet"]{--blue:#7357d9;--blue-dark:#5b42bc;--blue-light:#f0edff;--button-top:#8b72e8;--button-bottom:#654bc7}html[data-accent="green"]{--blue:#149b67;--blue-dark:#0b7c51;--blue-light:#e7f8f0;--button-top:#29b97f;--button-bottom:#119565}html[data-accent="orange"]{--blue:#e87517;--blue-dark:#c55b0a;--blue-light:#fff0e4;--button-top:#f59645;--button-bottom:#dd6d12}
+    html.font-small{font-size:92%}html.font-large{font-size:108%}html.density-compact .post{padding-top:7px;padding-bottom:7px}html.density-compact .post-actions{margin-top:4px}html.density-spacious .post{padding-top:17px;padding-bottom:17px}html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation:none!important;transition:none!important}
 </style>
 </head>
 <body>
-  <link rel="preload" as="image" href="assets/images/degreesns.png">
 
   <section id="authScreen">
     <div class="auth-wrap">
@@ -196,7 +199,7 @@
 
         <div class="auth-foot">degreeSNS</div>
       </div>
-      <div class="mode-note">Email authentication, profiles, posts, friends, chat and news are powered by Supabase.</div>
+      <div class="mode-note">Email authentication, profiles, posts, friends, chat and news are ready to use.</div>
     </div>
   </section>
 
@@ -288,7 +291,7 @@
                 <div id="conversationList"></div>
               </aside>
               <section class="message-pane">
-                <div class="message-head"><div><div class="message-head-name" id="chatTitle">Select a friend</div><div class="message-head-sub" id="chatSubtitle">Messages are live with Supabase Realtime.</div></div></div>
+                <div class="message-head"><div><div class="message-head-name" id="chatTitle">Select a friend</div><div class="message-head-sub" id="chatSubtitle">Live messages with your friends.</div></div></div>
                 <div id="messageList" class="message-list"></div>
                 <div class="chat-compose"><textarea id="messageInput" maxlength="4000" placeholder="Write a message" disabled></textarea><button class="post-btn classic-button" id="sendMessage" disabled>Send</button></div>
               </section>
@@ -328,7 +331,13 @@
               <div class="account-email">Email: <strong id="settingsEmail"></strong></div>
               <button class="primary classic-button" id="saveProfile">Save profile</button>
             </div>
-            <div class="section"><h3>Appearance</h3><div class="setting-row"><div><div class="setting-name">Dark mode</div><div class="setting-desc">Off by default. This preference is also saved to your profile.</div></div><button class="switch classic-button" id="settingsTheme" aria-label="Toggle dark mode"><span></span></button></div></div>
+            <div class="section"><h3>Appearance</h3>
+              <div class="setting-row"><div><div class="setting-name">Dark mode</div><div class="setting-desc">Off by default.</div></div><button class="switch classic-button" id="settingsTheme" aria-label="Toggle dark mode"><span></span></button></div>
+              <div class="setting-row"><div><div class="setting-name">Accent color</div><div class="setting-desc">Choose the color used throughout degreeSNS.</div></div><select class="setting-select" id="accentSelect"><option value="blue">Classic blue</option><option value="sky">Sky</option><option value="violet">Violet</option><option value="green">Green</option><option value="orange">Orange</option></select></div>
+              <div class="setting-row"><div><div class="setting-name">Text size</div><div class="setting-desc">Adjust posts and interface text.</div></div><select class="setting-select" id="fontSizeSelect"><option value="small">Small</option><option value="normal">Normal</option><option value="large">Large</option></select></div>
+              <div class="setting-row"><div><div class="setting-name">Timeline density</div><div class="setting-desc">Control how much fits on screen.</div></div><select class="setting-select" id="densitySelect"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="spacious">Spacious</option></select></div>
+              <div class="setting-row"><div><div class="setting-name">Motion</div><div class="setting-desc">Keep the classic button press and interface animations.</div></div><button class="switch classic-button on" id="motionToggle" aria-label="Toggle motion"><span></span></button></div>
+            </div>
             <div class="section"><h3>Account</h3><div class="setting-row"><div><div class="setting-name">Sign out</div><div class="setting-desc">End your current degreeSNS session.</div></div><button class="primary classic-button danger" id="settingsSignOut">Sign out</button></div></div>
           </section>
         </section>
@@ -619,12 +628,12 @@
 
     async function sendMessage(){const body=$("messageInput").value.trim();const id=state.activeConversation?.id;if(!body||!id)return;const {error}=await sb.from("degreesns_messages").insert({conversation_id:id,sender_id:currentUserId(),body});if(error)throw error;$("messageInput").value="";}
 
-    async function loadRightNews(){try{const {data,error}=await sb.functions.invoke("degreesns-news",{body:{q:"",limit:5}});if(error)throw error;const articles=data?.articles||[];$("rightNews").innerHTML=articles.length?articles.map(a=>`<a class="news-rail-item" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="news-rail-source">${esc(a.source)}</span><span class="news-rail-title">${esc(a.title)}</span></a>`).join(""):`<div class="right-body">No headlines available right now.</div>`;}catch(e){console.warn(e);$("rightNews").innerHTML=`<div class="right-body">News is temporarily unavailable.</div>`;}}
+    async function loadRightNews(){try{const {data,error}=await sb.functions.invoke("degreesns-news-v2",{body:{q:"technology OR science OR world",limit:5}});if(error)throw error;const articles=data?.articles||[];$("rightNews").innerHTML=articles.length?articles.map(a=>`<a class="news-rail-item" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="news-rail-source">${esc(a.source)}</span><span class="news-rail-title">${esc(a.title)}</span></a>`).join(""):`<div class="right-body">No headlines available right now.</div>`;}catch(e){console.warn(e);$("rightNews").innerHTML=`<div class="right-body">News is temporarily unavailable.</div>`;}}
 
     async function loadNews(query=state.newsQuery){
       state.newsQuery=query;
       $("newsContent").innerHTML=`<div class="news-loading">Loading headlines…</div>`;
-      const {data,error}=await sb.functions.invoke("degreesns-news",{body:{q:query,limit:24}});
+      const {data,error}=await sb.functions.invoke("degreesns-news-v2",{body:{q:query,limit:24}});
       if(error)throw error;
       state.news=data?.articles||[]; renderNews();
     }
@@ -702,6 +711,11 @@
 
     function renderRightAccount(){if(!state.profile)return;$("rightAccount").innerHTML=`<div><strong>${esc(state.profile.display_name)}</strong></div><div style="margin-top:2px">@${esc(state.profile.username)}</div><div style="margin-top:7px">${esc(state.authUser?.email||"")}</div><div style="margin-top:8px"><button class="secondary classic-button" data-view="settings">Settings</button></div>`;}
 
+    const CUSTOM_KEY="degreesns.custom";
+    function loadCustomization(){const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");document.documentElement.dataset.accent=c.accent||"blue";document.documentElement.classList.remove("font-small","font-large","density-compact","density-spacious","reduce-motion");if(c.fontSize&&c.fontSize!=="normal")document.documentElement.classList.add("font-"+c.fontSize);if(c.density&&c.density!=="comfortable")document.documentElement.classList.add("density-"+c.density);if(c.motion===false)document.documentElement.classList.add("reduce-motion");const a=$("accentSelect"),f=$("fontSizeSelect"),d=$("densitySelect"),m=$("motionToggle");if(a)a.value=c.accent||"blue";if(f)f.value=c.fontSize||"normal";if(d)d.value=c.density||"comfortable";if(m)m.classList.toggle("on",c.motion!==false);}
+    function saveCustomization(){const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");localStorage.setItem(CUSTOM_KEY,JSON.stringify(c));}
+    function setCustomization(key,value){const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");c[key]=value;localStorage.setItem(CUSTOM_KEY,JSON.stringify(c));loadCustomization();}
+
     function bindViewButtons(){document.querySelectorAll("[data-view]").forEach(el=>{el.addEventListener("click",()=>navigate(el.dataset.view));});}
 
     async function handlePostActions(e){const action=e.target.closest("[data-action]");if(!action)return;const post=action.closest(".post");if(!post)return;const id=post.dataset.postId;try{switch(action.dataset.action){case "like":await toggleInteraction("like",id);break;case "repost":await toggleInteraction("repost",id);break;case "bookmark":await toggleBookmark(id);break;case "reply":await openReplyModal(id);break;case "delete":await deletePost(id);break;case "list":await openListModal(id);break;case "share":await navigator.clipboard?.writeText(findRenderedBody(post));notify("Post copied.");break;}}catch(ex){notify(ex.message||"Action failed.");}}
@@ -731,6 +745,11 @@
     $("newsFilters").addEventListener("click",e=>{const b=e.target.closest("[data-news-query]");if(!b)return;document.querySelectorAll("#newsFilters .filter-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("newsSearch").value=b.dataset.newsQuery;loadNews(b.dataset.newsQuery).catch(ex=>notify(ex.message||"News filter failed."));});
 
     document.querySelectorAll("[data-auth-view]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-auth-view]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");$("loginView").classList.toggle("hidden",btn.dataset.authView!=="login");$("signupView").classList.toggle("hidden",btn.dataset.authView!=="signup");$("resetView").classList.add("hidden");}));
+
+    $("accentSelect")?.addEventListener("change",e=>setCustomization("accent",e.target.value));
+    $("fontSizeSelect")?.addEventListener("change",e=>setCustomization("fontSize",e.target.value));
+    $("densitySelect")?.addEventListener("change",e=>setCustomization("density",e.target.value));
+    $("motionToggle")?.addEventListener("click",()=>{const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");setCustomization("motion",c.motion===false);});
 
     async function boot(){
       pressFx(); restoreTheme(); updateCounter();
