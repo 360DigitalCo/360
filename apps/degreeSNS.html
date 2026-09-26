@@ -292,6 +292,122 @@
     @media(max-width:900px){.chat-shell{height:720px;max-height:none}.message{max-width:84%}.news-card{grid-template-columns:120px minmax(0,1fr)}.news-thumb{width:120px}}
     @media(max-width:700px){.chat-shell{height:auto;max-height:none;display:grid;grid-template-columns:1fr}.chat-list{max-height:220px;border-right:0;border-bottom:1px solid var(--border)}#conversationList{max-height:150px}.message-pane{min-height:520px}.message-list{min-height:330px}.news-card{grid-template-columns:1fr}.news-thumb{width:100%;height:170px}}
 
+
+
+    /* degreeSNS final visual pass: news controls + chat controls/bubbles/reactions */
+    .news-mode-row,
+    .news-actions,
+    .news-source-actions,
+    .chat-conversation-tools,
+    .message-head-actions,
+    .chat-tools,
+    .message-tools,
+    .message-reaction{align-items:center}
+
+    .news-mode-row{padding:0 0 9px;margin:0;gap:6px;border:0;overflow-x:auto;scrollbar-width:none}
+    .news-mode-row::-webkit-scrollbar{display:none}
+    .news-mode-row .filter-btn,
+    .news-action,
+    .news-source-actions .chat-tool,
+    .chat-conversation-tools .chat-tool,
+    .message-head-actions .chat-tool,
+    .chat-tools .chat-tool,
+    .message-tools .message-tool,
+    .message-reaction button{
+      appearance:none;
+      -webkit-appearance:none;
+      box-sizing:border-box;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:5px;
+      min-height:27px;
+      height:27px;
+      padding:0 9px;
+      border:1px solid var(--border-dark);
+      border-radius:4px;
+      background:linear-gradient(to bottom,var(--panel),var(--panel-alt));
+      color:var(--text);
+      font-size:10px;
+      font-weight:700;
+      line-height:1;
+      white-space:nowrap;
+      text-decoration:none;
+      box-shadow:inset 0 1px rgba(255,255,255,.65),0 1px 1px rgba(0,0,0,.04);
+    }
+    .news-mode-row .filter-btn:hover,
+    .news-action:hover,
+    .news-source-actions .chat-tool:hover,
+    .chat-conversation-tools .chat-tool:hover,
+    .message-head-actions .chat-tool:hover,
+    .chat-tools .chat-tool:hover,
+    .message-tools .message-tool:hover,
+    .message-reaction button:hover{
+      color:var(--blue);
+      border-color:rgba(29,161,242,.42);
+      background:linear-gradient(to bottom,var(--panel),rgba(29,161,242,.06));
+      text-decoration:none;
+    }
+    .news-mode-row .filter-btn.active,
+    .chat-conversation-tools .chat-tool.active,
+    .message-head-actions .chat-tool.active{
+      color:var(--blue);
+      border-color:rgba(29,161,242,.5);
+      background:linear-gradient(to bottom,rgba(29,161,242,.14),rgba(29,161,242,.06));
+      box-shadow:inset 0 1px rgba(255,255,255,.55),0 1px 2px rgba(29,161,242,.08);
+    }
+    .news-action svg{width:13px;height:13px;flex:none}
+    .news-action.active-like{color:var(--danger);border-color:rgba(224,36,94,.35);background:linear-gradient(to bottom,var(--panel),rgba(224,36,94,.07))}
+    .news-action.active-repost{color:var(--success);border-color:rgba(23,191,99,.35);background:linear-gradient(to bottom,var(--panel),rgba(23,191,99,.07))}
+    .news-action.active-bookmark{color:var(--blue);border-color:rgba(29,161,242,.35);background:linear-gradient(to bottom,var(--panel),rgba(29,161,242,.07))}
+    .news-description{max-width:760px;overflow-wrap:anywhere}
+    .news-source-actions{display:flex;gap:5px;flex:0 0 auto}
+
+    .chat-shell{isolation:isolate}
+    .chat-conversation-tools{display:flex;gap:6px;padding:8px 9px;border-bottom:1px solid var(--border);background:var(--panel);flex:none}
+    .chat-conversation-tools input{height:30px;min-width:0;flex:1;padding:0 9px;border:1px solid var(--border-dark);border-radius:4px;background:var(--page);color:var(--text);outline:0;font-size:10px}
+    .chat-conversation-tools input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.08);background:var(--panel)}
+    .message-head-actions{display:flex;gap:5px;min-width:0}
+    .chat-tools{gap:5px;padding:7px 9px;border-top:1px solid var(--border);background:var(--panel-alt)}
+    .chat-tools .chat-tool[data-state="hidden"]{display:none}
+    .chat-tools .field-help{font-size:10px;line-height:1.25;color:var(--muted);flex:1}
+    .chat-compose{grid-template-columns:minmax(0,1fr) auto;align-items:end;background:var(--panel);padding:9px}
+    .chat-compose textarea{border-radius:5px;min-height:46px;line-height:1.4}
+    .chat-compose .post-btn{min-width:66px;min-height:34px;align-self:stretch}
+
+    .message-list{display:flex;flex-direction:column;gap:0;padding:15px;background:linear-gradient(to bottom,var(--page),color-mix(in srgb,var(--page) 94%,var(--panel) 6%));}
+    .message{display:block;width:fit-content;max-width:min(78%,680px);margin:0 0 9px;padding:9px 11px;border:1px solid var(--border);border-radius:9px 9px 9px 2px;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.045)}
+    .message.mine{margin-left:auto;margin-right:0;border-color:rgba(29,161,242,.28);border-radius:9px 9px 2px 9px;background:var(--blue-light);box-shadow:0 1px 2px rgba(29,161,242,.08)}
+    .message-body{font-size:12px;line-height:1.5;color:var(--text)}
+    .message-body img.emoji-shortcode{width:1.18em;height:1.18em;vertical-align:-.18em}
+    .message-reply-banner{margin:-9px -11px 8px;padding:6px 9px;border:0;border-bottom:1px solid var(--border);border-radius:9px 9px 0 0;background:rgba(0,0,0,.025);color:var(--muted);font-size:9px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    html[data-theme="dark"] .message-reply-banner{background:rgba(255,255,255,.035)}
+    .message-time{margin-top:6px;color:var(--muted);font-size:9px;line-height:1.2}
+    .message-tools{margin-top:7px;gap:4px;opacity:.78;transition:opacity .12s ease}
+    .message:hover .message-tools{opacity:1}
+    .message-tools .message-tool{height:23px;min-height:23px;padding:0 7px;font-size:9px;font-weight:700;color:var(--muted);background:transparent;box-shadow:none}
+    .message-tools .message-tool:hover{color:var(--blue);background:rgba(29,161,242,.06)}
+    .message-reaction{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+    .message-reaction button{height:23px;min-height:23px;padding:0 8px;font-size:9px;color:var(--muted);background:var(--panel-alt);box-shadow:none}
+    .message-reaction button[data-message-reaction="like"]{color:var(--danger)}
+    .message-reaction button[data-message-reaction="star"]{color:#b48a00}
+    .post-gif{display:block;width:auto;max-width:min(100%,380px);max-height:300px;margin-top:8px;border-radius:6px;border:1px solid var(--border);object-fit:contain;background:var(--panel-alt)}
+    .message .quoted-post{display:block;margin-top:8px;padding:8px;border-radius:5px;background:var(--panel-alt);border:1px solid var(--border);font-size:10px;line-height:1.35}
+    .message .quoted-post strong{display:block;font-size:10px}
+    .message .quoted-post div{margin-top:3px;color:var(--muted)}
+    .conversation-row{padding:0 6px}
+    .conversation{border:0;border-bottom:1px solid var(--border);border-radius:0;padding:10px 8px;background:transparent}
+    .conversation:hover{background:rgba(29,161,242,.045)}
+    .conversation.active{background:rgba(29,161,242,.08);box-shadow:inset 3px 0 var(--blue)}
+    .conversation-preview{max-width:100%;padding-right:4px}
+    @media(max-width:700px){
+      .news-actions{align-items:stretch}
+      .news-action{flex:0 0 auto}
+      .message{max-width:88%}
+      .message-head-actions{gap:4px}
+      .chat-tools{flex-wrap:wrap}
+      .chat-tools .field-help{order:4;flex-basis:100%}
+    }
 </style>
 </head>
 <body>
