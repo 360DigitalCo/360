@@ -833,6 +833,84 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       font-size: 14px;
     }
     #anon-error.visible { display: flex; }
+    .av-tracker-btn {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .av-tracker-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+    .av-tracker-btn.has-trackers { border-color: rgba(250,173,80,0.55); color: #faad50; }
+    .av-tracker-panel {
+      flex-shrink: 0;
+      display: none;
+      flex-direction: column;
+      max-height: 220px;
+      background: rgba(10,12,24,0.97);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .av-tracker-panel.open { display: flex; }
+    .av-tp-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .av-tp-copy {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .av-tp-copy:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .av-tp-list {
+      list-style: none;
+      margin: 0;
+      padding: 6px 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .av-tp-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 14px;
+      font-size: 11.5px;
+      font-family: "SF Mono", Consolas, Monaco, monospace;
+      color: rgba(255,255,255,0.55);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .av-tp-list li:last-child { border-bottom: none; }
+    .av-tp-tag {
+      flex-shrink: 0;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .av-tp-tag.blocked  { background: rgba(239,68,68,0.18);  color: #f87171; }
+    .av-tp-tag.analytics { background: rgba(250,173,80,0.18); color: #faad50; }
+    .av-tp-tag.ad       { background: rgba(167,139,250,0.18); color: #c4b5fd; }
+    .av-tp-tag.social   { background: rgba(56,189,248,0.18);  color: #7dd3fc; }
+    .av-tp-tag.other    { background: rgba(255,255,255,0.08);  color: rgba(255,255,255,0.4); }
+    .av-tp-url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .result-thumbnail {
       width: 110px; height: 74px;
@@ -1479,7 +1557,17 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
   <div id="anon-viewer">
     <div class="av-topbar">
       <span class="av-url-label" id="av-url-label"></span>
+      <button class="av-tracker-btn" id="av-tracker-btn" aria-label="Tracker log" title="Tracker log">
+        <span id="av-tracker-count">&#x26B2;</span>
+      </button>
       <button class="av-close" id="av-close-btn" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="av-tracker-panel" id="av-tracker-panel" aria-hidden="true">
+      <div class="av-tp-head">
+        <span id="av-tp-summary"></span>
+        <button class="av-tp-copy" id="av-tp-copy">Copy log</button>
+      </div>
+      <ul class="av-tp-list" id="av-tp-list"></ul>
     </div>
     <div class="av-frame-wrap">
       <iframe id="anon-iframe" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
@@ -3119,14 +3207,152 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        Uses the same Supabase proxy as web-viewer.html — fetches through
        the edge function and renders via srcdoc so the target site never
        sees the user's IP or cookies.
+       Tracker log: scans the raw HTML for third-party script/img/iframe
+       src attributes and classifies them client-side before rendering.
     ───────────────────────────────── */
     const ANON_PROXY = "https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/web-viewer";
 
-    const anonViewer  = document.getElementById('anon-viewer');
-    const anonIframe  = document.getElementById('anon-iframe');
-    const anonLoading = document.getElementById('anon-loading');
-    const anonError   = document.getElementById('anon-error');
+    const anonViewer   = document.getElementById('anon-viewer');
+    const anonIframe   = document.getElementById('anon-iframe');
+    const anonLoading  = document.getElementById('anon-loading');
+    const anonError    = document.getElementById('anon-error');
     const anonUrlLabel = document.getElementById('av-url-label');
+    const trackerBtn   = document.getElementById('av-tracker-btn');
+    const trackerCount = document.getElementById('av-tracker-count');
+    const trackerPanel = document.getElementById('av-tracker-panel');
+    const trackerList  = document.getElementById('av-tp-list');
+    const trackerSummary = document.getElementById('av-tp-summary');
+
+    // Domain-fragment → category. Checked via substring so subdomains match.
+    const TRACKER_DB = [
+      // analytics
+      ['google-analytics.com', 'analytics'], ['googletagmanager.com', 'analytics'],
+      ['googletagservices.com', 'analytics'], ['analytics.google.com', 'analytics'],
+      ['segment.com', 'analytics'], ['segment.io', 'analytics'],
+      ['mixpanel.com', 'analytics'], ['heap.io', 'analytics'],
+      ['hotjar.com', 'analytics'], ['clarity.ms', 'analytics'],
+      ['fullstory.com', 'analytics'], ['mouseflow.com', 'analytics'],
+      ['logrocket.com', 'analytics'], ['amplitude.com', 'analytics'],
+      ['matomo.org', 'analytics'], ['piwik.pro', 'analytics'],
+      // ads
+      ['doubleclick.net', 'ad'], ['googlesyndication.com', 'ad'],
+      ['googleadservices.com', 'ad'], ['adnxs.com', 'ad'],
+      ['ads.twitter.com', 'ad'], ['advertising.com', 'ad'],
+      ['criteo.com', 'ad'], ['criteo.net', 'ad'],
+      ['outbrain.com', 'ad'], ['taboola.com', 'ad'],
+      ['media.net', 'ad'], ['pubmatic.com', 'ad'],
+      ['rubiconproject.com', 'ad'], ['openx.net', 'ad'],
+      ['moatads.com', 'ad'], ['adsrvr.org', 'ad'],
+      ['scorecardresearch.com', 'ad'], ['quantserve.com', 'ad'],
+      ['casalemedia.com', 'ad'], ['smartadserver.com', 'ad'],
+      ['amazon-adsystem.com', 'ad'], ['adzerk.net', 'ad'],
+      // social / share pixels
+      ['connect.facebook.net', 'social'], ['facebook.com/tr', 'social'],
+      ['platform.twitter.com', 'social'], ['static.ads-twitter.com', 'social'],
+      ['snap.licdn.com', 'social'], ['linkedin.com/px', 'social'],
+      ['bat.bing.com', 'social'], ['pin.it', 'social'],
+      ['assets.pinterest.com', 'social'], ['tiktok.com', 'social'],
+      ['sc-static.net', 'social'],
+    ];
+
+    function classifyUrl(url) {
+      const lower = url.toLowerCase();
+      for (const [frag, cat] of TRACKER_DB) {
+        if (lower.includes(frag)) return cat;
+      }
+      return null; // not a known tracker
+    }
+
+    // Pull every external src= from script/img/iframe/link tags
+    function extractTrackers(html, pageOrigin) {
+      const dp = new DOMParser().parseFromString(html, 'text/html');
+      const found = [];
+      const seen = new Set();
+
+      const selectors = [
+        ['script', 'src'], ['img', 'src'], ['iframe', 'src'],
+        ['link', 'href'], ['input', 'src'],
+      ];
+      selectors.forEach(([tag, attr]) => {
+        dp.querySelectorAll(`${tag}[${attr}]`).forEach(el => {
+          const val = el.getAttribute(attr) || '';
+          if (!val || val.startsWith('data:') || val.startsWith('#')) return;
+          let host = '';
+          try { host = new URL(val, pageOrigin).hostname; } catch { return; }
+          // skip same-origin and relative resources
+          if (!host || host === new URL(pageOrigin).hostname) return;
+          const cat = classifyUrl(val);
+          if (!cat) return; // only surface known trackers
+          const key = cat + ':' + host;
+          if (!seen.has(key)) {
+            seen.add(key);
+            found.push({ url: val, host, cat });
+          }
+        });
+      });
+
+      // Also catch common pixel patterns in inline scripts / noscript
+      const inlineText = html;
+      const pixelPatterns = [
+        [/gtag\s*\(/g, 'google-analytics.com', 'analytics'],
+        [/fbq\s*\(/g, 'connect.facebook.net', 'social'],
+        [/twq\s*\(/g, 'static.ads-twitter.com', 'social'],
+        [/_paq\.push/g, 'matomo.org', 'analytics'],
+        [/clarity\s*\(/g, 'clarity.ms', 'analytics'],
+        [/mixpanel\.track/g, 'mixpanel.com', 'analytics'],
+        [/amplitude\.getInstance/g, 'amplitude.com', 'analytics'],
+        [/heap\.track/g, 'heap.io', 'analytics'],
+      ];
+      pixelPatterns.forEach(([re, host, cat]) => {
+        if (re.test(inlineText) && !seen.has(cat + ':' + host)) {
+          seen.add(cat + ':' + host);
+          found.push({ url: '(inline script)', host, cat });
+        }
+      });
+
+      return found;
+    }
+
+    function renderTrackerPanel(trackers, pageUrl) {
+      const counts = { analytics: 0, ad: 0, social: 0, other: 0 };
+      trackers.forEach(t => { counts[t.cat] = (counts[t.cat] || 0) + 1; });
+
+      const total = trackers.length;
+      if (total === 0) {
+        trackerCount.textContent = '✓ 0 trackers';
+        trackerBtn.classList.remove('has-trackers');
+      } else {
+        trackerCount.textContent = `⚠ ${total} tracker${total > 1 ? 's' : ''}`;
+        trackerBtn.classList.add('has-trackers');
+      }
+
+      const parts = [];
+      if (counts.analytics) parts.push(`${counts.analytics} analytics`);
+      if (counts.ad)        parts.push(`${counts.ad} ad`);
+      if (counts.social)    parts.push(`${counts.social} social`);
+      trackerSummary.textContent = total
+        ? `${total} tracker${total > 1 ? 's' : ''} found (${parts.join(', ')}) — all blocked by proxy`
+        : 'No known trackers detected.';
+
+      trackerList.innerHTML = trackers.map(t => `
+        <li>
+          <span class="av-tp-tag ${t.cat}">${t.cat}</span>
+          <span class="av-tp-tag blocked">blocked</span>
+          <span class="av-tp-url" title="${t.url}">${t.host}</span>
+        </li>`).join('');
+
+      // Copy-log builds a plain-text report
+      document.getElementById('av-tp-copy').onclick = () => {
+        const lines = [
+          `Tracker report for: ${pageUrl}`,
+          `Scanned: ${new Date().toISOString()}`,
+          `Total: ${total}`,
+          '',
+          ...trackers.map(t => `[${t.cat.padEnd(9)}] [blocked] ${t.host}  ${t.url !== '(inline script)' ? t.url : '(inline script)'}`),
+        ];
+        navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+      };
+    }
 
     function openAnonViewer(url) {
       anonViewer.classList.add('open');
@@ -3135,11 +3361,17 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       anonIframe.srcdoc = '';
       anonError.classList.remove('visible');
       anonLoading.classList.add('visible');
+      trackerCount.textContent = '\u26B2'; // reset shield
+      trackerBtn.classList.remove('has-trackers');
+      trackerPanel.classList.remove('open');
+      trackerList.innerHTML = '';
 
       fetch(ANON_PROXY + '?url=' + encodeURIComponent(url))
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
         .then(html => {
           anonLoading.classList.remove('visible');
+          const trackers = extractTrackers(html, url);
+          renderTrackerPanel(trackers, url);
           anonIframe.srcdoc = html;
         })
         .catch(() => {
@@ -3152,8 +3384,10 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       anonViewer.classList.remove('open');
       document.body.style.overflow = '';
       anonIframe.srcdoc = '';
+      trackerPanel.classList.remove('open');
     }
 
+    trackerBtn.addEventListener('click', () => trackerPanel.classList.toggle('open'));
     document.getElementById('av-close-btn').addEventListener('click', closeAnonViewer);
     anonViewer.addEventListener('click', e => { if (e.target === anonViewer) closeAnonViewer(); });
 
