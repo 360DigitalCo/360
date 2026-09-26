@@ -552,6 +552,26 @@
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
+    let subscribeSocial = function(){
+      if(state.socialChannel)sb.removeChannel(state.socialChannel);
+      if(state.feedChannel)sb.removeChannel(state.feedChannel);
+      state.socialChannel=sb.channel("degreesns-social")
+        .on("postgres_changes",{event:"*",schema:"public",table:"degreesns_friend_requests"},payload=>{
+          if([payload.new?.sender_id,payload.new?.receiver_id,payload.old?.sender_id,payload.old?.receiver_id].includes(currentUserId())){
+            loadConnect().catch(console.warn);
+            loadConversations?.call(null).catch?.(console.warn);
+          }
+        }).subscribe();
+      state.feedChannel=sb.channel("degreesns-feed")
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_posts"},payload=>{
+          if(payload.new?.user_id!==currentUserId()&&payload.new?.parent_id===null&&state.currentView!=="chat")refreshCurrent().catch(console.warn);
+        }).subscribe();
+      if(state.notificationChannel)sb.removeChannel(state.notificationChannel);
+      state.notificationChannel=sb.channel("degreesns-notifications")
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"degreesns_notifications",filter:`user_id=eq.${currentUserId()}`},()=>loadNotifications().catch(console.warn))
+        .subscribe();
+    };
+
     const THEME_KEY = "degreesns.theme";
     let loadConversations = null;
     let renderConversationList = null;
@@ -759,13 +779,16 @@
 
     async function refreshCounts(){
       const id=currentUserId(); if(!id)return;
-      const [posts,following,followers]=await Promise.all([
-        sb.from("degreesns_posts").select("id",{count:"exact",head:true}).eq("user_id",id).is("parent_id",null),
-        sb.from("degreesns_follows").select("following_id",{count:"exact",head:true}).eq("follower_id",id),
-        sb.from("degreesns_follows").select("follower_id",{count:"exact",head:true}).eq("following_id",id)
-      ]);
-      $("railPosts").textContent=posts.count||0; $("railFollowing").textContent=following.count||0; $("railFollowers").textContent=followers.count||0;
-      $("profilePosts").textContent=posts.count||0; $("profileFollowing").textContent=following.count||0; $("profileFollowers").textContent=followers.count||0;
+      const {data,error}=await sb.from("degreesns_activity_summary").select("posts_count,followers_count,following_count,friends_count").eq("user_id",id).maybeSingle();
+      if(error)throw error;
+      const counts=data||{};
+      $("railPosts").textContent=String(counts.posts_count||0);
+      $("railFollowing").textContent=String(counts.following_count||0);
+      $("railFollowers").textContent=String(counts.followers_count||0);
+      $("profilePosts").textContent=String(counts.posts_count||0);
+      $("profileFollowing").textContent=String(counts.following_count||0);
+      $("profileFollowers").textContent=String(counts.followers_count||0);
+      if($("profileFriends"))$("profileFriends").textContent=String(counts.friends_count||0);
     }
 
     async function loadProfile(){
@@ -1004,6 +1027,7 @@
         ["conversations",loadConversations]
       ];
       for(const [name,fn] of tasks){
+        if(typeof fn!=="function"){console.warn(`degreeSNS ${name} bootstrap skipped: function binding is unavailable`);continue;}
         try{await fn();}
         catch(e){console.warn(`degreeSNS ${name} bootstrap failed`,e);}
       }
@@ -2293,6 +2317,12 @@
     };
     loadNews=loadRoadmapNewsComplete;
 
+
+    // Final runtime bindings: all wrappers are installed before boot/auth restoration can call showApp().
+    loadConversations=loadConversationsComplete;
+    renderConversationList=renderConversationListComplete;
+    openConversation=openConversationComplete;
+    openConversationByFriend=openConversationByUser;
 
     restoreTheme();
     boot();
