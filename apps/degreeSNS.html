@@ -74,7 +74,8 @@
     .auth-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
     .auth-body{padding:20px}
     .auth-title{margin:0;font-size:21px;line-height:1.2}.auth-subtitle{margin:6px 0 16px;color:var(--muted);font-size:12px;line-height:1.45}
-    .auth-error{display:none;padding:9px 10px;margin-bottom:13px;border:1px solid rgba(224,36,94,.35);border-radius:4px;background:rgba(224,36,94,.08);color:var(--danger);font-size:11px;line-height:1.4}.auth-error.show{display:block}
+    .auth-resend{margin:7px 0 10px;width:100%;}.auth-resend.hidden{display:none;}
+.auth-error{display:none;padding:9px 10px;margin-bottom:13px;border:1px solid rgba(224,36,94,.35);border-radius:4px;background:rgba(224,36,94,.08);color:var(--danger);font-size:11px;line-height:1.4}.auth-error.show{display:block}
     .field{margin-bottom:13px}.field label{display:block;margin-bottom:5px;color:var(--muted);font-size:11px;font-weight:700}.field input,.field textarea{width:100%;border:1px solid var(--border-dark);border-radius:4px;outline:0;background:var(--panel);color:var(--text);padding:0 11px}.field input{height:38px}.field textarea{min-height:72px;padding-top:9px;resize:vertical}.field input:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,161,242,.12)}
     .auth-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.check input{margin:0}
     .primary{height:34px;padding:0 15px;border:1px solid #0e8ed3;border-radius:4px;background:linear-gradient(var(--button-top),var(--button-bottom));color:#fff;font-size:12px;font-weight:700;box-shadow:inset 0 1px rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.08)}
@@ -429,6 +430,7 @@
             <h1 class="auth-title">Sign in to degreeSNS</h1>
             <p class="auth-subtitle">Classic social networking for the web.</p>
             <div class="auth-error" id="loginError"></div>
+            <button class="secondary classic-button auth-resend hidden" type="button" id="resendConfirmation">Resend confirmation email</button>
             <form id="loginForm">
               <div class="field"><label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="email" required></div>
               <div class="field"><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required></div>
@@ -1251,10 +1253,34 @@
       publishBtn.disabled=(length===0 && !state.composerImage) || remaining<0;
     }
 
-    async function signIn(e){
-      e.preventDefault();$("loginError").classList.remove("show");
+    function showLoginError(message,resend=false){
+      const box=$("loginError");
+      const resendBtn=$("resendConfirmation");
+      box.textContent=message||"Could not sign in.";
+      box.classList.add("show");
+      resendBtn?.classList.toggle("hidden",!resend);
+    }
+
+    async function resendConfirmation(){
+      const email=$("loginEmail").value.trim();
+      if(!email){showLoginError("Enter your email first.",false);return;}
       try{
-        const {data,error}=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});
+        const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:location.href}});
+        if(error)throw error;
+        notify("Confirmation email sent.");
+        showLoginError("Check your email for the degreeSNS confirmation link.",true);
+      }catch(ex){
+        console.error("degreeSNS resend confirmation",ex);
+        showLoginError(ex.message||"Could not resend the confirmation email.",true);
+      }
+    }
+
+    async function signIn(e){
+      e.preventDefault();
+      showLoginError("",false);
+      try{
+        const email=$("loginEmail").value.trim();
+        const {data,error}=await sb.auth.signInWithPassword({email,password:$("loginPassword").value});
         if(error)throw error;
         if(!data.session||!data.user)throw new Error("No active session was returned.");
         state.authUser=data.user;
@@ -1262,12 +1288,39 @@
         notify("Signed in.");
       }catch(ex){
         console.error("degreeSNS sign-in",ex);
-        $("loginError").textContent=ex.message||"Could not sign in.";
-        $("loginError").classList.add("show");
+        const code=String(ex?.code||ex?.status||"").toLowerCase();
+        const msg=String(ex?.message||"");
+        if(code.includes("email_not_confirmed") || /email not confirmed/i.test(msg)){
+          showLoginError("Your email is not confirmed yet. Check your inbox, then sign in again.",true);
+        }else{
+          showLoginError(msg||"Could not sign in.",false);
+        }
       }
     }
 
-    async function signUp(e){e.preventDefault();$("signupError").classList.remove("show");const displayName=$("signupDisplayName").value.trim(),username=$("signupUsername").value.trim(),email=$("signupEmail").value.trim(),password=$("signupPassword").value,confirm=$("signupConfirm").value,bio=$("signupBio").value.trim();try{if(!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error("Username must be 3–24 letters, numbers, or underscores.");if(password!==confirm)throw new Error("Passwords do not match.");const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.href,data:{display_name:displayName,username,bio}}});if(error)throw error;if(data.session){notify("Account created.");}else{notify("Account created. Check your email to verify it, then sign in.");document.querySelector('[data-auth-view="login"]').click();$("loginEmail").value=email;}}catch(ex){$("signupError").textContent=ex.message||"Could not create your account.";$("signupError").classList.add("show");}}
+    async function signUp(e){
+      e.preventDefault();
+      $("signupError").classList.remove("show");
+      const displayName=$("signupDisplayName").value.trim(),username=$("signupUsername").value.trim(),email=$("signupEmail").value.trim(),password=$("signupPassword").value,confirm=$("signupConfirm").value,bio=$("signupBio").value.trim();
+      try{
+        if(!/^[A-Za-z0-9_]{3,24}$/.test(username))throw new Error("Username must be 3–24 letters, numbers, or underscores.");
+        if(password!==confirm)throw new Error("Passwords do not match.");
+        const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.href,data:{display_name:displayName,username,bio}}});
+        if(error)throw error;
+        if(data.session){
+          notify("Account created.");
+        }else{
+          notify("Account created. Check your email to verify it, then sign in.");
+          document.querySelector('[data-auth-view="login"]').click();
+          $("loginEmail").value=email;
+          $("loginPassword").value="";
+          showLoginError("Your account was created. Confirm your email before signing in.",true);
+        }
+      }catch(ex){
+        $("signupError").textContent=ex.message||"Could not create your account.";
+        $("signupError").classList.add("show");
+      }
+    }
 
     async function forgotPassword(){const email=$("loginEmail").value.trim();if(!email){$("loginError").textContent="Enter your email first.";$("loginError").classList.add("show");return;}try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});if(error)throw error;notify("Password reset email sent.");}catch(e){$("loginError").textContent=e.message||"Could not send reset email.";$("loginError").classList.add("show");}}
     async function resetPassword(e){e.preventDefault();$("resetError").classList.remove("show");const p=$("resetPassword").value,c=$("resetConfirm").value;if(p!==c){$("resetError").textContent="Passwords do not match.";$("resetError").classList.add("show");return;}try{const {error}=await sb.auth.updateUser({password:p});if(error)throw error;notify("Password updated.");await sb.auth.signOut();}catch(ex){$("resetError").textContent=ex.message||"Could not update your password.";$("resetError").classList.add("show");}}
@@ -1389,6 +1442,7 @@
     $("signupForm").addEventListener("submit",signUp);
     $("resetForm").addEventListener("submit",resetPassword);
     $("forgotPassword").addEventListener("click",forgotPassword);
+    $("resendConfirmation")?.addEventListener("click",resendConfirmation);
     $("signOut").addEventListener("click",signOut); $("settingsSignOut").addEventListener("click",signOut);
     $("postText").addEventListener("input",updateCounter); $("postText").addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")publish()}); $("publishPost").addEventListener("click",publish);
     $("removeComposerImage")?.addEventListener("click",clearComposerImage);
@@ -1421,17 +1475,50 @@
     $("newsFilters").addEventListener("click",e=>{const b=e.target.closest("[data-news-query]");if(!b)return;document.querySelectorAll("#newsFilters .filter-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("newsSearch").value=b.dataset.newsQuery;loadNews(b.dataset.newsQuery).catch(ex=>notify(ex.message||"News filter failed."));});
     $("newsContent").addEventListener("click",e=>{const b=e.target.closest("[data-news-action]");if(!b)return;e.preventDefault();toggleNewsInteraction(b.dataset.newsAction,b.dataset.newsUrl).catch(ex=>notify(ex.message||"Could not update news reaction."));});
 
-    document.querySelectorAll("[data-auth-view]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-auth-view]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");$("loginView").classList.toggle("hidden",btn.dataset.authView!=="login");$("signupView").classList.toggle("hidden",btn.dataset.authView!=="signup");$("resetView").classList.add("hidden");}));
+    document.querySelectorAll("[data-auth-view]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll("[data-auth-view]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");$("loginView").classList.toggle("hidden",btn.dataset.authView!=="login");$("signupView").classList.toggle("hidden",btn.dataset.authView!=="signup");$("resetView").classList.add("hidden");$("resendConfirmation")?.classList.add("hidden");}));
 
     $("accentSelect")?.addEventListener("change",e=>setCustomization("accent",e.target.value));
     $("fontSizeSelect")?.addEventListener("change",e=>setCustomization("fontSize",e.target.value));
     $("densitySelect")?.addEventListener("change",e=>setCustomization("density",e.target.value));
     $("motionToggle")?.addEventListener("click",()=>{const c=JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}");setCustomization("motion",c.motion===false);});
 
+    async function handleAuthRedirect(){
+      try{
+        const url=new URL(location.href);
+        const hash=new URLSearchParams(url.hash.startsWith("#")?url.hash.slice(1):"");
+        const query=url.searchParams;
+        const accessToken=hash.get("access_token") || query.get("access_token");
+        const refreshToken=hash.get("refresh_token") || query.get("refresh_token");
+        if(accessToken && refreshToken){
+          const {data,error}=await sb.auth.setSession({access_token:accessToken,refresh_token:refreshToken});
+          if(error)throw error;
+          if(data?.session?.user){
+            history.replaceState({},document.title,url.pathname+url.search);
+            return true;
+          }
+        }
+        const tokenHash=query.get("token_hash");
+        const flowType=query.get("type");
+        if(tokenHash && (flowType==="email" || flowType==="signup" || flowType==="recovery")){
+          const {data,error}=await sb.auth.verifyOtp({token_hash:tokenHash,type:flowType==="recovery"?"recovery":"email"});
+          if(error)throw error;
+          if(data?.session?.user){
+            history.replaceState({},document.title,url.pathname);
+            return true;
+          }
+        }
+      }catch(e){
+        console.error("degreeSNS auth redirect",e);
+        showLoginError(e.message||"The confirmation link could not be completed. Please request a new one.",false);
+      }
+      return false;
+    }
+
     async function boot(){
       pressFx(); restoreTheme(); loadCustomization(); updateCounter(); await loadEmojiShortcodes();
+      const consumedAuthRedirect=await handleAuthRedirect();
       const {data:{session}}=await sb.auth.getSession();
-      if(session?.user){state.authUser=session.user;try{await showApp();}catch(e){console.error(e);notify(e.message||"Could not load degreeSNS.");}}
+      if(session?.user){state.authUser=session.user;try{await showApp();if(consumedAuthRedirect)notify("Email confirmed. You're signed in.");}catch(e){console.error(e);notify(e.message||"Could not load degreeSNS.");}}
       sb.auth.onAuthStateChange(async (event,session)=>{
         if(event==="PASSWORD_RECOVERY"){authScreen.classList.remove("hidden");app.style.display="none";$("loginView").classList.add("hidden");$("signupView").classList.add("hidden");$("resetView").classList.remove("hidden");return;}
         if(session?.user){
