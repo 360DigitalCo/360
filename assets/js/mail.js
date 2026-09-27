@@ -957,16 +957,17 @@
   }
 
   // ── Custom domains ─────────────────────────────────────────
-  // Free custom domain support: user adds a domain, we return the DNS
-  // records they need to point MX/TXT at our infrastructure.
-  // Verification is done server-side by the edge function; we poll the
-  // `custom_domains` table for status changes.
+  // Stored in localStorage (no server table required).
+  // DNS records are shown for the user to add at their registrar;
+  // "verification" is a best-effort DNS lookup via the edge function
+  // if available, otherwise we just mark it pending and advise patience.
   let customDomains = [];
+  const DOMAINS_KEY = "360mail_domains_" + (currentUser?.id || "");
 
-  const DOMAIN_MX_HOST    = "mx.360-search.com";
-  const DOMAIN_SPF        = "v=spf1 include:360-search.com ~all";
-  const DOMAIN_DKIM_NAME  = "360mail._domainkey";
-  const DOMAIN_DKIM_VAL   = "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7360mail360placeholder==";
+  const DOMAIN_MX_HOST   = "mx.360-search.com";
+  const DOMAIN_SPF       = "v=spf1 include:360-search.com ~all";
+  const DOMAIN_DKIM_NAME = "360mail._domainkey";
+  const DOMAIN_DKIM_VAL  = "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ==";
 
   function setupDomains() {
     $("addDomainBtn")?.addEventListener("click", openDomainModal);
@@ -975,12 +976,15 @@
     loadDomains();
   }
 
-  async function loadDomains() {
-    if (!mailAddress) return;
-    const { data } = await sb.from("custom_domains")
-      .select("*").eq("owner_email", mailAddress).order("created_at");
-    customDomains = data || [];
+  function loadDomains() {
+    try {
+      customDomains = JSON.parse(localStorage.getItem("360mail_domains_" + currentUser.id) || "[]");
+    } catch { customDomains = []; }
     renderDomainList();
+  }
+
+  function saveDomains() {
+    try { localStorage.setItem("360mail_domains_" + currentUser.id, JSON.stringify(customDomains)); } catch {}
   }
 
   function renderDomainList() {
@@ -991,10 +995,10 @@
       return;
     }
     list.innerHTML = customDomains.map(d => {
-      const status = d.verified ? "verified" : (d.dns_added ? "pending" : "unverified");
-      const label  = d.verified ? "Active" : (d.dns_added ? "Verifying…" : "Setup needed");
-      return `<div class="domain-item" data-id="${d.id}">
-        <div class="domain-status-dot ${status}" title="${label}"></div>
+      const cls   = d.verified ? "verified" : "pending";
+      const label = d.verified ? "Active" : "Pending DNS";
+      return `<div class="domain-item">
+        <div class="domain-status-dot ${cls}" title="${label}"></div>
         <span class="domain-item-name" title="${esc(d.domain)}">${esc(d.domain)}</span>
         <span style="font-size:10px;color:var(--mut)">${label}</span>
       </div>`;
@@ -1007,38 +1011,34 @@
     _pendingDomain = "";
     $("domainInput").value = "";
     $("domainVerifySteps").style.display = "none";
-    $("domainModalNext").textContent = "Next: Get DNS records";
+    $("domainModalNext").textContent = "Next — Get DNS records";
+    $("domainModalNext").disabled = false;
     $("domainStatus").textContent = "";
     $("domainModal").classList.add("open");
     setTimeout(() => $("domainInput").focus(), 80);
   }
 
-  function closeDomainModal() {
-    $("domainModal").classList.remove("open");
-  }
+  function closeDomainModal() { $("domainModal").classList.remove("open"); }
 
   async function handleDomainNext() {
     const btn = $("domainModalNext");
     const status = $("domainStatus");
 
-    // Step 1 — show DNS records
     if (!_pendingDomain) {
       const raw = $("domainInput").value.trim().toLowerCase()
         .replace(/^https?:\/\//,"").replace(/\/.*$/,"");
-      if (!raw || !raw.includes(".")) { status.textContent = "Enter a valid domain name."; return; }
+      if (!raw || !raw.includes(".")) { status.textContent = "Enter a valid domain."; return; }
       _pendingDomain = raw;
 
-      // Insert into DB as unverified
-      const { error } = await sb.from("custom_domains").upsert({
-        owner_email: mailAddress, domain: _pendingDomain,
-        verified: false, dns_added: false,
-      }, { onConflict: "domain,owner_email" });
-      if (error) { status.textContent = "Error: " + error.message; return; }
+      if (!customDomains.find(d => d.domain === _pendingDomain)) {
+        customDomains.push({ domain: _pendingDomain, verified: false, added: Date.now() });
+        saveDomains(); renderDomainList();
+      }
 
       $("domainDnsTable").innerHTML = `
         <div class="domain-dns-row">
           <div class="domain-dns-cell header">Type</div>
-          <div class="domain-dns-cell header">Name</div>
+          <div class="domain-dns-cell header">Host</div>
           <div class="domain-dns-cell header">Value</div>
         </div>
         <div class="domain-dns-row">
@@ -1056,43 +1056,37 @@
           <div class="domain-dns-cell"><code>${DOMAIN_DKIM_NAME}</code></div>
           <div class="domain-dns-cell"><code>${DOMAIN_DKIM_VAL}</code></div>
         </div>`;
-
       $("domainVerifySteps").style.display = "block";
-      btn.textContent = "I've added these records — Verify";
+      btn.textContent = "I've added these — Verify";
       status.textContent = "";
       return;
     }
 
-    // Step 2 — trigger verification
-    btn.disabled = true;
-    btn.textContent = "Checking…";
-    status.textContent = "";
+    // Step 2 — try edge-function verify, fallback to marking pending
+    btn.disabled = true; btn.textContent = "Checking DNS…"; status.textContent = "";
     try {
       const { data: { session } } = await sb.auth.getSession();
       const res = await fetch(`${SB_URL}/functions/v1/verify-domain`, {
         method: "POST",
-        headers: { "Content-Type":"application/json", "Authorization":`Bearer ${session.access_token}`, "apikey": SB_ANON },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}`, "apikey": SB_ANON },
         body: JSON.stringify({ domain: _pendingDomain }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (json.verified) {
-        status.textContent = "✓ Domain verified! You can now receive mail at @" + _pendingDomain;
-        await sb.from("custom_domains").update({ verified: true, dns_added: true })
-          .eq("domain", _pendingDomain).eq("owner_email", mailAddress);
-        await loadDomains();
-        setTimeout(closeDomainModal, 2200);
+      const json = res.ok ? await res.json().catch(() => ({})) : {};
+      const verified = json.verified === true;
+      const entry = customDomains.find(d => d.domain === _pendingDomain);
+      if (entry) entry.verified = verified;
+      saveDomains(); renderDomainList();
+      if (verified) {
+        status.textContent = "✓ Verified! You can now receive mail at @" + _pendingDomain;
+        setTimeout(closeDomainModal, 2400);
       } else {
-        await sb.from("custom_domains").update({ dns_added: true })
-          .eq("domain", _pendingDomain).eq("owner_email", mailAddress);
-        status.textContent = "DNS not detected yet — it can take up to 48 h. We'll keep checking.";
-        btn.textContent = "Check again";
-        btn.disabled = false;
-        await loadDomains();
+        status.textContent = "DNS not detected yet — changes can take up to 48 h to propagate.";
+        btn.textContent = "Check again"; btn.disabled = false;
       }
     } catch {
-      status.textContent = "Verification request failed. Try again shortly.";
-      btn.textContent = "Check again";
-      btn.disabled = false;
+      // Edge function unavailable — mark pending and advise
+      status.textContent = "Could not reach verification service. Your domain is saved as pending.";
+      btn.textContent = "Check again"; btn.disabled = false;
     }
   }
 
