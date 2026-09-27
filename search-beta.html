@@ -20,7 +20,7 @@ SPDX-License-Identifier: Apache-2.0!
 - This program aims to comply with all TOS's for code used, and we do not intend to misuse/illegally use code. 
 Before taking an action to legal matter, please reach out to us at admin@360-search.com and we will respectfully remove anything strike-worthy.
 - This program uses cached data for speed! It is instantly deleted!
-- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes. (9//26/26, removed all analytics and refferals)
+- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes.
 THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S TO CREATE A FUNCTIONING METASEARCH ENGINE AND GOOGLE'S CSE PERFORMS BEST IN THE 
  - FRONTEND.
 ============================================================================================================================================================= !-->
@@ -3267,6 +3267,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     // Pull every external src= from script/img/iframe/link tags
+    const PROXY_HOST = new URL(ANON_PROXY).hostname; // wiswfpfsjiowtrdyqpxy.supabase.co
+
     function extractTrackers(html, pageOrigin) {
       const dp = new DOMParser().parseFromString(html, 'text/html');
       const found = [];
@@ -3278,10 +3280,22 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       ];
       selectors.forEach(([tag, attr]) => {
         dp.querySelectorAll(`${tag}[${attr}]`).forEach(el => {
-          const val = el.getAttribute(attr) || '';
+          let val = el.getAttribute(attr) || '';
           if (!val || val.startsWith('data:') || val.startsWith('#')) return;
-          let host = '';
-          try { host = new URL(val, pageOrigin).hostname; } catch { return; }
+
+          let resolved;
+          try { resolved = new URL(val, pageOrigin); } catch { return; }
+
+          // The proxy rewrites tracker URLs to go through itself as
+          // ?asset=1&url=<original>. Unwrap the inner URL so we classify
+          // the actual tracker, not the proxy host.
+          if (resolved.hostname === PROXY_HOST) {
+            const inner = resolved.searchParams.get('url');
+            if (!inner) return; // skip other proxy calls (search, api, etc.)
+            try { resolved = new URL(inner); val = inner; } catch { return; }
+          }
+
+          const host = resolved.hostname;
           // skip same-origin and relative resources
           if (!host || host === new URL(pageOrigin).hostname) return;
           const cat = classifyUrl(val);
