@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DROPDOWN TEMPLATE</title>
+
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #111827;
+      --panel-hover: #182131;
+      --text: #f8fafc;
+      --muted: rgba(248, 250, 252, 0.55);
+      --line: rgba(248, 250, 252, 0.13);
+      --line-hover: rgba(248, 250, 252, 0.25);
+      --ease: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    }
+
+    .c-dropdown {
+      position: relative;
+      width: 240px;
+    }
+
+    .c-dropdown__trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      transition:
+        border-color 0.25s var(--ease),
+        background 0.25s var(--ease),
+        transform 0.15s var(--ease);
+    }
+
+    .c-dropdown__trigger:hover,
+    .c-dropdown[data-open="true"] .c-dropdown__trigger,
+    .c-dropdown__trigger:focus-visible {
+      border-color: var(--line-hover);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .c-dropdown__trigger:active {
+      transform: scale(0.99);
+    }
+
+    .c-dropdown__label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .c-dropdown__icon {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform 0.3s var(--ease);
+    }
+
+    .c-dropdown[data-open="true"] .c-dropdown__icon {
+      transform: rotate(225deg) translateY(-2px);
+    }
+
+    .c-dropdown__menu {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(17, 24, 39, 0.97);
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.32),
+        0 2px 10px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(18px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-7px) scale(0.985);
+      transform-origin: top;
+      transition:
+        opacity 0.2s var(--ease),
+        transform 0.3s var(--ease),
+        visibility 0.3s;
+    }
+
+    .c-dropdown[data-open="true"] .c-dropdown__menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }
+
+    .c-dropdown__item {
+      width: 100%;
+      display: block;
+      padding: 10px 11px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      text-align: left;
+      cursor: pointer;
+      transition:
+        background 0.2s var(--ease),
+        transform 0.2s var(--ease);
+    }
+
+    .c-dropdown__item:hover,
+    .c-dropdown__item:focus-visible,
+    .c-dropdown__item[aria-selected="true"] {
+      background: var(--panel-hover);
+      outline: none;
+    }
+
+    .c-dropdown__item:active {
+      transform: translateX(2px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- COMPONENT: Dropdown -->
+  <div
+    class="c-dropdown"
+    data-dropdown
+    data-open="false"
+  >
+    <button
+      class="c-dropdown__trigger"
+      type="button"
+      aria-haspopup="listbox"
+      aria-expanded="false"
+    >
+      <span class="c-dropdown__label">Select an option</span>
+      <span class="c-dropdown__icon" aria-hidden="true"></span>
+    </button>
+
+    <div
+      class="c-dropdown__menu"
+      role="listbox"
+      tabindex="-1"
+      aria-label="Options"
+    >
+      <button class="c-dropdown__item" type="button" role="option" data-value="option-1">
+        Option One
+      </button>
+
+      <button class="c-dropdown__item" type="button" role="option" data-value="option-2">
+        Option Two
+      </button>
+
+      <button class="c-dropdown__item" type="button" role="option" data-value="option-3">
+        Option Three
+      </button>
+
+      <button class="c-dropdown__item" type="button" role="option" data-value="option-4">
+        Option Four
+      </button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const dropdown = document.querySelector("[data-dropdown]");
+      const trigger = dropdown.querySelector(".c-dropdown__trigger");
+      const label = dropdown.querySelector(".c-dropdown__label");
+      const menu = dropdown.querySelector(".c-dropdown__menu");
+      const items = [...dropdown.querySelectorAll(".c-dropdown__item")];
+
+      let selectedValue = null;
+
+      function setOpen(open) {
+        dropdown.dataset.open = String(open);
+        trigger.setAttribute("aria-expanded", String(open));
+
+        if (open) {
+          const selected = items.find(item => item.getAttribute("aria-selected") === "true");
+          (selected || items[0])?.focus();
+        }
+      }
+
+      function selectItem(item) {
+        selectedValue = item.dataset.value;
+        label.textContent = item.textContent.trim();
+
+        items.forEach(option => {
+          option.setAttribute("aria-selected", String(option === item));
+        });
+
+        item.dispatchEvent(
+          new CustomEvent("dropdownchange", {
+            bubbles: true,
+            detail: {
+              value: selectedValue,
+              label: item.textContent.trim()
+            }
+          })
+        );
+
+        setOpen(false);
+        trigger.focus();
+      }
+
+      trigger.addEventListener("click", () => {
+        setOpen(dropdown.dataset.open !== "true");
+      });
+
+      items.forEach(item => {
+        item.addEventListener("click", () => {
+          selectItem(item);
+        });
+
+        item.addEventListener("keydown", event => {
+          const index = items.indexOf(item);
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            items[(index + 1) % items.length].focus();
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            items[(index - 1 + items.length) % items.length].focus();
+          }
+
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectItem(item);
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setOpen(false);
+            trigger.focus();
+          }
+        });
+      });
+
+      document.addEventListener("click", event => {
+        if (!dropdown.contains(event.target)) {
+          setOpen(false);
+        }
+      });
+
+      trigger.addEventListener("keydown", event => {
+        if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setOpen(true);
+        }
+
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      });
+
+      dropdown.addEventListener("dropdownchange", event => {
+        console.log("Selected:", event.detail);
+      });
+
+      window.getDropdownValue = () => selectedValue;
+    })();
+  </script>
+</body>
+</html>
