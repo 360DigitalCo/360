@@ -1,999 +1,1058 @@
 /* ============================================================
    360 — CURSOR.JS
-   Completely self-contained. Works on every page.
+   Existing mouse cursor + optional sitewide smooth typing caret.
+   The two systems are intentionally independent.
    ============================================================ */
 (function () {
-  const hasMouseCursor = window.matchMedia("(hover: hover)").matches;
-  const body = document.body;
+  function initMouseCursor() {
+    /* Skip the custom mouse cursor on touch devices. */
+    if (!window.matchMedia('(hover: hover)').matches) return;
 
-  let rafId = null;
-  let trailActive = true;
+    const body = document.body;
+    if (!body) return;
 
-  function inject() {
-    if (!hasMouseCursor) return;
+    let rafId = null;
+    let trailActive = true;
 
-    ["cursor-dot", "cursor-trail", "cursor-crosshair", "cursor-blob"].forEach(cls => {
-      if (!document.querySelector("." + cls)) {
-        const el = document.createElement("div");
-        el.className = cls;
-        body.appendChild(el);
+    function inject() {
+      ['cursor-dot', 'cursor-trail', 'cursor-crosshair', 'cursor-blob'].forEach(cls => {
+        if (!document.querySelector('.' + cls)) {
+          const el = document.createElement('div');
+          el.className = cls;
+          body.appendChild(el);
+        }
+      });
+      run();
+    }
+
+    function run() {
+      const dot = document.querySelector('.cursor-dot');
+      const trail = document.querySelector('.cursor-trail');
+      const crosshair = document.querySelector('.cursor-crosshair');
+      const blob = document.querySelector('.cursor-blob');
+
+      let mx = 0, my = 0;
+      let tx = 0, ty = 0;
+
+      document.addEventListener('mousemove', e => {
+        mx = e.clientX;
+        my = e.clientY;
+
+        if (dot) {
+          dot.style.left = mx + 'px';
+          dot.style.top = my + 'px';
+        }
+
+        if (crosshair) {
+          crosshair.style.left = mx + 'px';
+          crosshair.style.top = my + 'px';
+        }
+      });
+
+      function animateTrail() {
+        const dx = mx - tx;
+        const dy = my - ty;
+
+        tx += dx * 0.18;
+        ty += dy * 0.18;
+
+        if (trail) {
+          trail.style.left = tx + 'px';
+          trail.style.top = ty + 'px';
+        }
+
+        if (blob) {
+          blob.style.left = tx + 'px';
+          blob.style.top = ty + 'px';
+        }
+
+        if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
+          rafId = requestAnimationFrame(animateTrail);
+        } else {
+          rafId = null;
+        }
       }
-    });
 
-    run();
-  }
-
-  function run() {
-    const dot = document.querySelector(".cursor-dot");
-    const trail = document.querySelector(".cursor-trail");
-    const crosshair = document.querySelector(".cursor-crosshair");
-    const blob = document.querySelector(".cursor-blob");
-
-    let mx = 0;
-    let my = 0;
-    let tx = 0;
-    let ty = 0;
-
-    document.addEventListener("mousemove", e => {
-      mx = e.clientX;
-      my = e.clientY;
-
-      if (dot) {
-        dot.style.left = mx + "px";
-        dot.style.top = my + "px";
+      function startTrail() {
+        if (trailActive && rafId === null) {
+          rafId = requestAnimationFrame(animateTrail);
+        }
       }
 
-      if (crosshair) {
-        crosshair.style.left = mx + "px";
-        crosshair.style.top = my + "px";
-      }
-    });
+      document.addEventListener('mousemove', startTrail);
 
-    function animateTrail() {
-      const dx = mx - tx;
-      const dy = my - ty;
+      const savedStyle =
+        localStorage.getItem('360_cursor_style') || 'default';
 
-      tx += dx * 0.18;
-      ty += dy * 0.18;
+      const savedColor =
+        localStorage.getItem('360_cursor_color');
 
-      if (trail) {
-        trail.style.left = tx + "px";
-        trail.style.top = ty + "px";
+      applyStyle(savedStyle);
+
+      if (savedColor) {
+        applyColor(savedColor);
       }
 
-      if (blob) {
-        blob.style.left = tx + "px";
-        blob.style.top = ty + "px";
+      document.addEventListener('click', e => {
+        const opt = e.target.closest?.('.cursor-option');
+
+        if (opt && opt.dataset.cursor) {
+          e.stopPropagation();
+          applyStyle(opt.dataset.cursor);
+        }
+      });
+
+      function bindColorControls() {
+        const picker =
+          document.getElementById('cursorColorPicker');
+
+        if (picker && !picker._cursorWired) {
+          picker._cursorWired = true;
+          picker.value = savedColor || '#3b82f6';
+
+          picker.addEventListener('input', e => {
+            applyColor(e.target.value);
+          });
+        }
+
+        const resetBtn =
+          document.getElementById('cursorColorReset');
+
+        if (resetBtn && !resetBtn._cursorWired) {
+          resetBtn._cursorWired = true;
+
+          resetBtn.addEventListener('click', e => {
+            e.stopPropagation();
+
+            body.style.removeProperty('--cursor-color');
+            localStorage.removeItem('360_cursor_color');
+
+            const p =
+              document.getElementById('cursorColorPicker');
+
+            if (p) {
+              p.value = '#3b82f6';
+            }
+          });
+        }
+
+        document.querySelectorAll('.cursor-option').forEach(opt => {
+          if (!opt._cursorWired) {
+            opt._cursorWired = true;
+
+            opt.addEventListener('click', e => {
+              e.stopPropagation();
+              applyStyle(opt.dataset.cursor);
+            });
+          }
+        });
       }
 
-      if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
-        rafId = requestAnimationFrame(animateTrail);
-      } else {
+      bindColorControls();
+
+      const observer =
+        new MutationObserver(bindColorControls);
+
+      observer.observe(body, {
+        childList: true,
+        subtree: true
+      });
+    }
+
+    function applyStyle(style) {
+      body.dataset.cursor = style;
+
+      localStorage.setItem(
+        '360_cursor_style',
+        style
+      );
+
+      document.querySelectorAll('.cursor-option').forEach(opt => {
+        opt.classList.toggle(
+          'active',
+          opt.dataset.cursor === style
+        );
+      });
+
+      trailActive =
+        style === 'ring' ||
+        style === 'blob' ||
+        style === 'default';
+
+      if (!trailActive && rafId !== null) {
+        cancelAnimationFrame(rafId);
         rafId = null;
       }
     }
 
-    function startTrail() {
-      if (trailActive && rafId === null) {
-        rafId = requestAnimationFrame(animateTrail);
-      }
-    }
-
-    document.addEventListener("mousemove", startTrail);
-
-    const savedStyle = localStorage.getItem("360_cursor_style") || "default";
-    const savedColor = localStorage.getItem("360_cursor_color");
-
-    applyStyle(savedStyle);
-
-    if (savedColor) {
-      applyColor(savedColor);
-    }
-
-    document.addEventListener("click", e => {
-      const opt = e.target.closest(".cursor-option");
-
-      if (opt && opt.dataset.cursor) {
-        e.stopPropagation();
-        applyStyle(opt.dataset.cursor);
-      }
-    });
-
-    const picker = document.getElementById("cursorColorPicker");
-
-    if (picker) {
-      picker.value = savedColor || "#3b82f6";
-
-      picker.addEventListener("input", e => {
-        applyColor(e.target.value);
-      });
-    }
-
-    const resetBtn = document.getElementById("cursorColorReset");
-
-    if (resetBtn) {
-      resetBtn.addEventListener("click", e => {
-        e.stopPropagation();
-
-        body.style.removeProperty("--cursor-color");
-        localStorage.removeItem("360_cursor_color");
-
-        if (picker) {
-          picker.value = "#3b82f6";
-        }
-      });
-    }
-
-    const observer = new MutationObserver(() => {
-      const p = document.getElementById("cursorColorPicker");
-
-      if (p && !p._wired) {
-        p._wired = true;
-        p.value = localStorage.getItem("360_cursor_color") || "#3b82f6";
-
-        p.addEventListener("input", e => {
-          applyColor(e.target.value);
-        });
-      }
-
-      document.querySelectorAll(".cursor-option").forEach(opt => {
-        if (!opt._wired) {
-          opt._wired = true;
-
-          opt.addEventListener("click", e => {
-            e.stopPropagation();
-            applyStyle(opt.dataset.cursor);
-          });
-        }
-      });
-
-      bindSmoothControls();
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-
-  function applyStyle(style) {
-    body.dataset.cursor = style;
-
-    localStorage.setItem("360_cursor_style", style);
-
-    document.querySelectorAll(".cursor-option").forEach(opt => {
-      opt.classList.toggle(
-        "active",
-        opt.dataset.cursor === style
+    function applyColor(hex) {
+      body.style.setProperty(
+        '--cursor-color',
+        hex
       );
-    });
 
-    trailActive =
-      style === "ring" ||
-      style === "blob" ||
-      style === "default";
-
-    if (!trailActive && rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
+      localStorage.setItem(
+        '360_cursor_color',
+        hex
+      );
     }
-  }
 
-  function applyColor(hex) {
-    body.style.setProperty("--cursor-color", hex);
-    localStorage.setItem("360_cursor_color", hex);
+    inject();
   }
 
   /* ============================================================
      SMOOTH TYPING CARET
-     Sitewide caret overlay for:
-       - text inputs
-       - search inputs
-       - email inputs
-       - URL inputs
-       - telephone inputs
-       - password inputs
-       - textareas
-       - contenteditable elements
      ============================================================ */
+  function initSmoothTypingCaret() {
+    const body = document.body;
+    if (!body) return;
 
-  const smoothDefaults = {
-    enabled: false,
-    slide: 140,
-    blink: 550,
-    color: "#3b82f6"
-  };
-
-  let smoothSettings = loadSmoothSettings();
-  let smoothCaret = null;
-  let smoothMirror = null;
-  let smoothActive = null;
-  let smoothFrame = null;
-
-  function loadSmoothSettings() {
-    const enabled =
-      localStorage.getItem("360_smooth_typing_cursor") === "true";
-
-    const slide = clampNumber(
-      localStorage.getItem("360_smooth_typing_slide"),
-      40,
-      500,
-      smoothDefaults.slide
-    );
-
-    const blink = clampNumber(
-      localStorage.getItem("360_smooth_typing_blink"),
-      250,
-      1400,
-      smoothDefaults.blink
-    );
-
-    const savedColor =
-      localStorage.getItem("360_smooth_typing_color") || "";
-
-    const color = /^#[0-9a-f]{6}$/i.test(savedColor)
-      ? savedColor
-      : smoothDefaults.color;
-
-    return {
-      enabled,
-      slide,
-      blink,
-      color
+    const DEFAULTS = {
+      enabled: false,
+      slide: 140,
+      blink: 550,
+      color: '#3b82f6'
     };
-  }
 
-  function clampNumber(value, min, max, fallback) {
-    const n = Number(value);
-
-    return Number.isFinite(n)
-      ? Math.min(max, Math.max(min, n))
-      : fallback;
-  }
-
-  function isTextEditable(el) {
-    if (!el || !(el instanceof Element)) return false;
-
-    if (el.matches("textarea")) {
-      return true;
-    }
-
-    if (
-      el.matches(
-        'input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"]'
-      )
-    ) {
-      return true;
-    }
-
-    return (
-      el.isContentEditable ||
-      el.closest('[contenteditable="true"]') === el
-    );
-  }
-
-  function getEditableTarget(el) {
-    if (!el || !(el instanceof Element)) {
-      return null;
-    }
-
-    if (
-      el.matches(
-        'textarea, input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"]'
-      )
-    ) {
-      return el;
-    }
-
-    const editable = el.closest?.('[contenteditable="true"]');
-
-    return editable && isTextEditable(editable)
-      ? editable
-      : null;
-  }
-
-  function ensureSmoothCaret() {
-    if (!smoothCaret) {
-      smoothCaret = document.createElement("div");
-      smoothCaret.className = "smooth-typing-caret";
-      smoothCaret.setAttribute("aria-hidden", "true");
-
-      document.body.appendChild(smoothCaret);
-    }
-
-    updateSmoothCaretStyles();
-
-    return smoothCaret;
-  }
-
-  function updateSmoothCaretStyles() {
-    if (!smoothCaret) return;
-
-    smoothCaret.style.setProperty(
-      "--smooth-caret-slide",
-      smoothSettings.slide + "ms"
-    );
-
-    smoothCaret.style.setProperty(
-      "--smooth-caret-blink",
-      smoothSettings.blink * 2 + "ms"
-    );
-
-    smoothCaret.style.background = smoothSettings.color;
-
-    smoothCaret.style.boxShadow =
-      "0 0 7px " + smoothSettings.color;
-  }
-
-  function ensureMirror() {
-    if (!smoothMirror) {
-      smoothMirror = document.createElement("div");
-
-      smoothMirror.className =
-        "smooth-typing-caret-mirror";
-
-      smoothMirror.setAttribute(
-        "aria-hidden",
-        "true"
-      );
-
-      document.body.appendChild(smoothMirror);
-    }
-
-    return smoothMirror;
-  }
-
-  function copyMirrorStyles(source, mirror) {
-    const cs = getComputedStyle(source);
-
-    const props = [
-      "fontFamily",
-      "fontSize",
-      "fontWeight",
-      "fontStyle",
-      "fontVariant",
-      "letterSpacing",
-      "textTransform",
-      "textIndent",
-      "textDecoration",
-      "lineHeight",
-      "wordSpacing",
-      "paddingTop",
-      "paddingRight",
-      "paddingBottom",
-      "paddingLeft",
-      "borderTopWidth",
-      "borderRightWidth",
-      "borderBottomWidth",
-      "borderLeftWidth",
-      "boxSizing"
-    ];
-
-    props.forEach(prop => {
-      mirror.style[prop] = cs[prop];
-    });
-
-    mirror.style.color = cs.color;
-    mirror.style.textAlign = cs.textAlign;
-
-    mirror.style.whiteSpace =
-      source.matches("textarea")
-        ? "pre-wrap"
-        : "pre";
-
-    mirror.style.wordBreak =
-      source.matches("textarea")
-        ? "break-word"
-        : "normal";
-
-    mirror.style.overflow = "hidden";
-
-    mirror.style.width =
-      source.getBoundingClientRect().width + "px";
-
-    mirror.style.height =
-      source.getBoundingClientRect().height + "px";
-  }
-
-  function caretRectForControl(el) {
-    const start =
-      typeof el.selectionStart === "number"
-        ? el.selectionStart
-        : 0;
-
-    let before = (el.value || "").slice(0, start);
-
-    if (el.type === "password") {
-      before = "•".repeat(start);
-    }
-
-    const mirror = ensureMirror();
-
-    copyMirrorStyles(el, mirror);
-
-    const rect = el.getBoundingClientRect();
-
-    mirror.style.left = rect.left + "px";
-    mirror.style.top = rect.top + "px";
-    mirror.style.visibility = "hidden";
-
-    mirror.innerHTML = "";
-
-    const textNode = document.createTextNode(
-      before || ""
-    );
-
-    const marker = document.createElement("span");
-
-    marker.textContent = "\u200b";
-
-    mirror.appendChild(textNode);
-    mirror.appendChild(marker);
-
-    const markerRect =
-      marker.getBoundingClientRect();
-
-    const cs = getComputedStyle(el);
-
-    const fontSize =
-      Number.parseFloat(cs.fontSize) || 16;
-
-    const lineHeight =
-      Number.parseFloat(cs.lineHeight) ||
-      fontSize * 1.2 ||
-      18;
-
-    let left = markerRect.left;
-    let top = markerRect.top;
-
-    if (el.matches("textarea")) {
-      left -= el.scrollLeft;
-      top -= el.scrollTop;
-    }
-
-    if (
-      el.matches(
-        'input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"]'
-      )
-    ) {
-      left -= el.scrollLeft;
-
-      top =
-        rect.top +
-        Math.max(
-          0,
-          (rect.height - lineHeight) / 2
-        );
-    }
-
-    return {
-      left,
-      top,
-      height: Math.max(
-        lineHeight,
-        markerRect.height || lineHeight
-      )
+    const KEYS = {
+      enabled: '360_smooth_typing_cursor',
+      slide: '360_smooth_typing_slide',
+      blink: '360_smooth_typing_blink',
+      color: '360_smooth_typing_color'
     };
-  }
 
-  function caretRectForContentEditable(el) {
-    const selection = window.getSelection();
+    let settings = readSettings();
+    let active = null;
+    let caret = null;
+    let mirror = null;
+    let frame = 0;
 
-    if (!selection || !selection.rangeCount) {
-      return null;
+    function clamp(value, min, max, fallback) {
+      const n = Number(value);
+
+      return Number.isFinite(n)
+        ? Math.min(max, Math.max(min, n))
+        : fallback;
     }
 
-    const range =
-      selection.getRangeAt(0).cloneRange();
+    function readSettings() {
+      const color =
+        localStorage.getItem(KEYS.color);
 
-    let node = range.commonAncestorContainer;
+      return {
+        enabled:
+          localStorage.getItem(KEYS.enabled) === 'true',
 
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentElement;
-    }
+        slide:
+          clamp(
+            localStorage.getItem(KEYS.slide),
+            40,
+            500,
+            DEFAULTS.slide
+          ),
 
-    if (
-      !node ||
-      !(node === el || el.contains(node))
-    ) {
-      return null;
-    }
+        blink:
+          clamp(
+            localStorage.getItem(KEYS.blink),
+            250,
+            1400,
+            DEFAULTS.blink
+          ),
 
-    range.collapse(true);
-
-    let rect =
-      range.getClientRects()[0] ||
-      range.getBoundingClientRect();
-
-    if (
-      !rect ||
-      (!rect.width && !rect.height)
-    ) {
-      const fallback =
-        el.getBoundingClientRect();
-
-      rect = {
-        left: fallback.left,
-        top: fallback.top,
-        height: fallback.height
+        color:
+          /^#[0-9a-f]{6}$/i.test(color || '')
+            ? color
+            : DEFAULTS.color
       };
     }
 
-    const cs = getComputedStyle(el);
+    function isEditable(el) {
+      if (!(el instanceof Element)) return false;
 
-    const fontSize =
-      Number.parseFloat(cs.fontSize) || 16;
+      return el.matches(
+        'textarea, input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"], [contenteditable="true"]'
+      );
+    }
 
-    const lineHeight =
-      Number.parseFloat(cs.lineHeight) ||
-      fontSize * 1.2 ||
-      18;
+    function editableRoot(el) {
+      if (!(el instanceof Element)) return null;
 
-    return {
-      left: rect.left,
-      top: rect.top,
-      height: Math.max(
-        lineHeight,
-        rect.height || lineHeight
-      )
-    };
-  }
-
-  function placeSmoothCaret() {
-    if (
-      !smoothSettings.enabled ||
-      !smoothActive ||
-      !document.contains(smoothActive)
-    ) {
-      if (smoothCaret) {
-        smoothCaret.classList.remove("visible");
+      if (
+        el.matches(
+          'textarea, input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="password"]'
+        )
+      ) {
+        return el;
       }
 
-      return;
-    }
-
-    const el = smoothActive;
-
-    const pos =
-      el.isContentEditable &&
-      !el.matches("textarea,input")
-        ? caretRectForContentEditable(el)
-        : caretRectForControl(el);
-
-    if (!pos) return;
-
-    ensureSmoothCaret();
-
-    smoothCaret.style.left =
-      Math.round(pos.left) + "px";
-
-    smoothCaret.style.top =
-      Math.round(pos.top) + "px";
-
-    smoothCaret.style.height =
-      Math.round(pos.height) + "px";
-
-    smoothCaret.classList.add("visible");
-  }
-
-  function scheduleSmoothCaret() {
-    if (smoothFrame !== null) return;
-
-    smoothFrame = requestAnimationFrame(() => {
-      smoothFrame = null;
-      placeSmoothCaret();
-    });
-  }
-
-  function setSmoothActive(el) {
-    if (
-      smoothActive &&
-      smoothActive !== el
-    ) {
-      smoothActive.style.removeProperty(
-        "caret-color"
-      );
-
-      smoothActive.classList.remove(
-        "smooth-caret-active"
+      return el.closest(
+        '[contenteditable="true"]'
       );
     }
 
-    smoothActive = getEditableTarget(el);
+    function ensureCaret() {
+      if (!caret) {
+        caret = document.createElement('div');
 
-    if (
-      !smoothSettings.enabled ||
-      !smoothActive
+        caret.className =
+          'smooth-typing-caret';
+
+        caret.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+
+        body.appendChild(caret);
+      }
+
+      caret.style.setProperty(
+        '--smooth-caret-slide',
+        settings.slide + 'ms'
+      );
+
+      caret.style.setProperty(
+        '--smooth-caret-blink',
+        (settings.blink * 2) + 'ms'
+      );
+
+      caret.style.backgroundColor =
+        settings.color;
+
+      caret.style.boxShadow =
+        '0 0 7px ' + settings.color;
+
+      return caret;
+    }
+
+    function ensureMirror() {
+      if (!mirror) {
+        mirror =
+          document.createElement('div');
+
+        mirror.className =
+          'smooth-typing-caret-mirror';
+
+        mirror.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+
+        body.appendChild(mirror);
+      }
+
+      return mirror;
+    }
+
+    function copyComputedStyles(
+      source,
+      target
     ) {
-      if (smoothActive) {
-        smoothActive.classList.remove(
-          "smooth-caret-active"
+      const cs = getComputedStyle(source);
+
+      [
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'fontStyle',
+        'fontVariant',
+        'letterSpacing',
+        'textTransform',
+        'textIndent',
+        'textDecoration',
+        'lineHeight',
+        'wordSpacing',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'borderTopWidth',
+        'borderRightWidth',
+        'borderBottomWidth',
+        'borderLeftWidth',
+        'boxSizing',
+        'textAlign'
+      ].forEach(prop => {
+        target.style[prop] = cs[prop];
+      });
+
+      target.style.whiteSpace =
+        source.matches('textarea')
+          ? 'pre-wrap'
+          : 'pre';
+
+      target.style.wordBreak =
+        source.matches('textarea')
+          ? 'break-word'
+          : 'normal';
+
+      target.style.overflow = 'hidden';
+
+      const r =
+        source.getBoundingClientRect();
+
+      target.style.width =
+        r.width + 'px';
+
+      target.style.height =
+        r.height + 'px';
+    }
+
+    function inputCaretRect(el) {
+      const r =
+        el.getBoundingClientRect();
+
+      const mirrorEl =
+        ensureMirror();
+
+      copyComputedStyles(
+        el,
+        mirrorEl
+      );
+
+      mirrorEl.style.left =
+        r.left + 'px';
+
+      mirrorEl.style.top =
+        r.top + 'px';
+
+      mirrorEl.innerHTML = '';
+
+      const selectionStart =
+        el.selectionStart || 0;
+
+      const before =
+        (el.value || '').slice(
+          0,
+          selectionStart
+        );
+
+      const text =
+        document.createTextNode(
+          el.type === 'password'
+            ? '•'.repeat(selectionStart)
+            : before
+        );
+
+      const marker =
+        document.createElement('span');
+
+      marker.textContent = '\u200b';
+
+      mirrorEl.append(
+        text,
+        marker
+      );
+
+      const markerRect =
+        marker.getBoundingClientRect();
+
+      const cs =
+        getComputedStyle(el);
+
+      const fontSize =
+        Number.parseFloat(
+          cs.fontSize
+        ) || 16;
+
+      const lineHeight =
+        Number.parseFloat(
+          cs.lineHeight
+        ) || fontSize * 1.2;
+
+      let left =
+        markerRect.left;
+
+      let top =
+        markerRect.top;
+
+      if (el.matches('textarea')) {
+        left -= el.scrollLeft;
+        top -= el.scrollTop;
+      } else {
+        left =
+          Math.max(
+            r.left,
+            left - el.scrollLeft
+          );
+
+        top =
+          r.top +
+          Math.max(
+            0,
+            (r.height - lineHeight) / 2
+          );
+      }
+
+      return {
+        left,
+        top,
+        height:
+          Math.max(
+            lineHeight,
+            markerRect.height ||
+              lineHeight
+          )
+      };
+    }
+
+    function contenteditableCaretRect(el) {
+      const selection =
+        window.getSelection();
+
+      if (
+        !selection ||
+        !selection.rangeCount
+      ) {
+        return null;
+      }
+
+      const range =
+        selection
+          .getRangeAt(0)
+          .cloneRange();
+
+      let node =
+        range.commonAncestorContainer;
+
+      if (
+        node.nodeType ===
+        Node.TEXT_NODE
+      ) {
+        node = node.parentElement;
+      }
+
+      if (
+        !node ||
+        !(node === el ||
+          el.contains(node))
+      ) {
+        return null;
+      }
+
+      range.collapse(true);
+
+      const rect =
+        range.getClientRects()[0] ||
+        range.getBoundingClientRect();
+
+      if (
+        !rect ||
+        (!rect.width &&
+          !rect.height)
+      ) {
+        return null;
+      }
+
+      const cs =
+        getComputedStyle(el);
+
+      const fontSize =
+        Number.parseFloat(
+          cs.fontSize
+        ) || 16;
+
+      const lineHeight =
+        Number.parseFloat(
+          cs.lineHeight
+        ) || fontSize * 1.2;
+
+      return {
+        left: rect.left,
+        top: rect.top,
+        height:
+          Math.max(
+            lineHeight,
+            rect.height ||
+              lineHeight
+          )
+      };
+    }
+
+    function moveCaret() {
+      if (
+        !settings.enabled ||
+        !active ||
+        !document.contains(active)
+      ) {
+        if (caret) {
+          caret.classList.remove(
+            'visible'
+          );
+        }
+
+        return;
+      }
+
+      const pos =
+        active.isContentEditable &&
+        !active.matches(
+          'input, textarea'
+        )
+          ? contenteditableCaretRect(
+              active
+            )
+          : inputCaretRect(
+              active
+            );
+
+      if (!pos) return;
+
+      ensureCaret();
+
+      caret.style.left =
+        Math.round(pos.left) + 'px';
+
+      caret.style.top =
+        Math.round(pos.top) + 'px';
+
+      caret.style.height =
+        Math.round(pos.height) + 'px';
+
+      caret.classList.add(
+        'visible'
+      );
+    }
+
+    function schedule() {
+      if (frame) return;
+
+      frame =
+        requestAnimationFrame(() => {
+          frame = 0;
+          moveCaret();
+        });
+    }
+
+    function setActive(el) {
+      const target =
+        editableRoot(el);
+
+      if (
+        active &&
+        active !== target
+      ) {
+        active.classList.remove(
+          'smooth-caret-active'
+        );
+
+        active.style.removeProperty(
+          'caret-color'
         );
       }
 
-      if (smoothCaret) {
-        smoothCaret.classList.remove("visible");
+      active = target;
+
+      if (
+        !settings.enabled ||
+        !active
+      ) {
+        if (active) {
+          active.classList.remove(
+            'smooth-caret-active'
+          );
+        }
+
+        if (caret) {
+          caret.classList.remove(
+            'visible'
+          );
+        }
+
+        return;
       }
 
-      return;
+      active.classList.add(
+        'smooth-caret-active'
+      );
+
+      active.style.caretColor =
+        'transparent';
+
+      ensureCaret();
+      schedule();
     }
 
-    smoothActive.classList.add(
-      "smooth-caret-active"
-    );
+    function syncControls() {
+      const toggle =
+        document.getElementById(
+          'smoothTypingCursorToggle'
+        );
 
-    smoothActive.style.caretColor =
-      "transparent";
+      const slide =
+        document.getElementById(
+          'smoothTypingSlide'
+        );
 
-    ensureSmoothCaret();
-    scheduleSmoothCaret();
-  }
+      const blink =
+        document.getElementById(
+          'smoothTypingBlink'
+        );
 
-  function syncSmoothControls() {
-    const toggle =
-      document.getElementById(
-        "smoothTypingCursorToggle"
-      );
+      const color =
+        document.getElementById(
+          'smoothTypingColor'
+        );
 
-    const slide =
-      document.getElementById(
-        "smoothTypingSlide"
-      );
+      const reset =
+        document.getElementById(
+          'smoothTypingReset'
+        );
 
-    const blink =
-      document.getElementById(
-        "smoothTypingBlink"
-      );
+      const slideValue =
+        document.getElementById(
+          'smoothTypingSlideValue'
+        );
 
-    const color =
-      document.getElementById(
-        "smoothTypingColor"
-      );
+      const blinkValue =
+        document.getElementById(
+          'smoothTypingBlinkValue'
+        );
 
-    const reset =
-      document.getElementById(
-        "smoothTypingReset"
-      );
+      if (toggle) {
+        toggle.classList.toggle(
+          'on',
+          settings.enabled
+        );
+      }
 
-    const slideValue =
-      document.getElementById(
-        "smoothTypingSlideValue"
-      );
+      if (slide) {
+        slide.value =
+          String(settings.slide);
 
-    const blinkValue =
-      document.getElementById(
-        "smoothTypingBlinkValue"
-      );
+        slide.disabled =
+          !settings.enabled;
+      }
 
-    const controls = [
-      slide,
-      blink,
-      color,
-      reset
-    ].filter(Boolean);
+      if (blink) {
+        blink.value =
+          String(settings.blink);
 
-    if (toggle) {
-      toggle.classList.toggle(
-        "on",
-        smoothSettings.enabled
-      );
+        blink.disabled =
+          !settings.enabled;
+      }
+
+      if (color) {
+        color.value =
+          settings.color;
+
+        color.disabled =
+          !settings.enabled;
+      }
+
+      if (reset) {
+        reset.disabled =
+          !settings.enabled;
+      }
+
+      if (slideValue) {
+        slideValue.textContent =
+          settings.slide + ' ms';
+      }
+
+      if (blinkValue) {
+        blinkValue.textContent =
+          settings.blink + ' ms';
+      }
+
+      if (caret) {
+        caret.style.setProperty(
+          '--smooth-caret-slide',
+          settings.slide + 'ms'
+        );
+
+        caret.style.setProperty(
+          '--smooth-caret-blink',
+          (settings.blink * 2) + 'ms'
+        );
+
+        caret.style.backgroundColor =
+          settings.color;
+
+        caret.style.boxShadow =
+          '0 0 7px ' +
+          settings.color;
+      }
     }
 
-    controls.forEach(control => {
-      control.disabled =
-        !smoothSettings.enabled;
-    });
-
-    if (slide) {
-      slide.value =
-        String(smoothSettings.slide);
-    }
-
-    if (blink) {
-      blink.value =
-        String(smoothSettings.blink);
-    }
-
-    if (color) {
-      color.value =
-        smoothSettings.color;
-    }
-
-    if (slideValue) {
-      slideValue.textContent =
-        smoothSettings.slide + " ms";
-    }
-
-    if (blinkValue) {
-      blinkValue.textContent =
-        smoothSettings.blink + " ms";
-    }
-
-    updateSmoothCaretStyles();
-  }
-
-  function applySmoothSettings(
-    next,
-    persist = true
-  ) {
-    smoothSettings = {
-      enabled: Boolean(next.enabled),
-
-      slide: clampNumber(
-        next.slide,
-        40,
-        500,
-        smoothDefaults.slide
-      ),
-
-      blink: clampNumber(
-        next.blink,
-        250,
-        1400,
-        smoothDefaults.blink
-      ),
-
-      color:
-        /^#[0-9a-f]{6}$/i.test(
-          next.color || ""
-        )
-          ? next.color
-          : smoothDefaults.color
-    };
-
-    if (persist) {
+    function writeSettings() {
       localStorage.setItem(
-        "360_smooth_typing_cursor",
-        String(smoothSettings.enabled)
+        KEYS.enabled,
+        String(settings.enabled)
       );
 
       localStorage.setItem(
-        "360_smooth_typing_slide",
-        String(smoothSettings.slide)
+        KEYS.slide,
+        String(settings.slide)
       );
 
       localStorage.setItem(
-        "360_smooth_typing_blink",
-        String(smoothSettings.blink)
+        KEYS.blink,
+        String(settings.blink)
       );
 
       localStorage.setItem(
-        "360_smooth_typing_color",
-        smoothSettings.color
+        KEYS.color,
+        settings.color
       );
     }
 
-    body.classList.toggle(
-      "smooth-typing-caret-enabled",
-      smoothSettings.enabled
-    );
-
-    if (
-      !smoothSettings.enabled &&
-      smoothActive
+    function apply(
+      next,
+      persist = true
     ) {
-      smoothActive.style.removeProperty(
-        "caret-color"
+      settings = {
+        enabled:
+          Boolean(next.enabled),
+
+        slide:
+          clamp(
+            next.slide,
+            40,
+            500,
+            DEFAULTS.slide
+          ),
+
+        blink:
+          clamp(
+            next.blink,
+            250,
+            1400,
+            DEFAULTS.blink
+          ),
+
+        color:
+          /^#[0-9a-f]{6}$/i.test(
+            next.color || ''
+          )
+            ? next.color
+            : DEFAULTS.color
+      };
+
+      if (persist) {
+        writeSettings();
+      }
+
+      body.classList.toggle(
+        'smooth-typing-caret-enabled',
+        settings.enabled
       );
 
-      smoothActive.classList.remove(
-        "smooth-caret-active"
-      );
-    } else if (
-      smoothSettings.enabled &&
-      smoothActive
-    ) {
-      smoothActive.classList.add(
-        "smooth-caret-active"
-      );
+      if (active) {
+        if (settings.enabled) {
+          active.classList.add(
+            'smooth-caret-active'
+          );
 
-      smoothActive.style.caretColor =
-        "transparent";
+          active.style.caretColor =
+            'transparent';
+
+          schedule();
+        } else {
+          active.classList.remove(
+            'smooth-caret-active'
+          );
+
+          active.style.removeProperty(
+            'caret-color'
+          );
+        }
+      }
+
+      if (
+        !settings.enabled &&
+        caret
+      ) {
+        caret.classList.remove(
+          'visible'
+        );
+      }
+
+      syncControls();
     }
 
-    syncSmoothControls();
+    function bindControls() {
+      const toggle =
+        document.getElementById(
+          'smoothTypingCursorToggle'
+        );
 
-    if (smoothSettings.enabled) {
-      scheduleSmoothCaret();
-    } else if (smoothCaret) {
-      smoothCaret.classList.remove(
-        "visible"
-      );
-    }
+      const slide =
+        document.getElementById(
+          'smoothTypingSlide'
+        );
 
-    document.dispatchEvent(
-      new CustomEvent(
-        "360smoothtypingchange",
-        {
-          detail: {
-            ...smoothSettings
+      const blink =
+        document.getElementById(
+          'smoothTypingBlink'
+        );
+
+      const color =
+        document.getElementById(
+          'smoothTypingColor'
+        );
+
+      const reset =
+        document.getElementById(
+          'smoothTypingReset'
+        );
+
+      if (
+        toggle &&
+        !toggle._smoothTypingBound
+      ) {
+        toggle._smoothTypingBound =
+          true;
+
+        toggle.addEventListener(
+          'click',
+          event => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            apply({
+              ...settings,
+              enabled:
+                !settings.enabled
+            });
           }
-        }
-      )
-    );
-  }
-
-  function bindSmoothControls() {
-    const toggle =
-      document.getElementById(
-        "smoothTypingCursorToggle"
-      );
-
-    const slide =
-      document.getElementById(
-        "smoothTypingSlide"
-      );
-
-    const blink =
-      document.getElementById(
-        "smoothTypingBlink"
-      );
-
-    const color =
-      document.getElementById(
-        "smoothTypingColor"
-      );
-
-    const reset =
-      document.getElementById(
-        "smoothTypingReset"
-      );
-
-    if (
-      toggle &&
-      !toggle._smoothBound
-    ) {
-      toggle._smoothBound = true;
-
-      toggle.addEventListener(
-        "click",
-        e => {
-          e.stopPropagation();
-
-          applySmoothSettings({
-            ...smoothSettings,
-            enabled:
-              !smoothSettings.enabled
-          });
-        }
-      );
-    }
-
-    if (
-      slide &&
-      !slide._smoothBound
-    ) {
-      slide._smoothBound = true;
-
-      slide.addEventListener(
-        "input",
-        e => {
-          applySmoothSettings({
-            ...smoothSettings,
-            slide: e.target.value
-          });
-        }
-      );
-    }
-
-    if (
-      blink &&
-      !blink._smoothBound
-    ) {
-      blink._smoothBound = true;
-
-      blink.addEventListener(
-        "input",
-        e => {
-          applySmoothSettings({
-            ...smoothSettings,
-            blink: e.target.value
-          });
-        }
-      );
-    }
-
-    if (
-      color &&
-      !color._smoothBound
-    ) {
-      color._smoothBound = true;
-
-      color.addEventListener(
-        "input",
-        e => {
-          applySmoothSettings({
-            ...smoothSettings,
-            color: e.target.value
-          });
-        }
-      );
-    }
-
-    if (
-      reset &&
-      !reset._smoothBound
-    ) {
-      reset._smoothBound = true;
-
-      reset.addEventListener(
-        "click",
-        e => {
-          e.stopPropagation();
-
-          applySmoothSettings({
-            ...smoothDefaults,
-            enabled:
-              smoothSettings.enabled
-          });
-        }
-      );
-    }
-
-    syncSmoothControls();
-  }
-
-  function initSmoothTypingCaret() {
-    bindSmoothControls();
-
-    document.addEventListener(
-      "focusin",
-      e => {
-        const target =
-          getEditableTarget(e.target);
-
-        if (target) {
-          setSmoothActive(target);
-        }
+        );
       }
+
+      if (
+        slide &&
+        !slide._smoothTypingBound
+      ) {
+        slide._smoothTypingBound =
+          true;
+
+        slide.addEventListener(
+          'input',
+          event => {
+            apply({
+              ...settings,
+              slide:
+                event.target.value
+            });
+          }
+        );
+      }
+
+      if (
+        blink &&
+        !blink._smoothTypingBound
+      ) {
+        blink._smoothTypingBound =
+          true;
+
+        blink.addEventListener(
+          'input',
+          event => {
+            apply({
+              ...settings,
+              blink:
+                event.target.value
+            });
+          }
+        );
+      }
+
+      if (
+        color &&
+        !color._smoothTypingBound
+      ) {
+        color._smoothTypingBound =
+          true;
+
+        color.addEventListener(
+          'input',
+          event => {
+            apply({
+              ...settings,
+              color:
+                event.target.value
+            });
+          }
+        );
+      }
+
+      if (
+        reset &&
+        !reset._smoothTypingBound
+      ) {
+        reset._smoothTypingBound =
+          true;
+
+        reset.addEventListener(
+          'click',
+          event => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            apply({
+              ...DEFAULTS,
+              enabled:
+                settings.enabled
+            });
+          }
+        );
+      }
+
+      syncControls();
+    }
+
+    bindControls();
+
+    document.addEventListener(
+      'focusin',
+      event => {
+        if (isEditable(event.target)) {
+          setActive(event.target);
+        }
+      },
+      true
     );
 
     document.addEventListener(
-      "focusout",
-      e => {
+      'focusout',
+      event => {
+        const target =
+          editableRoot(event.target);
+
         if (
-          getEditableTarget(e.target) ===
-          smoothActive
+          target &&
+          target === active
         ) {
           setTimeout(() => {
-            if (
-              !getEditableTarget(
+            const next =
+              editableRoot(
                 document.activeElement
-              )
-            ) {
-              if (smoothActive) {
-                smoothActive.style.removeProperty(
-                  "caret-color"
-                );
-              }
+              );
 
-              smoothActive = null;
-
-              if (smoothCaret) {
-                smoothCaret.classList.remove(
-                  "visible"
-                );
-              }
+            if (!next) {
+              setActive(null);
             }
           }, 0);
         }
-      }
+      },
+      true
     );
 
     [
-      "input",
-      "keyup",
-      "click",
-      "select",
-      "compositionend"
+      'input',
+      'keyup',
+      'click',
+      'select',
+      'compositionend'
     ].forEach(type => {
       document.addEventListener(
         type,
-        e => {
+        event => {
           if (
-            getEditableTarget(e.target)
+            editableRoot(
+              event.target
+            )
           ) {
-            scheduleSmoothCaret();
+            schedule();
           }
         },
         true
@@ -1001,23 +1060,19 @@
     });
 
     document.addEventListener(
-      "selectionchange",
-      () => {
-        if (smoothActive) {
-          scheduleSmoothCaret();
-        }
-      }
+      'selectionchange',
+      schedule
     );
 
     window.addEventListener(
-      "resize",
-      scheduleSmoothCaret,
+      'resize',
+      schedule,
       { passive: true }
     );
 
     window.addEventListener(
-      "scroll",
-      scheduleSmoothCaret,
+      'scroll',
+      schedule,
       {
         passive: true,
         capture: true
@@ -1025,68 +1080,50 @@
     );
 
     window.addEventListener(
-      "storage",
-      e => {
+      'storage',
+      event => {
         if (
-          !e.key ||
-          !e.key.startsWith(
-            "360_smooth_typing_"
+          !Object.values(KEYS).includes(
+            event.key
           )
         ) {
           return;
         }
 
-        smoothSettings =
-          loadSmoothSettings();
+        settings =
+          readSettings();
 
-        applySmoothSettings(
-          smoothSettings,
+        apply(
+          settings,
           false
         );
       }
     );
 
-    const smoothToggle =
-      document.getElementById(
-        "smoothTypingCursorToggle"
+    const observer =
+      new MutationObserver(
+        bindControls
       );
 
-    if (!smoothToggle) {
-      const observer =
-        new MutationObserver(() => {
-          bindSmoothControls();
-
-          if (
-            document.getElementById(
-              "smoothTypingCursorToggle"
-            )
-          ) {
-            observer.disconnect();
-          }
-        });
-
-      observer.observe(
-        document.body,
-        {
-          childList: true,
-          subtree: true
-        }
-      );
-    }
+    observer.observe(body, {
+      childList: true,
+      subtree: true
+    });
   }
 
   function boot() {
-    inject();
+    initMouseCursor();
     initSmoothTypingCaret();
   }
 
   if (
     document.readyState ===
-    "loading"
+    'loading'
   ) {
     document.addEventListener(
-      "DOMContentLoaded",
-      boot
+      'DOMContentLoaded',
+      boot,
+      { once: true }
     );
   } else {
     boot();
