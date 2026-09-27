@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>360 Loading Template</title>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --txt: #111827;
+      --mut: #6b7280;
+      --br: rgba(15, 23, 42, .10);
+      --a: #3b82f6;
+      --a2: #0ea5e9;
+    }
+
+    body.dark {
+      --bg: #020617;
+      --txt: #e5e7eb;
+      --mut: #9ca3af;
+      --br: rgba(148, 163, 184, .28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Text",
+        sans-serif;
+    }
+
+    .loading-template {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      animation: loadingFadeIn .22s ease-out both;
+    }
+
+    .loading-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-width: 180px;
+    }
+
+    .loader-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--br);
+      border-top-color: var(--a);
+      border-right-color: var(--a2);
+      border-radius: 50%;
+      animation: spin360 .8s linear infinite;
+    }
+
+    .loading-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--mut);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .loading-subtext {
+      max-width: 280px;
+      font-size: 12px;
+      color: var(--mut);
+      opacity: .72;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .loading-progress {
+      width: 110px;
+      height: 3px;
+      margin-top: 2px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--br);
+    }
+
+    .loading-progress::after {
+      content: "";
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--a), var(--a2));
+      animation: loadingProgress 1.15s ease-in-out infinite;
+    }
+
+    @keyframes spin360 {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes loadingProgress {
+      0% {
+        transform: translateX(-120%);
+      }
+
+      50% {
+        transform: translateX(135%);
+      }
+
+      100% {
+        transform: translateX(300%);
+      }
+    }
+
+    @keyframes loadingFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-template {
+        animation: none;
+      }
+
+      .loader-spinner {
+        animation: none;
+      }
+
+      .loading-progress::after {
+        animation: none;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div
+    class="loading-template"
+    id="loadingTemplate"
+    role="status"
+    aria-live="polite"
+    aria-label="Loading"
+  >
+    <div class="loading-inner">
+      <div class="loader-spinner" aria-hidden="true"></div>
+
+      <div class="loading-text" id="loadingText">
+        Loading…
+      </div>
+
+      <div class="loading-subtext" id="loadingSubtext">
+        Getting everything ready.
+      </div>
+
+      <div class="loading-progress" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <script>
+    window.setLoadingState = function (text, subtext = "") {
+      const textEl = document.getElementById("loadingText");
+      const subtextEl = document.getElementById("loadingSubtext");
+
+      if (textEl) {
+        textEl.textContent = text;
+      }
+
+      if (subtextEl) {
+        subtextEl.textContent = subtext;
+        subtextEl.style.display = subtext ? "" : "none";
+      }
+    };
+
+    window.hideLoadingState = function () {
+      const loader = document.getElementById("loadingTemplate");
+
+      if (!loader) return;
+
+      loader.style.opacity = "0";
+      loader.style.pointerEvents = "none";
+
+      setTimeout(() => {
+        loader.remove();
+      }, 180);
+    };
+  </script>
+</body>
+</html>
