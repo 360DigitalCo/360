@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>360 Confirm Template</title>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --txt: #111827;
+      --mut: #6b7280;
+      --br: rgba(15, 23, 42, 0.10);
+      --a: #3b82f6;
+      --a2: #0ea5e9;
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--txt);
+      font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Text",
+        sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .confirm-demo {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      background: rgba(0, 0, 0, 0.5);
+
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+
+      transition:
+        opacity 0.18s ease,
+        visibility 0.18s ease;
+    }
+
+    .confirm-modal.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .confirm-box {
+      width: min(100%, 340px);
+      padding: 20px;
+
+      border: 1px solid var(--br);
+      border-radius: 14px;
+
+      background: var(--bg);
+      color: var(--txt);
+
+      text-align: center;
+
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+
+      transform: translateY(8px) scale(0.98);
+      transition: transform 0.22s ease;
+    }
+
+    .confirm-modal.open .confirm-box {
+      transform: translateY(0) scale(1);
+    }
+
+    .confirm-title {
+      margin-bottom: 9px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .confirm-message {
+      margin-bottom: 16px;
+      color: var(--mut);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .confirm-type-label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--mut);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .confirm-required {
+      color: var(--txt);
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+      font-weight: 700;
+    }
+
+    .confirm-input {
+      width: 100%;
+      padding: 10px 11px;
+
+      border: 1px solid var(--br);
+      border-radius: 8px;
+
+      outline: none;
+
+      background: transparent;
+      color: var(--txt);
+
+      font-size: 13px;
+
+      transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+    }
+
+    .confirm-input:focus {
+      border-color: var(--a);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+    }
+
+    .confirm-input.valid {
+      border-color: rgba(34, 197, 94, 0.55);
+    }
+
+    .confirm-input.invalid {
+      border-color: rgba(239, 68, 68, 0.55);
+    }
+
+    .confirm-hint {
+      min-height: 17px;
+      margin-top: 7px;
+      color: var(--mut);
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .confirm-button {
+      padding: 8px 12px;
+
+      border: 1px solid var(--br);
+      border-radius: 8px;
+
+      background: transparent;
+      color: var(--txt);
+
+      font-size: 13px;
+      font-weight: 600;
+
+      cursor: pointer;
+
+      transition:
+        opacity 0.18s ease,
+        background 0.18s ease,
+        transform 0.12s ease;
+    }
+
+    .confirm-button:hover {
+      background: rgba(148, 163, 184, 0.10);
+    }
+
+    .confirm-button:active {
+      transform: scale(0.98);
+    }
+
+    .confirm-button.danger {
+      border: none;
+      background: linear-gradient(110deg, var(--a), var(--a2));
+      color: #050816;
+    }
+
+    .confirm-button.danger:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    @media (max-width: 420px) {
+      .confirm-box {
+        width: 100%;
+      }
+
+      .confirm-actions {
+        flex-direction: column-reverse;
+      }
+
+      .confirm-button {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .confirm-modal,
+      .confirm-box,
+      .confirm-input,
+      .confirm-button {
+        transition: none;
+      }
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <main class="confirm-demo">
+    <button
+      class="confirm-button danger"
+      id="openConfirm"
+      type="button"
+    >
+      Open confirmation
+    </button>
+  </main>
+
+  <div
+    class="confirm-modal"
+    id="confirmModal"
+    aria-hidden="true"
+  >
+    <div
+      class="confirm-box"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirmTitle"
+      aria-describedby="confirmMessage"
+    >
+      <div
+        class="confirm-title"
+        id="confirmTitle"
+      >
+        Sign out?
+      </div>
+  <div
+    class="confirm-message"
+    id="confirmMessage"
+  >
+    Are you sure you want to sign out?
+    This action will end your current session.
+  </div>
+
+  <label
+    class="confirm-type-label"
+    for="confirmInput"
+  >
+    Type
+    <span
+      class="confirm-required"
+      id="confirmRequired"
+    >SIGN OUT</span>
+    to confirm.
+  </label>
+
+  <input
+    class="confirm-input"
+    id="confirmInput"
+    type="text"
+    autocomplete="off"
+    autocapitalize="characters"
+    spellcheck="false"
+    placeholder="SIGN OUT"
+  >
+
+  <div
+    class="confirm-hint"
+    id="confirmHint"
+  >
+    Enter the exact text shown above.
+  </div>
+
+  <div class="confirm-actions">
+    <button
+      class="confirm-button"
+      id="confirmCancel"
+      type="button"
+    >
+      Cancel
+    </button>
+
+    <button
+      class="confirm-button danger"
+      id="confirmAccept"
+      type="button"
+      disabled
+    >
+      Sign Out
+    </button>
+  </div>
+</div>
+
+  </div>
+
+  <script>
+    (() => {
+      const modal = document.getElementById("confirmModal");
+      const input = document.getElementById("confirmInput");
+      const accept = document.getElementById("confirmAccept");
+      const cancel = document.getElementById("confirmCancel");
+      const open = document.getElementById("openConfirm");
+
+      let requiredText = "SIGN OUT";
+
+      function updateState() {
+        const value = input.value;
+        const valid = value === requiredText;
+
+        accept.disabled = !valid;
+
+        input.classList.toggle(
+          "valid",
+          valid && value.length > 0
+        );
+
+        input.classList.toggle(
+          "invalid",
+          value.length > 0 && !valid
+        );
+      }
+
+      function showConfirm(options = {}) {
+        const title = options.title || "Sign out?";
+
+        const message =
+          options.message ||
+          "Are you sure you want to sign out? This action will end your current session.";
+
+        requiredText = options.required || "SIGN OUT";
+
+        document.getElementById("confirmTitle").textContent = title;
+        document.getElementById("confirmMessage").textContent = message;
+        document.getElementById("confirmRequired").textContent = requiredText;
+
+        accept.textContent = options.acceptText || "Confirm";
+
+        input.placeholder = requiredText;
+        input.value = "";
+
+        accept.disabled = true;
+
+        input.classList.remove("valid", "invalid");
+
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+
+        requestAnimationFrame(() => {
+          input.focus();
+        });
+      }
+
+      function hideConfirm() {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+
+        input.value = "";
+        input.classList.remove("valid", "invalid");
+
+        accept.disabled = true;
+
+        open.focus();
+      }
+
+      input.addEventListener("input", updateState);
+
+      input.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          hideConfirm();
+        }
+
+        if (event.key === "Enter" && !accept.disabled) {
+          event.preventDefault();
+          accept.click();
+        }
+      });
+
+      open.addEventListener("click", () => {
+        showConfirm({
+          title: "Sign out?",
+          message:
+            "Are you sure you want to sign out? This action will end your current session.",
+          required: "SIGN OUT",
+          acceptText: "Sign Out"
+        });
+      });
+
+      cancel.addEventListener("click", hideConfirm);
+
+      modal.addEventListener("click", event => {
+        if (event.target === modal) {
+          hideConfirm();
+        }
+      });
+
+      accept.addEventListener("click", () => {
+        if (accept.disabled) return;
+
+        modal.dispatchEvent(
+          new CustomEvent("confirm", {
+            bubbles: true,
+            detail: {
+              confirmed: true,
+              value: requiredText
+            }
+          })
+        );
+
+        hideConfirm();
+      });
+
+      document.addEventListener("keydown", event => {
+        if (
+          modal.classList.contains("open") &&
+          event.key === "Escape"
+        ) {
+          hideConfirm();
+        }
+      });
+
+      window.showTypeConfirm = showConfirm;
+    })();
+  </script>
+
+</body>
+</html>
