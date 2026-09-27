@@ -117,9 +117,19 @@
     setupSearch();
     setupReloadButtons();
     setupCategoryModals();
+    setupDomains();
     setupRealtime();
+    showSecurityStrip();
     await loadCategories();
     await loadMail();
+    if (window.Octicons) Octicons.hydrate($("mailApp"));
+  }
+
+  function showSecurityStrip() {
+    const strip = $("mailSecurityStrip");
+    if (!strip) return;
+    strip.style.display = "flex";
+    $("securityLabel").textContent = "E2EE active";
   }
 
   // onAuthStateChange fires on every tab load with the persisted session,
@@ -379,6 +389,11 @@
     selectedId = id; renderList();
     const e = allEmails.find(x => x.id === id);
     if (!e) return;
+
+    // Show the reading pane content, hide the no-select placeholder
+    $("noMailSelected").style.display   = "none";
+    $("mailReadContent").style.display  = "flex";
+
     const willBurn = !!e.self_destruct && e.direction === "in";
     if (!e.read && e.direction === "in") {
       e.read = true;
@@ -390,7 +405,6 @@
     $("rdFrom").textContent    = isSent ? "To: "+(e.to_addr||"") : "From: "+(e.from_addr||"");
     $("rdAddr").textContent    = isSent ? "" : "→ "+(e.to_addr||"");
     $("rdTime").textContent    = e.status === "scheduled" ? "Scheduled for "+fmtDate(e.scheduled_at) : fmtDate(e.received_at);
-    $("rdStar").textContent    = e.starred ? "★ Unstar" : "☆ Star";
 
     // Badges
     const badges = [];
@@ -940,6 +954,146 @@
     $("catEditModal").classList.remove("open");
     if(currentFolder==="category"&&currentCatId===editCatId) setFolder("inbox",null,"Inbox");
     renderCategoryFolders();
+  }
+
+  // ── Custom domains ─────────────────────────────────────────
+  // Free custom domain support: user adds a domain, we return the DNS
+  // records they need to point MX/TXT at our infrastructure.
+  // Verification is done server-side by the edge function; we poll the
+  // `custom_domains` table for status changes.
+  let customDomains = [];
+
+  const DOMAIN_MX_HOST    = "mx.360-search.com";
+  const DOMAIN_SPF        = "v=spf1 include:360-search.com ~all";
+  const DOMAIN_DKIM_NAME  = "360mail._domainkey";
+  const DOMAIN_DKIM_VAL   = "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7360mail360placeholder==";
+
+  function setupDomains() {
+    $("addDomainBtn")?.addEventListener("click", openDomainModal);
+    $("domainModalCancel")?.addEventListener("click", closeDomainModal);
+    $("domainModalNext")?.addEventListener("click", handleDomainNext);
+    loadDomains();
+  }
+
+  async function loadDomains() {
+    if (!mailAddress) return;
+    const { data } = await sb.from("custom_domains")
+      .select("*").eq("owner_email", mailAddress).order("created_at");
+    customDomains = data || [];
+    renderDomainList();
+  }
+
+  function renderDomainList() {
+    const list = $("domainList");
+    if (!list) return;
+    if (!customDomains.length) {
+      list.innerHTML = `<div style="font-size:11px;color:var(--mut);padding:4px 6px 8px;">No custom domains yet.</div>`;
+      return;
+    }
+    list.innerHTML = customDomains.map(d => {
+      const status = d.verified ? "verified" : (d.dns_added ? "pending" : "unverified");
+      const label  = d.verified ? "Active" : (d.dns_added ? "Verifying…" : "Setup needed");
+      return `<div class="domain-item" data-id="${d.id}">
+        <div class="domain-status-dot ${status}" title="${label}"></div>
+        <span class="domain-item-name" title="${esc(d.domain)}">${esc(d.domain)}</span>
+        <span style="font-size:10px;color:var(--mut)">${label}</span>
+      </div>`;
+    }).join("");
+  }
+
+  let _pendingDomain = "";
+
+  function openDomainModal() {
+    _pendingDomain = "";
+    $("domainInput").value = "";
+    $("domainVerifySteps").style.display = "none";
+    $("domainModalNext").textContent = "Next: Get DNS records";
+    $("domainStatus").textContent = "";
+    $("domainModal").classList.add("open");
+    setTimeout(() => $("domainInput").focus(), 80);
+  }
+
+  function closeDomainModal() {
+    $("domainModal").classList.remove("open");
+  }
+
+  async function handleDomainNext() {
+    const btn = $("domainModalNext");
+    const status = $("domainStatus");
+
+    // Step 1 — show DNS records
+    if (!_pendingDomain) {
+      const raw = $("domainInput").value.trim().toLowerCase()
+        .replace(/^https?:\/\//,"").replace(/\/.*$/,"");
+      if (!raw || !raw.includes(".")) { status.textContent = "Enter a valid domain name."; return; }
+      _pendingDomain = raw;
+
+      // Insert into DB as unverified
+      const { error } = await sb.from("custom_domains").upsert({
+        owner_email: mailAddress, domain: _pendingDomain,
+        verified: false, dns_added: false,
+      }, { onConflict: "domain,owner_email" });
+      if (error) { status.textContent = "Error: " + error.message; return; }
+
+      $("domainDnsTable").innerHTML = `
+        <div class="domain-dns-row">
+          <div class="domain-dns-cell header">Type</div>
+          <div class="domain-dns-cell header">Name</div>
+          <div class="domain-dns-cell header">Value</div>
+        </div>
+        <div class="domain-dns-row">
+          <div class="domain-dns-cell">MX</div>
+          <div class="domain-dns-cell"><code>@</code></div>
+          <div class="domain-dns-cell"><code>${DOMAIN_MX_HOST} (priority 10)</code></div>
+        </div>
+        <div class="domain-dns-row">
+          <div class="domain-dns-cell">TXT</div>
+          <div class="domain-dns-cell"><code>@</code></div>
+          <div class="domain-dns-cell"><code>${DOMAIN_SPF}</code></div>
+        </div>
+        <div class="domain-dns-row">
+          <div class="domain-dns-cell">TXT</div>
+          <div class="domain-dns-cell"><code>${DOMAIN_DKIM_NAME}</code></div>
+          <div class="domain-dns-cell"><code>${DOMAIN_DKIM_VAL}</code></div>
+        </div>`;
+
+      $("domainVerifySteps").style.display = "block";
+      btn.textContent = "I've added these records — Verify";
+      status.textContent = "";
+      return;
+    }
+
+    // Step 2 — trigger verification
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    status.textContent = "";
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch(`${SB_URL}/functions/v1/verify-domain`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "Authorization":`Bearer ${session.access_token}`, "apikey": SB_ANON },
+        body: JSON.stringify({ domain: _pendingDomain }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.verified) {
+        status.textContent = "✓ Domain verified! You can now receive mail at @" + _pendingDomain;
+        await sb.from("custom_domains").update({ verified: true, dns_added: true })
+          .eq("domain", _pendingDomain).eq("owner_email", mailAddress);
+        await loadDomains();
+        setTimeout(closeDomainModal, 2200);
+      } else {
+        await sb.from("custom_domains").update({ dns_added: true })
+          .eq("domain", _pendingDomain).eq("owner_email", mailAddress);
+        status.textContent = "DNS not detected yet — it can take up to 48 h. We'll keep checking.";
+        btn.textContent = "Check again";
+        btn.disabled = false;
+        await loadDomains();
+      }
+    } catch {
+      status.textContent = "Verification request failed. Try again shortly.";
+      btn.textContent = "Check again";
+      btn.disabled = false;
+    }
   }
 
   // ── Utilities ──────────────────────────────────────────────
