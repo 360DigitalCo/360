@@ -248,3 +248,119 @@ body.dark .cursor-color-row label { color: var(--mutd); }
 #cursorColorPicker { width: 32px; height: 32px; border-radius: 50%; border: none; padding: 0; }
 #cursorColorReset { font-size: 11px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--br); background: transparent; color: var(--mut); }
 body.dark #cursorColorReset { color: var(--mutd); }
+
+/* ============================================================
+   SMOOTH TYPING CARET
+   ============================================================ */
+.smooth-typing-caret {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2147483646;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateZ(0);
+  transition:
+    left var(--smooth-caret-slide, 140ms) cubic-bezier(.22,1,.36,1),
+    top var(--smooth-caret-slide, 140ms) cubic-bezier(.22,1,.36,1),
+    height 100ms ease,
+    opacity 90ms ease;
+}
+.smooth-typing-caret.visible {
+  opacity: 1;
+  visibility: visible;
+  animation: smoothTypingCaretBlink var(--smooth-caret-blink, 1100ms) steps(1, end) infinite;
+}
+@keyframes smoothTypingCaretBlink {
+  0%, 46% { opacity: 1; }
+  47%, 100% { opacity: 0; }
+}
+.smooth-typing-caret-mirror {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: pre;
+  z-index: -1;
+}
+.smooth-caret-active {
+  caret-color: transparent !important;
+}
+
+.smooth-typing-settings-card .st-row {
+  margin-top: 2px;
+}
+.smooth-typing-controls {
+  display: grid;
+  gap: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--br);
+}
+.smooth-typing-control {
+  display: grid;
+  gap: 7px;
+}
+.smooth-typing-control-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.smooth-typing-control-head output {
+  color: var(--a, #3b82f6);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.smooth-typing-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--a, #3b82f6);
+}
+.smooth-typing-help {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--mut);
+}
+body.dark .smooth-typing-help { color: var(--mutd); }
+.smooth-typing-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.smooth-typing-color-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#smoothTypingColor {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--br);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+}
+#smoothTypingColor:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+@media (max-width: 560px) {
+  .smooth-typing-color-row {
+    align-items: flex-start;
+  }
+  .smooth-typing-color-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
