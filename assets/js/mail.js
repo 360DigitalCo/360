@@ -278,48 +278,58 @@
     renderList();
   });
 
-  // Sanitizer used when RENDERING a received email inside the sandboxed
-  // iframe (see buildEmailSrcdoc). Much more permissive than purify() above
-  // since real-world email HTML relies on full documents, <style> blocks,
-  // table layout attributes, and classes — none of which is a script-execution
-  // risk once it's confined to a sandbox iframe with no allow-scripts.
   function purifyEmailBody(html, blockImages) {
     if (!window.DOMPurify) return esc(html);
+    // Belt-and-suspenders: strip <script> blocks before DOMPurify so the
+    // sandboxed iframe never emits "Blocked script execution" console errors.
+    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, '');
     DOMPurify.addHook("afterSanitizeAttributes", node => {
-      if (node.tagName === "A") { node.setAttribute("target","_blank"); node.setAttribute("rel","noopener noreferrer"); }
-      // Replace remote img src with a blank placeholder to block tracking pixels
+      if (node.tagName === "A") {
+        node.setAttribute("target", "_blank");
+        node.setAttribute("rel", "noopener noreferrer");
+      }
       if (blockImages && node.tagName === "IMG") {
         const src = node.getAttribute("src") || "";
         if (src && !src.startsWith("data:") && !src.startsWith("cid:")) {
-          node.dataset.blockedSrc = src;
+          node.setAttribute("data-src", src);
           node.removeAttribute("src");
           node.setAttribute("alt", node.getAttribute("alt") || "[image]");
-          node.style.cssText = "opacity:.25;max-width:100%;";
+          node.setAttribute("style", "opacity:.25;max-width:100%;");
         }
       }
     });
-    const clean = DOMPurify.sanitize(html, {
-      WHOLE_DOCUMENT: true,
-      ALLOWED_TAGS: ['html','head','body','title','meta','style','center','p','br','b','strong','i','em','u','s',
-        'strike','span','div','a','img','ul','ol','li','blockquote','h1','h2','h3','h4','h5','h6','hr',
-        'table','thead','tbody','tfoot','tr','td','th','code','pre','font','sub','sup','small','big'],
-      ALLOWED_ATTR: ['href','title','target','rel','src','alt','width','height','style','color','size','face',
-        'colspan','rowspan','class','id','align','valign','bgcolor','border','cellpadding','cellspacing',
-        'charset','name','content','dir','lang'],
-      FORBID_TAGS: ['script','iframe','object','embed','form','input','button','base','link','noscript'],
-      FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
-    });
-    DOMPurify.removeHook("afterSanitizeAttributes");
+    let clean;
+    try {
+      clean = DOMPurify.sanitize(stripped, {
+        WHOLE_DOCUMENT: true,
+        // ADD_ATTR lets the hook's setAttribute("target") survive the allow-list pass
+        ADD_ATTR: ['target', 'data-src'],
+        ALLOWED_TAGS: ['html','head','body','title','meta','style','center','p','br','b','strong','i','em','u','s',
+          'strike','span','div','a','img','ul','ol','li','blockquote','h1','h2','h3','h4','h5','h6','hr',
+          'table','thead','tbody','tfoot','tr','td','th','code','pre','font','sub','sup','small','big',
+          'link'],  // <link rel="stylesheet"> is safe inside a no-scripts sandbox
+        ALLOWED_ATTR: ['href','title','target','rel','src','alt','width','height','style','color','size','face',
+          'colspan','rowspan','class','id','align','valign','bgcolor','border','cellpadding','cellspacing',
+          'charset','name','content','dir','lang','type'],
+        FORBID_TAGS: ['script','object','embed','form','input','button','noscript','iframe'],
+        FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur','onkeydown','onkeyup',
+          'onchange','onsubmit','onreset','onselect','oninput'],
+      });
+    } finally {
+      DOMPurify.removeHook("afterSanitizeAttributes");
+    }
     return clean;
   }
   function buildEmailSrcdoc(html, blockImages) {
     const clean = purifyEmailBody(html || "", blockImages);
     const dark  = document.body.classList.contains("dark");
-    const baseCss = `body{margin:0;padding:12px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;`
+    const baseCss = `body{margin:0;padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;`
       + `font-size:14px;line-height:1.7;color:${dark?'#e2e8f0':'#1e293b'};background:transparent;`
-      + `word-wrap:break-word;overflow-wrap:break-word;} img{max-width:100%;height:auto;} `
-      + `a{color:${dark?'#60a5fa':'#3b82f6'};} table{max-width:100%;}`;
-    // no-referrer so links opened from email don't leak the mail URL as referer
+      + `word-wrap:break-word;overflow-wrap:break-word;max-width:100%;}`
+      + `img{max-width:100%;height:auto;} a{color:${dark?'#60a5fa':'#3b82f6'};}`
+      + `table{max-width:100%;border-collapse:collapse;} td,th{padding:4px 8px;}`
+      + `blockquote{margin:8px 0;padding:6px 14px;border-left:3px solid ${dark?'#3b82f6':'#93c5fd'};`
+      + `color:${dark?'#94a3b8':'#64748b'};background:${dark?'rgba(59,130,246,.07)':'rgba(59,130,246,.05)'};}`;
     const noRef = `<meta name="referrer" content="no-referrer">`;
     if (/<html[\s>]/i.test(clean)) {
       return clean.replace(/<head[^>]*>/i, m => `${m}${noRef}<style>${baseCss}</style>`);
@@ -329,11 +339,27 @@
   function renderEmailIframe(html, blockImages) {
     const iframe = document.createElement("iframe");
     iframe.className = "mail-body-iframe";
-    iframe.setAttribute("sandbox", "allow-same-origin allow-popups");
+    // allow-popups: target=_blank links open new windows (correct for email)
+    // allow-same-origin: lets us read scrollHeight for auto-sizing
+    // no allow-scripts: scripts are intentionally blocked
+    iframe.setAttribute("sandbox", "allow-same-origin allow-popups allow-popups-to-escape-sandbox");
     iframe.srcdoc = buildEmailSrcdoc(html, blockImages);
+    function fitHeight() {
+      try {
+        const h = iframe.contentWindow?.document?.documentElement?.scrollHeight;
+        if (h > 40) { iframe.style.height = h + "px"; return true; }
+      } catch {}
+      return false;
+    }
     iframe.addEventListener("load", () => {
-      try { iframe.style.height = iframe.contentWindow.document.documentElement.scrollHeight + "px"; }
-      catch { iframe.style.height = "320px"; }
+      if (!fitHeight()) setTimeout(fitHeight, 150);
+      // ResizeObserver catches content that expands after load (images, web fonts)
+      if (window.ResizeObserver) {
+        try {
+          const ro = new ResizeObserver(fitHeight);
+          ro.observe(iframe.contentWindow.document.documentElement);
+        } catch {}
+      }
     });
     return iframe;
   }
