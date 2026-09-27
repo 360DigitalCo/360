@@ -233,10 +233,12 @@
                     + (e.self_destruct ? `<span class="mi-flag" title="Self-destructs after reading">🔥</span>` : "");
       return `<div class="mail-item${unread?" unread":""}${active?" active":""}${selectedIds.has(e.id)?" selected":""}" data-id="${e.id}">
         <input type="checkbox" class="mi-check" data-id="${e.id}" ${selectedIds.has(e.id)?"checked":""} />
-        <button class="mi-star${e.starred?" starred":""}" data-id="${e.id}">★</button>
+        <button class="mi-star${e.starred?" starred":""}" data-id="${e.id}" title="${e.starred?"Unstar":"Star"}">
+          <span data-octicon="${e.starred?"star-fill":"star"}"></span>
+        </button>
         <div class="mi-row1">
           <span class="mi-from">${esc(display)}</span>
-          ${hasAtt ? '<span class="mi-att" title="Has attachments">📎</span>' : ''}
+          ${hasAtt ? `<span class="mi-att" title="Has attachments"><span data-octicon="attach"></span></span>` : ''}
           ${flags}
           <span class="mi-time">${e.status==="scheduled" ? relTime(e.scheduled_at) : relTime(e.received_at)}</span>
         </div>
@@ -257,6 +259,7 @@
       cb.addEventListener("click", ev => { ev.stopPropagation(); toggleSelect(cb.dataset.id); })
     );
     updateBulkBar();
+    if (window.Octicons) Octicons.hydrate(scroll);
   }
 
   const selectedIds = new Set();
@@ -455,10 +458,12 @@
     $("rdReply").onclick   = () => openCompose(e.from_addr||"", "Re: "+(e.subject||""));
     $("rdForward").onclick = () => openCompose("", "Fwd: "+(e.subject||""),
       null, "\n\n--- Forwarded ---\nFrom: "+(e.from_addr||"")+"\n\n"+(e.body_text||stripHtml(e.body_html||"")));
+    $("rdStar").innerHTML  = `<span data-octicon="${e.starred?"star-fill":"star"}"></span> ${e.starred?"Unstar":"Star"}`;
     $("rdStar").onclick    = () => toggleStar(id);
     $("rdDelete").onclick  = () => triggerDelete(id);
     $("rdCancelSchedule").style.display = e.status === "scheduled" ? "flex" : "none";
     $("rdCancelSchedule").onclick = () => cancelScheduled(id);
+    if (window.Octicons) Octicons.hydrate($("mailReadContent"));
 
     if (willBurn) await burnEmail(id);
   }
@@ -493,8 +498,19 @@
     const e = allEmails.find(x => x.id === id); if (!e) return;
     e.starred = !e.starred;
     await sb.from("inbox").update({ starred: e.starred }).eq("id", id);
-    renderList();
-    if (selectedId === id) $("rdStar").textContent = e.starred ? "★ Unstar" : "☆ Star";
+    // Update list item star in place — avoids full re-render scroll reset
+    const btn = document.querySelector(`.mi-star[data-id="${id}"]`);
+    if (btn) {
+      btn.classList.toggle("starred", e.starred);
+      btn.title = e.starred ? "Unstar" : "Star";
+      btn.querySelector("[data-octicon]").dataset.octicon = e.starred ? "star-fill" : "star";
+      if (window.Octicons) Octicons.hydrate(btn);
+    }
+    if (selectedId === id) {
+      const rdStar = $("rdStar");
+      rdStar.innerHTML = `<span data-octicon="${e.starred?"star-fill":"star"}"></span> ${e.starred?"Unstar":"Star"}`;
+      if (window.Octicons) Octicons.hydrate(rdStar);
+    }
     if (currentFolder === "starred") applyFilter();
   }
 
@@ -714,7 +730,7 @@
     $("cStatus").textContent = "";
     $("cStatus").className   = "compose-status";
     $("cSendBtn").disabled   = false;
-    $("cSendBtn").innerHTML  = "<span>✈</span> Send";
+    $("cSendBtn").innerHTML  = `<span data-octicon="paper-airplane"></span> Send`;
     pendingAttachments = [];
     renderPendingAttachments();
     $("cExpireToggle").checked = false;
@@ -777,7 +793,8 @@
     }
 
     btn.disabled  = true;
-    btn.innerHTML = "<span>⏳</span> Sending…";
+    btn.innerHTML = `<span data-octicon="hourglass"></span> Sending…`;
+    if (window.Octicons) Octicons.hydrate(btn);
     status.textContent = "";
 
     try {
@@ -790,7 +807,8 @@
         attachments: pendingAttachments.map(a => ({ filename: a.filename, content_type: a.content_type, content: a.content })),
       };
       if (e2ee) {
-        btn.innerHTML = "<span>🔐</span> Encrypting…";
+        btn.innerHTML = `<span data-octicon="lock"></span> Encrypting…`;
+        if (window.Octicons) Octicons.hydrate(btn);
         payload.subject  = await e2eeEncrypt(subject);
         payload.html     = await e2eeEncrypt(html);
         payload.text     = await e2eeEncrypt(text);
@@ -812,12 +830,12 @@
       if (!res.ok) throw new Error(json.error?.message || json.error || "Send failed");
       status.textContent = json.delivery === "scheduled" ? "Scheduled ✓" : "Sent ✓";
       status.className = "compose-status ok";
-      btn.innerHTML = "<span>✈</span> Send"; btn.disabled = false;
+      btn.innerHTML = `<span data-octicon="paper-airplane"></span> Send`; btn.disabled = false;
       setTimeout(closeCompose, 1200);
       await loadMail();
     } catch (err) {
       status.textContent = err.message; status.className = "compose-status err";
-      btn.innerHTML = "<span>✈</span> Send"; btn.disabled = false;
+      btn.innerHTML = `<span data-octicon="paper-airplane"></span> Send`; btn.disabled = false;
     }
   }
 
