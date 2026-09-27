@@ -80,9 +80,16 @@
     return (addr || "").toLowerCase().endsWith("@360-search.com");
   }
 
-  // Decrypt an email object in-place; returns it for chaining
+  // Decrypt an email object in-place; returns it for chaining.
+  // Falls back to content-sniffing ("e2ee:" prefix) when the DB view
+  // doesn't include the e2ee column or the edge function didn't set it.
   async function decryptEmail(e) {
-    if (!e || !e.e2ee) return e;
+    if (!e) return e;
+    const needsDecrypt = e.e2ee
+      || (e.subject   && String(e.subject).startsWith("e2ee:"))
+      || (e.body_html && String(e.body_html).startsWith("e2ee:"))
+      || (e.body_text && String(e.body_text).startsWith("e2ee:"));
+    if (!needsDecrypt) return e;
     try {
       if (e.subject)   e.subject   = await e2eeDecrypt(e.subject);
       if (e.body_html) e.body_html = await e2eeDecrypt(e.body_html);
@@ -167,8 +174,8 @@
       return;
     }
     allEmails = data || [];
-    // Decrypt any E2EE emails in-place before rendering
-    await Promise.all(allEmails.filter(e => e.e2ee).map(decryptEmail));
+    // Decrypt any E2EE content — checks both the e2ee flag and content prefix
+    await Promise.all(allEmails.map(decryptEmail));
     updateBadge(); applyFilter();
   }
 
