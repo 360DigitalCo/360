@@ -1,3 +1,4 @@
+
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -20,14 +21,19 @@ SPDX-License-Identifier: Apache-2.0!
 - This program aims to comply with all TOS's for code used, and we do not intend to misuse/illegally use code. 
 Before taking an action to legal matter, please reach out to us at admin@360-search.com and we will respectfully remove anything strike-worthy.
 - This program uses cached data for speed! It is instantly deleted!
-- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes. (9//26/26, removed all analytics and refferals)
+- This program uses Google Tag Manager for page analytics. We only measure page visits! There are no other scopes.
 THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S TO CREATE A FUNCTIONING METASEARCH ENGINE AND GOOGLE'S CSE PERFORMS BEST IN THE 
  - FRONTEND.
 ============================================================================================================================================================= !-->
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><script>(function(w,i,g){w[g]=w[g]||[];if(typeof w[g].push=='function')w[g].push(i)})
+(window,'GTM-NZHQGS65','google_tags_first_party');</script><script>(function(w,d,s,l){w[l]=w[l]||[];(function(){w[l].push(arguments);})('set', 'developer_id.dYzg1YT', true);
+		w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+		j=d.createElement(s);j.async=true;j.src='/uw4z/';
+		f.parentNode.insertBefore(j,f);
+		})(window,document,'script','dataLayer');</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="no-referrer" />
@@ -3267,6 +3273,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     // Pull every external src= from script/img/iframe/link tags
+    const PROXY_HOST = new URL(ANON_PROXY).hostname; // wiswfpfsjiowtrdyqpxy.supabase.co
+
     function extractTrackers(html, pageOrigin) {
       const dp = new DOMParser().parseFromString(html, 'text/html');
       const found = [];
@@ -3278,10 +3286,22 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       ];
       selectors.forEach(([tag, attr]) => {
         dp.querySelectorAll(`${tag}[${attr}]`).forEach(el => {
-          const val = el.getAttribute(attr) || '';
+          let val = el.getAttribute(attr) || '';
           if (!val || val.startsWith('data:') || val.startsWith('#')) return;
-          let host = '';
-          try { host = new URL(val, pageOrigin).hostname; } catch { return; }
+
+          let resolved;
+          try { resolved = new URL(val, pageOrigin); } catch { return; }
+
+          // The proxy rewrites tracker URLs to go through itself as
+          // ?asset=1&url=<original>. Unwrap the inner URL so we classify
+          // the actual tracker, not the proxy host.
+          if (resolved.hostname === PROXY_HOST) {
+            const inner = resolved.searchParams.get('url');
+            if (!inner) return; // skip other proxy calls (search, api, etc.)
+            try { resolved = new URL(inner); val = inner; } catch { return; }
+          }
+
+          const host = resolved.hostname;
           // skip same-origin and relative resources
           if (!host || host === new URL(pageOrigin).hostname) return;
           const cat = classifyUrl(val);
@@ -4733,5 +4753,6 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
   })();
   </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41ae5871c5f72a7',t:'MTc5MDUxNjE3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"ff0a2d9a55154fa7bec0287a68d6f56f","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
