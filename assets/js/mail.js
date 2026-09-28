@@ -241,19 +241,23 @@
       const flags   = (e.status==="scheduled" ? `<span class="mi-flag" title="Scheduled for ${esc(fmtDate(e.scheduled_at))}">⏰</span>` : "")
                     + (e.expires_at ? `<span class="mi-flag" title="Expires ${esc(fmtDate(e.expires_at))}">⏳</span>` : "")
                     + (e.self_destruct ? `<span class="mi-flag" title="Self-destructs after reading">🔥</span>` : "");
-      return `<div class="mail-item${unread?" unread":""}${active?" active":""}${selectedIds.has(e.id)?" selected":""}" data-id="${e.id}">
+      const raw     = (e.direction === "out" ? e.to_addr : e.from_addr) || display;
+      const initials = raw.replace(/<[^>]+>/g,"").trim().split(/[\s@]/)[0].slice(0,2).toUpperCase() || "?";
+      return `<div class="mail-item${unread?" unread":""}${active?" active":""}${selectedIds.has(e.id)?" selected":""}" data-id="${e.id}" data-initials="${esc(initials)}">
         <input type="checkbox" class="mi-check" data-id="${e.id}" ${selectedIds.has(e.id)?"checked":""} />
+        <div style="flex:1;min-width:0;">
+          <div class="mi-row1">
+            <span class="mi-from">${esc(display)}</span>
+            ${hasAtt ? `<span class="mi-att" title="Has attachments"><span data-octicon="attach"></span></span>` : ''}
+            ${flags}
+            <span class="mi-time">${e.status==="scheduled" ? relTime(e.scheduled_at) : relTime(e.received_at)}</span>
+          </div>
+          <div class="mi-subject">${esc(e.subject||"(no subject)")}</div>
+          <div class="mi-preview">${esc(preview.slice(0,90))}</div>
+        </div>
         <button class="mi-star${e.starred?" starred":""}" data-id="${e.id}" title="${e.starred?"Unstar":"Star"}">
           <span data-octicon="${e.starred?"star-fill":"star"}"></span>
         </button>
-        <div class="mi-row1">
-          <span class="mi-from">${esc(display)}</span>
-          ${hasAtt ? `<span class="mi-att" title="Has attachments"><span data-octicon="attach"></span></span>` : ''}
-          ${flags}
-          <span class="mi-time">${e.status==="scheduled" ? relTime(e.scheduled_at) : relTime(e.received_at)}</span>
-        </div>
-        <div class="mi-subject">${esc(e.subject||"(no subject)")}</div>
-        <div class="mi-preview">${esc(preview.slice(0,90))}</div>
       </div>`;
     }).join("");
     scroll.querySelectorAll(".mail-item").forEach(el =>
