@@ -141,7 +141,8 @@ Coming soon via the Samsung Galaxy Store.
 - [x] Android APK
 - [ ] Edge / Opera browser extension
 - [x] Progressive Web App improvements
-
+---
+A native app may not come to any OS store as they now all require an amount of money (directly & indirectly) past our funding.
 ---
 
 # Releases
@@ -204,8 +205,7 @@ See the **LICENSE**, **NOTICE**, and **COPYRIGHT** files for additional informat
 The rest is for you to find out. :)
 
 **Enjoy 360!**
-<img src="https://raw.githubusercontent.com/ProtonMail/WebClients/914d7520eff52aafed9a1adfe19859143bdf1dc9/applications/account/src/favicon.svg" style="vertical-align: middle" height="20" width="20" /> <span style="vertical-align: middle; display: inline-block"></span>
-
 
 ```
  proton please collab
+```
