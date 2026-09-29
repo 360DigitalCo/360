@@ -181,20 +181,35 @@
     <div class="mail-security-strip" id="mailSecurityStrip" style="display:none;">
       <span data-octicon="lock"></span> <span id="securityLabel">E2EE active</span>
     </div>
+
+    <div style="flex:1"></div>
+    <div class="folder-item" id="mailSettingsBtn" title="Settings">
+      <span class="fi-icon"><span data-octicon="gear"></span></span>
+      <span class="fi-name">Settings</span>
+    </div>
   </div>
 
   <!-- List panel -->
   <div class="mail-list-panel" id="mailListPanel">
-    <div class="mail-list-header">
-      <div class="mail-list-title" id="listTitle">Inbox</div>
-      <div class="mail-list-count" id="listCount">0</div>
-      <button class="mail-list-reload" id="listReloadBtn" title="Reload">
-        <span data-octicon="hourglass"></span>
-      </button>
+    <!-- Toolbar row: checkbox-all, reload, search -->
+    <div class="ml-toolbar">
+      <label class="ml-check-all-wrap" title="Select all">
+        <input type="checkbox" id="checkAllBox" class="ml-check-all"/>
+      </label>
+      <button class="ml-toolbar-btn" id="listReloadBtn" title="Reload"><span data-octicon="hourglass"></span></button>
+      <div class="ml-search-wrap">
+        <span class="ml-search-icon"><span data-octicon="search"></span></span>
+        <input id="mailSearch" placeholder="Search mail" type="search" autocomplete="off"/>
+      </div>
+      <div class="mail-list-count" id="listCount" style="display:none;">0</div>
     </div>
-    <div class="mail-search-bar">
-      <input id="mailSearch" placeholder="Search…" type="search" autocomplete="off"/>
+    <!-- Category tabs -->
+    <div class="ml-tabs" id="mlTabs">
+      <button class="ml-tab active" data-tab="all">Primary</button>
+      <button class="ml-tab" data-tab="social">Social</button>
+      <button class="ml-tab" data-tab="promotions">Promotions</button>
     </div>
+    <!-- Bulk action bar -->
     <div class="mail-bulk-bar" id="bulkBar">
       <span id="bulkCount">0 selected</span>
       <button id="bulkSelectAllBtn">All</button>
@@ -219,24 +234,110 @@
       <div class="mail-no-select-sub">Your inbox is end-to-end encrypted</div>
     </div>
     <div id="mailReadContent" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
-      <div class="mail-read-header">
-        <div class="mrh-subject" id="rdSubject"></div>
-        <div class="mrh-meta">
-          <span class="mrh-from" id="rdFrom"></span>
-          <span class="mrh-addr" id="rdAddr"></span>
-          <span class="mrh-time" id="rdTime"></span>
-        </div>
-        <div class="mrh-badges" id="rdBadges"></div>
-      </div>
-      <div class="mail-read-actions">
+      <!-- Top action bar -->
+      <div class="mrd-topbar">
+        <button class="mra-btn" id="rdBack" style="display:none;"><span data-octicon="reply"></span></button>
         <button class="mra-btn" id="rdReply"><span data-octicon="reply"></span> Reply</button>
         <button class="mra-btn" id="rdForward"><span data-octicon="forward"></span> Forward</button>
-        <button class="mra-btn" id="rdStar"><span data-octicon="star"></span> Star</button>
+        <div style="flex:1"></div>
+        <button class="mra-btn" id="rdStar"><span data-octicon="star"></span></button>
         <button class="mra-btn danger" id="rdCancelSchedule" style="display:none;"><span data-octicon="hourglass"></span> Cancel send</button>
-        <button class="mra-btn danger" id="rdDelete"><span data-octicon="trash"></span> Delete</button>
-        <button class="mra-btn" id="rdBack" style="display:none;"><span data-octicon="reply"></span> Back</button>
+        <button class="mra-btn danger" id="rdDelete"><span data-octicon="trash"></span></button>
+      </div>
+      <!-- Subject -->
+      <div class="mrd-subject-row">
+        <div class="mrh-subject" id="rdSubject"></div>
+        <div class="mrh-badges" id="rdBadges"></div>
+      </div>
+      <!-- Sender row with avatar -->
+      <div class="mrd-sender-row">
+        <div class="mrd-avatar" id="rdAvatar">?</div>
+        <div class="mrd-sender-info">
+          <div class="mrd-sender-name" id="rdFrom"></div>
+          <div class="mrd-sender-addr" id="rdAddr"></div>
+        </div>
+        <div class="mrd-time" id="rdTime"></div>
       </div>
       <div class="mail-read-body" id="rdBody"></div>
+    </div>
+    <!-- Settings panel -->
+    <div id="mailSettings" style="display:none;flex-direction:column;flex:1;overflow-y:auto;">
+      <div class="msettings-wrap">
+        <div class="msettings-title">Mail Settings</div>
+
+        <div class="msettings-section">Security & Encryption</div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">End-to-end encryption</div>
+            <div class="msettings-sub">Messages to 360Mail users are encrypted with your RSA-2048 key. Your private key never leaves this device.</div>
+          </div>
+          <span class="msettings-badge green">Active</span>
+        </div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Public key fingerprint</div>
+            <div class="msettings-sub" id="msPubkeyFp">Generating…</div>
+          </div>
+          <button class="msettings-btn" id="msRegenKey">Regenerate</button>
+        </div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Block remote images by default</div>
+            <div class="msettings-sub">Prevents tracking pixels in emails.</div>
+          </div>
+          <label class="opt-switch"><input type="checkbox" id="msBlockImages" checked/><span class="slider"></span></label>
+        </div>
+
+        <div class="msettings-section">Spam & Threat Protection</div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Client-side threat detection</div>
+            <div class="msettings-sub">Scans subject, body, and attachments for phishing, spoofing, and malware indicators.</div>
+          </div>
+          <label class="opt-switch"><input type="checkbox" id="msThreatDetect" checked/><span class="slider"></span></label>
+        </div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Warn on executable attachments</div>
+            <div class="msettings-sub">Highlights .exe, .scr, .bat, .js and other risky file types.</div>
+          </div>
+          <label class="opt-switch"><input type="checkbox" id="msWarnExec" checked/><span class="slider"></span></label>
+        </div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Sender spoofing detection</div>
+            <div class="msettings-sub">Flags emails where the display name impersonates a brand but the domain doesn't match.</div>
+          </div>
+          <label class="opt-switch"><input type="checkbox" id="msSpoofDetect" checked/><span class="slider"></span></label>
+        </div>
+
+        <div class="msettings-section">Custom Domains</div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Add a custom domain</div>
+            <div class="msettings-sub">Receive mail at you@yourdomain.com — free, no catch.</div>
+          </div>
+          <button class="msettings-btn" id="msAddDomainBtn">Add domain</button>
+        </div>
+        <div id="msSettingsDomainList" style="padding:0 28px 8px;"></div>
+
+        <div class="msettings-section">Notifications</div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">Browser notifications</div>
+            <div class="msettings-sub">Get notified when new mail arrives.</div>
+          </div>
+          <button class="msettings-btn" id="msNotifyBtn">Enable</button>
+        </div>
+
+        <div class="msettings-section">About</div>
+        <div class="msettings-row">
+          <div class="msettings-info">
+            <div class="msettings-label">360Mail v4.1</div>
+            <div class="msettings-sub">Private encrypted email — no ads, no tracking. <a href="/privacypolicy" style="color:var(--a)">Privacy Policy</a></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -387,7 +488,7 @@
     <div id="domainVerifySteps" style="display:none;">
       <div class="domain-step-title">Add these DNS records to your domain:</div>
       <div class="domain-dns-table" id="domainDnsTable"></div>
-      <div class="domain-verify-note">DNS changes can take up to 48 hours to propagate.</div>
+      <div class="domain-verify-note">DNS changes can take up to 72 hours to propagate.</div>
     </div>
     <div class="modal-actions">
       <button class="modal-cancel" id="domainModalCancel">Cancel</button>
