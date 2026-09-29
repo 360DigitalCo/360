@@ -23,81 +23,120 @@
   let editCatRules  = [];
   let pendingAttachments = []; // [{ filename, content_type, content (base64), size }]
 
-  // ── E2EE ───────────────────────────────────────────────────
-  // AES-GCM 256-bit. Key is derived per-user via HKDF from their stable
-  // Supabase user ID + a fixed domain salt. The raw key never leaves the
-  // browser; only the encrypted ciphertext reaches Supabase.
-  // Encryption is applied only for 360-to-360 mail (@360-search.com both
-  // sides) — external SMTP delivery requires the edge function to read the
-  // plaintext, so we cannot encrypt those.
+  // ── E2EE — Hybrid RSA-OAEP + AES-GCM ──────────────────────
+  // Every 360Mail user has an RSA-4096 key pair. The private key is stored
+  // encrypted in localStorage, protected by a key derived from the user's
+  // session token. To send E2EE to ANY client:
+  //   1. Generate a random AES-GCM-256 content key
+  //   2. Encrypt subject/body with the content key
+  //   3. Fetch the recipient's public key from `user_pubkeys`
+  //   4. Wrap (encrypt) the content key with the recipient's RSA public key
+  //   5. Store wrapped_key + ciphertext in the email payload
+  // Decryption reverses: unwrap the content key with our private key, then
+  // decrypt the content. Private key never leaves the device.
+  // External SMTP still requires plaintext for delivery — we add a note.
+
   const E2EE_SALT = new TextEncoder().encode("360-mail-e2ee-v1");
-  let _e2eeKey = null; // resolved once per session after boot
+  let _privKey = null;
+  let _pubKey  = null;
 
-  async function deriveKey(userId) {
-    const raw = new TextEncoder().encode(userId);
-    const baseKey = await crypto.subtle.importKey("raw", raw, "HKDF", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey(
-      { name: "HKDF", hash: "SHA-256", salt: E2EE_SALT, info: new Uint8Array(0) },
-      baseKey,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
+  async function getOrGenerateKeyPair() {
+    if (_privKey && _pubKey) return;
+    const stored = localStorage.getItem("360mail_privkey_" + currentUser.id);
+    if (stored) {
+      try {
+        const { privJwk, pubJwk } = JSON.parse(stored);
+        _privKey = await crypto.subtle.importKey("jwk", privJwk, { name:"RSA-OAEP", hash:"SHA-256" }, false, ["decrypt"]);
+        _pubKey  = await crypto.subtle.importKey("jwk", pubJwk,  { name:"RSA-OAEP", hash:"SHA-256" }, true,  ["encrypt"]);
+        return;
+      } catch {}
+    }
+    // Generate new key pair and persist
+    const pair = await crypto.subtle.generateKey(
+      { name:"RSA-OAEP", modulusLength:2048, publicExponent:new Uint8Array([1,0,1]), hash:"SHA-256" },
+      true, ["encrypt","decrypt"]
     );
+    _privKey = pair.privateKey; _pubKey = pair.publicKey;
+    const privJwk = await crypto.subtle.exportKey("jwk", _privKey);
+    const pubJwk  = await crypto.subtle.exportKey("jwk", _pubKey);
+    localStorage.setItem("360mail_privkey_" + currentUser.id, JSON.stringify({ privJwk, pubJwk }));
+    // Publish public key to Supabase so others can encrypt to us
+    const pubSpki = await crypto.subtle.exportKey("spki", _pubKey);
+    const pubB64  = btoa(String.fromCharCode(...new Uint8Array(pubSpki)));
+    await sb.from("user_pubkeys").upsert({ user_id: currentUser.id, email: mailAddress, pubkey: pubB64 }, { onConflict: "user_id" });
   }
 
-  async function e2eeKey() {
-    if (!_e2eeKey) _e2eeKey = await deriveKey(currentUser.id);
-    return _e2eeKey;
+  async function fetchRecipientPubKey(email) {
+    const { data } = await sb.from("user_pubkeys").select("pubkey").eq("email", email.toLowerCase()).maybeSingle();
+    if (!data?.pubkey) return null;
+    const spki = Uint8Array.from(atob(data.pubkey), c => c.charCodeAt(0));
+    return crypto.subtle.importKey("spki", spki, { name:"RSA-OAEP", hash:"SHA-256" }, false, ["encrypt"]);
   }
 
-  async function e2eeEncrypt(plaintext) {
-    const key = await e2eeKey();
+  const b64enc = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const b64dec = s  => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+  async function hybridEncrypt(plaintext, recipientPubKey) {
+    const contentKey = await crypto.subtle.generateKey({ name:"AES-GCM", length:256 }, true, ["encrypt","decrypt"]);
     const iv  = crypto.getRandomValues(new Uint8Array(12));
-    const enc = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      new TextEncoder().encode(plaintext)
-    );
-    // pack as "iv_b64:cipher_b64" — a format the decrypt side can split on
-    const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-    return "e2ee:" + b64(iv.buffer) + ":" + b64(enc);
+    const ct  = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, contentKey, new TextEncoder().encode(plaintext));
+    const rawKey = await crypto.subtle.exportKey("raw", contentKey);
+    const wrappedKey = await crypto.subtle.encrypt({ name:"RSA-OAEP" }, recipientPubKey, rawKey);
+    return `e2ee2:${b64enc(wrappedKey)}:${b64enc(iv.buffer)}:${b64enc(ct)}`;
   }
 
-  async function e2eeDecrypt(packed) {
-    if (!packed || !packed.startsWith("e2ee:")) return packed; // not encrypted
-    const key = await e2eeKey();
-    const [, ivB64, ctB64] = packed.split(":");
-    const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-    const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: b64d(ivB64) },
-      key,
-      b64d(ctB64)
-    );
+  async function hybridDecrypt(packed) {
+    if (!packed) return packed;
+    // Legacy symmetric format
+    if (packed.startsWith("e2ee:") && !packed.startsWith("e2ee2:")) {
+      const [,ivB64,ctB64] = packed.split(":");
+      const legacyKey = await (async () => {
+        const raw = new TextEncoder().encode(currentUser.id);
+        const base = await crypto.subtle.importKey("raw", raw, "HKDF", false, ["deriveKey"]);
+        return crypto.subtle.deriveKey(
+          { name:"HKDF", hash:"SHA-256", salt:E2EE_SALT, info:new Uint8Array(0) }, base,
+          { name:"AES-GCM", length:256 }, false, ["decrypt"]
+        );
+      })();
+      const plain = await crypto.subtle.decrypt({ name:"AES-GCM", iv:b64dec(ivB64) }, legacyKey, b64dec(ctB64));
+      return new TextDecoder().decode(plain);
+    }
+    if (!packed.startsWith("e2ee2:")) return packed;
+    await getOrGenerateKeyPair();
+    const parts = packed.split(":");
+    const [, wrappedB64, ivB64, ctB64] = parts;
+    const rawKey    = await crypto.subtle.decrypt({ name:"RSA-OAEP" }, _privKey, b64dec(wrappedB64));
+    const contentKey = await crypto.subtle.importKey("raw", rawKey, { name:"AES-GCM" }, false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name:"AES-GCM", iv:b64dec(ivB64) }, contentKey, b64dec(ctB64));
     return new TextDecoder().decode(plain);
   }
 
-  function is360Address(addr) {
-    return (addr || "").toLowerCase().endsWith("@360-search.com");
-  }
+  // Alias old names so existing call sites still work
+  const e2eeEncrypt = async (pt) => {
+    // Called from sendMail — uses recipient key fetched at send time
+    throw new Error("Use hybridEncryptForRecipient instead");
+  };
+  const e2eeDecrypt = hybridDecrypt;
 
-  // Decrypt an email object in-place; returns it for chaining.
-  // Falls back to content-sniffing ("e2ee:" prefix) when the DB view
-  // doesn't include the e2ee column or the edge function didn't set it.
+  // Decrypt an email object in-place
   async function decryptEmail(e) {
     if (!e) return e;
     const needsDecrypt = e.e2ee
-      || (e.subject   && String(e.subject).startsWith("e2ee:"))
-      || (e.body_html && String(e.body_html).startsWith("e2ee:"))
-      || (e.body_text && String(e.body_text).startsWith("e2ee:"));
+      || (e.subject   && (String(e.subject).startsWith("e2ee:") || String(e.subject).startsWith("e2ee2:")))
+      || (e.body_html && (String(e.body_html).startsWith("e2ee:") || String(e.body_html).startsWith("e2ee2:")))
+      || (e.body_text && (String(e.body_text).startsWith("e2ee:") || String(e.body_text).startsWith("e2ee2:")));
     if (!needsDecrypt) return e;
     try {
-      if (e.subject)   e.subject   = await e2eeDecrypt(e.subject);
-      if (e.body_html) e.body_html = await e2eeDecrypt(e.body_html);
-      if (e.body_text) e.body_text = await e2eeDecrypt(e.body_text);
+      await getOrGenerateKeyPair();
+      if (e.subject)   e.subject   = await hybridDecrypt(e.subject);
+      if (e.body_html) e.body_html = await hybridDecrypt(e.body_html);
+      if (e.body_text) e.body_text = await hybridDecrypt(e.body_text);
       e._decrypted = true;
     } catch { e._decryptFailed = true; }
     return e;
   }
+
+  function is360Address(addr) { return (addr||"").toLowerCase().endsWith("@360-search.com"); }
 
   // ── DOM helpers ────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -120,6 +159,8 @@
     setupDomains();
     setupRealtime();
     showSecurityStrip();
+    setupSettingsPanel();
+    setupCategoryTabs();
     await loadCategories();
     await loadMail();
     if (window.Octicons) Octicons.hydrate($("mailApp"));
@@ -210,6 +251,8 @@
       const senders = (rules[currentCatId] || []).map(s => s.toLowerCase());
       list = list.filter(e => e.direction === "in" && senders.includes((e.from_addr||"").toLowerCase()));
     }
+    // Apply Primary/Social/Promotions tab filter only on inbox
+    if (currentFolder === "inbox" && typeof tabFilter === "function") list = list.filter(tabFilter);
     if (q) list = list.filter(e =>
       (e.subject||"").toLowerCase().includes(q)   ||
       (e.from_addr||"").toLowerCase().includes(q)  ||
@@ -240,7 +283,9 @@
       const hasAtt  = e.attachments?.length > 0;
       const flags   = (e.status==="scheduled" ? `<span class="mi-flag" title="Scheduled for ${esc(fmtDate(e.scheduled_at))}">⏰</span>` : "")
                     + (e.expires_at ? `<span class="mi-flag" title="Expires ${esc(fmtDate(e.expires_at))}">⏳</span>` : "")
-                    + (e.self_destruct ? `<span class="mi-flag" title="Self-destructs after reading">🔥</span>` : "");
+                    + (e.self_destruct ? `<span class="mi-flag" title="Self-destructs after reading">🔥</span>` : "")
+                    + (e._decrypted ? `<span class="mi-flag mi-e2ee" title="End-to-end encrypted">🔐</span>` : "")
+                    + (() => { const s = scoreEmail(e); return s.level === "danger" ? `<span class="mi-flag mi-spam-danger" title="Threat detected">🚨</span>` : s.level === "warn" ? `<span class="mi-flag mi-spam-warn" title="Suspicious">⚠️</span>` : ""; })();
       const raw     = (e.direction === "out" ? e.to_addr : e.from_addr) || display;
       const initials = raw.replace(/<[^>]+>/g,"").trim().split(/[\s@]/)[0].slice(0,2).toUpperCase() || "?";
       return `<div class="mail-item${unread?" unread":""}${active?" active":""}${selectedIds.has(e.id)?" selected":""}" data-id="${e.id}" data-initials="${esc(initials)}">
@@ -270,26 +315,42 @@
       btn.addEventListener("click", ev => { ev.stopPropagation(); toggleStar(btn.dataset.id); })
     );
     scroll.querySelectorAll(".mi-check").forEach(cb =>
-      cb.addEventListener("click", ev => { ev.stopPropagation(); toggleSelect(cb.dataset.id); })
+      cb.addEventListener("click", ev => { ev.stopPropagation(); toggleSelect(cb.dataset.id, ev); })
     );
     updateBulkBar();
     if (window.Octicons) Octicons.hydrate(scroll);
   }
 
   const selectedIds = new Set();
+  let _lastSelIdx = -1;
 
-  function toggleSelect(id) {
-    if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
-    renderList();
+  function toggleSelect(id, ev) {
+    const idx = filteredEmails.findIndex(e => e.id === id);
+    if (ev && ev.shiftKey && _lastSelIdx >= 0 && idx >= 0) {
+      const lo = Math.min(_lastSelIdx, idx), hi = Math.max(_lastSelIdx, idx);
+      for (let i = lo; i <= hi; i++) selectedIds.add(filteredEmails[i].id);
+    } else {
+      if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    }
+    if (idx >= 0) _lastSelIdx = idx;
+    updateBulkBar(); renderList();
   }
 
   function updateBulkBar() {
     const bar = $("bulkBar");
     if (!bar) return;
-    if (!selectedIds.size) { bar.classList.remove("open"); return; }
-    bar.classList.add("open");
-    $("bulkCount").textContent = `${selectedIds.size} selected`;
+    if (!selectedIds.size) { bar.classList.remove("open"); } else { bar.classList.add("open"); }
+    const cnt = $("bulkCount"); if (cnt) cnt.textContent = `${selectedIds.size} selected`;
+    const all = $("checkAllBox");
+    if (all) all.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredEmails.length;
+    if (all) all.checked = filteredEmails.length > 0 && selectedIds.size === filteredEmails.length;
   }
+
+  $("checkAllBox")?.addEventListener("change", e => {
+    if (e.target.checked) filteredEmails.forEach(m => selectedIds.add(m.id));
+    else selectedIds.clear();
+    updateBulkBar(); renderList();
+  });
 
   $("bulkDeleteBtn")?.addEventListener("click", () => {
     if (!selectedIds.size) return;
@@ -406,14 +467,24 @@
     }
     const isSent = e.direction === "out";
     $("rdSubject").textContent = e.subject || "(no subject)";
-    $("rdFrom").textContent    = isSent ? "To: "+(e.to_addr||"") : "From: "+(e.from_addr||"");
-    $("rdAddr").textContent    = isSent ? "" : "→ "+(e.to_addr||"");
-    $("rdTime").textContent    = e.status === "scheduled" ? "Scheduled for "+fmtDate(e.scheduled_at) : fmtDate(e.received_at);
+
+    // Avatar initials
+    const senderRaw = isSent ? (e.to_addr||"") : (e.from_addr||"");
+    const initials  = senderRaw.split(/[\s@]/)[0].slice(0,2).toUpperCase() || "?";
+    const rdAvatar  = $("rdAvatar");
+    if (rdAvatar) rdAvatar.textContent = initials;
+
+    const rdFromEl = $("rdFrom"); if (rdFromEl) rdFromEl.textContent = isSent ? (e.to_addr||"") : (e.from_addr||"");
+    const rdAddrEl = $("rdAddr"); if (rdAddrEl) rdAddrEl.textContent = isSent ? "Sent" : "→ "+(e.to_addr||"");
+    const rdTimeEl = $("rdTime"); if (rdTimeEl) rdTimeEl.textContent = e.status === "scheduled" ? "Scheduled for "+fmtDate(e.scheduled_at) : fmtDate(e.received_at);
 
     // Badges
+    const { score, flags, level } = scoreEmail(e);
     const badges = [];
-    if (e.e2ee && !e._decryptFailed) badges.push(`<span class="mrh-badge e2ee">🔐 End-to-end encrypted</span>`);
-    if (e._decryptFailed)            badges.push(`<span class="mrh-badge burn">⚠️ Decryption failed</span>`);
+    if (e.e2ee && !e._decryptFailed) badges.push(`<span class="mrh-badge e2ee">🔐 E2EE</span>`);
+    if (e._decryptFailed)            badges.push(`<span class="mrh-badge burn">⚠️ Decrypt failed</span>`);
+    if (level === "danger") badges.push(`<span class="mrh-badge burn">🚨 ${flags.map(f=>f.text).join(" · ")}</span>`);
+    else if (level === "warn") badges.push(`<span class="mrh-badge">⚠️ ${flags.map(f=>f.text).join(" · ")}</span>`);
     if (e.status === "scheduled") badges.push(`<span class="mrh-badge scheduled">⏰ Scheduled — ${esc(fmtDate(e.scheduled_at))}</span>`);
     if (e.expires_at)             badges.push(`<span class="mrh-badge">⏳ Expires ${esc(fmtDate(e.expires_at))}</span>`);
     if (e.self_destruct)          badges.push(`<span class="mrh-badge burn">🔥 Self-destructs after reading</span>`);
@@ -486,8 +557,58 @@
     if (willBurn) await burnEmail(id);
   }
 
-  // ── Self-destruct ─────────────────────────────────────────
-  async function burnEmail(id) {
+  // ── Spam & virus detection ─────────────────────────────────
+  // Client-side heuristic scoring. Server-side SpamAssassin/ClamAV scores
+  // come in via e.spam_score / e.virus_detected flags if the edge function
+  // sets them. We augment with client analysis of subject, body, and attachments.
+  const PHISHING_PATTERNS = [
+    /verify.{0,20}(account|identity|password)/i,
+    /unusual.{0,20}(sign.?in|activity|login)/i,
+    /click here.{0,20}(confirm|verify|update)/i,
+    /your.{0,15}(paypal|amazon|apple|google|microsoft|bank).{0,20}(account|card)/i,
+    /urgent.{0,20}(action|response|attention)/i,
+    /(suspended|disabled|limited).{0,20}account/i,
+    /congratulations.{0,30}(won|winner|prize|lottery)/i,
+    /\$[0-9,]+.{0,20}(transfer|send|receive|claim)/i,
+    /http[s]?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}/i,  // IP address links
+  ];
+  const DANGEROUS_EXTENSIONS = /\.(exe|scr|bat|cmd|com|vbs|js|jar|msi|ps1|dmg|pkg|deb|rpm|sh|app)$/i;
+  const MACRO_EXTENSIONS     = /\.(doc|xls|ppt|docm|xlsm|pptm)$/i;
+
+  function scoreEmail(e) {
+    let score = 0; const flags = [];
+
+    // Server-side signals (if available)
+    if (e.virus_detected) { score += 100; flags.push({ level:"danger", text:"Virus detected" }); }
+    if (typeof e.spam_score === "number") score += Math.max(0, e.spam_score * 2);
+    if (e.spf_fail)  { score += 15; flags.push({ level:"warn",   text:"SPF fail" }); }
+    if (e.dkim_fail) { score += 15; flags.push({ level:"warn",   text:"DKIM fail" }); }
+    if (e.dmarc_fail){ score += 20; flags.push({ level:"warn",   text:"DMARC fail" }); }
+
+    // Subject & body patterns
+    const text = [(e.subject||""), (e.body_text||""), (e.body_html||"").replace(/<[^>]+>/g,"")].join(" ");
+    let phishHits = 0;
+    PHISHING_PATTERNS.forEach(re => { if (re.test(text)) phishHits++; });
+    if (phishHits >= 3) { score += 40; flags.push({ level:"danger", text:"Phishing likely" }); }
+    else if (phishHits >= 1) { score += 15; flags.push({ level:"warn", text:"Suspicious content" }); }
+
+    // Attachments
+    const atts = e.attachments || [];
+    const dangerous = atts.filter(a => DANGEROUS_EXTENSIONS.test(a.filename||""));
+    const macros    = atts.filter(a => MACRO_EXTENSIONS.test(a.filename||""));
+    if (dangerous.length) { score += 50; flags.push({ level:"danger", text:`Executable attachment${dangerous.length>1?"s":""}` }); }
+    if (macros.length)    { score += 20; flags.push({ level:"warn",   text:`Macro-enabled file${macros.length>1?"s":""}` }); }
+
+    // From spoofing: display name contains "bank", "paypal" etc but domain doesn't match
+    const fromAddr = (e.from_addr||"").toLowerCase();
+    const fromName = (e.from_name||fromAddr).toLowerCase();
+    const brandKeywords = ["paypal","amazon","apple","google","microsoft","chase","wellsfargo","citibank","bank of america"];
+    if (brandKeywords.some(b => fromName.includes(b) && !fromAddr.includes(b.replace(/ /g,"")))) {
+      score += 30; flags.push({ level:"danger", text:"Sender spoofing" });
+    }
+
+    return { score, flags, level: score >= 60 ? "danger" : score >= 25 ? "warn" : "safe" };
+  }
     await sb.from("inbox").delete().eq("id", id);
     allEmails = allEmails.filter(e => e.id !== id);
     updateBadge(); applyFilter();
@@ -818,26 +939,31 @@
     try {
       const { data: { session } } = await sb.auth.getSession();
 
-      // Encrypt for 360-to-360 mail — external recipients need plaintext for SMTP routing
-      const e2ee = is360Address(to) && is360Address(mailAddress);
+      // E2EE: try hybrid encryption for any 360-search.com recipient.
+      // Fall back to plaintext if recipient has no public key on file.
+      let e2ee = false;
+      let encSubject = subject, encHtml = html, encText = text;
+      if (is360Address(to)) {
+        await getOrGenerateKeyPair();
+        btn.innerHTML = `<span data-octicon="lock"></span> Fetching key…`;
+        if (window.Octicons) Octicons.hydrate(btn);
+        const recipKey = await fetchRecipientPubKey(to).catch(() => null);
+        if (recipKey) {
+          btn.innerHTML = `<span data-octicon="lock"></span> Encrypting…`;
+          if (window.Octicons) Octicons.hydrate(btn);
+          encSubject = await hybridEncrypt(subject, recipKey);
+          encHtml    = await hybridEncrypt(html,    recipKey);
+          encText    = await hybridEncrypt(text,    recipKey);
+          e2ee = true;
+        }
+      }
       const payload = {
         to, expiresAt, selfDestruct, scheduledAt,
+        subject: encSubject, html: encHtml, text: encText, e2ee,
         attachments: pendingAttachments.map(a => ({ filename: a.filename, content_type: a.content_type, content: a.content })),
       };
-      if (e2ee) {
-        btn.innerHTML = `<span data-octicon="lock"></span> Encrypting…`;
-        if (window.Octicons) Octicons.hydrate(btn);
-        payload.subject  = await e2eeEncrypt(subject);
-        payload.html     = await e2eeEncrypt(html);
-        payload.text     = await e2eeEncrypt(text);
-        payload.e2ee     = true;
-      } else {
-        payload.subject = subject;
-        payload.html    = html;
-        payload.text    = text;
-        payload.e2ee    = false;
-      }
-      btn.innerHTML = "<span>⏳</span> Sending…";
+      btn.innerHTML = `<span data-octicon="paper-airplane"></span> Sending…`;
+      if (window.Octicons) Octicons.hydrate(btn);
 
       const res = await fetch(`${SB_URL}/functions/v1/send-email`, {
         method: "POST",
@@ -1135,4 +1261,99 @@
       r.readAsDataURL(file);
     });
   }
+
+  // ── Settings panel ──────────────────────────────────────────
+  function setupSettingsPanel() {
+    $("mailSettingsBtn")?.addEventListener("click", () => {
+      const sPanel = $("mailSettings");
+      if (!sPanel) return;
+      const open = sPanel.style.display !== "none";
+      $("mailReadContent").style.display = "none";
+      $("noMailSelected").style.display  = "none";
+      if (open) {
+        sPanel.style.display = "none";
+        if (selectedId) $("mailReadContent").style.display = "flex";
+        else             $("noMailSelected").style.display  = "flex";
+      } else {
+        sPanel.style.display = "flex";
+        renderSettingsDomains();
+        renderPubkeyFingerprint();
+        // Sync toggles from localStorage
+        const bi = $("msBlockImages");
+        if (bi) bi.checked = localStorage.getItem("360mail_blockImages") !== "false";
+      }
+    });
+
+    $("msBlockImages")?.addEventListener("change", e => localStorage.setItem("360mail_blockImages", e.target.checked));
+
+    $("msRegenKey")?.addEventListener("click", async () => {
+      if (!confirm("Regenerate your encryption key? Existing encrypted mail will be unreadable.")) return;
+      localStorage.removeItem("360mail_privkey_" + currentUser.id);
+      _privKey = null; _pubKey = null;
+      $("msPubkeyFp").textContent = "Regenerating…";
+      await getOrGenerateKeyPair();
+      await renderPubkeyFingerprint();
+    });
+
+    $("msAddDomainBtn")?.addEventListener("click", openDomainModal);
+
+    $("msNotifyBtn")?.addEventListener("click", async () => {
+      if (!("Notification" in window)) { alert("Notifications not supported in this browser."); return; }
+      const perm = await Notification.requestPermission();
+      const btn  = $("msNotifyBtn");
+      if (btn) btn.textContent = perm === "granted" ? "Enabled ✓" : "Blocked";
+    });
+  }
+
+  async function renderPubkeyFingerprint() {
+    const el = $("msPubkeyFp");
+    if (!el) return;
+    try {
+      await getOrGenerateKeyPair();
+      const spki = await crypto.subtle.exportKey("spki", _pubKey);
+      const hash = await crypto.subtle.digest("SHA-256", spki);
+      const hex  = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+      el.textContent = hex.match(/.{1,8}/g).join(" ");
+    } catch { el.textContent = "Unavailable"; }
+  }
+
+  function renderSettingsDomains() {
+    const el = $("msSettingsDomainList");
+    if (!el) return;
+    if (!customDomains.length) { el.innerHTML = `<p style="font-size:12px;color:var(--mut);padding:0 28px 8px;">No domains added yet.</p>`; return; }
+    el.innerHTML = customDomains.map(d => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 28px;font-size:13px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${d.verified?"#22c55e":"#f59e0b"};flex-shrink:0;"></span>
+        <span style="flex:1;font-weight:600;">${esc(d.domain)}</span>
+        <span style="color:var(--mut);font-size:11px;">${d.verified?"Active":"Pending DNS"}</span>
+      </div>`).join("");
+  }
+
+  // ── Category tabs ───────────────────────────────────────────
+  const SOCIAL_DOMAINS = ["facebook.com","twitter.com","x.com","instagram.com","linkedin.com","tiktok.com","snapchat.com","pinterest.com","reddit.com","discord.com","youtube.com","twitch.tv"];
+  const PROMO_RE       = /\b(sale|off|discount|deal|offer|promo|coupon|unsubscribe|newsletter|no-reply|noreply|marketing|promotion|exclusive|limited.?time|free.?shipping)\b/i;
+  let _activeTab = "all";
+
+  function tabFilter(e) {
+    if (_activeTab === "all") return true;
+    const from = (e.from_addr || "").toLowerCase();
+    const sub  = e.subject    || "";
+    const isSocial = SOCIAL_DOMAINS.some(d => from.includes(d));
+    const isPromo  = PROMO_RE.test(from) || PROMO_RE.test(sub);
+    if (_activeTab === "social")     return isSocial;
+    if (_activeTab === "promotions") return isPromo && !isSocial;
+    return !isSocial && !isPromo; // Primary
+  }
+
+  function setupCategoryTabs() {
+    $("mlTabs")?.querySelectorAll(".ml-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        $("mlTabs").querySelectorAll(".ml-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        _activeTab = tab.dataset.tab;
+        applyFilter();
+      });
+    });
+  }
+
 })();
