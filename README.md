@@ -138,11 +138,11 @@ Coming soon via the Samsung Galaxy Store.
 - [x] Linux desktop app
 - [X] Mac desktop app
 - [ ] Android app (Samsung Galaxy Store)
-- [x] Android APK
+- [x] Android APK (BETA)
 - [ ] Edge / Opera browser extension
 - [x] Progressive Web App improvements
----
-A native app may not come to any OS store as they now all require an amount of money (directly & indirectly) past our funding.
+-
+A native app may not come to any mobile OS store as they now all require an amount of money (directly & indirectly) past our funding. There will be other ways to download for mobile though, such as APK's provided and most likely an IPA for iOS devices as well.
 ---
 
 # Releases
