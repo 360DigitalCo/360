@@ -1,0 +1,89 @@
+/* ============================================================
+   360 — Mobile bottom nav (replaces hamburger on ≤600px)
+   Addresses ScoutForge: "redone navigation for mobile"
+   ============================================================ */
+
+/* ── Bottom tab bar ────────────────────────────────────────── */
+#mobile-nav {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 200;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.07);
+}
+body.dark #mobile-nav {
+  background: rgba(11,15,26,0.97);
+  border-top-color: rgba(255,255,255,0.09);
+}
+
+.mnav-inner {
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+}
+
+.mnav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: .02em;
+  text-decoration: none;
+  transition: color .15s;
+  padding: 0;
+  position: relative;
+}
+body.dark .mnav-btn { color: #4b5563; }
+.mnav-btn.active { color: var(--a, #3b82f6); }
+.mnav-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+/* Active dot indicator */
+.mnav-btn.active::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 20px; height: 3px;
+  border-radius: 99px;
+  background: var(--a, #3b82f6);
+}
+
+/* Unread badge on mail tab */
+.mnav-badge {
+  position: absolute;
+  top: 4px; right: calc(50% - 18px);
+  min-width: 16px; height: 16px;
+  border-radius: 99px;
+  background: #ef4444; color: #fff;
+  font-size: 9px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+  pointer-events: none;
+}
+
+/* ── Show/hide logic ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  #mobile-nav { display: block; }
+
+  /* Push page content up so it's not hidden under the tab bar */
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Hide the old hamburger toggle on mobile */
+  .sidebar-toggle { display: none !important; }
+
+  /* Sidebar still works as a full-screen sheet when opened via JS */
+  .sidebar { z-index: 300; }
+}
