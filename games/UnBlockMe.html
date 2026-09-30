@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Unblock — 360 Games</title>
+<meta name="description" content="Unblock the red piece across 5,000,000 generated campaign levels, plus an endless infinite mode.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://360-search.com/games/Unblock.html">
+<meta name="theme-color" content="#3b82f6">
+<link rel="icon" href="../favicon-32x32.png" type="image/png">
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/wide.css">
+<link rel="stylesheet" href="/assets/css/gallium.css">
+<link rel="stylesheet" href="/assets/css/responsive.css">
+<link rel="stylesheet" href="/assets/css/cursor.css">
+<link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --ub-wood:#c88643; --ub-wood-dark:#8f5728; --ub-paper:#f4ead9; --ub-ink:#4d3828; --ub-orange:#d97722; --ub-orange-dark:#a94e16; --ub-red:#d94a3d; }
+  .ub-wrap { min-height:100vh; padding:34px 22px 70px; box-sizing:border-box; background:radial-gradient(circle at 50% 0%, rgba(255,255,255,.76), transparent 42%),linear-gradient(180deg,#f5eddf 0%,#eee1cc 100%); color:var(--ub-ink); }
+  .ub-shell { width:min(1050px,100%); margin:0 auto; }
+  .ub-head { display:flex; justify-content:space-between; align-items:flex-end; gap:18px; margin:0 auto 22px; }
+  .ub-kicker { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.18em; opacity:.48; margin-bottom:7px; }
+  .ub-title { margin:0; font-size:clamp(34px,5vw,50px); line-height:.96; letter-spacing:-.045em; color:#4a3424; }
+  .ub-sub { margin:10px 0 0; max-width:650px; opacity:.72; line-height:1.55; font-size:14px; }
+  .ub-head-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .ub-btn { border:1px solid rgba(116,74,39,.18); background:rgba(255,250,242,.74); color:#4d3828; border-radius:11px; min-height:40px; padding:0 14px; font-weight:800; cursor:pointer; box-shadow:0 5px 14px rgba(78,50,24,.08),inset 0 1px rgba(255,255,255,.75); transition:transform .18s ease,box-shadow .18s ease,background .18s ease; }
+  .ub-btn:hover { transform:translateY(-1px); background:#fffaf1; box-shadow:0 8px 18px rgba(78,50,24,.12),inset 0 1px rgba(255,255,255,.85); }
+  .ub-btn.primary { background:linear-gradient(180deg,#e56b39,#cc4b2e); color:#fff; border-color:#ad3b23; box-shadow:0 7px 16px rgba(183,67,38,.24),inset 0 1px rgba(255,255,255,.2); }
+  .ub-layout { display:grid; grid-template-columns:minmax(0,1fr) 285px; gap:18px; align-items:start; }
+  .ub-card { border:1px solid rgba(116,74,39,.17); border-radius:20px; background:rgba(255,248,237,.94); box-shadow:0 14px 28px rgba(78,50,24,.09),inset 0 1px rgba(255,255,255,.72); }
+  .ub-game-card { padding:18px; overflow:hidden; }
+  .ub-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .ub-level-title { display:flex; align-items:center; gap:10px; font-weight:900; color:#4a3424; }
+  .ub-level-pill { padding:6px 9px; border:1px solid rgba(116,74,39,.18); border-radius:999px; font-size:12px; background:rgba(255,255,255,.52); box-shadow:inset 0 1px rgba(255,255,255,.72); }
+  .ub-status { min-height:18px; font-size:13px; opacity:.65; text-align:right; }
+  .ub-board-frame { display:flex; justify-content:center; padding:10px 30px 18px 10px; }
+  .ub-board { --s:min(76px,12vw); --g:5px; position:relative; width:calc(var(--s) * 6 + var(--g) * 5 + 22px); height:calc(var(--s) * 6 + var(--g) * 5 + 22px); box-sizing:border-box; padding:11px; border:2px solid #8c5329; border-radius:20px; background:radial-gradient(circle at 17% 14%,rgba(255,224,173,.28),transparent 26%),repeating-linear-gradient(10deg,rgba(92,49,20,.055) 0,rgba(92,49,20,.055) 2px,transparent 2px,transparent 10px),linear-gradient(135deg,#d59a5a,#b87538 46%,#a7642f 100%); box-shadow:0 16px 34px rgba(77,48,22,.22),inset 0 1px rgba(255,238,204,.55),inset 0 -8px 18px rgba(89,46,17,.16); user-select:none; touch-action:none; }
+  .ub-board::before { content:""; position:absolute; inset:7px; border-radius:14px; border:1px solid rgba(83,45,19,.22); pointer-events:none; }
+  .ub-board::after { content:""; position:absolute; top:calc(11px + 2 * (var(--s) + var(--g)) + 8px); right:-25px; width:28px; height:calc(var(--s) - 16px); border-radius:0 11px 11px 0; background:linear-gradient(180deg,#d8a36b,#bb7740); border:2px solid #8c5329; border-left:0; box-shadow:4px 7px 11px rgba(77,48,22,.15); }
+  .ub-exit { z-index:2; position:absolute; right:-25px; top:calc(11px + 2 * (var(--s) + var(--g)) + 8px); width:28px; height:calc(var(--s) - 16px); border-radius:0 11px 11px 0; background:linear-gradient(180deg,#eed6b0,#d7b47e); border:2px solid #7d4a25; border-left:0; box-sizing:border-box; }
+  .ub-exit::after { content:"→"; position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:18px; line-height:1; font-weight:900; color:#76502e; }
+  .ub-piece { position:absolute; box-sizing:border-box; border-radius:11px; cursor:grab; display:flex; align-items:center; justify-content:center; touch-action:none; transition:none; will-change:transform; backface-visibility:hidden; -webkit-backface-visibility:hidden; border:1px solid rgba(112,54,18,.34); box-shadow:0 7px 10px rgba(79,43,19,.20),inset 0 2px rgba(255,238,210,.45),inset 0 -5px 8px rgba(104,46,12,.14); overflow:hidden; }
+  .ub-piece::before { content:""; position:absolute; inset:4px; border-radius:8px; border:1px solid rgba(255,255,255,.12); pointer-events:none; }
+  .ub-piece::after { content:""; width:40%; height:18%; border-radius:999px; background:rgba(255,245,224,.22); filter:blur(.2px); box-shadow:0 1px 0 rgba(255,255,255,.15); }
+  .ub-piece:hover { box-shadow:0 9px 14px rgba(79,43,19,.22),inset 0 2px rgba(255,238,210,.52),inset 0 -5px 8px rgba(104,46,12,.15); }
+  .ub-piece.dragging { cursor:grabbing; box-shadow:0 14px 19px rgba(79,43,19,.26),inset 0 2px rgba(255,238,210,.52),inset 0 -5px 8px rgba(104,46,12,.15); z-index:20; }
+  .ub-piece.target { background:linear-gradient(180deg,#ea6451,#ca3f35); border-color:#9d2f2b; box-shadow:0 8px 13px rgba(120,45,31,.24),inset 0 2px rgba(255,239,224,.42),inset 0 -6px 9px rgba(103,34,24,.18); }
+  .ub-piece.block-a,.ub-piece.block-b,.ub-piece.block-c,.ub-piece.block-d,.ub-piece.block-e,.ub-piece.block-f { background:linear-gradient(180deg,#e19a4b,#bf6728); }
+  .ub-piece.block-b { background:linear-gradient(180deg,#eeaa59,#cb702c); }
+  .ub-piece.block-c { background:linear-gradient(180deg,#d89043,#b85e25); }
+  .ub-piece.block-d { background:linear-gradient(180deg,#e6a352,#c36a27); }
+  .ub-piece.block-e { background:linear-gradient(180deg,#d6873c,#b85a24); }
+  .ub-piece.block-f { background:linear-gradient(180deg,#eda14a,#c96926); }
+  .ub-info { padding:18px; }
+  .ub-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .ub-stat { padding:12px; border:1px solid rgba(116,74,39,.14); border-radius:13px; background:rgba(255,252,246,.54); box-shadow:inset 0 1px rgba(255,255,255,.6); }
+  .ub-stat-label { text-transform:uppercase; letter-spacing:.08em; font-size:9px; font-weight:900; opacity:.48; }
+  .ub-stat-value { font-size:21px; font-weight:900; margin-top:3px; }
+  .ub-section { margin-top:18px; }
+  .ub-section h2 { margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.1em; opacity:.54; }
+  .ub-copy { margin:0; font-size:13px; line-height:1.62; opacity:.72; }
+  .ub-levels { display:flex; gap:7px; flex-wrap:wrap; }
+  .ub-level-btn { min-width:34px; height:34px; padding:0 9px; border-radius:9px; border:1px solid rgba(116,74,39,.15); background:rgba(255,250,242,.58); color:#4d3828; cursor:pointer; font-weight:800; box-shadow:inset 0 1px rgba(255,255,255,.62); }
+  .ub-level-btn.active { background:#d86734; color:#fff; border-color:#b64d25; }
+  .ub-controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+  .ub-controls .ub-btn { width:100%; }
+  .ub-modes { display:flex; gap:7px; flex-wrap:wrap; margin:0 0 14px; padding:5px; border:1px solid rgba(116,74,39,.14); border-radius:13px; background:rgba(155,99,46,.08); }
+  .ub-mode { border:0; border-radius:9px; padding:9px 12px; background:transparent; color:inherit; font:inherit; font-size:12px; font-weight:900; cursor:pointer; opacity:.56; transition:background .16s ease,opacity .16s ease,transform .16s ease; }
+  .ub-mode:hover { opacity:.9; transform:translateY(-1px); }
+  .ub-mode.active { opacity:1; background:#fff8ea; box-shadow:0 3px 10px rgba(92,53,22,.10),inset 0 1px rgba(255,255,255,.85); }
+  .ub-jump { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px; margin-bottom:9px; }
+  .ub-jump input,.ub-online-name input { width:100%; box-sizing:border-box; min-height:40px; padding:0 11px; border:1px solid rgba(116,74,39,.16); border-radius:10px; background:rgba(255,252,247,.64); color:#4d3828; font:inherit; font-weight:750; }
+  .ub-jump input:focus,.ub-online-name input:focus { outline:2px solid rgba(207,92,48,.3); outline-offset:1px; }
+  .ub-mini { margin-top:8px; font-size:11px; opacity:.54; }
+  .ub-online-name { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px; margin-top:9px; }
+  .ub-online-status { font-size:11px; opacity:.52; margin-top:8px; }
+  .ub-online-status.ok { opacity:.78; color:#8d552d; }
+  .ub-lb { display:grid; gap:6px; }
+  .ub-lb-row { display:grid; grid-template-columns:26px minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(116,74,39,.09); font-size:11px; }
+  .ub-lb-row:last-child { border-bottom:0; }
+  .ub-lb-rank { font-weight:900; opacity:.5; }
+  .ub-lb-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:800; }
+  .ub-lb-stat { opacity:.58; white-space:nowrap; }
+  .ub-lb-empty { font-size:12px; opacity:.5; padding:8px 0; }
+  .ub-win { position:fixed; inset:0; display:none; place-items:center; z-index:2000; background:rgba(56,37,22,.45); padding:18px; }
+  .ub-win.show { display:grid; }
+  .ub-win-box { width:min(410px,100%); padding:28px; border:1px solid rgba(116,74,39,.18); border-radius:22px; background:#fff8ea; box-shadow:0 30px 90px rgba(54,35,20,.26); text-align:center; color:#4d3828; }
+  .ub-win-kicker { font-size:11px; letter-spacing:.16em; font-weight:900; opacity:.5; text-transform:uppercase; }
+  .ub-win-box h2 { margin:7px 0 5px; font-size:32px; }
+  .ub-win-box p { margin:0 0 18px; opacity:.7; font-size:14px; }
+  .ub-win-actions { display:flex; gap:8px; justify-content:center; }
+  @media (max-width:900px) { .ub-layout { grid-template-columns:1fr; } .ub-info { order:2; } .ub-status { text-align:left; width:100%; } }
+  @media (max-width:600px) { .ub-wrap { padding:22px 14px 48px; } .ub-head { align-items:flex-start; flex-direction:column; } .ub-head-actions { justify-content:flex-start; } .ub-game-card { padding:13px; } .ub-board-frame { padding-right:21px; } .ub-board { --s:min(12.7vw,58px); --g:4px; padding:8px; border-radius:16px; } .ub-piece { border-radius:9px; } .ub-exit,.ub-board::after { right:-20px; } }
+</style>
+</head>
+<body>
+<div class="cursor-dot"></div>
+<div class="cursor-trail"></div>
+<div class="cursor-crosshair"></div>
+<div class="cursor-blob"></div>
+
+<div class="auth-top-right">
+  <button class="auth-btn" id="signInBtn">Sign In</button>
+  <button class="auth-btn" id="signUpBtn">Sign Up</button>
+  <button class="auth-btn" id="signOutBtn" style="display:none;">Sign Out</button>
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle">Menu</button>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-mark"></div>
+    <button id="settingsBtn" aria-label="Settings">Settings</button>
+  </div>
+  <nav class="nav-list">
+    <div class="nav-item" data-href="../">Home</div>
+    <div class="nav-item" data-href="../ai">AI</div>
+    <div class="nav-item" data-href="../weather">Weather</div>
+    <div class="nav-item" data-href="../translator">Translator</div>
+    <div class="nav-item" data-href="../stocks">Stocks</div>
+    <div class="nav-item" data-href="../url-shortener">URL Shortener</div>
+    <div class="nav-item" data-href="../chat">Chat</div>
+    <div class="nav-item" data-href="../news">News</div>
+    <div class="nav-item" data-href="../apps">Apps</div>
+    <div class="nav-item active" data-href="../games">Games</div>
+    <div class="nav-item" data-href="../rewards">Rewards</div>
+  </nav>
+  <div class="sidebar-footer">© 2026 360 INC. · V.3.6.2</div>
+</aside>
+<div class="overlay" id="overlay"></div>
+
+<div class="settings-panel" id="settingsPanel">
+  <h3>Appearance</h3>
+  <div class="settings-label">Mode</div>
+  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+    <span style="font-size:14px;">Dark mode</span>
+    <input id="darkToggle" type="checkbox">
+  </label>
+</div>
+
+<main class="ub-wrap">
+  <div class="ub-shell">
+    <header class="ub-head">
+      <div>
+        <div class="ub-kicker">360 Games</div>
+        <h1 class="ub-title">Unblock</h1>
+        <p class="ub-sub">Slide the orange blocks along their tracks until the red block has a clear path to the exit. Every move counts.</p>
+      </div>
+      <div class="ub-head-actions">
+        <button class="ub-btn" id="backGames">Back to Games</button>
+        <button class="ub-btn primary" id="newPuzzle">New Puzzle</button>
+      </div>
+    </header>
+
+    <section class="ub-layout">
+      <div class="ub-card ub-game-card">
+        <div class="ub-toolbar">
+          <div class="ub-level-title"><span class="ub-level-pill" id="levelLabel">Level 1</span><span id="levelTitle">Clear the exit</span></div>
+          <div class="ub-status" id="status">Clear the lane for the red block.</div>
+        </div>
+        <div class="ub-modes" role="tablist" aria-label="Unblock modes">
+          <button class="ub-mode active" id="campaignMode" role="tab" aria-selected="true">Campaign · 5,000,000 levels</button>
+          <button class="ub-mode" id="infiniteMode" role="tab" aria-selected="false">Infinite</button>
+        </div>
+        <div class="ub-board-frame">
+          <div class="ub-board" id="board" aria-label="Unblock puzzle board"><div class="ub-exit" aria-hidden="true"></div></div>
+        </div>
+        <div class="ub-controls">
+          <button class="ub-btn" id="undoBtn">Undo</button>
+          <button class="ub-btn" id="resetBtn">Reset Level</button>
+        </div>
+      </div>
+
+      <aside class="ub-card ub-info">
+        <div class="ub-stats">
+          <div class="ub-stat"><div class="ub-stat-label">Moves</div><div class="ub-stat-value" id="moves">0</div></div>
+          <div class="ub-stat"><div class="ub-stat-label">Best</div><div class="ub-stat-value" id="best">—</div></div>
+          <div class="ub-stat"><div class="ub-stat-label">Solved</div><div class="ub-stat-value" id="solved">0</div></div>
+        </div>
+
+        <div class="ub-section">
+          <h2>How to play</h2>
+          <p class="ub-copy">Drag the orange bars along their long direction. Clear the lane for the red bar, then send it out through the opening on the right.</p>
+        </div>
+
+        <div class="ub-section" id="campaignPanel">
+          <h2>Jump to level</h2>
+          <div class="ub-jump">
+            <input id="levelJump" type="number" min="1" max="5000000" value="1" inputmode="numeric" aria-label="Campaign level">
+            <button class="ub-btn primary" id="jumpBtn">Go</button>
+          </div>
+          <div class="ub-levels" id="levels"></div>
+          <p class="ub-copy ub-mini" id="campaignProgress">5,000,000 levels are generated on demand from a deterministic seed.</p>
+        </div>
+        <div class="ub-section" id="infinitePanel" hidden>
+          <h2>Infinite run</h2>
+          <p class="ub-copy">No final level. Every puzzle is generated from your run number, so the stream can continue indefinitely.</p>
+          <p class="ub-copy ub-mini" id="infiniteProgress">Puzzle 1 in this run.</p>
+        </div>
+        <div class="ub-section">
+          <h2>Online scores</h2>
+          <div class="ub-online-status" id="onlineStatus">Connecting to Supabase…</div>
+          <div class="ub-online-name">
+            <input id="playerName" maxlength="32" autocomplete="nickname" placeholder="Your player name" aria-label="Player name">
+            <button class="ub-btn" id="savePlayerName">Save</button>
+          </div>
+          <div class="ub-lb" id="leaderboard"><div class="ub-lb-empty">Loading leaderboard…</div></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+</main>
+
+<div class="ub-win" id="winModal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+  <div class="ub-win-box">
+    <div class="ub-win-kicker">Puzzle cleared</div>
+    <h2 id="winTitle">Nice.</h2>
+    <p id="winCopy">You got the red block to the exit.</p>
+    <div class="ub-win-actions">
+      <button class="ub-btn" id="replayBtn">Replay</button>
+      <button class="ub-btn primary" id="nextBtn">Next Level</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const HAND_LEVELS = [[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":4,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":1,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":4,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":3,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":4,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":3,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":4,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":2,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":1,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":2,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":1,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":2,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":2,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":1,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":4,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":2,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":3,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":1,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":2,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":4,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":0,"len":3,"o":"h"},{"id":"H","r":3,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":3,"len":2,"o":"h"}],[{"id":"T","r":2,"c":3,"len":2,"o":"h","target":true},{"id":"A","r":0,"c":0,"len":2,"o":"h"},{"id":"B","r":0,"c":2,"len":3,"o":"v"},{"id":"C","r":0,"c":4,"len":2,"o":"v"},{"id":"D","r":1,"c":0,"len":2,"o":"h"},{"id":"E","r":0,"c":5,"len":2,"o":"v"},{"id":"F","r":3,"c":3,"len":3,"o":"h"},{"id":"H","r":4,"c":4,"len":2,"o":"v"},{"id":"G","r":4,"c":2,"len":2,"o":"h"},{"id":"K","r":4,"c":0,"len":2,"o":"h"},{"id":"I","r":5,"c":0,"len":2,"o":"h"},{"id":"J","r":5,"c":2,"len":2,"o":"h"}]];
+
+  const COLORS = ['a','b','c','d','e','f'];
+  const CAMPAIGN_COUNT = 5000000;
+  const MODE_CAMPAIGN = 'campaign';
+  const MODE_INFINITE = 'infinite';
+  const STORAGE = '360-unblock-progress-v3';
+  const ONLINE_STORAGE = '360-unblock-online-v1';
+  const SUPABASE_URL = 'https://xcseqgpbwexfqbssfszq.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhjc2VxZ3Bid2V4ZnFic3Nmc3pxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NTQ0NDEsImV4cCI6MjEwNTMzMDQ0MX0.rypJW0eVU15JG-N7Iwrr6U-ELtrIC_gm_xQdQpoeiH8';
+  const onlineClient = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+  const PLAYER_ID = (() => {
+    const existing = localStorage.getItem(ONLINE_STORAGE + ':id');
+    if (existing) return existing;
+    const value = crypto.randomUUID ? crypto.randomUUID() : ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r=Math.random()*16|0, v=c==='x'?r:(r&3|8); return v.toString(16); }));
+    localStorage.setItem(ONLINE_STORAGE + ':id', value);
+    return value;
+  })();
+  const DEFAULT_PLAYER_NAME = `Player-${PLAYER_ID.slice(0,4).toUpperCase()}`;
+  let playerName = (localStorage.getItem(ONLINE_STORAGE + ':name') || DEFAULT_PLAYER_NAME).slice(0,32);
+  let puzzleStartedAt = Date.now();
+  let onlineLoadToken = 0;
+
+  const $ = (id) => document.getElementById(id);
+  const boardEl = $('board');
+  const levelLabel = $('levelLabel');
+  const levelTitle = $('levelTitle');
+  const statusEl = $('status');
+  const movesEl = $('moves');
+  const bestEl = $('best');
+  const solvedEl = $('solved');
+  const levelsEl = $('levels');
+  const winModal = $('winModal');
+  const winCopy = $('winCopy');
+  const campaignPanel = $('campaignPanel');
+  const infinitePanel = $('infinitePanel');
+  const campaignProgress = $('campaignProgress');
+  const infiniteProgress = $('infiniteProgress');
+  const levelJump = $('levelJump');
+  const onlineStatus = $('onlineStatus');
+  const playerNameInput = $('playerName');
+  const leaderboardEl = $('leaderboard');
+
+  const BASE_LAYOUT = [
+    {id:'T',r:2,c:4,len:2,o:'h',target:true},
+    {id:'A',r:0,c:0,len:2,o:'v'},
+    {id:'B',r:0,c:2,len:2,o:'v'},
+    {id:'C',r:0,c:5,len:2,o:'v'},
+    {id:'D',r:3,c:1,len:2,o:'v'},
+    {id:'E',r:3,c:3,len:2,o:'v'},
+    {id:'F',r:3,c:5,len:2,o:'v'},
+    {id:'G',r:0,c:3,len:2,o:'h'},
+    {id:'H',r:1,c:3,len:2,o:'h'},
+    {id:'I',r:5,c:0,len:2,o:'h'},
+    {id:'J',r:5,c:2,len:2,o:'h'},
+    {id:'K',r:5,c:4,len:2,o:'h'}
+  ];
+
+  const PUZZLE_LIBRARY = {"5":["-!)&468$*?AC","3?;D.02B<!#%","-!#,468$*?AC","3?A>.02B<!#%","-!#&408$*?AC","3?AD.62B<!#%","-!#&462$*?AC","3?AD.08B<!#%",".'#,468$*?AC","49A>.02B<!#%",".'#&408$*?AC","49AD.62B<!#%",".'#&462$*?AC","49AD.08B<!#%",".!#,408$*?AC","4?A>.62B<!#%",".!#,468%*?AC","4?A>.02C<!#%",".!#&402$*?AC","4?AD.68B<!#%","/-#,468$*?AC","53A>.02B<!#%","/-#&462$*?AC","53AD.08B<!#%","/'#,.68$*?AC","59A>402B<!#%","/'#,468%*?AC","59A>.02C<!#%","/'#&.62$*?AC","59AD408B<!#%","/!#,(68$*?AC","5?A>:02B<!#%","/!#,.68%*?AC","5?A>402C<!#%","/!#&(62$*?AC","5?AD:08B<!#%","03#,468$*?AC","6-A>.02B<!#%","03#&462$*?AC","6-AD.08B<!#%","0-),468$*?AC","63;>.02B<!#%","0-)&462$*?AC","63;D.08B<!#%","0-#,.68$*?AC","63A>402B<!#%","0-#,468%*?AC","63A>.02C<!#%","0-#&.62$*?AC","63AD408B<!#%","0'/,468$*?AC","695>.02B<!#%","0'/&462$*?AC","695D.08B<!#%","0'),.68$*?AC","69;>402B<!#%","0'),468#*?AC","69;>.02A<!#%","0'),468%*?AC","69;>.02C<!#%","0')&.62$*?AC","69;D408B<!#%","0')&462#*?AC","69;D.08A<!#%","0'#,(68$*?AC","69A>:02B<!#%","0'#,.68%*?AC","69A>402C<!#%","0'#&(62$*?AC","69AD:08B<!#%","0!5,468$*?AC","6?/>.02B<!#%","0!5&462$*?AC","6?/D.08B<!#%","0!/,.68$*?AC","6?5>402B<!#%","0!/,468#*?AC","6?5>.02A<!#%","0!/,468%*?AC","6?5>.02C<!#%","0!/,468$)?AC","6?5>.02B;!#%","0!/&.62$*?AC","6?5D408B<!#%","0!/&462#*?AC","6?5D.08A<!#%","0!/&462$)?AC","6?5D.08B;!#%","0!),(68$*?AC","6?;>:02B<!#%","0!),.68#*?AC","6?;>402A<!#%","0!),.68%*?AC","6?;>402C<!#%","0!),468\"*?AC","6?;>.02@<!#%","0!)&(62$*?AC","6?;D:08B<!#%","0!)&.62#*?AC","6?;D408A<!#%","0!)&462\"*?AC","6?;D.08@<!#%","0!#,\"68$*?AC","6?A>@02B<!#%","0!#,(68%*?AC","6?A>:02C<!#%","0!#&\"62$*?AC","6?AD@08B<!#%"],"6":["-!/&468$*?AC","3?5D.02B<!#%","-!),468$*?AC","3?;>.02B<!#%","-!)&408$*?AC","3?;D.62B<!#%","-!)&462$*?AC","3?;D.08B<!#%","-!)&468#*?AC","3?;D.02A<!#%","-!#,408$*?AC","3?A>.62B<!#%","-!#,468%*?AC","3?A>.02C<!#%","-!#&402$*?AC","3?AD.68B<!#%",".-#,468$*?AC","43A>.02B<!#%",".-#&408$*?AC","43AD.62B<!#%",".-#&462$*?AC","43AD.08B<!#%",".'#,408$*?AC","49A>.62B<!#%",".'#,468%*?AC","49A>.02C<!#%",".'#&402$*?AC","49AD.68B<!#%",".!#,408%*?AC","4?A>.62C<!#%","/3#,468$*?AC","5-A>.02B<!#%","/3#&462$*?AC","5-AD.08B<!#%","/-#,.68$*?AC","53A>402B<!#%","/-#,468%*?AC","53A>.02C<!#%","/-#&.62$*?AC","53AD408B<!#%","/'#,(68$*?AC","59A>:02B<!#%","/'#,.68%*?AC","59A>402C<!#%","/'#&(62$*?AC","59AD:08B<!#%","/!#,\"68$*?AC","5?A>@02B<!#%","/!#,(68%*?AC","5?A>:02C<!#%","/!#&\"62$*?AC","5?AD@08B<!#%","03),468$*?AC","6-;>.02B<!#%","03)&462$*?AC","6-;D.08B<!#%","03#,.68$*?AC","6-A>402B<!#%","03#,468%*?AC","6-A>.02C<!#%","03#&.62$*?AC","6-AD408B<!#%","0-/,468$*?AC","635>.02B<!#%","0-/&462$*?AC","635D.08B<!#%","0-),.68$*?AC","63;>402B<!#%","0-),468#*?AC","63;>.02A<!#%","0-),468%*?AC","63;>.02C<!#%","0-)&.62$*?AC","63;D408B<!#%","0-)&462#*?AC","63;D.08A<!#%","0-#,(68$*?AC","63A>:02B<!#%","0-#,.68%*?AC","63A>402C<!#%","0-#&(62$*?AC","63AD:08B<!#%","0'5,468$*?AC","69/>.02B<!#%","0'5&462$*?AC","69/D.08B<!#%","0'/,.68$*?AC","695>402B<!#%","0'/,468#*?AC","695>.02A<!#%","0'/,468%*?AC","695>.02C<!#%","0'/,468$)?AC","695>.02B;!#%","0'/&.62$*?AC","695D408B<!#%","0'/&462#*?AC","695D.08A<!#%","0'/&462$)?AC","695D.08B;!#%","0'),(68$*?AC","69;>:02B<!#%","0'),.68#*?AC","69;>402A<!#%","0'),.68%*?AC","69;>402C<!#%","0'),468\"*?AC","69;>.02@<!#%","0')&(62$*?AC","69;D:08B<!#%","0')&.62#*?AC","69;D408A<!#%","0')&462\"*?AC","69;D.08@<!#%","0'#,\"68$*?AC","69A>@02B<!#%","0'#,(68%*?AC","69A>:02C<!#%","0'#&\"62$*?AC","69AD@08B<!#%","/!5,468$*?AC","5?/>.02B<!#%","/!5&462$*?AC","5?/D.08B<!#%","0!5,.68$*?AC","6?/>402B<!#%","0!5,468#*?AC","6?/>.02A<!#%","0!5,468%*?AC","6?/>.02C<!#%","0!5,468$)?AC","6?/>.02B;!#%","0!5&.62$*?AC","6?/D408B<!#%","0!5&462#*?AC","6?/D.08A<!#%","0!5&462$)?AC","6?/D.08B;!#%","0!/,(68$*?AC","6?5>:02B<!#%","0!/,.68#*?AC","6?5>402A<!#%","0!/,.68%*?AC","6?5>402C<!#%","0!/,.68$)?AC","6?5>402B;!#%","0!/,468\"*?AC","6?5>.02@<!#%","0!/,468#)?AC","6?5>.02A;!#%","0!/,468%)?AC","6?5>.02C;!#%","0!/,468$(?AC","6?5>.02B:!#%","0!/&(62$*?AC","6?5D:08B<!#%","0!/&.62#*?AC","6?5D408A<!#%","0!/&.62$)?AC","6?5D408B;!#%","0!/&462\"*?AC","6?5D.08@<!#%","0!/&462#)?AC","6?5D.08A;!#%","0!/&462$(?AC","6?5D.08B:!#%","0!),\"68$*?AC","6?;>@02B<!#%","0!),(68#*?AC","6?;>:02A<!#%","0!),(68%*?AC","6?;>:02C<!#%","0!),.68\"*?AC","6?;>402@<!#%","0!)&\"62$*?AC","6?;D@08B<!#%","0!)&(62#*?AC","6?;D:08A<!#%","0!)&.62\"*?AC","6?;D408@<!#%","0!#,\"68%*?AC","6?A>@02C<!#%"],"7":["-!/,468$*?AC","3?5>.02B<!#%","-!/&408$*?AC","3?5D.62B<!#%","-!/&462$*?AC","3?5D.08B<!#%","-!/&468#*?AC","3?5D.02A<!#%","-!/&468$)?AC","3?5D.02B;!#%","-!),408$*?AC","3?;>.62B<!#%","-!),468#*?AC","3?;>.02A<!#%","-!),468%*?AC","3?;>.02C<!#%","-!)&402$*?AC","3?;D.68B<!#%","-!)&408#*?AC","3?;D.62A<!#%","-!)&462#*?AC","3?;D.08A<!#%","-!)&468\"*?AC","3?;D.02@<!#%","-!#,408%*?AC","3?A>.62C<!#%",".3#,468$*?AC","4-A>.02B<!#%",".3#&408$*?AC","4-AD.62B<!#%",".3#&462$*?AC","4-AD.08B<!#%",".-#,408$*?AC","43A>.62B<!#%",".-#,468%*?AC","43A>.02C<!#%",".-#&402$*?AC","43AD.68B<!#%",".'#,408%*?AC","49A>.62C<!#%","/3#,.68$*?AC","5-A>402B<!#%","/3#,468%*?AC","5-A>.02C<!#%","/3#&.62$*?AC","5-AD408B<!#%","/-#,(68$*?AC","53A>:02B<!#%","/-#,.68%*?AC","53A>402C<!#%","/-#&(62$*?AC","53AD:08B<!#%","/'#,\"68$*?AC","59A>@02B<!#%","/'#,(68%*?AC","59A>:02C<!#%","/'#&\"62$*?AC","59AD@08B<!#%",".!#,\"68$*?AC","4?A>@02B<!#%","/!#,\"68%*?AC","5?A>@02C<!#%",".!#&\"08$*?AC","4?AD@62B<!#%",".!#&\"62$*?AC","4?AD@08B<!#%","03/,468$*?AC","6-5>.02B<!#%","03/&462$*?AC","6-5D.08B<!#%","03),.68$*?AC","6-;>402B<!#%","03),468#*?AC","6-;>.02A<!#%","03),468%*?AC","6-;>.02C<!#%","03)&.62$*?AC","6-;D408B<!#%","03)&462#*?AC","6-;D.08A<!#%","03#,(68$*?AC","6-A>:02B<!#%","03#,.68%*?AC","6-A>402C<!#%","03#&(62$*?AC","6-AD:08B<!#%","0-5,468$*?AC","63/>.02B<!#%","0-5&462$*?AC","63/D.08B<!#%","0-/,.68$*?AC","635>402B<!#%","0-/,468#*?AC","635>.02A<!#%","0-/,468%*?AC","635>.02C<!#%","0-/,468$)?AC","635>.02B;!#%","0-/&.62$*?AC","635D408B<!#%","0-/&462#*?AC","635D.08A<!#%","0-/&462$)?AC","635D.08B;!#%","0-),(68$*?AC","63;>:02B<!#%","0-),.68#*?AC","63;>402A<!#%","0-),.68%*?AC","63;>402C<!#%","0-),468\"*?AC","63;>.02@<!#%","0-)&(62$*?AC","63;D:08B<!#%","0-)&.62#*?AC","63;D408A<!#%","0-)&462\"*?AC","63;D.08@<!#%","0-#,\"68$*?AC","63A>@02B<!#%","0-#,(68%*?AC","63A>:02C<!#%","0-#&\"62$*?AC","63AD@08B<!#%","/'5,468$*?AC","59/>.02B<!#%","/'5&462$*?AC","59/D.08B<!#%","0'5,.68$*?AC","69/>402B<!#%","0'5,468#*?AC","69/>.02A<!#%","0'5,468%*?AC","69/>.02C<!#%","0'5,468$)?AC","69/>.02B;!#%","0'5&.62$*?AC","69/D408B<!#%","0'5&462#*?AC","69/D.08A<!#%","0'5&462$)?AC","69/D.08B;!#%","0'/,(68$*?AC","695>:02B<!#%","0'/,.68#*?AC","695>402A<!#%","0'/,.68%*?AC","695>402C<!#%","0'/,.68$)?AC","695>402B;!#%","0'/,468\"*?AC","695>.02@<!#%","0'/,468#)?AC","695>.02A;!#%","0'/,468%)?AC","695>.02C;!#%","0'/,468$(?AC","695>.02B:!#%","0'/&(62$*?AC","695D:08B<!#%","0'/&.62#*?AC","695D408A<!#%","0'/&.62$)?AC","695D408B;!#%","0'/&462\"*?AC","695D.08@<!#%","0'/&462#)?AC","695D.08A;!#%","0'/&462$(?AC","695D.08B:!#%","0'),\"68$*?AC","69;>@02B<!#%","0'),(68#*?AC","69;>:02A<!#%","0'),(68%*?AC","69;>:02C<!#%","0'),.68\"*?AC","69;>402@<!#%","0'),468!*?AC","69;>.02?<!#%","0')&\"62$*?AC","69;D@08B<!#%","0')&(62#*?AC","69;D:08A<!#%","0')&.62\"*?AC","69;D408@<!#%","0')&462!*?AC","69;D.08?<!#%","0'#,\"68%*?AC","69A>@02C<!#%",".!5,468$*?AC","4?/>.02B<!#%",".!5&408$*?AC","4?/D.62B<!#%",".!5&462$*?AC","4?/D.08B<!#%","/!5,.68$*?AC","5?/>402B<!#%","/!5,468#*?AC","5?/>.02A<!#%","/!5,468%*?AC","5?/>.02C<!#%","/!5,468$)?AC","5?/>.02B;!#%","/!5&.62$*?AC","5?/D408B<!#%","/!5&462#*?AC","5?/D.08A<!#%","/!5&462$)?AC","5?/D.08B;!#%","0!5,(68$*?AC","6?/>:02B<!#%","0!5,.68#*?AC","6?/>402A<!#%","0!5,.68%*?AC","6?/>402C<!#%","0!5,.68$)?AC","6?/>402B;!#%","0!5,468\"*?AC","6?/>.02@<!#%","0!5,468#)?AC","6?/>.02A;!#%","0!5,468%)?AC","6?/>.02C;!#%","0!5,468$(?AC","6?/>.02B:!#%","0!5&(62$*?AC","6?/D:08B<!#%","0!5&.62#*?AC","6?/D408A<!#%","0!5&.62$)?AC","6?/D408B;!#%","0!5&462\"*?AC","6?/D.08@<!#%","0!5&462#)?AC","6?/D.08A;!#%","0!5&462$(?AC","6?/D.08B:!#%","0!/,\"68$*?AC","6?5>@02B<!#%","0!/,(68#*?AC","6?5>:02A<!#%","0!/,(68%*?AC","6?5>:02C<!#%","0!/,(68$)?AC","6?5>:02B;!#%","0!/,.68\"*?AC","6?5>402@<!#%","0!/,.68#)?AC","6?5>402A;!#%","0!/,.68%)?AC","6?5>402C;!#%","0!/,.68$(?AC","6?5>402B:!#%","0!/,468\")?AC","6?5>.02@;!#%","0!/,468#(?AC","6?5>.02A:!#%","0!/,468%(?AC","6?5>.02C:!#%","0!/&\"62$*?AC","6?5D@08B<!#%","0!/&(62#*?AC","6?5D:08A<!#%","0!/&(62$)?AC","6?5D:08B;!#%","0!/&.62\"*?AC","6?5D408@<!#%","0!/&.62#)?AC","6?5D408A;!#%","0!/&.62$(?AC","6?5D408B:!#%","0!/&462\")?AC","6?5D.08@;!#%","0!/&462#(?AC","6?5D.08A:!#%","0!),\"68#*?AC","6?;>@02A<!#%","0!),\"68%*?AC","6?;>@02C<!#%","0!),(68\"*?AC","6?;>:02@<!#%","0!)&\"62#*?AC","6?;D@08A<!#%","0!)&(62\"*?AC","6?;D:08@<!#%"],"8":["-!5,468$*?AC","3?/>.02B<!#%","-!5&408$*?AC","3?/D.62B<!#%","-!5&462$*?AC","3?/D.08B<!#%","-!/,408$*?AC","3?5>.62B<!#%","-!/,468#*?AC","3?5>.02A<!#%","-!/,468%*?AC","3?5>.02C<!#%","-!/,468$)?AC","3?5>.02B;!#%","-!/&402$*?AC","3?5D.68B<!#%","-!/&408#*?AC","3?5D.62A<!#%","-!/&408$)?AC","3?5D.62B;!#%","-!/&462#*?AC","3?5D.08A<!#%","-!/&462$)?AC","3?5D.08B;!#%","-!/&468\"*?AC","3?5D.02@<!#%","-!/&468#)?AC","3?5D.02A;!#%","-!/&468$(?AC","3?5D.02B:!#%","-!),408#*?AC","3?;>.62A<!#%","-!),408%*?AC","3?;>.62C<!#%","-!),468\"*?AC","3?;>.02@<!#%","-!)&402#*?AC","3?;D.68A<!#%","-!)&408\"*?AC","3?;D.62@<!#%","-!)&462\"*?AC","3?;D.08@<!#%","-3)&468$*?AC","3-;D.02B<!#%","-3#,468$*?AC","3-A>.02B<!#%","-3#&408$*?AC","3-AD.62B<!#%","-3#&462$*?AC","3-AD.08B<!#%",".3#,408$*?AC","4-A>.62B<!#%",".3#,468%*?AC","4-A>.02C<!#%",".3#&402$*?AC","4-AD.68B<!#%",".-#,408%*?AC","43A>.62C<!#%","/3#,(68$*?AC","5-A>:02B<!#%","/3#,.68%*?AC","5-A>402C<!#%","/3#&(62$*?AC","5-AD:08B<!#%","/-#,\"68$*?AC","53A>@02B<!#%","/-#,(68%*?AC","53A>:02C<!#%","/-#&\"62$*?AC","53AD@08B<!#%",".'#,\"68$*?AC","49A>@02B<!#%","/'#,\"68%*?AC","59A>@02C<!#%",".'#&\"08$*?AC","49AD@62B<!#%",".'#&\"62$*?AC","49AD@08B<!#%","-!#,\"68$*?AC","3?A>@02B<!#%",".!#,\"08$*?AC","4?A>@62B<!#%",".!#,\"68%*?AC","4?A>@02C<!#%","-!)&\"68$*?AC","3?;D@02B<!#%","-!#&\"08$*?AC","3?AD@62B<!#%","-!#&\"62$*?AC","3?AD@08B<!#%",".!#&\"02$*?AC","4?AD@68B<!#%","035,468$*?AC","6-/>.02B<!#%","035&462$*?AC","6-/D.08B<!#%","03/,.68$*?AC","6-5>402B<!#%","03/,468#*?AC","6-5>.02A<!#%","03/,468%*?AC","6-5>.02C<!#%","03/,468$)?AC","6-5>.02B;!#%","03/&.62$*?AC","6-5D408B<!#%","03/&462#*?AC","6-5D.08A<!#%","03/&462$)?AC","6-5D.08B;!#%","03),(68$*?AC","6-;>:02B<!#%","03),.68#*?AC","6-;>402A<!#%","03),.68%*?AC","6-;>402C<!#%","03),468\"*?AC","6-;>.02@<!#%","03)&(62$*?AC","6-;D:08B<!#%","03)&.62#*?AC","6-;D408A<!#%","03)&462\"*?AC","6-;D.08@<!#%","03#,\"68$*?AC","6-A>@02B<!#%","03#,(68%*?AC","6-A>:02C<!#%","03#&\"62$*?AC","6-AD@08B<!#%","/-5,468$*?AC","53/>.02B<!#%","/-5&462$*?AC","53/D.08B<!#%","0-5,.68$*?AC","63/>402B<!#%","0-5,468#*?AC","63/>.02A<!#%","0-5,468%*?AC","63/>.02C<!#%","0-5,468$)?AC","63/>.02B;!#%","0-5&.62$*?AC","63/D408B<!#%","0-5&462#*?AC","63/D.08A<!#%","0-5&462$)?AC","63/D.08B;!#%","0-/,(68$*?AC","635>:02B<!#%","0-/,.68#*?AC","635>402A<!#%","0-/,.68%*?AC","635>402C<!#%","0-/,.68$)?AC","635>402B;!#%","0-/,468\"*?AC","635>.02@<!#%","0-/,468#)?AC","635>.02A;!#%","0-/,468%)?AC","635>.02C;!#%","0-/,468$(?AC","635>.02B:!#%","0-/&(62$*?AC","635D:08B<!#%","0-/&.62#*?AC","635D408A<!#%","0-/&.62$)?AC","635D408B;!#%","0-/&462\"*?AC","635D.08@<!#%","0-/&462#)?AC","635D.08A;!#%","0-/&462$(?AC","635D.08B:!#%","0-),\"68$*?AC","63;>@02B<!#%","0-),(68#*?AC","63;>:02A<!#%","0-),(68%*?AC","63;>:02C<!#%","0-),.68\"*?AC","63;>402@<!#%","0-),468!*?AC","63;>.02?<!#%","0-)&\"62$*?AC","63;D@08B<!#%","0-)&(62#*?AC","63;D:08A<!#%","0-)&.62\"*?AC","63;D408@<!#%","0-)&462!*?AC","63;D.08?<!#%","0-#,\"68%*?AC","63A>@02C<!#%",".'5,468$*?AC","49/>.02B<!#%",".'5&408$*?AC","49/D.62B<!#%",".'5&462$*?AC","49/D.08B<!#%","/'5,.68$*?AC","59/>402B<!#%","/'5,468#*?AC","59/>.02A<!#%","/'5,468%*?AC","59/>.02C<!#%","/'5,468$)?AC","59/>.02B;!#%","/'5&.62$*?AC","59/D408B<!#%","/'5&462#*?AC","59/D.08A<!#%","/'5&462$)?AC","59/D.08B;!#%","0'5,(68$*?AC","69/>:02B<!#%","0'5,.68#*?AC","69/>402A<!#%","0'5,.68%*?AC","69/>402C<!#%","0'5,.68$)?AC","69/>402B;!#%","0'5,468\"*?AC","69/>.02@<!#%","0'5,468#)?AC","69/>.02A;!#%","0'5,468%)?AC","69/>.02C;!#%","0'5,468$(?AC","69/>.02B:!#%","0'5&(62$*?AC","69/D:08B<!#%","0'5&.62#*?AC","69/D408A<!#%","0'5&.62$)?AC","69/D408B;!#%","0'5&462\"*?AC","69/D.08@<!#%","0'5&462#)?AC","69/D.08A;!#%","0'5&462$(?AC","69/D.08B:!#%","0'/,\"68$*?AC","695>@02B<!#%","0'/,(68#*?AC","695>:02A<!#%","0'/,(68%*?AC","695>:02C<!#%","0'/,(68$)?AC","695>:02B;!#%","0'/,.68\"*?AC","695>402@<!#%","0'/,.68#)?AC","695>402A;!#%","0'/,.68%)?AC","695>402C;!#%","0'/,.68$(?AC","695>402B:!#%","0'/,468!*?AC","695>.02?<!#%","0'/,468\")?AC","695>.02@;!#%","0'/,468#(?AC","695>.02A:!#%","0'/,468%(?AC","695>.02C:!#%","0'/&\"62$*?AC","695D@08B<!#%","0'/&(62#*?AC","695D:08A<!#%","0'/&(62$)?AC","695D:08B;!#%","0'/&.62\"*?AC","695D408@<!#%","0'/&.62#)?AC","695D408A;!#%","0'/&.62$(?AC","695D408B:!#%","0'/&462!*?AC","695D.08?<!#%","0'/&462\")?AC","695D.08@;!#%","0'/&462#(?AC","695D.08A:!#%","0'),\"68#*?AC","69;>@02A<!#%","0'),\"68%*?AC","69;>@02C<!#%","0'),(68\"*?AC","69;>:02@<!#%","0'),.68!*?AC","69;>402?<!#%","0'#,468!*?AC","69A>.02?<!#%","0')&\"62#*?AC","69;D@08A<!#%","0')&(62\"*?AC","69;D:08@<!#%","0')&.62!*?AC","69;D408?<!#%","0'#&462!*?AC","69AD.08?<!#%",".!5,408$*?AC","4?/>.62B<!#%",".!5,468#*?AC","4?/>.02A<!#%",".!5,468%*?AC","4?/>.02C<!#%",".!5,468$)?AC","4?/>.02B;!#%",".!5&402$*?AC","4?/D.68B<!#%",".!5&408#*?AC","4?/D.62A<!#%",".!5&408$)?AC","4?/D.62B;!#%",".!5&462#*?AC","4?/D.08A<!#%",".!5&462$)?AC","4?/D.08B;!#%","/!5,(68$*?AC","5?/>:02B<!#%","/!5,.68#*?AC","5?/>402A<!#%","/!5,.68%*?AC","5?/>402C<!#%","/!5,.68$)?AC","5?/>402B;!#%","/!5,468\"*?AC","5?/>.02@<!#%","/!5,468#)?AC","5?/>.02A;!#%","/!5,468%)?AC","5?/>.02C;!#%","/!5,468$(?AC","5?/>.02B:!#%","/!5&(62$*?AC","5?/D:08B<!#%","/!5&.62#*?AC","5?/D408A<!#%","/!5&.62$)?AC","5?/D408B;!#%","/!5&462\"*?AC","5?/D.08@<!#%","/!5&462#)?AC","5?/D.08A;!#%","/!5&462$(?AC","5?/D.08B:!#%","0!5,\"68$*?AC","6?/>@02B<!#%","0!5,(68#*?AC","6?/>:02A<!#%","0!5,(68%*?AC","6?/>:02C<!#%","0!5,(68$)?AC","6?/>:02B;!#%","0!5,.68\"*?AC","6?/>402@<!#%","0!5,.68#)?AC","6?/>402A;!#%","0!5,.68%)?AC","6?/>402C;!#%","0!5,.68$(?AC","6?/>402B:!#%","0!5,468\")?AC","6?/>.02@;!#%","0!5,468#(?AC","6?/>.02A:!#%","0!5,468%(?AC","6?/>.02C:!#%","0!5&\"62$*?AC","6?/D@08B<!#%","0!5&(62#*?AC","6?/D:08A<!#%","0!5&(62$)?AC","6?/D:08B;!#%","0!5&.62\"*?AC","6?/D408@<!#%","0!5&.62#)?AC","6?/D408A;!#%","0!5&.62$(?AC","6?/D408B:!#%","0!5&462\")?AC","6?/D.08@;!#%","0!5&462#(?AC","6?/D.08A:!#%","0!/,\"68#*?AC","6?5>@02A<!#%","0!/,\"68%*?AC","6?5>@02C<!#%","0!/,\"68$)?AC","6?5>@02B;!#%","0!/,(68\"*?AC","6?5>:02@<!#%","0!/,(68#)?AC","6?5>:02A;!#%","0!/,(68%)?AC","6?5>:02C;!#%","0!/,.68\")?AC","6?5>402@;!#%","0!/,.68#(?AC","6?5>402A:!#%","0!/,.68%(?AC","6?5>402C:!#%","0!/,468\"(?AC","6?5>.02@:!#%","0!/&\"62#*?AC","6?5D@08A<!#%","0!/&\"62$)?AC","6?5D@08B;!#%","0!/&(62\"*?AC","6?5D:08@<!#%","0!/&(62#)?AC","6?5D:08A;!#%","0!/&.62\")?AC","6?5D408@;!#%","0!/&.62#(?AC","6?5D408A:!#%","0!/&462\"(?AC","6?5D.08@:!#%"],"9":["-!5,408$*?AC","3?/>.62B<!#%","-!5,468#*?AC","3?/>.02A<!#%","-!5,468%*?AC","3?/>.02C<!#%","-!5,468$)?AC","3?/>.02B;!#%","-!5&402$*?AC","3?/D.68B<!#%","-!5&408#*?AC","3?/D.62A<!#%","-!5&408$)?AC","3?/D.62B;!#%","-!5&462#*?AC","3?/D.08A<!#%","-!5&462$)?AC","3?/D.08B;!#%","-!/,408#*?AC","3?5>.62A<!#%","-!/,408%*?AC","3?5>.62C<!#%","-!/,408$)?AC","3?5>.62B;!#%","-!/,468\"*?AC","3?5>.02@<!#%","-!/,468#)?AC","3?5>.02A;!#%","-!/,468%)?AC","3?5>.02C;!#%","-!/,468$(?AC","3?5>.02B:!#%","-!/&402#*?AC","3?5D.68A<!#%","-!/&402$)?AC","3?5D.68B;!#%","-!/&408\"*?AC","3?5D.62@<!#%","-!/&408#)?AC","3?5D.62A;!#%","-!/&408$(?AC","3?5D.62B:!#%","-!/&462\"*?AC","3?5D.08@<!#%","-!/&462#)?AC","3?5D.08A;!#%","-!/&462$(?AC","3?5D.08B:!#%","-!/&468\")?AC","3?5D.02@;!#%","-!/&468#(?AC","3?5D.02A:!#%","-!),408\"*?AC","3?;>.62@<!#%","-!)&402\"*?AC","3?;D.68@<!#%","-3/&468$*?AC","3-5D.02B<!#%","-3),468$*?AC","3-;>.02B<!#%","-3)&408$*?AC","3-;D.62B<!#%","-3)&462$*?AC","3-;D.08B<!#%","-3)&468#*?AC","3-;D.02A<!#%","-3#,408$*?AC","3-A>.62B<!#%","-3#,468%*?AC","3-A>.02C<!#%","-3#&402$*?AC","3-AD.68B<!#%",".3#,408%*?AC","4-A>.62C<!#%","/3#,\"68$*?AC","5-A>@02B<!#%","/3#,(68%*?AC","5-A>:02C<!#%","/3#&\"62$*?AC","5-AD@08B<!#%",".-#,\"68$*?AC","43A>@02B<!#%","/-#,\"68%*?AC","53A>@02C<!#%",".-#&\"08$*?AC","43AD@62B<!#%",".-#&\"62$*?AC","43AD@08B<!#%",".'#,\"08$*?AC","49A>@62B<!#%",".'#,\"68%*?AC","49A>@02C<!#%",".'#&\"02$*?AC","49AD@68B<!#%","-!),\"68$*?AC","3?;>@02B<!#%","-!#,\"08$*?AC","3?A>@62B<!#%","-!#,\"68%*?AC","3?A>@02C<!#%",".!#,\"08%*?AC","4?A>@62C<!#%","-!/&\"68$*?AC","3?5D@02B<!#%","-!)&\"08$*?AC","3?;D@62B<!#%","-!)&\"62$*?AC","3?;D@08B<!#%","-!)&\"68#*?AC","3?;D@02A<!#%","-!#&\"02$*?AC","3?AD@68B<!#%","/35,468$*?AC","5-/>.02B<!#%","/35&462$*?AC","5-/D.08B<!#%","035,.68$*?AC","6-/>402B<!#%","035,468#*?AC","6-/>.02A<!#%","035,468%*?AC","6-/>.02C<!#%","035,468$)?AC","6-/>.02B;!#%","035&.62$*?AC","6-/D408B<!#%","035&462#*?AC","6-/D.08A<!#%","035&462$)?AC","6-/D.08B;!#%","03/,(68$*?AC","6-5>:02B<!#%","03/,.68#*?AC","6-5>402A<!#%","03/,.68%*?AC","6-5>402C<!#%","03/,.68$)?AC","6-5>402B;!#%","03/,468\"*?AC","6-5>.02@<!#%","03/,468#)?AC","6-5>.02A;!#%","03/,468%)?AC","6-5>.02C;!#%","03/,468$(?AC","6-5>.02B:!#%","03/&(62$*?AC","6-5D:08B<!#%","03/&.62#*?AC","6-5D408A<!#%","03/&.62$)?AC","6-5D408B;!#%","03/&462\"*?AC","6-5D.08@<!#%","03/&462#)?AC","6-5D.08A;!#%","03/&462$(?AC","6-5D.08B:!#%","03),\"68$*?AC","6-;>@02B<!#%","03),(68#*?AC","6-;>:02A<!#%","03),(68%*?AC","6-;>:02C<!#%","03),.68\"*?AC","6-;>402@<!#%","03),468!*?AC","6-;>.02?<!#%","03)&\"62$*?AC","6-;D@08B<!#%","03)&(62#*?AC","6-;D:08A<!#%","03)&.62\"*?AC","6-;D408@<!#%","03)&462!*?AC","6-;D.08?<!#%","03#,\"68%*?AC","6-A>@02C<!#%",".-5,468$*?AC","43/>.02B<!#%",".-5&408$*?AC","43/D.62B<!#%",".-5&462$*?AC","43/D.08B<!#%","/-5,.68$*?AC","53/>402B<!#%","/-5,468#*?AC","53/>.02A<!#%","/-5,468%*?AC","53/>.02C<!#%","/-5,468$)?AC","53/>.02B;!#%","/-5&.62$*?AC","53/D408B<!#%","/-5&462#*?AC","53/D.08A<!#%","/-5&462$)?AC","53/D.08B;!#%","0-5,(68$*?AC","63/>:02B<!#%","0-5,.68#*?AC","63/>402A<!#%","0-5,.68%*?AC","63/>402C<!#%","0-5,.68$)?AC","63/>402B;!#%","0-5,468\"*?AC","63/>.02@<!#%","0-5,468#)?AC","63/>.02A;!#%","0-5,468%)?AC","63/>.02C;!#%","0-5,468$(?AC","63/>.02B:!#%","0-5&(62$*?AC","63/D:08B<!#%","0-5&.62#*?AC","63/D408A<!#%","0-5&.62$)?AC","63/D408B;!#%","0-5&462\"*?AC","63/D.08@<!#%","0-5&462#)?AC","63/D.08A;!#%","0-5&462$(?AC","63/D.08B:!#%","0-/,\"68$*?AC","635>@02B<!#%","0-/,(68#*?AC","635>:02A<!#%","0-/,(68%*?AC","635>:02C<!#%","0-/,(68$)?AC","635>:02B;!#%","0-/,.68\"*?AC","635>402@<!#%","0-/,.68#)?AC","635>402A;!#%","0-/,.68%)?AC","635>402C;!#%","0-/,.68$(?AC","635>402B:!#%","0-/,468!*?AC","635>.02?<!#%","0-/,468\")?AC","635>.02@;!#%","0-/,468#(?AC","635>.02A:!#%","0-/,468%(?AC","635>.02C:!#%","0-/,468$'?AC","635>.02B9!#%","0-/&\"62$*?AC","635D@08B<!#%","0-/&(62#*?AC","635D:08A<!#%","0-/&(62$)?AC","635D:08B;!#%","0-/&.62\"*?AC","635D408@<!#%","0-/&.62#)?AC","635D408A;!#%","0-/&.62$(?AC","635D408B:!#%","0-/&462!*?AC","635D.08?<!#%","0-/&462\")?AC","635D.08@;!#%","0-/&462#(?AC","635D.08A:!#%","0-/&462$'?AC","635D.08B9!#%","0-),\"68#*?AC","63;>@02A<!#%","0-),\"68%*?AC","63;>@02C<!#%","0-),(68\"*?AC","63;>:02@<!#%","0-),.68!*?AC","63;>402?<!#%","0-#,468!*?AC","63A>.02?<!#%","0-)&\"62#*?AC","63;D@08A<!#%","0-)&(62\"*?AC","63;D:08@<!#%","0-)&.62!*?AC","63;D408?<!#%","0-#&462!*?AC","63AD.08?<!#%",".'5,408$*?AC","49/>.62B<!#%",".'5,468#*?AC","49/>.02A<!#%",".'5,468%*?AC","49/>.02C<!#%",".'5,468$)?AC","49/>.02B;!#%",".'5&402$*?AC","49/D.68B<!#%",".'5&408#*?AC","49/D.62A<!#%",".'5&408$)?AC","49/D.62B;!#%",".'5&462#*?AC","49/D.08A<!#%",".'5&462$)?AC","49/D.08B;!#%","/'5,(68$*?AC","59/>:02B<!#%","/'5,.68#*?AC","59/>402A<!#%","/'5,.68%*?AC","59/>402C<!#%","/'5,.68$)?AC","59/>402B;!#%","/'5,468\"*?AC","59/>.02@<!#%","/'5,468#)?AC","59/>.02A;!#%","/'5,468%)?AC","59/>.02C;!#%","/'5,468$(?AC","59/>.02B:!#%","/'5&(62$*?AC","59/D:08B<!#%","/'5&.62#*?AC","59/D408A<!#%","/'5&.62$)?AC","59/D408B;!#%","/'5&462\"*?AC","59/D.08@<!#%","/'5&462#)?AC","59/D.08A;!#%","/'5&462$(?AC","59/D.08B:!#%","0'5,\"68$*?AC","69/>@02B<!#%","0'5,(68#*?AC","69/>:02A<!#%","0'5,(68%*?AC","69/>:02C<!#%","0'5,(68$)?AC","69/>:02B;!#%","0'5,.68\"*?AC","69/>402@<!#%","0'5,.68#)?AC","69/>402A;!#%","0'5,.68%)?AC","69/>402C;!#%","0'5,.68$(?AC","69/>402B:!#%","0'5,468!*?AC","69/>.02?<!#%","0'5,468\")?AC","69/>.02@;!#%","0'5,468#(?AC","69/>.02A:!#%","0'5,468%(?AC","69/>.02C:!#%","0'5&\"62$*?AC","69/D@08B<!#%","0'5&(62#*?AC","69/D:08A<!#%","0'5&(62$)?AC","69/D:08B;!#%","0'5&.62\"*?AC","69/D408@<!#%","0'5&.62#)?AC","69/D408A;!#%","0'5&.62$(?AC","69/D408B:!#%","0'5&462!*?AC","69/D.08?<!#%","0'5&462\")?AC","69/D.08@;!#%","0'5&462#(?AC","69/D.08A:!#%","0'/,\"68#*?AC","695>@02A<!#%","0'/,\"68%*?AC","695>@02C<!#%","0'/,\"68$)?AC","695>@02B;!#%","0'/,(68\"*?AC","695>:02@<!#%","0'/,(68#)?AC","695>:02A;!#%","0'/,(68%)?AC","695>:02C;!#%","0'/,.68!*?AC","695>402?<!#%","0'/,.68\")?AC","695>402@;!#%","0'/,.68#(?AC","695>402A:!#%","0'/,.68%(?AC","695>402C:!#%","0'/,468!)?AC","695>.02?;!#%","0'/,468\"(?AC","695>.02@:!#%","0'/&\"62#*?AC","695D@08A<!#%","0'/&\"62$)?AC","695D@08B;!#%","0'/&(62\"*?AC","695D:08@<!#%","0'/&(62#)?AC","695D:08A;!#%","0'/&.62!*?AC","695D408?<!#%","0'/&.62\")?AC","695D408@;!#%","0'/&.62#(?AC","695D408A:!#%","0'/&462!)?AC","695D.08?;!#%","0'/&462\"(?AC","695D.08@:!#%","0'),(68!*?AC","69;>:02?<!#%","0'#,.68!*?AC","69A>402?<!#%","/'#,468!*?AC","59A>.02?<!#%","0')&(62!*?AC","69;D:08?<!#%","0'#&.62!*?AC","69AD408?<!#%","/'#&462!*?AC","59AD.08?<!#%",".!5,408#*?AC","4?/>.62A<!#%",".!5,408%*?AC","4?/>.62C<!#%",".!5,408$)?AC","4?/>.62B;!#%",".!5,468\"*?AC","4?/>.02@<!#%",".!5,468#)?AC","4?/>.02A;!#%",".!5,468%)?AC","4?/>.02C;!#%",".!5,468$(?AC","4?/>.02B:!#%",".!5&402#*?AC","4?/D.68A<!#%",".!5&402$)?AC","4?/D.68B;!#%",".!5&408\"*?AC","4?/D.62@<!#%",".!5&408#)?AC","4?/D.62A;!#%",".!5&408$(?AC","4?/D.62B:!#%",".!5&462\"*?AC","4?/D.08@<!#%",".!5&462#)?AC","4?/D.08A;!#%",".!5&462$(?AC","4?/D.08B:!#%","/!5,\"68$*?AC","5?/>@02B<!#%","/!5,(68#*?AC","5?/>:02A<!#%","/!5,(68%*?AC","5?/>:02C<!#%","/!5,(68$)?AC","5?/>:02B;!#%","/!5,.68\"*?AC","5?/>402@<!#%","/!5,.68#)?AC","5?/>402A;!#%","/!5,.68%)?AC","5?/>402C;!#%","/!5,.68$(?AC","5?/>402B:!#%","/!5,468\")?AC","5?/>.02@;!#%","/!5,468#(?AC","5?/>.02A:!#%","/!5,468%(?AC","5?/>.02C:!#%","/!5&\"62$*?AC","5?/D@08B<!#%","/!5&(62#*?AC","5?/D:08A<!#%","/!5&(62$)?AC","5?/D:08B;!#%","/!5&.62\"*?AC","5?/D408@<!#%","/!5&.62#)?AC","5?/D408A;!#%","/!5&.62$(?AC","5?/D408B:!#%","/!5&462\")?AC","5?/D.08@;!#%","/!5&462#(?AC","5?/D.08A:!#%","0!5,\"68#*?AC","6?/>@02A<!#%","0!5,\"68%*?AC","6?/>@02C<!#%","0!5,\"68$)?AC","6?/>@02B;!#%","0!5,(68\"*?AC","6?/>:02@<!#%","0!5,(68#)?AC","6?/>:02A;!#%","0!5,(68%)?AC","6?/>:02C;!#%","0!5,.68\")?AC","6?/>402@;!#%","0!5,.68#(?AC","6?/>402A:!#%","0!5,.68%(?AC","6?/>402C:!#%","0!5,468\"(?AC","6?/>.02@:!#%","0!5&\"62#*?AC","6?/D@08A<!#%","0!5&\"62$)?AC","6?/D@08B;!#%","0!5&(62\"*?AC","6?/D:08@<!#%","0!5&(62#)?AC","6?/D:08A;!#%","0!5&.62\")?AC","6?/D408@;!#%","0!5&.62#(?AC","6?/D408A:!#%","0!5&462\"(?AC","6?/D.08@:!#%","0!/,\"68#)?AC","6?5>@02A;!#%","0!/,\"68%)?AC","6?5>@02C;!#%","0!/,(68\")?AC","6?5>:02@;!#%","0!/,.68\"(?AC","6?5>402@:!#%","0!/&\"62#)?AC","6?5D@08A;!#%","0!/&(62\")?AC","6?5D:08@;!#%","0!/&.62\"(?AC","6?5D408@:!#%"],"10":["-!5,408#*?AC","3?/>.62A<!#%","-!5,408%*?AC","3?/>.62C<!#%","-!5,408$)?AC","3?/>.62B;!#%","-!5,468\"*?AC","3?/>.02@<!#%","-!5,468#)?AC","3?/>.02A;!#%","-!5,468%)?AC","3?/>.02C;!#%","-!5,468$(?AC","3?/>.02B:!#%","-!5&402#*?AC","3?/D.68A<!#%","-!5&402$)?AC","3?/D.68B;!#%","-!5&408\"*?AC","3?/D.62@<!#%","-!5&408#)?AC","3?/D.62A;!#%","-!5&408$(?AC","3?/D.62B:!#%","-!5&462\"*?AC","3?/D.08@<!#%","-!5&462#)?AC","3?/D.08A;!#%","-!5&462$(?AC","3?/D.08B:!#%","-!/,408\"*?AC","3?5>.62@<!#%","-!/,408#)?AC","3?5>.62A;!#%","-!/,408%)?AC","3?5>.62C;!#%","-!/,408$(?AC","3?5>.62B:!#%","-!/,468\")?AC","3?5>.02@;!#%","-!/,468#(?AC","3?5>.02A:!#%","-!/,468%(?AC","3?5>.02C:!#%","-!/&402\"*?AC","3?5D.68@<!#%","-!/&402#)?AC","3?5D.68A;!#%","-!/&402$(?AC","3?5D.68B:!#%","-!/&408\")?AC","3?5D.62@;!#%","-!/&408#(?AC","3?5D.62A:!#%","-!/&4*8$(?AC","3?5D.<2B:!#%","-!/&462\")?AC","3?5D.08@;!#%","-!/&462#(?AC","3?5D.08A:!#%","-!/&468\"(?AC","3?5D.02@:!#%","-3/,468$*?AC","3-5>.02B<!#%","-3/&408$*?AC","3-5D.62B<!#%","-3/&462$*?AC","3-5D.08B<!#%","-3/&468#*?AC","3-5D.02A<!#%","-3/&468$)?AC","3-5D.02B;!#%","-3),408$*?AC","3-;>.62B<!#%","-3),468#*?AC","3-;>.02A<!#%","-3),468%*?AC","3-;>.02C<!#%","-3)&402$*?AC","3-;D.68B<!#%","-3)&408#*?AC","3-;D.62A<!#%","-3)&462#*?AC","3-;D.08A<!#%","-3)&468\"*?AC","3-;D.02@<!#%","-3#,408%*?AC","3-A>.62C<!#%",".3#,\"68$*?AC","4-A>@02B<!#%","/3#,\"68%*?AC","5-A>@02C<!#%",".3#&\"08$*?AC","4-AD@62B<!#%",".3#&\"62$*?AC","4-AD@08B<!#%",".-#,\"08$*?AC","43A>@62B<!#%",".-#,\"68%*?AC","43A>@02C<!#%",".-#&\"02$*?AC","43AD@68B<!#%",".'#,\"08%*?AC","49A>@62C<!#%","-!/,\"68$*?AC","3?5>@02B<!#%","-!),\"08$*?AC","3?;>@62B<!#%","-!),\"68#*?AC","3?;>@02A<!#%","-!),\"68%*?AC","3?;>@02C<!#%","-!#,\"08%*?AC","3?A>@62C<!#%","-!/&\"08$*?AC","3?5D@62B<!#%","-!/&\"62$*?AC","3?5D@08B<!#%","-!/&\"68#*?AC","3?5D@02A<!#%","-!/&\"68$)?AC","3?5D@02B;!#%","-!)&\"02$*?AC","3?;D@68B<!#%","-!)&\"08#*?AC","3?;D@62A<!#%","-!)&\"62#*?AC","3?;D@08A<!#%",".35,468$*?AC","4-/>.02B<!#%",".35&408$*?AC","4-/D.62B<!#%",".35&462$*?AC","4-/D.08B<!#%","/35,.68$*?AC","5-/>402B<!#%","/35,468#*?AC","5-/>.02A<!#%","/35,468%*?AC","5-/>.02C<!#%","/35,468$)?AC","5-/>.02B;!#%","/35&.62$*?AC","5-/D408B<!#%","/35&462#*?AC","5-/D.08A<!#%","/35&462$)?AC","5-/D.08B;!#%","035,(68$*?AC","6-/>:02B<!#%","035,.68#*?AC","6-/>402A<!#%","035,.68%*?AC","6-/>402C<!#%","035,.68$)?AC","6-/>402B;!#%","035,468\"*?AC","6-/>.02@<!#%","035,468#)?AC","6-/>.02A;!#%","035,468%)?AC","6-/>.02C;!#%","035,468$(?AC","6-/>.02B:!#%","035&(62$*?AC","6-/D:08B<!#%","035&.62#*?AC","6-/D408A<!#%","035&.62$)?AC","6-/D408B;!#%","035&462\"*?AC","6-/D.08@<!#%","035&462#)?AC","6-/D.08A;!#%","035&462$(?AC","6-/D.08B:!#%","03/,\"68$*?AC","6-5>@02B<!#%","03/,(68#*?AC","6-5>:02A<!#%","03/,(68%*?AC","6-5>:02C<!#%","03/,(68$)?AC","6-5>:02B;!#%","03/,.68\"*?AC","6-5>402@<!#%","03/,.68#)?AC","6-5>402A;!#%","03/,.68%)?AC","6-5>402C;!#%","03/,.68$(?AC","6-5>402B:!#%","03/,468!*?AC","6-5>.02?<!#%","03/,468\")?AC","6-5>.02@;!#%","03/,468#(?AC","6-5>.02A:!#%","03/,468%(?AC","6-5>.02C:!#%","03/,468$'?AC","6-5>.02B9!#%","03/&\"62$*?AC","6-5D@08B<!#%","03/&(62#*?AC","6-5D:08A<!#%","03/&(62$)?AC","6-5D:08B;!#%","03/&.62\"*?AC","6-5D408@<!#%","03/&.62#)?AC","6-5D408A;!#%","03/&.62$(?AC","6-5D408B:!#%","03/&462!*?AC","6-5D.08?<!#%","03/&462\")?AC","6-5D.08@;!#%","03/&462#(?AC","6-5D.08A:!#%","03/&462$'?AC","6-5D.08B9!#%","03),\"68#*?AC","6-;>@02A<!#%","03),\"68%*?AC","6-;>@02C<!#%","03),(68\"*?AC","6-;>:02@<!#%","03),.68!*?AC","6-;>402?<!#%","03#,468!*?AC","6-A>.02?<!#%","03)&\"62#*?AC","6-;D@08A<!#%","03)&(62\"*?AC","6-;D:08@<!#%","03)&.62!*?AC","6-;D408?<!#%","03#&462!*?AC","6-AD.08?<!#%",".-5,408$*?AC","43/>.62B<!#%",".-5,468#*?AC","43/>.02A<!#%",".-5,468%*?AC","43/>.02C<!#%",".-5,468$)?AC","43/>.02B;!#%",".-5&402$*?AC","43/D.68B<!#%",".-5&408#*?AC","43/D.62A<!#%",".-5&408$)?AC","43/D.62B;!#%",".-5&462#*?AC","43/D.08A<!#%",".-5&462$)?AC","43/D.08B;!#%","/-5,(68$*?AC","53/>:02B<!#%","/-5,.68#*?AC","53/>402A<!#%","/-5,.68%*?AC","53/>402C<!#%","/-5,.68$)?AC","53/>402B;!#%","/-5,468\"*?AC","53/>.02@<!#%","/-5,468#)?AC","53/>.02A;!#%","/-5,468%)?AC","53/>.02C;!#%","/-5,468$(?AC","53/>.02B:!#%","/-5&(62$*?AC","53/D:08B<!#%","/-5&.62#*?AC","53/D408A<!#%","/-5&.62$)?AC","53/D408B;!#%","/-5&462\"*?AC","53/D.08@<!#%","/-5&462#)?AC","53/D.08A;!#%","/-5&462$(?AC","53/D.08B:!#%","0-5,\"68$*?AC","63/>@02B<!#%","0-5,(68#*?AC","63/>:02A<!#%","0-5,(68%*?AC","63/>:02C<!#%","0-5,(68$)?AC","63/>:02B;!#%","0-5,.68\"*?AC","63/>402@<!#%","0-5,.68#)?AC","63/>402A;!#%","0-5,.68%)?AC","63/>402C;!#%","0-5,.68$(?AC","63/>402B:!#%","0-5,468!*?AC","63/>.02?<!#%","0-5,468\")?AC","63/>.02@;!#%","0-5,468#(?AC","63/>.02A:!#%","0-5,468%(?AC","63/>.02C:!#%","0-5,468$'?AC","63/>.02B9!#%","0-5&\"62$*?AC","63/D@08B<!#%","0-5&(62#*?AC","63/D:08A<!#%","0-5&(62$)?AC","63/D:08B;!#%","0-5&.62\"*?AC","63/D408@<!#%","0-5&.62#)?AC","63/D408A;!#%","0-5&.62$(?AC","63/D408B:!#%","0-5&462!*?AC","63/D.08?<!#%","0-5&462\")?AC","63/D.08@;!#%","0-5&462#(?AC","63/D.08A:!#%","0-5&462$'?AC","63/D.08B9!#%","0-/,\"68#*?AC","635>@02A<!#%","0-/,\"68%*?AC","635>@02C<!#%","0-/,\"68$)?AC","635>@02B;!#%","0-/,(68\"*?AC","635>:02@<!#%","0-/,(68#)?AC","635>:02A;!#%","0-/,(68%)?AC","635>:02C;!#%","0-/,.68!*?AC","635>402?<!#%","0-/,.68\")?AC","635>402@;!#%","0-/,.68#(?AC","635>402A:!#%","0-/,.68%(?AC","635>402C:!#%","0-/,.68$'?AC","635>402B9!#%","0-/,468!)?AC","635>.02?;!#%","0-/,468\"(?AC","635>.02@:!#%","0-/,468#'?AC","635>.02A9!#%","0-/,468%'?AC","635>.02C9!#%","0-),468$'?AC","63;>.02B9!#%","0-/&\"62#*?AC","635D@08A<!#%","0-/&\"62$)?AC","635D@08B;!#%","0-/&(62\"*?AC","635D:08@<!#%","0-/&(62#)?AC","635D:08A;!#%","0-/&.62!*?AC","635D408?<!#%","0-/&.62\")?AC","635D408@;!#%","0-/&.62#(?AC","635D408A:!#%","0-/&.62$'?AC","635D408B9!#%","0-/&462!)?AC","635D.08?;!#%","0-/&462\"(?AC","635D.08@:!#%","0-/&462#'?AC","635D.08A9!#%","0-)&462$'?AC","63;D.08B9!#%","0-),(68!*?AC","63;>:02?<!#%","0-#,.68!*?AC","63A>402?<!#%","/-#,468!*?AC","53A>.02?<!#%","0-)&(62!*?AC","63;D:08?<!#%","0-#&.62!*?AC","63AD408?<!#%","/-#&462!*?AC","53AD.08?<!#%",".'5,408#*?AC","49/>.62A<!#%",".'5,408%*?AC","49/>.62C<!#%",".'5,408$)?AC","49/>.62B;!#%",".'5,468\"*?AC","49/>.02@<!#%",".'5,468#)?AC","49/>.02A;!#%",".'5,468%)?AC","49/>.02C;!#%",".'5,468$(?AC","49/>.02B:!#%",".'5&402#*?AC","49/D.68A<!#%",".'5&402$)?AC","49/D.68B;!#%",".'5&408\"*?AC","49/D.62@<!#%",".'5&408#)?AC","49/D.62A;!#%",".'5&408$(?AC","49/D.62B:!#%",".'5&462\"*?AC","49/D.08@<!#%",".'5&462#)?AC","49/D.08A;!#%",".'5&462$(?AC","49/D.08B:!#%","/'5,\"68$*?AC","59/>@02B<!#%","/'5,(68#*?AC","59/>:02A<!#%","/'5,(68%*?AC","59/>:02C<!#%","/'5,(68$)?AC","59/>:02B;!#%","/'5,.68\"*?AC","59/>402@<!#%","/'5,.68#)?AC","59/>402A;!#%","/'5,.68%)?AC","59/>402C;!#%","/'5,.68$(?AC","59/>402B:!#%","/'5,468!*?AC","59/>.02?<!#%","/'5,468\")?AC","59/>.02@;!#%","/'5,468#(?AC","59/>.02A:!#%","/'5,468%(?AC","59/>.02C:!#%","/'5&\"62$*?AC","59/D@08B<!#%","/'5&(62#*?AC","59/D:08A<!#%","/'5&(62$)?AC","59/D:08B;!#%","/'5&.62\"*?AC","59/D408@<!#%","/'5&.62#)?AC","59/D408A;!#%","/'5&.62$(?AC","59/D408B:!#%","/'5&462!*?AC","59/D.08?<!#%","/'5&462\")?AC","59/D.08@;!#%","/'5&462#(?AC","59/D.08A:!#%","0'5,\"68#*?AC","69/>@02A<!#%","0'5,\"68%*?AC","69/>@02C<!#%","0'5,\"68$)?AC","69/>@02B;!#%","0'5,(68\"*?AC","69/>:02@<!#%","0'5,(68#)?AC","69/>:02A;!#%","0'5,(68%)?AC","69/>:02C;!#%","0'5,.68!*?AC","69/>402?<!#%","0'5,.68\")?AC","69/>402@;!#%","0'5,.68#(?AC","69/>402A:!#%","0'5,.68%(?AC","69/>402C:!#%","0'5,468!)?AC","69/>.02?;!#%","0'5,468\"(?AC","69/>.02@:!#%","0'5&\"62#*?AC","69/D@08A<!#%","0'5&\"62$)?AC","69/D@08B;!#%","0'5&(62\"*?AC","69/D:08@<!#%","0'5&(62#)?AC","69/D:08A;!#%","0'5&.62!*?AC","69/D408?<!#%","0'5&.62\")?AC","69/D408@;!#%","0'5&.62#(?AC","69/D408A:!#%","0'5&462!)?AC","69/D.08?;!#%","0'5&462\"(?AC","69/D.08@:!#%","0'/,\"68#)?AC","695>@02A;!#%","0'/,\"68%)?AC","695>@02C;!#%","0'/,(68!*?AC","695>:02?<!#%","0'/,(68\")?AC","695>:02@;!#%","0'/,.68!)?AC","695>402?;!#%","0'/,.68\"(?AC","695>402@:!#%","0'/,468!(?AC","695>.02?:!#%","0'/&\"62#)?AC","695D@08A;!#%","0'/&(62!*?AC","695D:08?<!#%","0'/&(62\")?AC","695D:08@;!#%","0'/&.62!)?AC","695D408?;!#%","0'/&.62\"(?AC","695D408@:!#%","0'/&462!(?AC","695D.08?:!#%","0'#,(68!*?AC","69A>:02?<!#%","/'#,.68!*?AC","59A>402?<!#%",".'#,468!*?AC","49A>.02?<!#%","0'#&(62!*?AC","69AD:08?<!#%","/'#&.62!*?AC","59AD408?<!#%",".'#&462!*?AC","49AD.08?<!#%",".'#&408!*?AC","49AD.62?<!#%",".!5,408\"*?AC","4?/>.62@<!#%",".!5,408#)?AC","4?/>.62A;!#%",".!5,408%)?AC","4?/>.62C;!#%",".!5,408$(?AC","4?/>.62B:!#%",".!5,468\")?AC","4?/>.02@;!#%",".!5,468#(?AC","4?/>.02A:!#%",".!5,468%(?AC","4?/>.02C:!#%",".!5&402\"*?AC","4?/D.68@<!#%",".!5&402#)?AC","4?/D.68A;!#%",".!5&402$(?AC","4?/D.68B:!#%",".!5&408\")?AC","4?/D.62@;!#%",".!5&408#(?AC","4?/D.62A:!#%",".!5&4*8$(?AC","4?/D.<2B:!#%",".!5&462\")?AC","4?/D.08@;!#%",".!5&462#(?AC","4?/D.08A:!#%",".!5,\"68$*?AC","4?/>@02B<!#%","/!5,\"68#*?AC","5?/>@02A<!#%","/!5,\"68%*?AC","5?/>@02C<!#%","/!5,\"68$)?AC","5?/>@02B;!#%","/!5,(68\"*?AC","5?/>:02@<!#%","/!5,(68#)?AC","5?/>:02A;!#%","/!5,(68%)?AC","5?/>:02C;!#%","/!5,.68\")?AC","5?/>402@;!#%","/!5,.68#(?AC","5?/>402A:!#%","/!5,.68%(?AC","5?/>402C:!#%","/!5,468\"(?AC","5?/>.02@:!#%",".!5&\"08$*?AC","4?/D@62B<!#%",".!5&\"62$*?AC","4?/D@08B<!#%","/!5&\"62#*?AC","5?/D@08A<!#%","/!5&\"62$)?AC","5?/D@08B;!#%","/!5&(62\"*?AC","5?/D:08@<!#%","/!5&(62#)?AC","5?/D:08A;!#%","/!5&.62\")?AC","5?/D408@;!#%","/!5&.62#(?AC","5?/D408A:!#%","/!5&462\"(?AC","5?/D.08@:!#%","0!5,\"68#)?AC","6?/>@02A;!#%","0!5,\"68%)?AC","6?/>@02C;!#%","0!5,(68\")?AC","6?/>:02@;!#%","0!5,.68\"(?AC","6?/>402@:!#%","0!5&\"62#)?AC","6?/D@08A;!#%","0!5&(62\")?AC","6?/D:08@;!#%","0!5&.62\"(?AC","6?/D408@:!#%"],"11":["-!5,408\"*?AC","3?/>.62@<!#%","-!5,408#)?AC","3?/>.62A;!#%","-!5,408%)?AC","3?/>.62C;!#%","-!5,408$(?AC","3?/>.62B:!#%","-!5,468\")?AC","3?/>.02@;!#%","-!5,468#(?AC","3?/>.02A:!#%","-!5,468%(?AC","3?/>.02C:!#%","-!5&402\"*?AC","3?/D.68@<!#%","-!5&402#)?AC","3?/D.68A;!#%","-!5&402$(?AC","3?/D.68B:!#%","-!5&408\")?AC","3?/D.62@;!#%","-!5&408#(?AC","3?/D.62A:!#%","-!5&4*8$(?AC","3?/D.<2B:!#%","-!5&462\")?AC","3?/D.08@;!#%","-!5&462#(?AC","3?/D.08A:!#%","-!/,408\")?AC","3?5>.62@;!#%","-!/,408#(?AC","3?5>.62A:!#%","-!/,408%(?AC","3?5>.62C:!#%","-!/,4*8$(?AC","3?5>.<2B:!#%","-!/,468\"(?AC","3?5>.02@:!#%","-!/&402\")?AC","3?5D.68@;!#%","-!/&402#(?AC","3?5D.68A:!#%","-!/&4*2$(?AC","3?5D.<8B:!#%","-!/&408\"(?AC","3?5D.62@:!#%","-!/&4*8#(?AC","3?5D.<2A:!#%","-!/&462\"(?AC","3?5D.08@:!#%","-35,468$*?AC","3-/>.02B<!#%","-35&408$*?AC","3-/D.62B<!#%","-35&462$*?AC","3-/D.08B<!#%","-3/,408$*?AC","3-5>.62B<!#%","-3/,468#*?AC","3-5>.02A<!#%","-3/,468%*?AC","3-5>.02C<!#%","-3/,468$)?AC","3-5>.02B;!#%","-3/&402$*?AC","3-5D.68B<!#%","-3/&408#*?AC","3-5D.62A<!#%","-3/&408$)?AC","3-5D.62B;!#%","-3/&462#*?AC","3-5D.08A<!#%","-3/&462$)?AC","3-5D.08B;!#%","-3/&468\"*?AC","3-5D.02@<!#%","-3/&468#)?AC","3-5D.02A;!#%","-3/&468$(?AC","3-5D.02B:!#%","-3),408#*?AC","3-;>.62A<!#%","-3),408%*?AC","3-;>.62C<!#%","-3),468\"*?AC","3-;>.02@<!#%","-3)&402#*?AC","3-;D.68A<!#%","-3)&408\"*?AC","3-;D.62@<!#%","-3)&462\"*?AC","3-;D.08@<!#%","-3)&468!*?AC","3-;D.02?<!#%","-3#,\"68$*?AC","3-A>@02B<!#%",".3#,\"08$*?AC","4-A>@62B<!#%",".3#,\"68%*?AC","4-A>@02C<!#%","-3)&\"68$*?AC","3-;D@02B<!#%","-3#&\"08$*?AC","3-AD@62B<!#%","-3#&\"62$*?AC","3-AD@08B<!#%",".3#&\"02$*?AC","4-AD@68B<!#%",".-#,\"08%*?AC","43A>@62C<!#%","-!5,\"68$*?AC","3?/>@02B<!#%","-!/,\"08$*?AC","3?5>@62B<!#%","-!/,\"68#*?AC","3?5>@02A<!#%","-!/,\"68%*?AC","3?5>@02C<!#%","-!/,\"68$)?AC","3?5>@02B;!#%","-!),\"08#*?AC","3?;>@62A<!#%","-!),\"08%*?AC","3?;>@62C<!#%","-!5&\"08$*?AC","3?/D@62B<!#%","-!5&\"62$*?AC","3?/D@08B<!#%","-!/&\"02$*?AC","3?5D@68B<!#%","-!/&\"08#*?AC","3?5D@62A<!#%","-!/&\"08$)?AC","3?5D@62B;!#%","-!/&\"62#*?AC","3?5D@08A<!#%","-!/&\"62$)?AC","3?5D@08B;!#%","-!/&\"68#)?AC","3?5D@02A;!#%","-!)&\"02#*?AC","3?;D@68A<!#%",".35,408$*?AC","4-/>.62B<!#%",".35,468#*?AC","4-/>.02A<!#%",".35,468%*?AC","4-/>.02C<!#%",".35,468$)?AC","4-/>.02B;!#%",".35&402$*?AC","4-/D.68B<!#%",".35&408#*?AC","4-/D.62A<!#%",".35&408$)?AC","4-/D.62B;!#%",".35&462#*?AC","4-/D.08A<!#%",".35&462$)?AC","4-/D.08B;!#%","/35,(68$*?AC","5-/>:02B<!#%","/35,.68#*?AC","5-/>402A<!#%","/35,.68%*?AC","5-/>402C<!#%","/35,.68$)?AC","5-/>402B;!#%","/35,468\"*?AC","5-/>.02@<!#%","/35,468#)?AC","5-/>.02A;!#%","/35,468%)?AC","5-/>.02C;!#%","/35,468$(?AC","5-/>.02B:!#%","/35&(62$*?AC","5-/D:08B<!#%","/35&.62#*?AC","5-/D408A<!#%","/35&.62$)?AC","5-/D408B;!#%","/35&462\"*?AC","5-/D.08@<!#%","/35&462#)?AC","5-/D.08A;!#%","/35&462$(?AC","5-/D.08B:!#%","035,\"68$*?AC","6-/>@02B<!#%","035,(68#*?AC","6-/>:02A<!#%","035,(68%*?AC","6-/>:02C<!#%","035,(68$)?AC","6-/>:02B;!#%","035,.68\"*?AC","6-/>402@<!#%","035,.68#)?AC","6-/>402A;!#%","035,.68%)?AC","6-/>402C;!#%","035,.68$(?AC","6-/>402B:!#%","035,468!*?AC","6-/>.02?<!#%","035,468\")?AC","6-/>.02@;!#%","035,468#(?AC","6-/>.02A:!#%","035,468%(?AC","6-/>.02C:!#%","035,468$'?AC","6-/>.02B9!#%","035&\"62$*?AC","6-/D@08B<!#%","035&(62#*?AC","6-/D:08A<!#%","035&(62$)?AC","6-/D:08B;!#%","035&.62\"*?AC","6-/D408@<!#%","035&.62#)?AC","6-/D408A;!#%","035&.62$(?AC","6-/D408B:!#%","035&462!*?AC","6-/D.08?<!#%","035&462\")?AC","6-/D.08@;!#%","035&462#(?AC","6-/D.08A:!#%","035&462$'?AC","6-/D.08B9!#%","03/,\"68#*?AC","6-5>@02A<!#%","03/,\"68%*?AC","6-5>@02C<!#%","03/,\"68$)?AC","6-5>@02B;!#%","03/,(68\"*?AC","6-5>:02@<!#%","03/,(68#)?AC","6-5>:02A;!#%","03/,(68%)?AC","6-5>:02C;!#%","03/,.68!*?AC","6-5>402?<!#%","03/,.68\")?AC","6-5>402@;!#%","03/,.68#(?AC","6-5>402A:!#%","03/,.68%(?AC","6-5>402C:!#%","03/,.68$'?AC","6-5>402B9!#%","03/,468!)?AC","6-5>.02?;!#%","03/,468\"(?AC","6-5>.02@:!#%","03/,468#'?AC","6-5>.02A9!#%","03/,468%'?AC","6-5>.02C9!#%","03),468$'?AC","6-;>.02B9!#%","03/&\"62#*?AC","6-5D@08A<!#%","03/&\"62$)?AC","6-5D@08B;!#%","03/&(62\"*?AC","6-5D:08@<!#%","03/&(62#)?AC","6-5D:08A;!#%","03/&.62!*?AC","6-5D408?<!#%","03/&.62\")?AC","6-5D408@;!#%","03/&.62#(?AC","6-5D408A:!#%","03/&.62$'?AC","6-5D408B9!#%","03/&462!)?AC","6-5D.08?;!#%","03/&462\"(?AC","6-5D.08@:!#%","03/&462#'?AC","6-5D.08A9!#%","03)&462$'?AC","6-;D.08B9!#%","03),(68!*?AC","6-;>:02?<!#%","03#,.68!*?AC","6-A>402?<!#%","/3#,468!*?AC","5-A>.02?<!#%","03)&(62!*?AC","6-;D:08?<!#%","03#&.62!*?AC","6-AD408?<!#%","/3#&462!*?AC","5-AD.08?<!#%",".-5,408#*?AC","43/>.62A<!#%",".-5,408%*?AC","43/>.62C<!#%",".-5,408$)?AC","43/>.62B;!#%",".-5,468\"*?AC","43/>.02@<!#%",".-5,468#)?AC","43/>.02A;!#%",".-5,468%)?AC","43/>.02C;!#%",".-5,468$(?AC","43/>.02B:!#%",".-5&402#*?AC","43/D.68A<!#%",".-5&402$)?AC","43/D.68B;!#%",".-5&408\"*?AC","43/D.62@<!#%",".-5&408#)?AC","43/D.62A;!#%",".-5&408$(?AC","43/D.62B:!#%",".-5&462\"*?AC","43/D.08@<!#%",".-5&462#)?AC","43/D.08A;!#%",".-5&462$(?AC","43/D.08B:!#%","/-5,\"68$*?AC","53/>@02B<!#%","/-5,(68#*?AC","53/>:02A<!#%","/-5,(68%*?AC","53/>:02C<!#%","/-5,(68$)?AC","53/>:02B;!#%","/-5,.68\"*?AC","53/>402@<!#%","/-5,.68#)?AC","53/>402A;!#%","/-5,.68%)?AC","53/>402C;!#%","/-5,.68$(?AC","53/>402B:!#%","/-5,468!*?AC","53/>.02?<!#%","/-5,468\")?AC","53/>.02@;!#%","/-5,468#(?AC","53/>.02A:!#%","/-5,468%(?AC","53/>.02C:!#%","/-5,468$'?AC","53/>.02B9!#%","/-5&\"62$*?AC","53/D@08B<!#%","/-5&(62#*?AC","53/D:08A<!#%","/-5&(62$)?AC","53/D:08B;!#%","/-5&.62\"*?AC","53/D408@<!#%","/-5&.62#)?AC","53/D408A;!#%","/-5&.62$(?AC","53/D408B:!#%","/-5&462!*?AC","53/D.08?<!#%","/-5&462\")?AC","53/D.08@;!#%","/-5&462#(?AC","53/D.08A:!#%","/-5&462$'?AC","53/D.08B9!#%","0-5,\"68#*?AC","63/>@02A<!#%","0-5,\"68%*?AC","63/>@02C<!#%","0-5,\"68$)?AC","63/>@02B;!#%","0-5,(68\"*?AC","63/>:02@<!#%","0-5,(68#)?AC","63/>:02A;!#%","0-5,(68%)?AC","63/>:02C;!#%","0-5,.68!*?AC","63/>402?<!#%","0-5,.68\")?AC","63/>402@;!#%","0-5,.68#(?AC","63/>402A:!#%","0-5,.68%(?AC","63/>402C:!#%","0-5,.68$'?AC","63/>402B9!#%","0-5,468!)?AC","63/>.02?;!#%","0-5,468\"(?AC","63/>.02@:!#%","0-5,468#'?AC","63/>.02A9!#%","0-5,468%'?AC","63/>.02C9!#%","0-5&\"62#*?AC","63/D@08A<!#%","0-5&\"62$)?AC","63/D@08B;!#%","0-5&(62\"*?AC","63/D:08@<!#%","0-5&(62#)?AC","63/D:08A;!#%","0-5&.62!*?AC","63/D408?<!#%","0-5&.62\")?AC","63/D408@;!#%","0-5&.62#(?AC","63/D408A:!#%","0-5&.62$'?AC","63/D408B9!#%","0-5&462!)?AC","63/D.08?;!#%","0-5&462\"(?AC","63/D.08@:!#%","0-5&462#'?AC","63/D.08A9!#%","0-/,\"68#)?AC","635>@02A;!#%","0-/,\"68%)?AC","635>@02C;!#%","0-/,(68!*?AC","635>:02?<!#%","0-/,(68\")?AC","635>:02@;!#%","0-/,.68!)?AC","635>402?;!#%","0-/,.68\"(?AC","635>402@:!#%","0-/,.68#'?AC","635>402A9!#%","0-/,.68%'?AC","635>402C9!#%","0-),.68$'?AC","63;>402B9!#%","0-/,468!(?AC","635>.02?:!#%","0-/,468\"'?AC","635>.02@9!#%","0-),468#'?AC","63;>.02A9!#%","0-),468%'?AC","63;>.02C9!#%","0-#,468$'?AC","63A>.02B9!#%","0-/&\"62#)?AC","635D@08A;!#%","0-/&(62!*?AC","635D:08?<!#%","0-/&(62\")?AC","635D:08@;!#%","0-/&.62!)?AC","635D408?;!#%","0-/&.62\"(?AC","635D408@:!#%","0-/&.62#'?AC","635D408A9!#%","0-)&.62$'?AC","63;D408B9!#%","0-/&462!(?AC","635D.08?:!#%","0-/&462\"'?AC","635D.08@9!#%","0-)&462#'?AC","63;D.08A9!#%","0-#&462$'?AC","63AD.08B9!#%","0-#,(68!*?AC","63A>:02?<!#%","/-#,.68!*?AC","53A>402?<!#%",".-#,468!*?AC","43A>.02?<!#%","0-#&(62!*?AC","63AD:08?<!#%","/-#&.62!*?AC","53AD408?<!#%",".-#&462!*?AC","43AD.08?<!#%",".-#&408!*?AC","43AD.62?<!#%",".'5,408\"*?AC","49/>.62@<!#%",".'5,408#)?AC","49/>.62A;!#%",".'5,408%)?AC","49/>.62C;!#%",".'5,408$(?AC","49/>.62B:!#%",".'5,468!*?AC","49/>.02?<!#%",".'5,468\")?AC","49/>.02@;!#%",".'5,468#(?AC","49/>.02A:!#%",".'5,468%(?AC","49/>.02C:!#%",".'5&402\"*?AC","49/D.68@<!#%",".'5&402#)?AC","49/D.68A;!#%",".'5&402$(?AC","49/D.68B:!#%",".'5&408!*?AC","49/D.62?<!#%",".'5&408\")?AC","49/D.62@;!#%",".'5&408#(?AC","49/D.62A:!#%",".'5&4*8$(?AC","49/D.<2B:!#%",".'5&462!*?AC","49/D.08?<!#%",".'5&462\")?AC","49/D.08@;!#%",".'5&462#(?AC","49/D.08A:!#%",".'5,\"68$*?AC","49/>@02B<!#%","/'5,\"68#*?AC","59/>@02A<!#%","/'5,\"68%*?AC","59/>@02C<!#%","/'5,\"68$)?AC","59/>@02B;!#%","/'5,(68\"*?AC","59/>:02@<!#%","/'5,(68#)?AC","59/>:02A;!#%","/'5,(68%)?AC","59/>:02C;!#%","/'5,.68!*?AC","59/>402?<!#%","/'5,.68\")?AC","59/>402@;!#%","/'5,.68#(?AC","59/>402A:!#%","/'5,.68%(?AC","59/>402C:!#%","/'5,468!)?AC","59/>.02?;!#%","/'5,468\"(?AC","59/>.02@:!#%",".'5&\"08$*?AC","49/D@62B<!#%",".'5&\"62$*?AC","49/D@08B<!#%","/'5&\"62#*?AC","59/D@08A<!#%","/'5&\"62$)?AC","59/D@08B;!#%","/'5&(62\"*?AC","59/D:08@<!#%","/'5&(62#)?AC","59/D:08A;!#%","/'5&.62!*?AC","59/D408?<!#%","/'5&.62\")?AC","59/D408@;!#%","/'5&.62#(?AC","59/D408A:!#%","/'5&462!)?AC","59/D.08?;!#%","/'5&462\"(?AC","59/D.08@:!#%","0'5,\"68#)?AC","69/>@02A;!#%","0'5,\"68%)?AC","69/>@02C;!#%","0'5,(68!*?AC","69/>:02?<!#%","0'5,(68\")?AC","69/>:02@;!#%","0'5,.68!)?AC","69/>402?;!#%","0'5,.68\"(?AC","69/>402@:!#%","0'5,468!(?AC","69/>.02?:!#%","0'5&\"62#)?AC","69/D@08A;!#%","0'5&(62!*?AC","69/D:08?<!#%","0'5&(62\")?AC","69/D:08@;!#%","0'5&.62!)?AC","69/D408?;!#%","0'5&.62\"(?AC","69/D408@:!#%","0'5&462!(?AC","69/D.08?:!#%","0'/,(68!)?AC","695>:02?;!#%","0'/,.68!(?AC","695>402?:!#%","0'/&(62!)?AC","695D:08?;!#%","0'/&.62!(?AC","695D408?:!#%","/'#,(68!*?AC","59A>:02?<!#%",".'#,408!*?AC","49A>.62?<!#%","/'#&(62!*?AC","59AD:08?<!#%",".'#&402!*?AC","49AD.68?<!#%",".!5,408\")?AC","4?/>.62@;!#%",".!5,408#(?AC","4?/>.62A:!#%",".!5,408%(?AC","4?/>.62C:!#%",".!5,4*8$(?AC","4?/>.<2B:!#%",".!5,468\"(?AC","4?/>.02@:!#%",".!5&402\")?AC","4?/D.68@;!#%",".!5&402#(?AC","4?/D.68A:!#%",".!5&4*2$(?AC","4?/D.<8B:!#%",".!5&408\"(?AC","4?/D.62@:!#%",".!5&4*8#(?AC","4?/D.<2A:!#%",".!5&462\"(?AC","4?/D.08@:!#%",".!5,\"08$*?AC","4?/>@62B<!#%",".!5,\"68#*?AC","4?/>@02A<!#%",".!5,\"68%*?AC","4?/>@02C<!#%",".!5,\"68$)?AC","4?/>@02B;!#%","/!5,\"68#)?AC","5?/>@02A;!#%","/!5,\"68%)?AC","5?/>@02C;!#%","/!5,(68\")?AC","5?/>:02@;!#%","/!5,.68\"(?AC","5?/>402@:!#%",".!5&\"02$*?AC","4?/D@68B<!#%",".!5&\"08#*?AC","4?/D@62A<!#%",".!5&\"08$)?AC","4?/D@62B;!#%",".!5&\"62#*?AC","4?/D@08A<!#%",".!5&\"62$)?AC","4?/D@08B;!#%","/!5&\"62#)?AC","5?/D@08A;!#%","/!5&(62\")?AC","5?/D:08@;!#%","/!5&.62\"(?AC","5?/D408@:!#%","0!/,4$8\"(?AC","6?5>.B2@:!#%","0!/&4$2\"(?AC","6?5D.B8@:!#%"],"12":["-!5,408\")?AC","3?/>.62@;!#%","-!5,408#(?AC","3?/>.62A:!#%","-!5,408%(?AC","3?/>.62C:!#%","-!5,4*8$(?AC","3?/>.<2B:!#%","-!5,468\"(?AC","3?/>.02@:!#%","-!5&402\")?AC","3?/D.68@;!#%","-!5&402#(?AC","3?/D.68A:!#%","-!5&4*2$(?AC","3?/D.<8B:!#%","-!5&408\"(?AC","3?/D.62@:!#%","-!5&4*8#(?AC","3?/D.<2A:!#%","-!5&462\"(?AC","3?/D.08@:!#%","-!/,408\"(?AC","3?5>.62@:!#%","-!/,4*8#(?AC","3?5>.<2A:!#%","-!/,4*8%(?AC","3?5>.<2C:!#%","-!/&402\"(?AC","3?5D.68@:!#%","-!/&4*2#(?AC","3?5D.<8A:!#%","-!/&4*8\"(?AC","3?5D.<2@:!#%","-35,408$*?AC","3-/>.62B<!#%","-35,468#*?AC","3-/>.02A<!#%","-35,468%*?AC","3-/>.02C<!#%","-35,468$)?AC","3-/>.02B;!#%","-35&402$*?AC","3-/D.68B<!#%","-35&408#*?AC","3-/D.62A<!#%","-35&408$)?AC","3-/D.62B;!#%","-35&462#*?AC","3-/D.08A<!#%","-35&462$)?AC","3-/D.08B;!#%","-3/,408#*?AC","3-5>.62A<!#%","-3/,408%*?AC","3-5>.62C<!#%","-3/,408$)?AC","3-5>.62B;!#%","-3/,468\"*?AC","3-5>.02@<!#%","-3/,468#)?AC","3-5>.02A;!#%","-3/,468%)?AC","3-5>.02C;!#%","-3/,468$(?AC","3-5>.02B:!#%","-3/&402#*?AC","3-5D.68A<!#%","-3/&402$)?AC","3-5D.68B;!#%","-3/&408\"*?AC","3-5D.62@<!#%","-3/&408#)?AC","3-5D.62A;!#%","-3/&408$(?AC","3-5D.62B:!#%","-3/&462\"*?AC","3-5D.08@<!#%","-3/&462#)?AC","3-5D.08A;!#%","-3/&462$(?AC","3-5D.08B:!#%","-3/&468!*?AC","3-5D.02?<!#%","-3/&468\")?AC","3-5D.02@;!#%","-3/&468#(?AC","3-5D.02A:!#%","-3/&468$'?AC","3-5D.02B9!#%","-3),408\"*?AC","3-;>.62@<!#%","-3),468!*?AC","3-;>.02?<!#%","-3)&402\"*?AC","3-;D.68@<!#%","-3)&408!*?AC","3-;D.62?<!#%","-3)&462!*?AC","3-;D.08?<!#%","-3),\"68$*?AC","3-;>@02B<!#%","-3#,\"08$*?AC","3-A>@62B<!#%","-3#,\"68%*?AC","3-A>@02C<!#%",".3#,\"08%*?AC","4-A>@62C<!#%","-3/&\"68$*?AC","3-5D@02B<!#%","-3)&\"08$*?AC","3-;D@62B<!#%","-3)&\"62$*?AC","3-;D@08B<!#%","-3)&\"68#*?AC","3-;D@02A<!#%","-3#&\"02$*?AC","3-AD@68B<!#%","-!5,\"08$*?AC","3?/>@62B<!#%","-!5,\"68#*?AC","3?/>@02A<!#%","-!5,\"68%*?AC","3?/>@02C<!#%","-!5,\"68$)?AC","3?/>@02B;!#%","-!/,\"08#*?AC","3?5>@62A<!#%","-!/,\"08%*?AC","3?5>@62C<!#%","-!/,\"08$)?AC","3?5>@62B;!#%","-!/,\"68#)?AC","3?5>@02A;!#%","-!/,\"68%)?AC","3?5>@02C;!#%","-!5&\"02$*?AC","3?/D@68B<!#%","-!5&\"08#*?AC","3?/D@62A<!#%","-!5&\"08$)?AC","3?/D@62B;!#%","-!5&\"62#*?AC","3?/D@08A<!#%","-!5&\"62$)?AC","3?/D@08B;!#%","-!/&\"02#*?AC","3?5D@68A<!#%","-!/&\"02$)?AC","3?5D@68B;!#%","-!/&\"08#)?AC","3?5D@62A;!#%","-!/&\"62#)?AC","3?5D@08A;!#%",".35,408#*?AC","4-/>.62A<!#%",".35,408%*?AC","4-/>.62C<!#%",".35,408$)?AC","4-/>.62B;!#%",".35,468\"*?AC","4-/>.02@<!#%",".35,468#)?AC","4-/>.02A;!#%",".35,468%)?AC","4-/>.02C;!#%",".35,468$(?AC","4-/>.02B:!#%",".35&402#*?AC","4-/D.68A<!#%",".35&402$)?AC","4-/D.68B;!#%",".35&408\"*?AC","4-/D.62@<!#%",".35&408#)?AC","4-/D.62A;!#%",".35&408$(?AC","4-/D.62B:!#%",".35&462\"*?AC","4-/D.08@<!#%",".35&462#)?AC","4-/D.08A;!#%",".35&462$(?AC","4-/D.08B:!#%","/35,\"68$*?AC","5-/>@02B<!#%","/35,(68#*?AC","5-/>:02A<!#%","/35,(68%*?AC","5-/>:02C<!#%","/35,(68$)?AC","5-/>:02B;!#%","/35,.68\"*?AC","5-/>402@<!#%","/35,.68#)?AC","5-/>402A;!#%","/35,.68%)?AC","5-/>402C;!#%","/35,.68$(?AC","5-/>402B:!#%","/35,468!*?AC","5-/>.02?<!#%","/35,468\")?AC","5-/>.02@;!#%","/35,468#(?AC","5-/>.02A:!#%","/35,468%(?AC","5-/>.02C:!#%","/35,468$'?AC","5-/>.02B9!#%","/35&\"62$*?AC","5-/D@08B<!#%","/35&(62#*?AC","5-/D:08A<!#%","/35&(62$)?AC","5-/D:08B;!#%","/35&.62\"*?AC","5-/D408@<!#%","/35&.62#)?AC","5-/D408A;!#%","/35&.62$(?AC","5-/D408B:!#%","/35&462!*?AC","5-/D.08?<!#%","/35&462\")?AC","5-/D.08@;!#%","/35&462#(?AC","5-/D.08A:!#%","/35&462$'?AC","5-/D.08B9!#%","035,\"68#*?AC","6-/>@02A<!#%","035,\"68%*?AC","6-/>@02C<!#%","035,\"68$)?AC","6-/>@02B;!#%","035,(68\"*?AC","6-/>:02@<!#%","035,(68#)?AC","6-/>:02A;!#%","035,(68%)?AC","6-/>:02C;!#%","035,.68!*?AC","6-/>402?<!#%","035,.68\")?AC","6-/>402@;!#%","035,.68#(?AC","6-/>402A:!#%","035,.68%(?AC","6-/>402C:!#%","035,.68$'?AC","6-/>402B9!#%","035,468!)?AC","6-/>.02?;!#%","035,468\"(?AC","6-/>.02@:!#%","035,468#'?AC","6-/>.02A9!#%","035,468%'?AC","6-/>.02C9!#%","035&\"62#*?AC","6-/D@08A<!#%","035&\"62$)?AC","6-/D@08B;!#%","035&(62\"*?AC","6-/D:08@<!#%","035&(62#)?AC","6-/D:08A;!#%","035&.62!*?AC","6-/D408?<!#%","035&.62\")?AC","6-/D408@;!#%","035&.62#(?AC","6-/D408A:!#%","035&.62$'?AC","6-/D408B9!#%","035&462!)?AC","6-/D.08?;!#%","035&462\"(?AC","6-/D.08@:!#%","035&462#'?AC","6-/D.08A9!#%","03/,\"68#)?AC","6-5>@02A;!#%","03/,\"68%)?AC","6-5>@02C;!#%","03/,(68!*?AC","6-5>:02?<!#%","03/,(68\")?AC","6-5>:02@;!#%","03/,.68!)?AC","6-5>402?;!#%","03/,.68\"(?AC","6-5>402@:!#%","03/,.68#'?AC","6-5>402A9!#%","03/,.68%'?AC","6-5>402C9!#%","03),.68$'?AC","6-;>402B9!#%","03/,468!(?AC","6-5>.02?:!#%","03/,468\"'?AC","6-5>.02@9!#%","03),468#'?AC","6-;>.02A9!#%","03),468%'?AC","6-;>.02C9!#%","03#,468$'?AC","6-A>.02B9!#%","03/&\"62#)?AC","6-5D@08A;!#%","03/&(62!*?AC","6-5D:08?<!#%","03/&(62\")?AC","6-5D:08@;!#%","03/&.62!)?AC","6-5D408?;!#%","03/&.62\"(?AC","6-5D408@:!#%","03/&.62#'?AC","6-5D408A9!#%","03)&.62$'?AC","6-;D408B9!#%","03/&462!(?AC","6-5D.08?:!#%","03/&462\"'?AC","6-5D.08@9!#%","03)&462#'?AC","6-;D.08A9!#%","03#&462$'?AC","6-AD.08B9!#%","03#,(68!*?AC","6-A>:02?<!#%","/3#,.68!*?AC","5-A>402?<!#%",".3#,468!*?AC","4-A>.02?<!#%","03#&(62!*?AC","6-AD:08?<!#%","/3#&.62!*?AC","5-AD408?<!#%",".3#&462!*?AC","4-AD.08?<!#%",".3#&408!*?AC","4-AD.62?<!#%",".-5,408\"*?AC","43/>.62@<!#%",".-5,408#)?AC","43/>.62A;!#%",".-5,408%)?AC","43/>.62C;!#%",".-5,408$(?AC","43/>.62B:!#%",".-5,468!*?AC","43/>.02?<!#%",".-5,468\")?AC","43/>.02@;!#%",".-5,468#(?AC","43/>.02A:!#%",".-5,468%(?AC","43/>.02C:!#%",".-5,468$'?AC","43/>.02B9!#%",".-5&402\"*?AC","43/D.68@<!#%",".-5&402#)?AC","43/D.68A;!#%",".-5&402$(?AC","43/D.68B:!#%",".-5&408!*?AC","43/D.62?<!#%",".-5&408\")?AC","43/D.62@;!#%",".-5&408#(?AC","43/D.62A:!#%",".-5&4*8$(?AC","43/D.<2B:!#%",".-5&408$'?AC","43/D.62B9!#%",".-5&462!*?AC","43/D.08?<!#%",".-5&462\")?AC","43/D.08@;!#%",".-5&462#(?AC","43/D.08A:!#%",".-5&462$'?AC","43/D.08B9!#%",".-5,\"68$*?AC","43/>@02B<!#%","/-5,\"68#*?AC","53/>@02A<!#%","/-5,\"68%*?AC","53/>@02C<!#%","/-5,\"68$)?AC","53/>@02B;!#%","/-5,(68\"*?AC","53/>:02@<!#%","/-5,(68#)?AC","53/>:02A;!#%","/-5,(68%)?AC","53/>:02C;!#%","/-5,.68!*?AC","53/>402?<!#%","/-5,.68\")?AC","53/>402@;!#%","/-5,.68#(?AC","53/>402A:!#%","/-5,.68%(?AC","53/>402C:!#%","/-5,.68$'?AC","53/>402B9!#%","/-5,468!)?AC","53/>.02?;!#%","/-5,468\"(?AC","53/>.02@:!#%","/-5,468#'?AC","53/>.02A9!#%","/-5,468%'?AC","53/>.02C9!#%",".-5&\"08$*?AC","43/D@62B<!#%",".-5&\"62$*?AC","43/D@08B<!#%","/-5&\"62#*?AC","53/D@08A<!#%","/-5&\"62$)?AC","53/D@08B;!#%","/-5&(62\"*?AC","53/D:08@<!#%","/-5&(62#)?AC","53/D:08A;!#%","/-5&.62!*?AC","53/D408?<!#%","/-5&.62\")?AC","53/D408@;!#%","/-5&.62#(?AC","53/D408A:!#%","/-5&.62$'?AC","53/D408B9!#%","/-5&462!)?AC","53/D.08?;!#%","/-5&462\"(?AC","53/D.08@:!#%","/-5&462#'?AC","53/D.08A9!#%","0-5,\"68#)?AC","63/>@02A;!#%","0-5,\"68%)?AC","63/>@02C;!#%","0-5,(68!*?AC","63/>:02?<!#%","0-5,(68\")?AC","63/>:02@;!#%","0-5,.68!)?AC","63/>402?;!#%","0-5,.68\"(?AC","63/>402@:!#%","0-5,.68#'?AC","63/>402A9!#%","0-5,.68%'?AC","63/>402C9!#%","0-5,468!(?AC","63/>.02?:!#%","0-5,468\"'?AC","63/>.02@9!#%","0-5&\"62#)?AC","63/D@08A;!#%","0-5&(62!*?AC","63/D:08?<!#%","0-5&(62\")?AC","63/D:08@;!#%","0-5&.62!)?AC","63/D408?;!#%","0-5&.62\"(?AC","63/D408@:!#%","0-5&.62#'?AC","63/D408A9!#%","0-5&462!(?AC","63/D.08?:!#%","0-5&462\"'?AC","63/D.08@9!#%","0-/,(68!)?AC","635>:02?;!#%","0-/,.68!(?AC","635>402?:!#%","0-/,.68\"'?AC","635>402@9!#%","0-),.68#'?AC","63;>402A9!#%","0-),.68%'?AC","63;>402C9!#%","0-#,.68$'?AC","63A>402B9!#%","0-/,468!'?AC","635>.02?9!#%","0-),468\"'?AC","63;>.02@9!#%","0-#,468%'?AC","63A>.02C9!#%","/-#,468$'?AC","53A>.02B9!#%","0-/&(62!)?AC","635D:08?;!#%","0-/&.62!(?AC","635D408?:!#%","0-/&.62\"'?AC","635D408@9!#%","0-)&.62#'?AC","63;D408A9!#%","0-#&.62$'?AC","63AD408B9!#%","0-/&462!'?AC","635D.08?9!#%","0-)&462\"'?AC","63;D.08@9!#%","/-#&462$'?AC","53AD.08B9!#%","/-#,(68!*?AC","53A>:02?<!#%",".-#,408!*?AC","43A>.62?<!#%","/-#&(62!*?AC","53AD:08?<!#%",".-#&402!*?AC","43AD.68?<!#%",".'5,408!*?AC","49/>.62?<!#%",".'5,408\")?AC","49/>.62@;!#%",".'5,408#(?AC","49/>.62A:!#%",".'5,408%(?AC","49/>.62C:!#%",".'5,4*8$(?AC","49/>.<2B:!#%",".'5,468!)?AC","49/>.02?;!#%",".'5,468\"(?AC","49/>.02@:!#%",".'5&402!*?AC","49/D.68?<!#%",".'5&402\")?AC","49/D.68@;!#%",".'5&402#(?AC","49/D.68A:!#%",".'5&4*2$(?AC","49/D.<8B:!#%",".'5&408!)?AC","49/D.62?;!#%",".'5&408\"(?AC","49/D.62@:!#%",".'5&4*8#(?AC","49/D.<2A:!#%",".'5&462!)?AC","49/D.08?;!#%",".'5&462\"(?AC","49/D.08@:!#%",".'5,\"08$*?AC","49/>@62B<!#%",".'5,\"68#*?AC","49/>@02A<!#%",".'5,\"68%*?AC","49/>@02C<!#%",".'5,\"68$)?AC","49/>@02B;!#%","/'5,\"68#)?AC","59/>@02A;!#%","/'5,\"68%)?AC","59/>@02C;!#%","/'5,(68!*?AC","59/>:02?<!#%","/'5,(68\")?AC","59/>:02@;!#%","/'5,.68!)?AC","59/>402?;!#%","/'5,.68\"(?AC","59/>402@:!#%","/'5,468!(?AC","59/>.02?:!#%",".'5&\"02$*?AC","49/D@68B<!#%",".'5&\"08#*?AC","49/D@62A<!#%",".'5&\"08$)?AC","49/D@62B;!#%",".'5&\"62#*?AC","49/D@08A<!#%",".'5&\"62$)?AC","49/D@08B;!#%","/'5&\"62#)?AC","59/D@08A;!#%","/'5&(62!*?AC","59/D:08?<!#%","/'5&(62\")?AC","59/D:08@;!#%","/'5&.62!)?AC","59/D408?;!#%","/'5&.62\"(?AC","59/D408@:!#%","/'5&462!(?AC","59/D.08?:!#%","0'5,(68!)?AC","69/>:02?;!#%","0'5,.68!(?AC","69/>402?:!#%","0'5&(62!)?AC","69/D:08?;!#%","0'5&.62!(?AC","69/D408?:!#%",".!5,408\"(?AC","4?/>.62@:!#%",".!5,4*8#(?AC","4?/>.<2A:!#%",".!5,4*8%(?AC","4?/>.<2C:!#%",".!5&402\"(?AC","4?/D.68@:!#%",".!5&4*2#(?AC","4?/D.<8A:!#%",".!5&4*8\"(?AC","4?/D.<2@:!#%",".!5,\"08#*?AC","4?/>@62A<!#%",".!5,\"08%*?AC","4?/>@62C<!#%",".!5,\"08$)?AC","4?/>@62B;!#%",".!5,\"68#)?AC","4?/>@02A;!#%",".!5,\"68%)?AC","4?/>@02C;!#%",".!5&\"02#*?AC","4?/D@68A<!#%",".!5&\"02$)?AC","4?/D@68B;!#%",".!5&\"08#)?AC","4?/D@62A;!#%",".!5&\"62#)?AC","4?/D@08A;!#%","0'/,4$8\"(?AC","695>.B2@:!#%","0'/&4$2\"(?AC","695D.B8@:!#%","0!5,4$8\"(?AC","6?/>.B2@:!#%","0!5&4$2\"(?AC","6?/D.B8@:!#%","0!/,.$8\"(?AC","6?5>4B2@:!#%","0!/&.$2\"(?AC","6?5D4B8@:!#%"],"13":["-!5,408\"(?AC","3?/>.62@:!#%","-!5,4*8#(?AC","3?/>.<2A:!#%","-!5,4*8%(?AC","3?/>.<2C:!#%","-!5&402\"(?AC","3?/D.68@:!#%","-!5&4*2#(?AC","3?/D.<8A:!#%","-!5&4*8\"(?AC","3?/D.<2@:!#%","-!/,4*8\"(?AC","3?5>.<2@:!#%","-!/,4$8%(?AC","3?5>.B2C:!#%","-!/&4*2\"(?AC","3?5D.<8@:!#%","-!/&4$8\"(?AC","3?5D.B2@:!#%","-35,408#*?AC","3-/>.62A<!#%","-35,408%*?AC","3-/>.62C<!#%","-35,408$)?AC","3-/>.62B;!#%","-35,468\"*?AC","3-/>.02@<!#%","-35,468#)?AC","3-/>.02A;!#%","-35,468%)?AC","3-/>.02C;!#%","-35,468$(?AC","3-/>.02B:!#%","-35&402#*?AC","3-/D.68A<!#%","-35&402$)?AC","3-/D.68B;!#%","-35&408\"*?AC","3-/D.62@<!#%","-35&408#)?AC","3-/D.62A;!#%","-35&408$(?AC","3-/D.62B:!#%","-35&462\"*?AC","3-/D.08@<!#%","-35&462#)?AC","3-/D.08A;!#%","-35&462$(?AC","3-/D.08B:!#%","-3/,408\"*?AC","3-5>.62@<!#%","-3/,408#)?AC","3-5>.62A;!#%","-3/,408%)?AC","3-5>.62C;!#%","-3/,408$(?AC","3-5>.62B:!#%","-3/,468!*?AC","3-5>.02?<!#%","-3/,468\")?AC","3-5>.02@;!#%","-3/,468#(?AC","3-5>.02A:!#%","-3/,468%(?AC","3-5>.02C:!#%","-3/,468$'?AC","3-5>.02B9!#%","-3/&402\"*?AC","3-5D.68@<!#%","-3/&402#)?AC","3-5D.68A;!#%","-3/&402$(?AC","3-5D.68B:!#%","-3/&408!*?AC","3-5D.62?<!#%","-3/&408\")?AC","3-5D.62@;!#%","-3/&408#(?AC","3-5D.62A:!#%","-3/&4*8$(?AC","3-5D.<2B:!#%","-3/&408$'?AC","3-5D.62B9!#%","-3/&462!*?AC","3-5D.08?<!#%","-3/&462\")?AC","3-5D.08@;!#%","-3/&462#(?AC","3-5D.08A:!#%","-3/&462$'?AC","3-5D.08B9!#%","-3/&468!)?AC","3-5D.02?;!#%","-3/&468\"(?AC","3-5D.02@:!#%","-3/&468#'?AC","3-5D.02A9!#%","-3)&468$'?AC","3-;D.02B9!#%","-3),408!*?AC","3-;>.62?<!#%","-3#,468!*?AC","3-A>.02?<!#%","-3)&402!*?AC","3-;D.68?<!#%","-3#&408!*?AC","3-AD.62?<!#%","-3#&462!*?AC","3-AD.08?<!#%","-3/,\"68$*?AC","3-5>@02B<!#%","-3),\"08$*?AC","3-;>@62B<!#%","-3),\"68#*?AC","3-;>@02A<!#%","-3),\"68%*?AC","3-;>@02C<!#%","-3#,\"08%*?AC","3-A>@62C<!#%","-3/&\"08$*?AC","3-5D@62B<!#%","-3/&\"62$*?AC","3-5D@08B<!#%","-3/&\"68#*?AC","3-5D@02A<!#%","-3/&\"68$)?AC","3-5D@02B;!#%","-3)&\"02$*?AC","3-;D@68B<!#%","-3)&\"08#*?AC","3-;D@62A<!#%","-3)&\"62#*?AC","3-;D@08A<!#%","-!5,\"08#*?AC","3?/>@62A<!#%","-!5,\"08%*?AC","3?/>@62C<!#%","-!5,\"08$)?AC","3?/>@62B;!#%","-!5,\"68#)?AC","3?/>@02A;!#%","-!5,\"68%)?AC","3?/>@02C;!#%","-!/,\"08#)?AC","3?5>@62A;!#%","-!/,\"08%)?AC","3?5>@62C;!#%","-!5&\"02#*?AC","3?/D@68A<!#%","-!5&\"02$)?AC","3?/D@68B;!#%","-!5&\"08#)?AC","3?/D@62A;!#%","-!5&\"62#)?AC","3?/D@08A;!#%","-!/&\"02#)?AC","3?5D@68A;!#%",".35,408\"*?AC","4-/>.62@<!#%",".35,408#)?AC","4-/>.62A;!#%",".35,408%)?AC","4-/>.62C;!#%",".35,408$(?AC","4-/>.62B:!#%",".35,468!*?AC","4-/>.02?<!#%",".35,468\")?AC","4-/>.02@;!#%",".35,468#(?AC","4-/>.02A:!#%",".35,468%(?AC","4-/>.02C:!#%",".35,468$'?AC","4-/>.02B9!#%",".35&402\"*?AC","4-/D.68@<!#%",".35&402#)?AC","4-/D.68A;!#%",".35&402$(?AC","4-/D.68B:!#%",".35&408!*?AC","4-/D.62?<!#%",".35&408\")?AC","4-/D.62@;!#%",".35&408#(?AC","4-/D.62A:!#%",".35&4*8$(?AC","4-/D.<2B:!#%",".35&408$'?AC","4-/D.62B9!#%",".35&462!*?AC","4-/D.08?<!#%",".35&462\")?AC","4-/D.08@;!#%",".35&462#(?AC","4-/D.08A:!#%",".35&462$'?AC","4-/D.08B9!#%",".35,\"68$*?AC","4-/>@02B<!#%","/35,\"68#*?AC","5-/>@02A<!#%","/35,\"68%*?AC","5-/>@02C<!#%","/35,\"68$)?AC","5-/>@02B;!#%","/35,(68\"*?AC","5-/>:02@<!#%","/35,(68#)?AC","5-/>:02A;!#%","/35,(68%)?AC","5-/>:02C;!#%","/35,.68!*?AC","5-/>402?<!#%","/35,.68\")?AC","5-/>402@;!#%","/35,.68#(?AC","5-/>402A:!#%","/35,.68%(?AC","5-/>402C:!#%","/35,.68$'?AC","5-/>402B9!#%","/35,468!)?AC","5-/>.02?;!#%","/35,468\"(?AC","5-/>.02@:!#%","/35,468#'?AC","5-/>.02A9!#%","/35,468%'?AC","5-/>.02C9!#%",".35&\"08$*?AC","4-/D@62B<!#%",".35&\"62$*?AC","4-/D@08B<!#%","/35&\"62#*?AC","5-/D@08A<!#%","/35&\"62$)?AC","5-/D@08B;!#%","/35&(62\"*?AC","5-/D:08@<!#%","/35&(62#)?AC","5-/D:08A;!#%","/35&.62!*?AC","5-/D408?<!#%","/35&.62\")?AC","5-/D408@;!#%","/35&.62#(?AC","5-/D408A:!#%","/35&.62$'?AC","5-/D408B9!#%","/35&462!)?AC","5-/D.08?;!#%","/35&462\"(?AC","5-/D.08@:!#%","/35&462#'?AC","5-/D.08A9!#%","035,\"68#)?AC","6-/>@02A;!#%","035,\"68%)?AC","6-/>@02C;!#%","035,(68!*?AC","6-/>:02?<!#%","035,(68\")?AC","6-/>:02@;!#%","035,.68!)?AC","6-/>402?;!#%","035,.68\"(?AC","6-/>402@:!#%","035,.68#'?AC","6-/>402A9!#%","035,.68%'?AC","6-/>402C9!#%","035,468!(?AC","6-/>.02?:!#%","035,468\"'?AC","6-/>.02@9!#%","035&\"62#)?AC","6-/D@08A;!#%","035&(62!*?AC","6-/D:08?<!#%","035&(62\")?AC","6-/D:08@;!#%","035&.62!)?AC","6-/D408?;!#%","035&.62\"(?AC","6-/D408@:!#%","035&.62#'?AC","6-/D408A9!#%","035&462!(?AC","6-/D.08?:!#%","035&462\"'?AC","6-/D.08@9!#%","03/,(68!)?AC","6-5>:02?;!#%","03/,.68!(?AC","6-5>402?:!#%","03/,.68\"'?AC","6-5>402@9!#%","03),.68#'?AC","6-;>402A9!#%","03),.68%'?AC","6-;>402C9!#%","03#,.68$'?AC","6-A>402B9!#%","03/,468!'?AC","6-5>.02?9!#%","03),468\"'?AC","6-;>.02@9!#%","03#,468%'?AC","6-A>.02C9!#%","/3#,468$'?AC","5-A>.02B9!#%","03/&(62!)?AC","6-5D:08?;!#%","03/&.62!(?AC","6-5D408?:!#%","03/&.62\"'?AC","6-5D408@9!#%","03)&.62#'?AC","6-;D408A9!#%","03#&.62$'?AC","6-AD408B9!#%","03/&462!'?AC","6-5D.08?9!#%","03)&462\"'?AC","6-;D.08@9!#%","/3#&462$'?AC","5-AD.08B9!#%","/3#,(68!*?AC","5-A>:02?<!#%",".3#,408!*?AC","4-A>.62?<!#%","/3#&(62!*?AC","5-AD:08?<!#%",".3#&402!*?AC","4-AD.68?<!#%",".-5,408!*?AC","43/>.62?<!#%",".-5,408\")?AC","43/>.62@;!#%",".-5,408#(?AC","43/>.62A:!#%",".-5,408%(?AC","43/>.62C:!#%",".-5,4*8$(?AC","43/>.<2B:!#%",".-5,408$'?AC","43/>.62B9!#%",".-5,468!)?AC","43/>.02?;!#%",".-5,468\"(?AC","43/>.02@:!#%",".-5,468#'?AC","43/>.02A9!#%",".-5,468%'?AC","43/>.02C9!#%",".-5&402!*?AC","43/D.68?<!#%",".-5&402\")?AC","43/D.68@;!#%",".-5&402#(?AC","43/D.68A:!#%",".-5&4*2$(?AC","43/D.<8B:!#%",".-5&402$'?AC","43/D.68B9!#%",".-5&408!)?AC","43/D.62?;!#%",".-5&408\"(?AC","43/D.62@:!#%",".-5&4*8#(?AC","43/D.<2A:!#%",".-5&408#'?AC","43/D.62A9!#%",".-5&4*8$'?AC","43/D.<2B9!#%",".-5&462!)?AC","43/D.08?;!#%",".-5&462\"(?AC","43/D.08@:!#%",".-5&462#'?AC","43/D.08A9!#%",".-5,\"08$*?AC","43/>@62B<!#%",".-5,\"68#*?AC","43/>@02A<!#%",".-5,\"68%*?AC","43/>@02C<!#%",".-5,\"68$)?AC","43/>@02B;!#%","/-5,\"68#)?AC","53/>@02A;!#%","/-5,\"68%)?AC","53/>@02C;!#%","/-5,(68!*?AC","53/>:02?<!#%","/-5,(68\")?AC","53/>:02@;!#%","/-5,.68!)?AC","53/>402?;!#%","/-5,.68\"(?AC","53/>402@:!#%","/-5,.68#'?AC","53/>402A9!#%","/-5,.68%'?AC","53/>402C9!#%","/-5,468!(?AC","53/>.02?:!#%","/-5,468\"'?AC","53/>.02@9!#%",".-5&\"02$*?AC","43/D@68B<!#%",".-5&\"08#*?AC","43/D@62A<!#%",".-5&\"08$)?AC","43/D@62B;!#%",".-5&\"62#*?AC","43/D@08A<!#%",".-5&\"62$)?AC","43/D@08B;!#%","/-5&\"62#)?AC","53/D@08A;!#%","/-5&(62!*?AC","53/D:08?<!#%","/-5&(62\")?AC","53/D:08@;!#%","/-5&.62!)?AC","53/D408?;!#%","/-5&.62\"(?AC","53/D408@:!#%","/-5&.62#'?AC","53/D408A9!#%","/-5&462!(?AC","53/D.08?:!#%","/-5&462\"'?AC","53/D.08@9!#%","0-5,(68!)?AC","63/>:02?;!#%","0-5,.68!(?AC","63/>402?:!#%","0-5,.68\"'?AC","63/>402@9!#%","0-5,468!'?AC","63/>.02?9!#%","0-5&(62!)?AC","63/D:08?;!#%","0-5&.62!(?AC","63/D408?:!#%","0-5&.62\"'?AC","63/D408@9!#%","0-5&462!'?AC","63/D.08?9!#%","0-/,.68!'?AC","635>402?9!#%","0-),.68\"'?AC","63;>402@9!#%","0-#,.68%'?AC","63A>402C9!#%","/-#,.68$'?AC","53A>402B9!#%","0-),468!'?AC","63;>.02?9!#%","/-#,468%'?AC","53A>.02C9!#%",".-#,468$'?AC","43A>.02B9!#%","0-/&.62!'?AC","635D408?9!#%","0-)&.62\"'?AC","63;D408@9!#%","/-#&.62$'?AC","53AD408B9!#%","0-)&462!'?AC","63;D.08?9!#%",".-#&462$'?AC","43AD.08B9!#%",".-#&408$'?AC","43AD.62B9!#%",".'5,408!)?AC","49/>.62?;!#%",".'5,408\"(?AC","49/>.62@:!#%",".'5,4*8#(?AC","49/>.<2A:!#%",".'5,4*8%(?AC","49/>.<2C:!#%",".'5,468!(?AC","49/>.02?:!#%",".'5&402!)?AC","49/D.68?;!#%",".'5&402\"(?AC","49/D.68@:!#%",".'5&4*2#(?AC","49/D.<8A:!#%",".'5&408!(?AC","49/D.62?:!#%",".'5&4*8\"(?AC","49/D.<2@:!#%",".'5&462!(?AC","49/D.08?:!#%",".'5,\"08#*?AC","49/>@62A<!#%",".'5,\"08%*?AC","49/>@62C<!#%",".'5,\"08$)?AC","49/>@62B;!#%",".'5,\"68#)?AC","49/>@02A;!#%",".'5,\"68%)?AC","49/>@02C;!#%","/'5,(68!)?AC","59/>:02?;!#%","/'5,.68!(?AC","59/>402?:!#%",".'5&\"02#*?AC","49/D@68A<!#%",".'5&\"02$)?AC","49/D@68B;!#%",".'5&\"08#)?AC","49/D@62A;!#%",".'5&\"62#)?AC","49/D@08A;!#%","/'5&(62!)?AC","59/D:08?;!#%","/'5&.62!(?AC","59/D408?:!#%",".!5,4*8\"(?AC","4?/>.<2@:!#%",".!5,4$8%(?AC","4?/>.B2C:!#%",".!5&4*2\"(?AC","4?/D.<8@:!#%",".!5,\"08#)?AC","4?/>@62A;!#%",".!5,\"08%)?AC","4?/>@62C;!#%",".!5&\"02#)?AC","4?/D@68A;!#%","0-/,4$8\"(?AC","635>.B2@:!#%","0-/&4$2\"(?AC","635D.B8@:!#%","0'5,4$8\"(?AC","69/>.B2@:!#%","0'5&4$2\"(?AC","69/D.B8@:!#%","0'/,.$8\"(?AC","695>4B2@:!#%","0'/&.$2\"(?AC","695D4B8@:!#%","0'/,4$8!(?AC","695>.B2?:!#%","0'/&4$2!(?AC","695D.B8?:!#%","0!5,.$8\"(?AC","6?/>4B2@:!#%","0!5&.$2\"(?AC","6?/D4B8@:!#%","/!5,4$8\"(?AC","5?/>.B2@:!#%","/!5&4$2\"(?AC","5?/D.B8@:!#%"],"14":["-!5,4*8\"(?AC","3?/>.<2@:!#%","-!5,4$8%(?AC","3?/>.B2C:!#%","-!5&4*2\"(?AC","3?/D.<8@:!#%","-!/,4$8\"(?AC","3?5>.B2@:!#%","-!/&4$2\"(?AC","3?5D.B8@:!#%","-35,408\"*?AC","3-/>.62@<!#%","-35,408#)?AC","3-/>.62A;!#%","-35,408%)?AC","3-/>.62C;!#%","-35,408$(?AC","3-/>.62B:!#%","-35,468!*?AC","3-/>.02?<!#%","-35,468\")?AC","3-/>.02@;!#%","-35,468#(?AC","3-/>.02A:!#%","-35,468%(?AC","3-/>.02C:!#%","-35,468$'?AC","3-/>.02B9!#%","-35&402\"*?AC","3-/D.68@<!#%","-35&402#)?AC","3-/D.68A;!#%","-35&402$(?AC","3-/D.68B:!#%","-35&408!*?AC","3-/D.62?<!#%","-35&408\")?AC","3-/D.62@;!#%","-35&408#(?AC","3-/D.62A:!#%","-35&4*8$(?AC","3-/D.<2B:!#%","-35&408$'?AC","3-/D.62B9!#%","-35&462!*?AC","3-/D.08?<!#%","-35&462\")?AC","3-/D.08@;!#%","-35&462#(?AC","3-/D.08A:!#%","-35&462$'?AC","3-/D.08B9!#%","-3/,408!*?AC","3-5>.62?<!#%","-3/,408\")?AC","3-5>.62@;!#%","-3/,408#(?AC","3-5>.62A:!#%","-3/,408%(?AC","3-5>.62C:!#%","-3/,4*8$(?AC","3-5>.<2B:!#%","-3/,408$'?AC","3-5>.62B9!#%","-3/,468!)?AC","3-5>.02?;!#%","-3/,468\"(?AC","3-5>.02@:!#%","-3/,468#'?AC","3-5>.02A9!#%","-3/,468%'?AC","3-5>.02C9!#%","-3),468$'?AC","3-;>.02B9!#%","-3/&402!*?AC","3-5D.68?<!#%","-3/&402\")?AC","3-5D.68@;!#%","-3/&402#(?AC","3-5D.68A:!#%","-3/&4*2$(?AC","3-5D.<8B:!#%","-3/&402$'?AC","3-5D.68B9!#%","-3/&408!)?AC","3-5D.62?;!#%","-3/&408\"(?AC","3-5D.62@:!#%","-3/&4*8#(?AC","3-5D.<2A:!#%","-3/&408#'?AC","3-5D.62A9!#%","-3/&4*8$'?AC","3-5D.<2B9!#%","-3)&408$'?AC","3-;D.62B9!#%","-3/&462!)?AC","3-5D.08?;!#%","-3/&462\"(?AC","3-5D.08@:!#%","-3/&462#'?AC","3-5D.08A9!#%","-3)&462$'?AC","3-;D.08B9!#%","-3/&468!(?AC","3-5D.02?:!#%","-3/&468\"'?AC","3-5D.02@9!#%","-3)&468#'?AC","3-;D.02A9!#%","-3#,408!*?AC","3-A>.62?<!#%","-3#&402!*?AC","3-AD.68?<!#%","-35,\"68$*?AC","3-/>@02B<!#%","-3/,\"08$*?AC","3-5>@62B<!#%","-3/,\"68#*?AC","3-5>@02A<!#%","-3/,\"68%*?AC","3-5>@02C<!#%","-3/,\"68$)?AC","3-5>@02B;!#%","-3),\"08#*?AC","3-;>@62A<!#%","-3),\"08%*?AC","3-;>@62C<!#%","-35&\"08$*?AC","3-/D@62B<!#%","-35&\"62$*?AC","3-/D@08B<!#%","-3/&\"02$*?AC","3-5D@68B<!#%","-3/&\"08#*?AC","3-5D@62A<!#%","-3/&\"08$)?AC","3-5D@62B;!#%","-3/&\"62#*?AC","3-5D@08A<!#%","-3/&\"62$)?AC","3-5D@08B;!#%","-3/&\"68#)?AC","3-5D@02A;!#%","-3)&\"02#*?AC","3-;D@68A<!#%","-!5,\"08#)?AC","3?/>@62A;!#%","-!5,\"08%)?AC","3?/>@62C;!#%","-!5&\"02#)?AC","3?/D@68A;!#%",".35,408!*?AC","4-/>.62?<!#%",".35,408\")?AC","4-/>.62@;!#%",".35,408#(?AC","4-/>.62A:!#%",".35,408%(?AC","4-/>.62C:!#%",".35,4*8$(?AC","4-/>.<2B:!#%",".35,408$'?AC","4-/>.62B9!#%",".35,468!)?AC","4-/>.02?;!#%",".35,468\"(?AC","4-/>.02@:!#%",".35,468#'?AC","4-/>.02A9!#%",".35,468%'?AC","4-/>.02C9!#%",".35&402!*?AC","4-/D.68?<!#%",".35&402\")?AC","4-/D.68@;!#%",".35&402#(?AC","4-/D.68A:!#%",".35&4*2$(?AC","4-/D.<8B:!#%",".35&402$'?AC","4-/D.68B9!#%",".35&408!)?AC","4-/D.62?;!#%",".35&408\"(?AC","4-/D.62@:!#%",".35&4*8#(?AC","4-/D.<2A:!#%",".35&408#'?AC","4-/D.62A9!#%",".35&4*8$'?AC","4-/D.<2B9!#%",".35&462!)?AC","4-/D.08?;!#%",".35&462\"(?AC","4-/D.08@:!#%",".35&462#'?AC","4-/D.08A9!#%",".35,\"08$*?AC","4-/>@62B<!#%",".35,\"68#*?AC","4-/>@02A<!#%",".35,\"68%*?AC","4-/>@02C<!#%",".35,\"68$)?AC","4-/>@02B;!#%","/35,\"68#)?AC","5-/>@02A;!#%","/35,\"68%)?AC","5-/>@02C;!#%","/35,(68!*?AC","5-/>:02?<!#%","/35,(68\")?AC","5-/>:02@;!#%","/35,.68!)?AC","5-/>402?;!#%","/35,.68\"(?AC","5-/>402@:!#%","/35,.68#'?AC","5-/>402A9!#%","/35,.68%'?AC","5-/>402C9!#%","/35,468!(?AC","5-/>.02?:!#%","/35,468\"'?AC","5-/>.02@9!#%",".35&\"02$*?AC","4-/D@68B<!#%",".35&\"08#*?AC","4-/D@62A<!#%",".35&\"08$)?AC","4-/D@62B;!#%",".35&\"62#*?AC","4-/D@08A<!#%",".35&\"62$)?AC","4-/D@08B;!#%","/35&\"62#)?AC","5-/D@08A;!#%","/35&(62!*?AC","5-/D:08?<!#%","/35&(62\")?AC","5-/D:08@;!#%","/35&.62!)?AC","5-/D408?;!#%","/35&.62\"(?AC","5-/D408@:!#%","/35&.62#'?AC","5-/D408A9!#%","/35&462!(?AC","5-/D.08?:!#%","/35&462\"'?AC","5-/D.08@9!#%","035,(68!)?AC","6-/>:02?;!#%","035,.68!(?AC","6-/>402?:!#%","035,.68\"'?AC","6-/>402@9!#%","035,468!'?AC","6-/>.02?9!#%","035&(62!)?AC","6-/D:08?;!#%","035&.62!(?AC","6-/D408?:!#%","035&.62\"'?AC","6-/D408@9!#%","035&462!'?AC","6-/D.08?9!#%","03/,.68!'?AC","6-5>402?9!#%","03),.68\"'?AC","6-;>402@9!#%","03#,.68%'?AC","6-A>402C9!#%","/3#,.68$'?AC","5-A>402B9!#%","03),468!'?AC","6-;>.02?9!#%","/3#,468%'?AC","5-A>.02C9!#%",".3#,468$'?AC","4-A>.02B9!#%","03/&.62!'?AC","6-5D408?9!#%","03)&.62\"'?AC","6-;D408@9!#%","/3#&.62$'?AC","5-AD408B9!#%","03)&462!'?AC","6-;D.08?9!#%",".3#&462$'?AC","4-AD.08B9!#%",".3#&408$'?AC","4-AD.62B9!#%",".-5,408!)?AC","43/>.62?;!#%",".-5,408\"(?AC","43/>.62@:!#%",".-5,4*8#(?AC","43/>.<2A:!#%",".-5,408#'?AC","43/>.62A9!#%",".-5,4*8%(?AC","43/>.<2C:!#%",".-5,408%'?AC","43/>.62C9!#%",".-5,4*8$'?AC","43/>.<2B9!#%",".-5,468!(?AC","43/>.02?:!#%",".-5,468\"'?AC","43/>.02@9!#%",".-5&402!)?AC","43/D.68?;!#%",".-5&402\"(?AC","43/D.68@:!#%",".-5&4*2#(?AC","43/D.<8A:!#%",".-5&402#'?AC","43/D.68A9!#%",".-5&4*2$'?AC","43/D.<8B9!#%",".-5&408!(?AC","43/D.62?:!#%",".-5&4*8\"(?AC","43/D.<2@:!#%",".-5&408\"'?AC","43/D.62@9!#%",".-5&4*8#'?AC","43/D.<2A9!#%",".-5&462!(?AC","43/D.08?:!#%",".-5&462\"'?AC","43/D.08@9!#%",".-5,\"08#*?AC","43/>@62A<!#%",".-5,\"08%*?AC","43/>@62C<!#%",".-5,\"08$)?AC","43/>@62B;!#%",".-5,\"68#)?AC","43/>@02A;!#%",".-5,\"68%)?AC","43/>@02C;!#%","/-5,(68!)?AC","53/>:02?;!#%","/-5,.68!(?AC","53/>402?:!#%","/-5,.68\"'?AC","53/>402@9!#%","/-5,468!'?AC","53/>.02?9!#%",".-5&\"02#*?AC","43/D@68A<!#%",".-5&\"02$)?AC","43/D@68B;!#%",".-5&\"08#)?AC","43/D@62A;!#%",".-5&\"62#)?AC","43/D@08A;!#%","/-5&(62!)?AC","53/D:08?;!#%","/-5&.62!(?AC","53/D408?:!#%","/-5&.62\"'?AC","53/D408@9!#%","/-5&462!'?AC","53/D.08?9!#%","0-5,.68!'?AC","63/>402?9!#%","0-5&.62!'?AC","63/D408?9!#%","0-),.68!'?AC","63;>402?9!#%","/-#,.68%'?AC","53A>402C9!#%","0-#,468!'?AC","63A>.02?9!#%",".-#,468%'?AC","43A>.02C9!#%",".-#,408$'?AC","43A>.62B9!#%","0-)&.62!'?AC","63;D408?9!#%","0-#&462!'?AC","63AD.08?9!#%",".-#&402$'?AC","43AD.68B9!#%",".-#&4*8$'?AC","43AD.<2B9!#%",".'5,408!(?AC","49/>.62?:!#%",".'5,4*8\"(?AC","49/>.<2@:!#%",".'5,4$8%(?AC","49/>.B2C:!#%",".'5&402!(?AC","49/D.68?:!#%",".'5&4*2\"(?AC","49/D.<8@:!#%",".'5&4*8!(?AC","49/D.<2?:!#%",".'5,\"08#)?AC","49/>@62A;!#%",".'5,\"08%)?AC","49/>@62C;!#%",".'5&\"02#)?AC","49/D@68A;!#%",".!5,4$8\"(?AC","4?/>.B2@:!#%","/!5,4$8%(?AC","5?/>.B2C:!#%",".!5&4$2\"(?AC","4?/D.B8@:!#%","03/,4$8\"(?AC","6-5>.B2@:!#%","03/&4$2\"(?AC","6-5D.B8@:!#%","0-5,4$8\"(?AC","63/>.B2@:!#%","0-5&4$2\"(?AC","63/D.B8@:!#%","0-/,.$8\"(?AC","635>4B2@:!#%","0-/&.$2\"(?AC","635D4B8@:!#%","0-/,4$8!(?AC","635>.B2?:!#%","0-/&4$2!(?AC","635D.B8?:!#%","0-/,4$8\"'?AC","635>.B2@9!#%","0-/&4$2\"'?AC","635D.B8@9!#%","0'5,.$8\"(?AC","69/>4B2@:!#%","0'5&.$2\"(?AC","69/D4B8@:!#%","0'5,4$8!(?AC","69/>.B2?:!#%","0'5&4$2!(?AC","69/D.B8?:!#%","/'5,4$8\"(?AC","59/>.B2@:!#%","/'5&4$2\"(?AC","59/D.B8@:!#%","0'/,.$8!(?AC","695>4B2?:!#%","0'/&.$2!(?AC","695D4B8?:!#%","/!5,.$8\"(?AC","5?/>4B2@:!#%","/!5&.$2\"(?AC","5?/D4B8@:!#%"],"15":["-!5,4$8\"(?AC","3?/>.B2@:!#%","-!5&4$2\"(?AC","3?/D.B8@:!#%","-35,408!*?AC","3-/>.62?<!#%","-35,408\")?AC","3-/>.62@;!#%","-35,408#(?AC","3-/>.62A:!#%","-35,408%(?AC","3-/>.62C:!#%","-35,4*8$(?AC","3-/>.<2B:!#%","-35,408$'?AC","3-/>.62B9!#%","-35,468!)?AC","3-/>.02?;!#%","-35,468\"(?AC","3-/>.02@:!#%","-35,468#'?AC","3-/>.02A9!#%","-35,468%'?AC","3-/>.02C9!#%","-35&402!*?AC","3-/D.68?<!#%","-35&402\")?AC","3-/D.68@;!#%","-35&402#(?AC","3-/D.68A:!#%","-35&4*2$(?AC","3-/D.<8B:!#%","-35&402$'?AC","3-/D.68B9!#%","-35&408!)?AC","3-/D.62?;!#%","-35&408\"(?AC","3-/D.62@:!#%","-35&4*8#(?AC","3-/D.<2A:!#%","-35&408#'?AC","3-/D.62A9!#%","-35&4*8$'?AC","3-/D.<2B9!#%","-35&462!)?AC","3-/D.08?;!#%","-35&462\"(?AC","3-/D.08@:!#%","-35&462#'?AC","3-/D.08A9!#%","-3/,408!)?AC","3-5>.62?;!#%","-3/,408\"(?AC","3-5>.62@:!#%","-3/,4*8#(?AC","3-5>.<2A:!#%","-3/,408#'?AC","3-5>.62A9!#%","-3/,4*8%(?AC","3-5>.<2C:!#%","-3/,408%'?AC","3-5>.62C9!#%","-3/,4*8$'?AC","3-5>.<2B9!#%","-3),408$'?AC","3-;>.62B9!#%","-3/,468!(?AC","3-5>.02?:!#%","-3/,468\"'?AC","3-5>.02@9!#%","-3),468#'?AC","3-;>.02A9!#%","-3),468%'?AC","3-;>.02C9!#%","-3#,468$'?AC","3-A>.02B9!#%","-3/&402!)?AC","3-5D.68?;!#%","-3/&402\"(?AC","3-5D.68@:!#%","-3/&4*2#(?AC","3-5D.<8A:!#%","-3/&402#'?AC","3-5D.68A9!#%","-3/&4*2$'?AC","3-5D.<8B9!#%","-3)&402$'?AC","3-;D.68B9!#%","-3/&408!(?AC","3-5D.62?:!#%","-3/&4*8\"(?AC","3-5D.<2@:!#%","-3/&408\"'?AC","3-5D.62@9!#%","-3/&4*8#'?AC","3-5D.<2A9!#%","-3)&408#'?AC","3-;D.62A9!#%","-3)&4*8$'?AC","3-;D.<2B9!#%","-3#&408$'?AC","3-AD.62B9!#%","-3/&462!(?AC","3-5D.08?:!#%","-3/&462\"'?AC","3-5D.08@9!#%","-3)&462#'?AC","3-;D.08A9!#%","-3#&462$'?AC","3-AD.08B9!#%","-3/&468!'?AC","3-5D.02?9!#%","-3)&468\"'?AC","3-;D.02@9!#%","-35,\"08$*?AC","3-/>@62B<!#%","-35,\"68#*?AC","3-/>@02A<!#%","-35,\"68%*?AC","3-/>@02C<!#%","-35,\"68$)?AC","3-/>@02B;!#%","-3/,\"08#*?AC","3-5>@62A<!#%","-3/,\"08%*?AC","3-5>@62C<!#%","-3/,\"08$)?AC","3-5>@62B;!#%","-3/,\"68#)?AC","3-5>@02A;!#%","-3/,\"68%)?AC","3-5>@02C;!#%","-35&\"02$*?AC","3-/D@68B<!#%","-35&\"08#*?AC","3-/D@62A<!#%","-35&\"08$)?AC","3-/D@62B;!#%","-35&\"62#*?AC","3-/D@08A<!#%","-35&\"62$)?AC","3-/D@08B;!#%","-3/&\"02#*?AC","3-5D@68A<!#%","-3/&\"02$)?AC","3-5D@68B;!#%","-3/&\"08#)?AC","3-5D@62A;!#%","-3/&\"62#)?AC","3-5D@08A;!#%",".35,408!)?AC","4-/>.62?;!#%",".35,408\"(?AC","4-/>.62@:!#%",".35,4*8#(?AC","4-/>.<2A:!#%",".35,408#'?AC","4-/>.62A9!#%",".35,4*8%(?AC","4-/>.<2C:!#%",".35,408%'?AC","4-/>.62C9!#%",".35,4*8$'?AC","4-/>.<2B9!#%",".35,468!(?AC","4-/>.02?:!#%",".35,468\"'?AC","4-/>.02@9!#%",".35&402!)?AC","4-/D.68?;!#%",".35&402\"(?AC","4-/D.68@:!#%",".35&4*2#(?AC","4-/D.<8A:!#%",".35&402#'?AC","4-/D.68A9!#%",".35&4*2$'?AC","4-/D.<8B9!#%",".35&408!(?AC","4-/D.62?:!#%",".35&4*8\"(?AC","4-/D.<2@:!#%",".35&408\"'?AC","4-/D.62@9!#%",".35&4*8#'?AC","4-/D.<2A9!#%",".35&462!(?AC","4-/D.08?:!#%",".35&462\"'?AC","4-/D.08@9!#%",".35,\"08#*?AC","4-/>@62A<!#%",".35,\"08%*?AC","4-/>@62C<!#%",".35,\"08$)?AC","4-/>@62B;!#%",".35,\"68#)?AC","4-/>@02A;!#%",".35,\"68%)?AC","4-/>@02C;!#%","/35,(68!)?AC","5-/>:02?;!#%","/35,.68!(?AC","5-/>402?:!#%","/35,.68\"'?AC","5-/>402@9!#%","/35,468!'?AC","5-/>.02?9!#%",".35&\"02#*?AC","4-/D@68A<!#%",".35&\"02$)?AC","4-/D@68B;!#%",".35&\"08#)?AC","4-/D@62A;!#%",".35&\"62#)?AC","4-/D@08A;!#%","/35&(62!)?AC","5-/D:08?;!#%","/35&.62!(?AC","5-/D408?:!#%","/35&.62\"'?AC","5-/D408@9!#%","/35&462!'?AC","5-/D.08?9!#%","035,.68!'?AC","6-/>402?9!#%","035&.62!'?AC","6-/D408?9!#%","03),.68!'?AC","6-;>402?9!#%","/3#,.68%'?AC","5-A>402C9!#%","03#,468!'?AC","6-A>.02?9!#%",".3#,468%'?AC","4-A>.02C9!#%",".3#,408$'?AC","4-A>.62B9!#%","03)&.62!'?AC","6-;D408?9!#%","03#&462!'?AC","6-AD.08?9!#%",".3#&402$'?AC","4-AD.68B9!#%",".3#&4*8$'?AC","4-AD.<2B9!#%",".-5,408!(?AC","43/>.62?:!#%",".-5,4*8\"(?AC","43/>.<2@:!#%",".-5,408\"'?AC","43/>.62@9!#%",".-5,4*8#'?AC","43/>.<2A9!#%",".-5,4$8%(?AC","43/>.B2C:!#%",".-5,4*8%'?AC","43/>.<2C9!#%",".-5,468!'?AC","43/>.02?9!#%",".-5&402!(?AC","43/D.68?:!#%",".-5&4*2\"(?AC","43/D.<8@:!#%",".-5&402\"'?AC","43/D.68@9!#%",".-5&4*2#'?AC","43/D.<8A9!#%",".-5&4*8!(?AC","43/D.<2?:!#%",".-5&408!'?AC","43/D.62?9!#%",".-5&4*8\"'?AC","43/D.<2@9!#%",".-5&462!'?AC","43/D.08?9!#%",".-5,\"08#)?AC","43/>@62A;!#%",".-5,\"08%)?AC","43/>@62C;!#%","/-5,.68!'?AC","53/>402?9!#%",".-5&\"02#)?AC","43/D@68A;!#%","/-5&.62!'?AC","53/D408?9!#%","0-#,.68!'?AC","63A>402?9!#%","/-#,468!'?AC","53A>.02?9!#%",".-#,408%'?AC","43A>.62C9!#%",".-#,4*8$'?AC","43A>.<2B9!#%","0-#&.62!'?AC","63AD408?9!#%","/-#&462!'?AC","53AD.08?9!#%",".-#&4*2$'?AC","43AD.<8B9!#%",".'5,4*8!(?AC","49/>.<2?:!#%",".'5,4$8\"(?AC","49/>.B2@:!#%","/'5,4$8%(?AC","59/>.B2C:!#%",".'5&4*2!(?AC","49/D.<8?:!#%",".'5&4$2\"(?AC","49/D.B8@:!#%","0!5,4$8%(?AC","6?/>.B2C:!#%","/!5,.$8%(?AC","5?/>4B2C:!#%","035,4$8\"(?AC","6-/>.B2@:!#%","035&4$2\"(?AC","6-/D.B8@:!#%","03/,.$8\"(?AC","6-5>4B2@:!#%","03/&.$2\"(?AC","6-5D4B8@:!#%","03/,4$8!(?AC","6-5>.B2?:!#%","03/&4$2!(?AC","6-5D.B8?:!#%","03/,4$8\"'?AC","6-5>.B2@9!#%","03/&4$2\"'?AC","6-5D.B8@9!#%","0-5,.$8\"(?AC","63/>4B2@:!#%","0-5&.$2\"(?AC","63/D4B8@:!#%","0-5,4$8!(?AC","63/>.B2?:!#%","0-5&4$2!(?AC","63/D.B8?:!#%","/-5,4$8\"(?AC","53/>.B2@:!#%","/-5&4$2\"(?AC","53/D.B8@:!#%","0-5,4$8\"'?AC","63/>.B2@9!#%","0-5&4$2\"'?AC","63/D.B8@9!#%","0-/,.$8!(?AC","635>4B2?:!#%","0-/&.$2!(?AC","635D4B8?:!#%","0-/,.$8\"'?AC","635>4B2@9!#%","0-/&.$2\"'?AC","635D4B8@9!#%","0-/,4$8!'?AC","635>.B2?9!#%","0-/&4$2!'?AC","635D.B8?9!#%","0-),4$8\"'?AC","63;>.B2@9!#%","0-)&4$2\"'?AC","63;D.B8@9!#%","0'5,.$8!(?AC","69/>4B2?:!#%","0'5&.$2!(?AC","69/D4B8?:!#%","/'5,.$8\"(?AC","59/>4B2@:!#%","/'5&.$2\"(?AC","59/D4B8@:!#%","/'5,4$8!(?AC","59/>.B2?:!#%","/'5&4$2!(?AC","59/D.B8?:!#%"],"16":["-35,408!)?AC","3-/>.62?;!#%","-35,408\"(?AC","3-/>.62@:!#%","-35,4*8#(?AC","3-/>.<2A:!#%","-35,408#'?AC","3-/>.62A9!#%","-35,4*8%(?AC","3-/>.<2C:!#%","-35,408%'?AC","3-/>.62C9!#%","-35,4*8$'?AC","3-/>.<2B9!#%","-35,468!(?AC","3-/>.02?:!#%","-35,468\"'?AC","3-/>.02@9!#%","-35&402!)?AC","3-/D.68?;!#%","-35&402\"(?AC","3-/D.68@:!#%","-35&4*2#(?AC","3-/D.<8A:!#%","-35&402#'?AC","3-/D.68A9!#%","-35&4*2$'?AC","3-/D.<8B9!#%","-35&408!(?AC","3-/D.62?:!#%","-35&4*8\"(?AC","3-/D.<2@:!#%","-35&408\"'?AC","3-/D.62@9!#%","-35&4*8#'?AC","3-/D.<2A9!#%","-35&462!(?AC","3-/D.08?:!#%","-35&462\"'?AC","3-/D.08@9!#%","-3/,408!(?AC","3-5>.62?:!#%","-3/,4*8\"(?AC","3-5>.<2@:!#%","-3/,408\"'?AC","3-5>.62@9!#%","-3/,4*8#'?AC","3-5>.<2A9!#%","-3),408#'?AC","3-;>.62A9!#%","-3/,4$8%(?AC","3-5>.B2C:!#%","-3/,4*8%'?AC","3-5>.<2C9!#%","-3),408%'?AC","3-;>.62C9!#%","-3),4*8$'?AC","3-;>.<2B9!#%","-3#,408$'?AC","3-A>.62B9!#%","-3/,468!'?AC","3-5>.02?9!#%","-3),468\"'?AC","3-;>.02@9!#%","-3#,468%'?AC","3-A>.02C9!#%","-3/&402!(?AC","3-5D.68?:!#%","-3/&4*2\"(?AC","3-5D.<8@:!#%","-3/&402\"'?AC","3-5D.68@9!#%","-3/&4*2#'?AC","3-5D.<8A9!#%","-3)&402#'?AC","3-;D.68A9!#%","-3)&4*2$'?AC","3-;D.<8B9!#%","-3#&402$'?AC","3-AD.68B9!#%","-3/&4*8!(?AC","3-5D.<2?:!#%","-3/&408!'?AC","3-5D.62?9!#%","-3/&4$8\"(?AC","3-5D.B2@:!#%","-3/&4*8\"'?AC","3-5D.<2@9!#%","-3)&408\"'?AC","3-;D.62@9!#%","-3)&4*8#'?AC","3-;D.<2A9!#%","-3#&4*8$'?AC","3-AD.<2B9!#%","-3/&462!'?AC","3-5D.08?9!#%","-3)&462\"'?AC","3-;D.08@9!#%","-3)&468!'?AC","3-;D.02?9!#%","-35,\"08#*?AC","3-/>@62A<!#%","-35,\"08%*?AC","3-/>@62C<!#%","-35,\"08$)?AC","3-/>@62B;!#%","-35,\"68#)?AC","3-/>@02A;!#%","-35,\"68%)?AC","3-/>@02C;!#%","-3/,\"08#)?AC","3-5>@62A;!#%","-3/,\"08%)?AC","3-5>@62C;!#%","-35&\"02#*?AC","3-/D@68A<!#%","-35&\"02$)?AC","3-/D@68B;!#%","-35&\"08#)?AC","3-/D@62A;!#%","-35&\"62#)?AC","3-/D@08A;!#%","-3/&\"02#)?AC","3-5D@68A;!#%",".35,408!(?AC","4-/>.62?:!#%",".35,4*8\"(?AC","4-/>.<2@:!#%",".35,408\"'?AC","4-/>.62@9!#%",".35,4*8#'?AC","4-/>.<2A9!#%",".35,4$8%(?AC","4-/>.B2C:!#%",".35,4*8%'?AC","4-/>.<2C9!#%",".35,468!'?AC","4-/>.02?9!#%",".35&402!(?AC","4-/D.68?:!#%",".35&4*2\"(?AC","4-/D.<8@:!#%",".35&402\"'?AC","4-/D.68@9!#%",".35&4*2#'?AC","4-/D.<8A9!#%",".35&4*8!(?AC","4-/D.<2?:!#%",".35&408!'?AC","4-/D.62?9!#%",".35&4*8\"'?AC","4-/D.<2@9!#%",".35&462!'?AC","4-/D.08?9!#%",".35,\"08#)?AC","4-/>@62A;!#%",".35,\"08%)?AC","4-/>@62C;!#%","/35,.68!'?AC","5-/>402?9!#%",".35&\"02#)?AC","4-/D@68A;!#%","/35&.62!'?AC","5-/D408?9!#%","03#,.68!'?AC","6-A>402?9!#%","/3#,468!'?AC","5-A>.02?9!#%",".3#,408%'?AC","4-A>.62C9!#%",".3#,4*8$'?AC","4-A>.<2B9!#%","03#&.62!'?AC","6-AD408?9!#%","/3#&462!'?AC","5-AD.08?9!#%",".3#&4*2$'?AC","4-AD.<8B9!#%",".-5,4*8!(?AC","43/>.<2?:!#%",".-5,408!'?AC","43/>.62?9!#%",".-5,4$8\"(?AC","43/>.B2@:!#%",".-5,4*8\"'?AC","43/>.<2@9!#%","/-5,4$8%(?AC","53/>.B2C:!#%",".-5,4$8%'?AC","43/>.B2C9!#%",".-5&4*2!(?AC","43/D.<8?:!#%",".-5&402!'?AC","43/D.68?9!#%",".-5&4$2\"(?AC","43/D.B8@:!#%",".-5&4*2\"'?AC","43/D.<8@9!#%",".-5&4*8!'?AC","43/D.<2?9!#%","/-#,.68!'?AC","53A>402?9!#%",".-#,468!'?AC","43A>.02?9!#%",".-#,4*8%'?AC","43A>.<2C9!#%","/-#&.62!'?AC","53AD408?9!#%",".-#&462!'?AC","43AD.08?9!#%",".-#&408!'?AC","43AD.62?9!#%",".'5,4$8!(?AC","49/>.B2?:!#%","0'5,4$8%(?AC","69/>.B2C:!#%","/'5,.$8%(?AC","59/>4B2C:!#%",".'5&4$2!(?AC","49/D.B8?:!#%","0!/,4$8%(?AC","6?5>.B2C:!#%","0!5,.$8%(?AC","6?/>4B2C:!#%","035,.$8\"(?AC","6-/>4B2@:!#%","035&.$2\"(?AC","6-/D4B8@:!#%","035,4$8!(?AC","6-/>.B2?:!#%","035&4$2!(?AC","6-/D.B8?:!#%","/35,4$8\"(?AC","5-/>.B2@:!#%","/35&4$2\"(?AC","5-/D.B8@:!#%","035,4$8\"'?AC","6-/>.B2@9!#%","035&4$2\"'?AC","6-/D.B8@9!#%","03/,.$8!(?AC","6-5>4B2?:!#%","03/&.$2!(?AC","6-5D4B8?:!#%","03/,.$8\"'?AC","6-5>4B2@9!#%","03/&.$2\"'?AC","6-5D4B8@9!#%","03/,4$8!'?AC","6-5>.B2?9!#%","03/&4$2!'?AC","6-5D.B8?9!#%","03),4$8\"'?AC","6-;>.B2@9!#%","03)&4$2\"'?AC","6-;D.B8@9!#%","0-5,.$8!(?AC","63/>4B2?:!#%","0-5&.$2!(?AC","63/D4B8?:!#%","/-5,.$8\"(?AC","53/>4B2@:!#%","/-5&.$2\"(?AC","53/D4B8@:!#%","0-5,.$8\"'?AC","63/>4B2@9!#%","0-5&.$2\"'?AC","63/D4B8@9!#%","/-5,4$8!(?AC","53/>.B2?:!#%","/-5&4$2!(?AC","53/D.B8?:!#%","0-5,4$8!'?AC","63/>.B2?9!#%","0-5&4$2!'?AC","63/D.B8?9!#%","/-5,4$8\"'?AC","53/>.B2@9!#%","/-5&4$2\"'?AC","53/D.B8@9!#%","0-/,.$8!'?AC","635>4B2?9!#%","0-/&.$2!'?AC","635D4B8?9!#%","0-),.$8\"'?AC","63;>4B2@9!#%","0-)&.$2\"'?AC","63;D4B8@9!#%","0-),4$8!'?AC","63;>.B2?9!#%","0-)&4$2!'?AC","63;D.B8?9!#%","/'5,.$8!(?AC","59/>4B2?:!#%","/'5&.$2!(?AC","59/D4B8?:!#%"],"17":["-35,408!(?AC","3-/>.62?:!#%","-35,4*8\"(?AC","3-/>.<2@:!#%","-35,408\"'?AC","3-/>.62@9!#%","-35,4*8#'?AC","3-/>.<2A9!#%","-35,4$8%(?AC","3-/>.B2C:!#%","-35,4*8%'?AC","3-/>.<2C9!#%","-35,468!'?AC","3-/>.02?9!#%","-35&402!(?AC","3-/D.68?:!#%","-35&4*2\"(?AC","3-/D.<8@:!#%","-35&402\"'?AC","3-/D.68@9!#%","-35&4*2#'?AC","3-/D.<8A9!#%","-35&4*8!(?AC","3-/D.<2?:!#%","-35&408!'?AC","3-/D.62?9!#%","-35&4*8\"'?AC","3-/D.<2@9!#%","-35&462!'?AC","3-/D.08?9!#%","-3/,4*8!(?AC","3-5>.<2?:!#%","-3/,408!'?AC","3-5>.62?9!#%","-3/,4$8\"(?AC","3-5>.B2@:!#%","-3/,4*8\"'?AC","3-5>.<2@9!#%","-3),408\"'?AC","3-;>.62@9!#%","-3),4*8#'?AC","3-;>.<2A9!#%","-3/,4$8%'?AC","3-5>.B2C9!#%","-3),4*8%'?AC","3-;>.<2C9!#%","-3#,408%'?AC","3-A>.62C9!#%","-3#,4*8$'?AC","3-A>.<2B9!#%","-3),468!'?AC","3-;>.02?9!#%","-3/&4*2!(?AC","3-5D.<8?:!#%","-3/&402!'?AC","3-5D.68?9!#%","-3/&4$2\"(?AC","3-5D.B8@:!#%","-3/&4*2\"'?AC","3-5D.<8@9!#%","-3)&402\"'?AC","3-;D.68@9!#%","-3)&4*2#'?AC","3-;D.<8A9!#%","-3#&4*2$'?AC","3-AD.<8B9!#%","-3/&4$8!(?AC","3-5D.B2?:!#%","-3/&4*8!'?AC","3-5D.<2?9!#%","-3)&408!'?AC","3-;D.62?9!#%","-3/&4$8\"'?AC","3-5D.B2@9!#%","-3)&4*8\"'?AC","3-;D.<2@9!#%","-3)&462!'?AC","3-;D.08?9!#%","-35,\"08#)?AC","3-/>@62A;!#%","-35,\"08%)?AC","3-/>@62C;!#%","-35&\"02#)?AC","3-/D@68A;!#%",".35,4*8!(?AC","4-/>.<2?:!#%",".35,408!'?AC","4-/>.62?9!#%",".35,4$8\"(?AC","4-/>.B2@:!#%",".35,4*8\"'?AC","4-/>.<2@9!#%","/35,4$8%(?AC","5-/>.B2C:!#%",".35,4$8%'?AC","4-/>.B2C9!#%",".35&4*2!(?AC","4-/D.<8?:!#%",".35&402!'?AC","4-/D.68?9!#%",".35&4$2\"(?AC","4-/D.B8@:!#%",".35&4*2\"'?AC","4-/D.<8@9!#%",".35&4*8!'?AC","4-/D.<2?9!#%","/3#,.68!'?AC","5-A>402?9!#%",".3#,468!'?AC","4-A>.02?9!#%",".3#,4*8%'?AC","4-A>.<2C9!#%","/3#&.62!'?AC","5-AD408?9!#%",".3#&462!'?AC","4-AD.08?9!#%",".3#&408!'?AC","4-AD.62?9!#%",".-5,4$8!(?AC","43/>.B2?:!#%",".-5,4*8!'?AC","43/>.<2?9!#%",".-5,4$8\"'?AC","43/>.B2@9!#%","0-5,4$8%(?AC","63/>.B2C:!#%","/-5,.$8%(?AC","53/>4B2C:!#%","/-5,4$8%'?AC","53/>.B2C9!#%",".-5&4$2!(?AC","43/D.B8?:!#%",".-5&4*2!'?AC","43/D.<8?9!#%",".-5&4$2\"'?AC","43/D.B8@9!#%",".-#,408!'?AC","43A>.62?9!#%",".-#,4$8%'?AC","43A>.B2C9!#%",".-#&402!'?AC","43AD.68?9!#%",".-#&4*8!'?AC","43AD.<2?9!#%","0'/,4$8%(?AC","695>.B2C:!#%","0'5,.$8%(?AC","69/>4B2C:!#%","0!/,.$8%(?AC","6?5>4B2C:!#%","035,.$8!(?AC","6-/>4B2?:!#%","035&.$2!(?AC","6-/D4B8?:!#%","/35,.$8\"(?AC","5-/>4B2@:!#%","/35&.$2\"(?AC","5-/D4B8@:!#%","035,.$8\"'?AC","6-/>4B2@9!#%","035&.$2\"'?AC","6-/D4B8@9!#%","/35,4$8!(?AC","5-/>.B2?:!#%","/35&4$2!(?AC","5-/D.B8?:!#%","035,4$8!'?AC","6-/>.B2?9!#%","035&4$2!'?AC","6-/D.B8?9!#%","/35,4$8\"'?AC","5-/>.B2@9!#%","/35&4$2\"'?AC","5-/D.B8@9!#%","03/,.$8!'?AC","6-5>4B2?9!#%","03/&.$2!'?AC","6-5D4B8?9!#%","03),.$8\"'?AC","6-;>4B2@9!#%","03)&.$2\"'?AC","6-;D4B8@9!#%","03),4$8!'?AC","6-;>.B2?9!#%","03)&4$2!'?AC","6-;D.B8?9!#%","/-5,.$8!(?AC","53/>4B2?:!#%","/-5&.$2!(?AC","53/D4B8?:!#%","0-5,.$8!'?AC","63/>4B2?9!#%","0-5&.$2!'?AC","63/D4B8?9!#%","/-5,.$8\"'?AC","53/>4B2@9!#%","/-5&.$2\"'?AC","53/D4B8@9!#%","/-5,4$8!'?AC","53/>.B2?9!#%","/-5&4$2!'?AC","53/D.B8?9!#%","0-),.$8!'?AC","63;>4B2?9!#%","0-)&.$2!'?AC","63;D4B8?9!#%","0-#,4$8!'?AC","63A>.B2?9!#%","0-#&4$2!'?AC","63AD.B8?9!#%"],"18":["-35,4*8!(?AC","3-/>.<2?:!#%","-35,408!'?AC","3-/>.62?9!#%","-35,4$8\"(?AC","3-/>.B2@:!#%","-35,4*8\"'?AC","3-/>.<2@9!#%","-35,4$8%'?AC","3-/>.B2C9!#%","-35&4*2!(?AC","3-/D.<8?:!#%","-35&402!'?AC","3-/D.68?9!#%","-35&4$2\"(?AC","3-/D.B8@:!#%","-35&4*2\"'?AC","3-/D.<8@9!#%","-35&4*8!'?AC","3-/D.<2?9!#%","-3/,4$8!(?AC","3-5>.B2?:!#%","-3/,4*8!'?AC","3-5>.<2?9!#%","-3),408!'?AC","3-;>.62?9!#%","-3/,4$8\"'?AC","3-5>.B2@9!#%","-3),4*8\"'?AC","3-;>.<2@9!#%","-3),4$8%'?AC","3-;>.B2C9!#%","-3#,4*8%'?AC","3-A>.<2C9!#%","-3#,468!'?AC","3-A>.02?9!#%","-3/&4$2!(?AC","3-5D.B8?:!#%","-3/&4*2!'?AC","3-5D.<8?9!#%","-3)&402!'?AC","3-;D.68?9!#%","-3/&4$2\"'?AC","3-5D.B8@9!#%","-3)&4*2\"'?AC","3-;D.<8@9!#%","-3/&4$8!'?AC","3-5D.B2?9!#%","-3)&4*8!'?AC","3-;D.<2?9!#%","-3#&408!'?AC","3-AD.62?9!#%","-3)&4$8\"'?AC","3-;D.B2@9!#%","-3#&462!'?AC","3-AD.08?9!#%",".35,4$8!(?AC","4-/>.B2?:!#%",".35,4*8!'?AC","4-/>.<2?9!#%",".35,4$8\"'?AC","4-/>.B2@9!#%","035,4$8%(?AC","6-/>.B2C:!#%","/35,.$8%(?AC","5-/>4B2C:!#%","/35,4$8%'?AC","5-/>.B2C9!#%",".35&4$2!(?AC","4-/D.B8?:!#%",".35&4*2!'?AC","4-/D.<8?9!#%",".35&4$2\"'?AC","4-/D.B8@9!#%",".3#,408!'?AC","4-A>.62?9!#%",".3#,4$8%'?AC","4-A>.B2C9!#%",".3#&402!'?AC","4-AD.68?9!#%",".3#&4*8!'?AC","4-AD.<2?9!#%",".-5,4$8!'?AC","43/>.B2?9!#%","0-/,4$8%(?AC","635>.B2C:!#%","0-5,.$8%(?AC","63/>4B2C:!#%","0-5,4$8%'?AC","63/>.B2C9!#%","/-5,.$8%'?AC","53/>4B2C9!#%",".-5&4$2!'?AC","43/D.B8?9!#%",".-#,4*8!'?AC","43A>.<2?9!#%","/-#,4$8%'?AC","53A>.B2C9!#%",".-#&4*2!'?AC","43AD.<8?9!#%","0'/,.$8%(?AC","695>4B2C:!#%","/35,.$8!(?AC","5-/>4B2?:!#%","/35&.$2!(?AC","5-/D4B8?:!#%","035,.$8!'?AC","6-/>4B2?9!#%","035&.$2!'?AC","6-/D4B8?9!#%","/35,.$8\"'?AC","5-/>4B2@9!#%","/35&.$2\"'?AC","5-/D4B8@9!#%","/35,4$8!'?AC","5-/>.B2?9!#%","/35&4$2!'?AC","5-/D.B8?9!#%","03),.$8!'?AC","6-;>4B2?9!#%","03)&.$2!'?AC","6-;D4B8?9!#%","03#,4$8!'?AC","6-A>.B2?9!#%","03#&4$2!'?AC","6-AD.B8?9!#%","/-5,.$8!'?AC","53/>4B2?9!#%","/-5&.$2!'?AC","53/D4B8?9!#%","0-#,.$8!'?AC","63A>4B2?9!#%","0-#&.$2!'?AC","63AD4B8?9!#%","/-#,4$8!'?AC","53A>.B2?9!#%","/-#&4$2!'?AC","53AD.B8?9!#%"],"19":["-35,4$8!(?AC","3-/>.B2?:!#%","-35,4*8!'?AC","3-/>.<2?9!#%","-35,4$8\"'?AC","3-/>.B2@9!#%","-35&4$2!(?AC","3-/D.B8?:!#%","-35&4*2!'?AC","3-/D.<8?9!#%","-35&4$2\"'?AC","3-/D.B8@9!#%","-3/,4$8!'?AC","3-5>.B2?9!#%","-3),4*8!'?AC","3-;>.<2?9!#%","-3#,408!'?AC","3-A>.62?9!#%","-3),4$8\"'?AC","3-;>.B2@9!#%","-3#,4$8%'?AC","3-A>.B2C9!#%","-3/&4$2!'?AC","3-5D.B8?9!#%","-3)&4*2!'?AC","3-;D.<8?9!#%","-3#&402!'?AC","3-AD.68?9!#%","-3)&4$2\"'?AC","3-;D.B8@9!#%","-3)&4$8!'?AC","3-;D.B2?9!#%","-3#&4*8!'?AC","3-AD.<2?9!#%",".35,4$8!'?AC","4-/>.B2?9!#%","03/,4$8%(?AC","6-5>.B2C:!#%","035,.$8%(?AC","6-/>4B2C:!#%","035,4$8%'?AC","6-/>.B2C9!#%","/35,.$8%'?AC","5-/>4B2C9!#%",".35&4$2!'?AC","4-/D.B8?9!#%",".3#,4*8!'?AC","4-A>.<2?9!#%","/3#,4$8%'?AC","5-A>.B2C9!#%",".3#&4*2!'?AC","4-AD.<8?9!#%","0-/,.$8%(?AC","635>4B2C:!#%","0-/,4$8%'?AC","635>.B2C9!#%","0-5,.$8%'?AC","63/>4B2C9!#%",".-#,4$8!'?AC","43A>.B2?9!#%","0-#,4$8%'?AC","63A>.B2C9!#%","/-#,.$8%'?AC","53A>4B2C9!#%",".-#&4$2!'?AC","43AD.B8?9!#%","/35,.$8!'?AC","5-/>4B2?9!#%","/35&.$2!'?AC","5-/D4B8?9!#%","03#,.$8!'?AC","6-A>4B2?9!#%","03#&.$2!'?AC","6-AD4B8?9!#%","/3#,4$8!'?AC","5-A>.B2?9!#%","/3#&4$2!'?AC","5-AD.B8?9!#%","/-#,.$8!'?AC","53A>4B2?9!#%","/-#&.$2!'?AC","53AD4B8?9!#%"],"20":["-35,4$8!'?AC","3-/>.B2?9!#%","-35&4$2!'?AC","3-/D.B8?9!#%","-3),4$8!'?AC","3-;>.B2?9!#%","-3#,4*8!'?AC","3-A>.<2?9!#%","-3)&4$2!'?AC","3-;D.B8?9!#%","-3#&4*2!'?AC","3-AD.<8?9!#%","03/,.$8%(?AC","6-5>4B2C:!#%","03/,4$8%'?AC","6-5>.B2C9!#%","035,.$8%'?AC","6-/>4B2C9!#%",".3#,4$8!'?AC","4-A>.B2?9!#%","03#,4$8%'?AC","6-A>.B2C9!#%","/3#,.$8%'?AC","5-A>4B2C9!#%",".3#&4$2!'?AC","4-AD.B8?9!#%","0-/,.$8%'?AC","635>4B2C9!#%","0-),4$8%'?AC","63;>.B2C9!#%","0-#,.$8%'?AC","63A>4B2C9!#%","/3#,.$8!'?AC","5-A>4B2?9!#%","/3#&.$2!'?AC","5-AD4B8?9!#%"],"21":["-3#,4$8!'?AC","3-A>.B2?9!#%","-3#&4$2!'?AC","3-AD.B8?9!#%","03/,.$8%'?AC","6-5>4B2C9!#%","03),4$8%'?AC","6-;>.B2C9!#%","03#,.$8%'?AC","6-A>4B2C9!#%","0-),.$8%'?AC","63;>4B2C9!#%"],"22":["03),.$8%'?AC","6-;>4B2C9!#%"]};
+
+  let progress;
+  try {
+    progress = JSON.parse(localStorage.getItem(STORAGE) || '{}');
+  } catch (_) {
+    progress = {};
+  }
+  progress.furthest = Math.max(1, Math.min(CAMPAIGN_COUNT, Number(progress.furthest) || 1));
+  progress.solved = Math.max(0, Number(progress.solved) || 0);
+  progress.best = progress.best && typeof progress.best === 'object' ? progress.best : {};
+  progress.infiniteSolved = Math.max(0, Number(progress.infiniteSolved) || 0);
+  progress.infiniteId = Math.max(1, Number(progress.infiniteId) || 1);
+
+  let mode = localStorage.getItem('360-unblock-mode-v1') === MODE_INFINITE ? MODE_INFINITE : MODE_CAMPAIGN;
+  let level = Math.max(1, Math.min(CAMPAIGN_COUNT, Number(localStorage.getItem('360-unblock-level-v1')) || progress.furthest));
+  let infiniteId = progress.infiniteId;
+  let pieces = [];
+  let history = [];
+  let moves = 0;
+  let drag = null;
+  let scrambleSteps = 0;
+  let pieceEls = [];
+  let boardSize = null;
+  let metricsDirty = true;
+  let dragFrame = 0;
+  let animatingPiece = false;
+
+  function saveProgress() {
+    progress.infiniteId = infiniteId;
+    localStorage.setItem(STORAGE, JSON.stringify(progress));
+    localStorage.setItem('360-unblock-level-v1', String(level));
+    localStorage.setItem('360-unblock-mode-v1', mode);
+  }
+
+  function cloneState(state) {
+    return state.map(p => ({...p}));
+  }
+
+  function hashSeed(value) {
+    let h = 2166136261 >>> 0;
+    const str = String(value);
+    for (let i=0;i<str.length;i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function rngFor(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s += 0x6D2B79F5;
+      let t = s;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function occupied(state, except, r, c) {
+    for (let i=0;i<state.length;i++) {
+      if (i===except) continue;
+      const q=state[i];
+      for (let k=0;k<q.len;k++) {
+        const qr=q.r+(q.o==='v'?k:0);
+        const qc=q.c+(q.o==='h'?k:0);
+        if (qr===r && qc===c) return true;
+      }
+    }
+    return false;
+  }
+
+  function canMoveOne(state, idx, dr, dc) {
+    const p=state[idx];
+    const nr=p.r+dr, nc=p.c+dc;
+    if (nr<0 || nc<0 || nr+(p.o==='v'?p.len-1:0)>=6 || nc+(p.o==='h'?p.len-1:0)>=6) return false;
+    for (let k=0;k<p.len;k++) {
+      const r=nr+(p.o==='v'?k:0), c=nc+(p.o==='h'?k:0);
+      if (occupied(state, idx, r, c)) return false;
+    }
+    return true;
+  }
+
+  function legalMoves(state, lastMove) {
+    const out=[];
+    for (let i=0;i<state.length;i++) {
+      const p=state[i];
+      const dirs=p.o==='h' ? [[0,-1],[0,1]] : [[-1,0],[1,0]];
+      for (const [dr,dc] of dirs) {
+        if (!canMoveOne(state,i,dr,dc)) continue;
+        if (lastMove && lastMove.idx===i && lastMove.dr===-dr && lastMove.dc===-dc) continue;
+        out.push({idx:i,dr,dc});
+      }
+    }
+    return out;
+  }
+
+  function applyOne(state, m) {
+    const p=state[m.idx];
+    p.r+=m.dr;
+    p.c+=m.dc;
+  }
+
+  function isSolvedState(state) {
+    const t=state.find(p=>p.target);
+    return !!t && t.r===2 && t.c===4;
+  }
+
+  function countExitBlockers(state) {
+    const targetIndex = state.findIndex(p=>p.target);
+    if (targetIndex < 0) return 0;
+    const t = state[targetIndex];
+    const blockers = new Set();
+    for (let i=0;i<state.length;i++) {
+      if (i===targetIndex) continue;
+      const p=state[i];
+      for (let k=0;k<p.len;k++) {
+        const r=p.r+(p.o==='v'?k:0);
+        const c=p.c+(p.o==='h'?k:0);
+        if (r===t.r && c>t.c+t.len-1 && c<=5) blockers.add(i);
+      }
+    }
+    return blockers.size;
+  }
+
+  function difficultyProfile(id, infinite=false) {
+    const normalized = infinite
+      ? Math.min(1, Math.max(0, (Number(id) - 1) / 2000000))
+      : Math.min(1, Math.max(0, (Number(id) - 1) / (CAMPAIGN_COUNT - 1)));
+    // Exact move depth is baked into the library. The curve controls which
+    // proven-depth bucket a level selects.
+    const curve = Math.pow(normalized, 0.62);
+    const depth = Math.min(22, 5 + Math.floor(curve * 17));
+    return { normalized, curve, depth };
+  }
+
+  function decodePuzzleState(encoded) {
+    return BASE_LAYOUT.map((base,index)=>{
+      const pos=encoded.charCodeAt(index)-33;
+      return {...base,r:Math.floor(pos/6),c:pos%6};
+    });
+  }
+
+  function generatedPuzzle(id, infinite=false) {
+    const profile=difficultyProfile(id,infinite);
+    const seed=hashSeed(`${infinite?'infinite':'campaign'}:${id}`);
+    const bucket=PUZZLE_LIBRARY[profile.depth] || PUZZLE_LIBRARY[22];
+    const encoded=bucket[seed % bucket.length];
+    const state=decodePuzzleState(encoded);
+    return {
+      state,
+      // This is the exact shortest-solution length from the solved state,
+      // computed offline with the same movement rules used by the game.
+      steps:profile.depth,
+      difficulty:profile.depth,
+      solution:[]
+    };
+  }
+
+  function puzzleForCurrent() {
+    return generatedPuzzle(mode===MODE_CAMPAIGN ? level : infiniteId, mode===MODE_INFINITE);
+  }
+
+  function boardMetrics() {
+    if (!metricsDirty && boardSize) return boardSize;
+    const style=getComputedStyle(boardEl);
+    const gap=parseFloat(style.getPropertyValue('--g')) || 5;
+    const pad=parseFloat(style.paddingLeft) || 11;
+    const innerWidth=Math.max(1, boardEl.clientWidth - pad*2 - gap*5);
+    const s=innerWidth/6;
+    boardSize={s,gap,pad,step:s+gap};
+    metricsDirty=false;
+    return boardSize;
+  }
+
+  function cellPoint(row,col) {
+    const {step,pad}=boardMetrics();
+    return {x:pad+col*step,y:pad+row*step};
+  }
+
+  function setPieceTransform(el, row, col, delta=0) {
+    const {step,pad}=boardMetrics();
+    const x=pad+col*step;
+    const y=pad+row*step;
+    const p=pieces[Number(el.dataset.index)];
+    const dx=p && p.o==='h' ? delta*step : 0;
+    const dy=p && p.o==='v' ? delta*step : 0;
+    el.style.transform=`translate3d(${x+dx}px,${y+dy}px,0)`;
+  }
+
+  function refreshPieceLayout() {
+    const {s,gap}=boardMetrics();
+    pieces.forEach((p,idx)=>{
+      const el=pieceEls[idx];
+      if(!el) return;
+      const w=p.o==='h' ? p.len*s+(p.len-1)*gap : s;
+      const h=p.o==='v' ? p.len*s+(p.len-1)*gap : s;
+      el.style.width=`${w}px`;
+      el.style.height=`${h}px`;
+      setPieceTransform(el,p.r,p.c,0);
+    });
+  }
+
+  function buildPieceElements() {
+    boardEl.querySelectorAll('.ub-piece').forEach(el=>el.remove());
+    pieceEls=[];
+    const frag=document.createDocumentFragment();
+    pieces.forEach((p,idx)=>{
+      const el=document.createElement('div');
+      el.className=`ub-piece ${p.target?'target':`block-${COLORS[idx%COLORS.length]}`}`;
+      el.dataset.index=idx;
+      el.setAttribute('aria-label',p.target?'Red block':`Block ${p.id}`);
+      wirePointer(el,idx);
+      pieceEls[idx]=el;
+      frag.appendChild(el);
+    });
+    boardEl.appendChild(frag);
+    refreshPieceLayout();
+  }
+
+  function bestKey() {
+    return mode===MODE_CAMPAIGN ? `c:${level}` : `i:${infiniteId}`;
+  }
+
+  function currentBest() {
+    return progress.best[bestKey()];
+  }
+
+  function setBest(value) {
+    progress.best[bestKey()]=value;
+    const keys=Object.keys(progress.best);
+    if (keys.length>2500) {
+      delete progress.best[keys[0]];
+    }
+  }
+
+  function renderLevelButtons() {
+    levelsEl.innerHTML='';
+    if (mode!==MODE_CAMPAIGN) return;
+    const candidates=new Set([1,2,3,10,100,1000,10000,100000,1000000,2000000,3000000,4000000,CAMPAIGN_COUNT,level-2,level-1,level,level+1,level+2]);
+    [...candidates].filter(n=>n>=1&&n<=CAMPAIGN_COUNT).sort((a,b)=>a-b).forEach(n=>{
+      const btn=document.createElement('button');
+      btn.className='ub-level-btn'+(n===level?' active':'');
+      btn.textContent=n>=1000000 ? `${(n/1000000).toFixed(n%1000000===0?0:1)}M` : n>=1000 ? `${(n/1000).toFixed(n%1000===0?0:1)}K` : String(n);
+      btn.title=`Level ${n.toLocaleString()}`;
+      btn.setAttribute('aria-label',`Level ${n.toLocaleString()}`);
+      btn.addEventListener('click',()=>selectLevel(n));
+      levelsEl.appendChild(btn);
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  }
+
+  function formatTimeMs(ms) {
+    const total = Math.max(0, Math.floor(Number(ms) || 0));
+    const sec = Math.floor(total / 1000);
+    const min = Math.floor(sec / 60);
+    const rem = sec % 60;
+    return min ? `${min}:${String(rem).padStart(2,'0')}` : `${rem}.${String(Math.floor((total % 1000) / 100)).padStart(1,'0')}s`;
+  }
+
+  function onlineScore(movesCount, timeMs) {
+    return Math.max(1, Math.min(100000000, 10000000 - movesCount * 10000 - Math.floor(timeMs / 100)));
+  }
+
+  function setOnlineStatus(text, ok=false) {
+    onlineStatus.textContent = text;
+    onlineStatus.classList.toggle('ok', ok);
+  }
+
+  function renderLeaderboard(rows) {
+    if (!rows?.length) {
+      leaderboardEl.innerHTML = '<div class="ub-lb-empty">No online scores yet. Be the first.</div>';
+      return;
+    }
+    leaderboardEl.innerHTML = rows.slice(0,10).map((row, i) => `
+      <div class="ub-lb-row">
+        <div class="ub-lb-rank">${i + 1}</div>
+        <div class="ub-lb-name" title="${escapeHtml(row.player_name || 'Player')}">${escapeHtml(row.player_name || 'Player')}</div>
+        <div class="ub-lb-stat">${Number(row.moves || 0)} moves</div>
+        <div class="ub-lb-stat">${formatTimeMs(row.time_ms)}</div>
+      </div>`).join('');
+  }
+
+  async function loadLeaderboard() {
+    const token = ++onlineLoadToken;
+    if (!onlineClient) {
+      setOnlineStatus('Supabase client unavailable. Local scores still work.');
+      renderLeaderboard([]);
+      return;
+    }
+    setOnlineStatus('Loading online scores…');
+    try {
+      let query = onlineClient
+        .from('unblock_scores')
+        .select('player_id,player_name,mode,level,moves,time_ms,score,created_at')
+        .eq('mode', mode)
+        .order('score', { ascending:false })
+        .order('moves', { ascending:true })
+        .order('time_ms', { ascending:true })
+        .limit(10);
+      if (mode === MODE_CAMPAIGN) query = query.eq('level', level);
+      const { data, error } = await query;
+      if (token !== onlineLoadToken) return;
+      if (error) throw error;
+      renderLeaderboard(data || []);
+      setOnlineStatus(mode === MODE_CAMPAIGN ? `Online · Level ${level.toLocaleString()}` : 'Online · Infinite leaderboard', true);
+    } catch (error) {
+      if (token !== onlineLoadToken) return;
+      renderLeaderboard([]);
+      setOnlineStatus('Could not load online scores. Local scores are still saved.');
+      console.warn('Unblock leaderboard:', error);
+    }
+  }
+
+  async function submitOnlineScore(movesCount, timeMs) {
+    if (!onlineClient) return;
+    const score = onlineScore(movesCount, timeMs);
+    const row = {
+      player_id: PLAYER_ID,
+      player_name: playerName || DEFAULT_PLAYER_NAME,
+      mode,
+      level: mode === MODE_CAMPAIGN ? level : infiniteId,
+      moves: movesCount,
+      time_ms: Math.min(86400000, Math.max(0, Math.floor(timeMs))),
+      score
+    };
+    try {
+      const { error } = await onlineClient.from('unblock_scores').insert(row);
+      if (error) throw error;
+      setOnlineStatus('Score saved to Supabase.', true);
+      await loadLeaderboard();
+    } catch (error) {
+      setOnlineStatus('Could not save the online score.');
+      console.warn('Unblock score upload:', error);
+    }
+  }
+
+  function savePlayerName() {
+    const next = String(playerNameInput.value || '').trim().replace(/\s+/g, ' ').slice(0,32);
+    playerName = next || DEFAULT_PLAYER_NAME;
+    playerNameInput.value = playerName;
+    localStorage.setItem(ONLINE_STORAGE + ':name', playerName);
+    setOnlineStatus('Player name saved locally.');
+    loadLeaderboard();
+  }
+
+  playerNameInput.value = playerName;
+  playerNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') savePlayerName(); });
+  $('savePlayerName').addEventListener('click', savePlayerName);
+
+  function setMode(next) {
+    mode=next;
+    saveProgress();
+    $('campaignMode').classList.toggle('active',mode===MODE_CAMPAIGN);
+    $('campaignMode').setAttribute('aria-selected',String(mode===MODE_CAMPAIGN));
+    $('infiniteMode').classList.toggle('active',mode===MODE_INFINITE);
+    $('infiniteMode').setAttribute('aria-selected',String(mode===MODE_INFINITE));
+    campaignPanel.hidden=mode!==MODE_CAMPAIGN;
+    infinitePanel.hidden=mode!==MODE_INFINITE;
+    resetPuzzle(false);
+  }
+
+  function render({rebuild=false} = {}) {
+    if (rebuild || pieceEls.length !== pieces.length) buildPieceElements();
+    else refreshPieceLayout();
+
+    levelLabel.textContent=mode===MODE_CAMPAIGN ? `Level ${level.toLocaleString()}` : `Infinite #${infiniteId.toLocaleString()}`;
+    if (mode===MODE_INFINITE) {
+      levelTitle.textContent='Endless challenge';
+      if (!drag) statusEl.textContent=statusEl.textContent==='Generated puzzle.' ? 'A fresh wooden-board challenge is ready.' : statusEl.textContent;
+      infiniteProgress.textContent=`Puzzle ${infiniteId.toLocaleString()} · ${progress.infiniteSolved.toLocaleString()} infinite clears.`;
+    } else {
+      levelTitle.textContent='Clear the lane';
+      if (!drag && (!statusEl.textContent || statusEl.textContent.includes('Generated puzzle'))) statusEl.textContent='Slide the bars out of the red block’s path.';
+      levelJump.value=String(level);
+      campaignProgress.textContent=`${progress.furthest.toLocaleString()} furthest reached · ${progress.solved.toLocaleString()} total clears · 5,000,000 levels available now.`;
+    }
+    movesEl.textContent=moves;
+    bestEl.textContent=currentBest() || '—';
+    solvedEl.textContent=progress.solved;
+    renderLevelButtons();
+  }
+
+  function canMove(state,idx,nr,nc) {
+    const p=state[idx];
+    if (nr<0||nc<0||nr+(p.o==='v'?p.len-1:0)>=6||nc+(p.o==='h'?p.len-1:0)>=6) return false;
+    for(let k=0;k<p.len;k++) {
+      const r=nr+(p.o==='v'?k:0),c=nc+(p.o==='h'?k:0);
+      if(occupied(state,idx,r,c)) return false;
+    }
+    return true;
+  }
+
+  function movementBounds(idx) {
+    const p=pieces[idx];
+    let min=0,max=0;
+    while (canMove(pieces,idx,p.r+(p.o==='v'?(min-1):0),p.c+(p.o==='h'?(min-1):0))) min--;
+    while (canMove(pieces,idx,p.r+(p.o==='v'?(max+1):0),p.c+(p.o==='h'?(max+1):0))) max++;
+    return {min,max};
+  }
+
+  function setDraggingVisual(idx, delta) {
+    const el=pieceEls[idx];
+    if(!el) return;
+    const p=pieces[idx];
+    const {step,pad}=boardMetrics();
+    const x=pad+p.c*step+(p.o==='h'?delta*step:0);
+    const y=pad+p.r*step+(p.o==='v'?delta*step:0);
+    el.style.transform=`translate3d(${x}px,${y}px,0)`;
+  }
+
+  function easeOutCubic(t) { return 1-Math.pow(1-t,3); }
+  function easeOutBack(t) {
+    const c1=1.2, c3=c1+1;
+    return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2);
+  }
+
+  function animateVisual(idx, from, to, duration=150, done) {
+    const el=pieceEls[idx];
+    if(!el){ done?.(); return; }
+    animatingPiece=true;
+    const start=performance.now();
+    const d=Math.max(1,duration);
+    const tick=(now)=>{
+      const t=Math.min(1,(now-start)/d);
+      const eased=t<0.82 ? easeOutCubic(t/0.82)*0.92 : 0.92+(t-0.82)/0.18*0.08;
+      const value=from+(to-from)*eased;
+      setDraggingVisual(idx,value);
+      if(t<1) requestAnimationFrame(tick);
+      else {
+        setDraggingVisual(idx,to);
+        animatingPiece=false;
+        done?.();
+      }
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function commitMove(idx, delta) {
+    const p=pieces[idx];
+    if(!delta){
+      animateVisual(idx, drag?.visualDelta||0, 0, 125);
+      return false;
+    }
+    history.push(cloneState(pieces));
+    if(p.o==='h') p.c+=delta; else p.r+=delta;
+    moves++;
+    setDraggingVisual(idx,0);
+    movesEl.textContent=moves;
+    bestEl.textContent=currentBest() || '—';
+    if(isSolvedState(pieces)) setTimeout(showWin,120);
+    else statusEl.textContent='Nice. Keep opening the lane.';
+    return true;
+  }
+
+  function updateDragFrame() {
+    dragFrame=0;
+    if(!drag) return;
+    const p=pieces[drag.idx];
+    const {step}=boardMetrics();
+    const rawCells=(drag.latestCoord-drag.startCoord)/step;
+    const visual=Math.max(drag.min,Math.min(drag.max,rawCells));
+    drag.visualDelta=visual;
+    setDraggingVisual(drag.idx,visual);
+  }
+
+  function wirePointer(el,idx) {
+    el.addEventListener('pointerdown',e=>{
+      if(winModal.classList.contains('show') || animatingPiece) return;
+      e.preventDefault();
+      const p=pieces[idx];
+      const horizontal=p.o==='h';
+      const now=performance.now();
+      const coord=horizontal?e.clientX:e.clientY;
+      const bounds=movementBounds(idx);
+      drag={idx,startCoord:coord,latestCoord:coord,lastCoord:coord,lastTime:now,velocity:0,orientation:p.o,min:bounds.min,max:bounds.max,visualDelta:0,pointerId:e.pointerId};
+      el.classList.add('dragging');
+      el.setPointerCapture?.(e.pointerId);
+    });
+
+    el.addEventListener('pointermove',e=>{
+      if(!drag||drag.idx!==idx) return;
+      const horizontal=drag.orientation==='h';
+      const coord=horizontal?e.clientX:e.clientY;
+      const now=performance.now();
+      const dt=Math.max(1,now-drag.lastTime);
+      const rawVelocity=(coord-drag.lastCoord)/dt;
+      drag.velocity=drag.velocity*0.72+rawVelocity*0.28;
+      drag.lastCoord=coord;
+      drag.lastTime=now;
+      drag.latestCoord=coord;
+      if(!dragFrame) dragFrame=requestAnimationFrame(updateDragFrame);
+    });
+
+    const release=(e)=>{
+      if(!drag||drag.idx!==idx) return;
+      if(dragFrame){cancelAnimationFrame(dragFrame); dragFrame=0;}
+      const horizontal=drag.orientation==='h';
+      const coord=horizontal?e.clientX:e.clientY;
+      const {step}=boardMetrics();
+      const raw=(coord-drag.startCoord)/step;
+      const visual=Math.max(drag.min,Math.min(drag.max,raw));
+      const momentum=(drag.velocity*170)/step;
+      let target=Math.round(visual+Math.max(-1.35,Math.min(1.35,momentum)));
+      target=Math.max(drag.min,Math.min(drag.max,target));
+      const currentVisual=visual;
+      drag=null;
+      el.classList.remove('dragging');
+      const duration=110+Math.min(120,Math.abs(target-currentVisual)*32);
+      animateVisual(idx,currentVisual,target,duration,()=>{
+        if(target!==0) commitMove(idx,target);
+        else setDraggingVisual(idx,0);
+      });
+    };
+
+    el.addEventListener('pointerup',release);
+    el.addEventListener('pointercancel',e=>{
+      if(!drag||drag.idx!==idx) return;
+      if(dragFrame){cancelAnimationFrame(dragFrame); dragFrame=0;}
+      const current=drag.visualDelta;
+      drag=null;
+      el.classList.remove('dragging');
+      animateVisual(idx,current,0,125);
+    });
+  }
+
+  function showWin() {
+    if(!isSolvedState(pieces)||winModal.classList.contains('show')) return;
+    const elapsedMs=Math.max(0,Date.now()-puzzleStartedAt);
+    const previous=currentBest();
+    if(!previous||moves<previous) setBest(moves);
+    progress.solved++;
+    if(mode===MODE_CAMPAIGN) progress.furthest=Math.max(progress.furthest,Math.min(CAMPAIGN_COUNT,level+1));
+    else progress.infiniteSolved++;
+    saveProgress();
+    render();
+
+    const targetIndex=pieces.findIndex(p=>p.target);
+    const targetEl=targetIndex>=0 ? pieceEls[targetIndex] : null;
+    if(targetEl){
+      animatingPiece=true;
+      const targetPiece=pieces[targetIndex];
+      const origin=cellPoint(targetPiece.r,targetPiece.c);
+      requestAnimationFrame(()=>{
+        targetEl.style.zIndex='30';
+        targetEl.style.transition='transform .42s cubic-bezier(.2,.82,.22,1)';
+        targetEl.style.transform=`translate3d(${boardEl.clientWidth+42}px,${origin.y}px,0)`;
+        setTimeout(()=>{animatingPiece=false;},430);
+      });
+    }
+
+    const suffix=previous&&moves<previous?' — new best.':'.';
+    winCopy.textContent=`Solved in ${moves} ${moves===1?'move':'moves'}${suffix}`;
+    void submitOnlineScore(moves,elapsedMs);
+    $('nextBtn').textContent=mode===MODE_CAMPAIGN&&level<CAMPAIGN_COUNT?'Next Level':'Next Puzzle';
+    setTimeout(()=>winModal.classList.add('show'),420);
+  }
+
+  function resetPuzzle(loadNew=true) {
+    const result=puzzleForCurrent();
+    pieces=result.state;
+    scrambleSteps=result.steps;
+    history=[];
+    moves=0;
+    drag=null;
+    animatingPiece=false;
+    if(dragFrame){cancelAnimationFrame(dragFrame);dragFrame=0;}
+    puzzleStartedAt=Date.now();
+    winModal.classList.remove('show');
+    const blockers=countExitBlockers(pieces);
+    statusEl.textContent=mode===MODE_INFINITE ? `Infinite puzzle · ${scrambleSteps}-move minimum · ${blockers} bars in the lane.` : `Minimum ${scrambleSteps} moves · ${blockers} bars in the red lane.`;
+    if(loadNew) saveProgress();
+    metricsDirty=true;
+    render({rebuild:true});
+    void loadLeaderboard();
+  }
+
+  function undo() {
+    if(!history.length){
+      statusEl.textContent='Nothing to undo.';
+      return;
+    }
+    pieces=history.pop();
+    moves=Math.max(0,moves-1);
+    statusEl.textContent='Move undone.';
+    render();
+  }
+
+  function selectLevel(n) {
+    n=Math.max(1,Math.min(CAMPAIGN_COUNT,Math.floor(Number(n)||1)));
+    mode=MODE_CAMPAIGN;
+    level=n;
+    setMode(mode);
+  }
+
+  function newInfinitePuzzle() {
+    mode=MODE_INFINITE;
+    infiniteId++;
+    saveProgress();
+    resetPuzzle(true);
+  }
+
+  $('campaignMode').addEventListener('click',()=>setMode(MODE_CAMPAIGN));
+  $('infiniteMode').addEventListener('click',()=>setMode(MODE_INFINITE));
+  $('jumpBtn').addEventListener('click',()=>selectLevel(levelJump.value));
+  levelJump.addEventListener('keydown',e=>{if(e.key==='Enter') selectLevel(levelJump.value);});
+  $('undoBtn').addEventListener('click',undo);
+  $('resetBtn').addEventListener('click',()=>resetPuzzle(false));
+  $('replayBtn').addEventListener('click',()=>resetPuzzle(false));
+  $('nextBtn').addEventListener('click',()=>{
+    winModal.classList.remove('show');
+    if(mode===MODE_CAMPAIGN) {
+      if(level<CAMPAIGN_COUNT) level++;
+    } else {
+      infiniteId++;
+    }
+    saveProgress();
+    resetPuzzle(true);
+  });
+  $('newPuzzle').addEventListener('click',()=>{
+    if(mode===MODE_CAMPAIGN) resetPuzzle(false);
+    else newInfinitePuzzle();
+  });
+  $('backGames').addEventListener('click',()=>{window.location.href='../games';});
+  window.addEventListener('resize',()=>{ metricsDirty=true; render(); });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') winModal.classList.remove('show');
+    const focused=e.target;
+    if(focused&&/input|textarea|select/i.test(focused.tagName)) return;
+    if(e.key.toLowerCase()==='z') undo();
+  });
+
+  $('campaignMode').classList.toggle('active',mode===MODE_CAMPAIGN);
+  $('infiniteMode').classList.toggle('active',mode===MODE_INFINITE);
+  campaignPanel.hidden=mode!==MODE_CAMPAIGN;
+  infinitePanel.hidden=mode!==MODE_INFINITE;
+  resetPuzzle(true);
+})();
+</script>
+
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/wide.js"></script>
+<script src="/assets/js/gallium.js"></script>
+<script src="/assets/js/cookie.js"></script>
+<script src="/assets/js/cursor.js"></script>
+<script src="/assets/js/game-rewards.js"></script>
+<script src="/assets/js/mobile-nav.js" defer></script>
+</body>
+</html>
