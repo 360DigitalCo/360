@@ -684,7 +684,9 @@
 
   function setFolder(folder, catId, title) {
     currentFolder = folder; currentCatId = catId || null;
-    $("listTitle").textContent = title;
+    const titleEl = $("listTitle"); if (titleEl) titleEl.textContent = title;
+    // Show/hide the category tabs — only on inbox
+    const tabs = $("mlTabs"); if (tabs) tabs.style.display = folder === "inbox" ? "" : "none";
     selectedId = null; hideReadPane();
     document.querySelectorAll(".folder-item").forEach(f => f.classList.remove("active"));
     const target = catId
@@ -1025,7 +1027,7 @@
   }
 
   function setupCategoryModals() {
-    $("addCategoryBtnAlt").addEventListener("click", openNewCatModal);
+    $("addCategoryBtnAlt")?.addEventListener("click", openNewCatModal);
     $("catModalCancel").addEventListener("click",    () => $("catModal").classList.remove("open"));
     $("catModalSave").addEventListener("click",      saveNewCategory);
     $("ruleAddBtn").addEventListener("click", () => addRule($("ruleInput"), newCatRules, "ruleList", renderNewRules));
@@ -1075,7 +1077,7 @@
     const cat=categories.find(c=>c.id===editCatId); if(cat){cat.name=name;cat.color=color;}
     rules[editCatId]=[...editCatRules];
     $("catEditModal").classList.remove("open"); renderCategoryFolders();
-    if(currentCatId===editCatId){$("listTitle").textContent=name;applyFilter();}
+    if(currentCatId===editCatId){const _lt=$("listTitle"); if(_lt) _lt.textContent=name;applyFilter();}
   }
   async function deleteCategory() {
     if(!editCatId)return;
