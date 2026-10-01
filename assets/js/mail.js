@@ -609,6 +609,9 @@
 
     return { score, flags, level: score >= 60 ? "danger" : score >= 25 ? "warn" : "safe" };
   }
+
+  // ── Delete ─────────────────────────────────────────────────
+  async function deleteEmail(id) {
     await sb.from("inbox").delete().eq("id", id);
     allEmails = allEmails.filter(e => e.id !== id);
     updateBadge(); applyFilter();
