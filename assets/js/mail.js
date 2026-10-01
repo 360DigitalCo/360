@@ -111,11 +111,7 @@
     return new TextDecoder().decode(plain);
   }
 
-  // Alias old names so existing call sites still work
-  const e2eeEncrypt = async (pt) => {
-    // Called from sendMail — uses recipient key fetched at send time
-    throw new Error("Use hybridEncryptForRecipient instead");
-  };
+  // Alias kept for older call sites
   const e2eeDecrypt = hybridDecrypt;
 
   // Decrypt an email object in-place
@@ -260,6 +256,9 @@
       (e.body_text||"").toLowerCase().includes(q)
     );
     filteredEmails = list;
+    // never leave hidden rows selected (bulk delete would remove them too)
+    const visible = new Set(list.map(e => e.id));
+    [...selectedIds].forEach(id => { if (!visible.has(id)) selectedIds.delete(id); });
     $("listCount").textContent = list.length;
     renderList();
   }
@@ -610,8 +609,8 @@
     return { score, flags, level: score >= 60 ? "danger" : score >= 25 ? "warn" : "safe" };
   }
 
-  // ── Delete ─────────────────────────────────────────────────
-  async function deleteEmail(id) {
+  // ── Self-destruct ──────────────────────────────────────────
+  async function burnEmail(id) {
     await sb.from("inbox").delete().eq("id", id);
     allEmails = allEmails.filter(e => e.id !== id);
     updateBadge(); applyFilter();
@@ -691,6 +690,7 @@
     // Show/hide the category tabs — only on inbox
     const tabs = $("mlTabs"); if (tabs) tabs.style.display = folder === "inbox" ? "" : "none";
     selectedId = null; hideReadPane();
+    selectedIds.clear(); _lastSelIdx = -1;
     document.querySelectorAll(".folder-item").forEach(f => f.classList.remove("active"));
     const target = catId
       ? document.querySelector(`.folder-item[data-cat-id="${catId}"]`)

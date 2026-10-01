@@ -15,7 +15,7 @@ body.dark #mailBg::before {
 
 /* ── Layout shell */
 .mail-root {
-  position: fixed; inset: 0; z-index: 1;
+  position: fixed; inset: 52px 0 0 0; z-index: 1;
   display: flex; overflow: hidden;
 }
 
@@ -23,7 +23,7 @@ body.dark #mailBg::before {
 .mail-left {
   width: 64px; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center;
-  padding: 56px 0 16px; gap: 0;
+  padding: 14px 0 16px; gap: 0;
   background: #fff; border-right: 1px solid #e5e7eb;
   overflow-x: hidden; overflow-y: auto; z-index: 10;
   transition: width .2s;
@@ -479,12 +479,13 @@ body.dark .domain-dns-cell code { background: rgba(59,130,246,.12); color: #93c5
   .mail-read-pane { display: none; }
   .mail-read-pane.show { display: flex; }
   .mail-list-panel { flex: 1; width: auto; }
+  .mail-root:has(.mail-read-pane.show) .mail-list-panel { display: none; }
+  #rdBack { display: flex !important; }
 }
 @media (max-width: 580px) {
-  .mail-list-panel { display: none; }
-  .mail-list-panel.show { display: flex; width: 100%; }
   .mail-read-pane.show { width: 100%; flex: 1; }
   .compose-box { width: calc(100vw - 16px); margin: 8px; }
+  .compose-modal { padding: 0; }
 }
 
 /* ── Toolbar + category tabs ──────────────────────────────── */
@@ -600,3 +601,6 @@ body.dark .msettings-btn { background: #1a1f2e; border-color: #2a3045; color: #9
 .mi-e2ee      { opacity: .7; }
 .mi-spam-warn { font-size: 11px; }
 .mi-spam-danger { font-size: 11px; }
+
+.mrd-topbar { position: relative; z-index: 2; flex-wrap: wrap; }
+.mrd-topbar .mra-btn { flex-shrink: 0; }
