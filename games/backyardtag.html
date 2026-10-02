@@ -19,7 +19,7 @@ canvas{width:100%;height:100%;display:block;background:#8fcf76}
 #panel:before,#onlineCard:before,#resultCard:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.12;background:radial-gradient(circle,rgba(23,23,23,.55) 1px,transparent 1.25px);background-size:9px 9px;mix-blend-mode:multiply}
 #panel>* ,#onlineCard>* ,#resultCard>*{position:relative;z-index:1}
 h1,h2{margin:0;line-height:1;font-weight:800;text-shadow:2px 2px 0 #fff}h1{font-size:clamp(32px,5vw,52px)}h2{font-size:clamp(28px,4vw,44px)}p{margin:7px 0 10px;font-size:clamp(13px,1.9vw,17px);font-weight:600}.row{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:9px 0}
-button,input{font:inherit}button{position:relative;isolation:isolate;overflow:hidden;border:3px solid var(--ink);border-radius:11px;background:#fff;color:var(--ink);font-weight:800;cursor:pointer;padding:5px 12px;box-shadow:4px 4px 0 var(--ink),inset 0 2px 0 #fff;transition:transform .12s ease,box-shadow .12s ease,background .12s ease}button:before{content:"";position:absolute;z-index:-1;left:-46%;top:-18%;width:34%;height:150%;background:rgba(255,255,255,.9);transform:skewX(-18deg);opacity:0;pointer-events:none}button:after{content:"";position:absolute;inset:2px;border-radius:7px;box-shadow:inset 0 1px 0 rgba(255,255,255,.95);pointer-events:none}button:hover{transform:none;box-shadow:7px 7px 0 var(--ink),inset 0 2px 0 #fff}button:hover:before{opacity:1;animation:buttonShine .42s ease-out forwards}button:active{transform:none;box-shadow:2px 2px 0 var(--ink)}button:disabled{cursor:not-allowed;opacity:.52;box-shadow:3px 3px 0 var(--ink)}button.sel{background:var(--yellow)}button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}@keyframes buttonShine{from{left:-46%}to{left:125%}}
+button,input{font:inherit}button{position:relative;isolation:isolate;overflow:hidden;border:3px solid var(--ink);border-radius:11px;background:#fff;color:var(--ink);font-weight:800;cursor:pointer;padding:5px 12px;box-shadow:4px 4px 0 var(--ink),inset 0 2px 0 #fff;transition:transform .12s ease,box-shadow .12s ease,background .12s ease}button:before{content:"";position:absolute;z-index:-1;left:-46%;top:-18%;width:34%;height:150%;background:rgba(255,255,255,.9);transform:skewX(-18deg);opacity:0;pointer-events:none}button:after{content:"";position:absolute;inset:2px;border-radius:7px;box-shadow:inset 0 1px 0 rgba(255,255,255,.95);pointer-events:none}button:hover{transform:none;box-shadow:7px 7px 0 var(--ink),inset 0 2px 0 #fff}button:hover:before{opacity:1;animation:buttonShine .42s ease-out forwards}button:active{transform:none;box-shadow:2px 2px 0 var(--ink)}button:disabled{cursor:not-allowed;opacity:.52;box-shadow:3px 3px 0 var(--ink);transform:none}button.sel{background:var(--yellow)}button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}@keyframes buttonShine{from{left:-46%}to{left:125%}}
 #modes button,#mp button,#ns button,#omp button{padding:3px 10px;font-size:clamp(11px,1.55vw,15px)}#go{background:var(--red);color:#fff;font-size:clamp(19px,3vw,27px);padding:5px 30px;margin-top:6px}.online-main{background:var(--blue);color:#fff;font-size:clamp(15px,2.2vw,21px);padding:5px 22px;margin-top:8px}
 .small{display:block;font-size:clamp(11px,1.5vw,14px);opacity:.72;margin-top:4px}.kicker{display:inline-block;background:var(--yellow);border:3px solid var(--ink);border-radius:999px;padding:2px 10px;font-size:11px;box-shadow:3px 3px 0 var(--ink);margin-bottom:7px}.orange{color:#f97316}
 #dev{position:absolute;top:72px;left:10px;width:225px;background:rgba(23,23,23,.94);color:#fff;border:3px solid #fff;border-radius:13px;padding:10px 12px;font-size:13px;display:none;z-index:8;text-align:left;box-shadow:5px 5px 0 var(--ink)}#dev b{display:block;margin-bottom:4px;font-size:15px}#dev label{display:block;margin:5px 0}#dev input[type=range]{width:100%}#dev button{font-size:12px;padding:2px 8px;margin:3px 3px 0 0;border-width:2px}#devbtn{position:absolute;left:10px;bottom:10px;z-index:8;font-size:12px;padding:2px 10px;opacity:.9;display:none}
@@ -136,7 +136,7 @@ function send(event,payload){if(!net?.channel)return;net.channel.send({type:'bro
 function showRoom(show){$('roomBox').style.display=show?'block':'none';$('onlineConnect').style.display=show?'none':'block'}
 function renderRoster(list){const ul=$('roomList');ul.innerHTML='';for(const p of list){const d=document.createElement('div');d.className='room-player'+(p.host?' host':'');const role=p.role?` <span style="font-size:10px;opacity:.7;margin-left:auto">${p.role==='tagger'?'TAGGER':'RUNNER'}</span>`:'';d.innerHTML=`<span>${cleanName(p.name)}</span>${role}`;ul.appendChild(d)}$('roomCount').textContent=`${list.length}/8`;updateOnlineStart(list)}
 function hostRoster(){return Object.values(net.players).map(p=>({id:p.id,name:p.name,host:p.id===net.id,role:p.role||null}))}
-function updateOnlineStart(list=hostRoster()){const b=$('onlineStart');if(!b)return;if(net?.started){b.disabled=true;b.textContent='RUNNING';return}const n=list.length;b.disabled=n<2;b.textContent=n<2?'Need 2 Players':'Start Run'}
+function updateOnlineStart(list=hostRoster()){const b=$('onlineStart');if(!b)return;if(!net){b.disabled=true;b.textContent='Start Run';return}if(net.started){b.disabled=true;b.textContent='RUNNING';return}if(!net.isHost){b.disabled=true;b.textContent='Waiting for Host';return}const n=list.length;b.disabled=n<2;b.textContent=n<2?'Need 2 Players':'Start Run'}
 function setupOnlineG(roster,mapKey=onlineMap,taggerId=net?.taggerId){if(!MAPS[mapKey])mapKey='yard';onlineMap=mapKey;curMap=mapKey;CUR=MAPS[mapKey];build(CUR);EV=evFull({});G={mode:'classic',ents:[],p:null,t:90,t0:90,el:0,run:true,st:100,tired:false,combo:0,ct:0,tt:0,jb:0,fx:{speed:0,jump:0,ghost:0},pu:[],stars:[],coins:[],got:0,sn:0,shield:false,mt:0,mtxt:'',hid:false};net.players={};roster.forEach((p,i)=>{const pos=[[W/2,H/2],[W/2-180,H/2],[W/2+180,H/2],[W/2,H/2-180],[W/2,H/2+180],[W/2-260,H/2-170],[W/2+260,H/2+170],[W/2+260,H/2-170]][i]||[W/2,H/2];const role=p.role||(p.id===taggerId?'tagger':'runner');const e=mk(pos[0],pos[1],role,role==='tagger'?210:180);e.netId=p.id;e.netName=p.name;e.netRole=role;e.active=true;net.players[p.id]={id:p.id,name:p.name,role,entity:e,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};G.ents.push(e)});G.p=net.players[net.id]?.entity||G.ents[0];$('ov').style.display='none';$('onlineHud').style.display='flex';$('onlineLatency').style.display='block';$('onlineRole').textContent=G.p?.role==='tagger'?'You are the TAGGER. Catch the runners.':'You are a RUNNER. Stay away from the tagger.'}
 function localInput(){let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);if(dx||dy){const l=Math.hypot(dx,dy);dx/=l;dy/=l}return{dx,dy,sprint:!!keys.shift,jump:!!jumpReq}}
 async function connect(room,isHost){
@@ -160,6 +160,7 @@ async function connect(room,isHost){
     if(net?.helloTimer){clearInterval(net.helloTimer);net.helloTimer=null}
     if(net?.joinTimer){clearTimeout(net.joinTimer);net.joinTimer=null}
   };
+  const hostPresence=()=>presenceList().find(p=>p.id&&p.host===true);
   const failJoin=(message)=>{
     clearJoinTimers();
     const doomed=net;
@@ -174,10 +175,16 @@ async function connect(room,isHost){
     .on('presence',{event:'sync'},()=>{
       if(!net||net.room!==room)return;
       if(!net.isHost){
-        if(hasHostPresence()){
+        const hp=hostPresence();
+        if(hp){
           net.hostSeen=true;
-          status('Room found. Joining...');
-          if(net.helloTimer===null) send('hello',{id:net.id,name:net.name});
+          if(hp.started&&net.joined&&!net.started){
+            send('start_sync_request',{from:net.id});
+            status('Syncing the running match...');
+          }else{
+            status('Room found. Joining...');
+            if(net.helloTimer===null) send('hello',{id:net.id,name:net.name});
+          }
         }
       }else{
         const present=new Set(presenceList().map(p=>p.id).filter(Boolean));
@@ -214,7 +221,11 @@ async function connect(room,isHost){
     })
     .on('broadcast',{event:'hello'},({payload})=>{
       if(!net?.isHost||!payload?.id||payload.id===net.id)return;
-      if(net.started){send('full',{to:payload.id});return}
+      if(net.started){
+        if(net.players[payload.id]){sendStartTo(payload.id);}
+        else send('game_started',{to:payload.id});
+        return;
+      }
       const already=!!net.players[payload.id];
       if(!already&&Object.keys(net.players).length>=8){send('full',{to:payload.id});return}
       if(!already){
@@ -243,6 +254,8 @@ async function connect(room,isHost){
         setupOnlineG(payload.roster||[],net.map,net.taggerId);
         net.started=true;
         status('Run in progress.','good');
+        $('ov').style.display='none';
+        $('onlineCard').style.display='none';
       }else{
         status('Joined room. Waiting for 2 players.','good');
       }
@@ -262,6 +275,13 @@ async function connect(room,isHost){
       if(Object.keys(net.players).length<2){send('not_ready',{to:payload?.from||null});status('Need at least 2 players to start.','bad');return}
       startOnlineRun();
     })
+    .on('broadcast',{event:'start_sync_request'},({payload})=>{
+      if(!net?.isHost||!net.started||!payload?.from)return;
+      if(net.players[payload.from])sendStartTo(payload.from);
+    })
+    .on('broadcast',{event:'game_started'},({payload})=>{
+      if(payload?.to===net?.id){status('That match has already started.','bad');leaveOnline(true)}
+    })
     .on('broadcast',{event:'not_ready'},({payload})=>{if(payload?.to===net?.id)status('Need at least 2 players to start.','bad')})
     .on('broadcast',{event:'start'},({payload})=>{
       if(!net||payload?.to&&payload.to!==net.id)return;
@@ -277,6 +297,8 @@ async function connect(room,isHost){
       renderRoster(payload.roster||[]);
       $('onlineStart').textContent='RUNNING';
       $('onlineStart').disabled=true;
+      $('ov').style.display='none';
+      $('onlineCard').style.display='none';
     })
     .on('broadcast',{event:'input'},({payload})=>{
       if(!net?.isHost||!payload?.id||!net.players[payload.id])return;
@@ -299,7 +321,7 @@ async function connect(room,isHost){
   return await new Promise((resolve,reject)=>{
     net.channel.subscribe(async(st,err)=>{
       if(st==='SUBSCRIBED'){
-        try{await net.channel.track({id,name,host:isHost})}catch(e){reject(e);return}
+        try{await net.channel.track({id,name,host:isHost,started:false,map:onlineMap})}catch(e){reject(e);return}
         if(isHost){
           net.players[id]={id,name,role:null,entity:null,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};
           net.map=onlineMap;
@@ -334,17 +356,18 @@ async function connect(room,isHost){
     });
   });
 }
-function startOnlineRun(){if(!net||net.started)return;const roster=hostRoster();if(roster.length<2){status('Need at least 2 players to start.','bad');updateOnlineStart(roster);return}const tagger=roster[Math.floor(Math.random()*roster.length)];const finalRoster=roster.map(p=>({...p,role:p.id===tagger.id?'tagger':'runner'}));net.taggerId=tagger.id;for(const p of finalRoster)if(net.players[p.id])net.players[p.id].role=p.role;setupOnlineG(finalRoster,net.map,net.taggerId);net.started=true;send('start',{to:'all',roster:finalRoster,map:net.map,taggerId:net.taggerId});status('RUN! '+tagger.name+' is the tagger.','good');renderRoster(finalRoster);$('onlineStart').textContent='RUNNING';$('onlineStart').disabled=true}
+function sendStartTo(id){if(!net?.isHost||!net.started)return;send('start',{to:id||'all',roster:hostRoster(),map:net.map,taggerId:net.taggerId})}
+function startOnlineRun(){if(!net||net.started||!net.isHost)return;const roster=hostRoster();if(roster.length<2){status('Need at least 2 players to start.','bad');updateOnlineStart(roster);return}const tagger=roster[Math.floor(Math.random()*roster.length)];const finalRoster=roster.map(p=>({...p,role:p.id===tagger.id?'tagger':'runner'}));net.taggerId=tagger.id;for(const p of finalRoster)if(net.players[p.id])net.players[p.id].role=p.role;net.started=true;setupOnlineG(finalRoster,net.map,net.taggerId);try{net.channel.track({id:net.id,name:net.name,host:true,started:true,map:net.map,taggerId:net.taggerId}).catch(()=>{})}catch(_){}status('RUN! '+tagger.name+' is the tagger.','good');renderRoster(finalRoster);$('onlineStart').textContent='RUNNING';$('onlineStart').disabled=true;sendStartTo('all');clearInterval(net.startBurst);let count=0;net.startBurst=setInterval(()=>{if(!net||!net.started||count++>=12){clearInterval(net?.startBurst);if(net)net.startBurst=null;return}sendStartTo('all')},250)}
 function setOnlineMapButtons(){for(const b of $('omp').querySelectorAll('button')){b.classList.toggle('sel',b.dataset.k===onlineMap);b.disabled=!!(net&&!net.isHost)}}
 $('omp').onclick=e=>{const k=e.target.dataset.k;if(!k||!MAPS[k]||!net||net.started||!net.isHost)return;onlineMap=k;net.map=k;setOnlineMapButtons();send('map',{room:net.room,map:k});send('roster',{room:net.room,players:hostRoster(),map:net.map})};
-$('onlineBtn').onclick=()=>{$('panel').style.display='none';$('onlineCard').style.display='block';$('ov').style.display='flex';setOnlineMapButtons();status('Choose a name, then create or join a room.')};$('onlineJoinToggle').onclick=()=>{$('onlineJoinRow').style.display=$('onlineJoinRow').style.display==='none'?'grid':'none'};$('onlineCreate').onclick=async()=>{if(net)return;const room=roomCode();$('roomCode').textContent=room;try{await connect(room,true)}catch(e){status('Could not connect to online play.','bad');console.error(e)}};$('onlineJoin').onclick=async()=>{if(net)return;const c=$('onlineCodeInput').value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(c)){status('Enter a six-character room code.','bad');return}try{await connect(c,false)}catch(e){status('Could not connect to that room.','bad');console.error(e)}};$('onlineStart').onclick=()=>{if(!net||net.started)return;const roomSize=Number(($('roomCount').textContent||'0').split('/')[0])||0;if(roomSize<2){status('Need at least 2 players to start.','bad');updateOnlineStart();return}if(net.isHost)startOnlineRun();else{status('Asking the host to start...');send('start_request',{from:net.id})}};$('onlineLeave').onclick=()=>leaveOnline(false);$('onlineCodeInput').oninput=e=>e.target.value=e.target.value.replace(/[^a-z0-9]/gi,'').toUpperCase().slice(0,6);setOnlineMapButtons();
+$('onlineBtn').onclick=()=>{$('panel').style.display='none';$('onlineCard').style.display='block';$('ov').style.display='flex';setOnlineMapButtons();status('Choose a name, then create or join a room.')};$('onlineJoinToggle').onclick=()=>{$('onlineJoinRow').style.display=$('onlineJoinRow').style.display==='none'?'grid':'none'};$('onlineCreate').onclick=async()=>{if(net)return;const room=roomCode();$('roomCode').textContent=room;try{await connect(room,true)}catch(e){status('Could not connect to online play.','bad');console.error(e)}};$('onlineJoin').onclick=async()=>{if(net)return;const c=$('onlineCodeInput').value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(c)){status('Enter a six-character room code.','bad');return}try{await connect(c,false)}catch(e){status('Could not connect to that room.','bad');console.error(e)}};$('onlineStart').onclick=()=>{if(!net||net.started||!net.isHost)return;const roomSize=Number(($('roomCount').textContent||'0').split('/')[0])||0;if(roomSize<2){status('Need at least 2 players to start.','bad');updateOnlineStart();return}startOnlineRun()};$('onlineLeave').onclick=()=>leaveOnline(false);$('onlineCodeInput').oninput=e=>e.target.value=e.target.value.replace(/[^a-z0-9]/gi,'').toUpperCase().slice(0,6);setOnlineMapButtons();
 function hostOnline(dt){if(!net?.isHost||!net.started||!G)return;if(Object.keys(net.players).length<2){endHost(false,'The match ended because there are not enough players.');return;}for(const p of Object.values(net.players)){const e=p.entity;if(!e)continue;const i=p.id===net.id?localInput():p.input||{dx:0,dy:0,sprint:false,jump:false};const base=e.role==='tagger'?205:185;const sp=base*(i.sprint?1.22:1);e.vx+=(i.dx*sp-e.vx)*Math.min(1,12*dt);e.vy+=(i.dy*sp-e.vy)*Math.min(1,12*dt);if(i.jump&&e.on){e.vz=330;e.on=false}physics(e,dt)}const tagger=Object.values(net.players).find(p=>p.role==='tagger'&&p.entity?.active);if(tagger){for(const runner of Object.values(net.players)){if(runner.role!=='runner'||!runner.entity?.active)continue;if(Math.hypot(tagger.entity.x-runner.entity.x,tagger.entity.y-runner.entity.y)<22&&Math.abs(tagger.entity.z-runner.entity.z)<14){runner.entity.active=false;showBanner(`${cleanName(runner.name)} GOT TAGGED!`)}}}if(performance.now()-net.lastSnap>50){net.lastSnap=performance.now();const players={};for(const p of Object.values(net.players)){const e=p.entity;players[p.id]={id:p.id,name:p.name,role:p.role,x:e.x,y:e.y,z:e.z,vx:e.vx,vy:e.vy,vz:e.vz,active:e.active}}const state={room:net.room,t:G.t,players,taggers:[],started:true,map:net.map,taggerId:net.taggerId};send('state',state);updateOnlineHud(state)}G.t-=dt;if(G.t<=0){endHost(true,'The runners survived the yard.');return}const runners=Object.values(net.players).filter(p=>p.role==='runner');if(runners.length&&runners.every(p=>!p.entity?.active)){endHost(false,'The tagger caught everyone.')}}
 function clientOnline(){if(!net?.started)return;const n=performance.now();if(n-net.lastSend<50)return;net.lastSend=n;const i=localInput();jumpReq=false;send('input',{id:net.id,dx:i.dx,dy:i.dy,sprint:i.sprint,jump:i.jump})}
 function onlineUpdate(dt){if(net?.isHost)hostOnline(dt);else clientOnline()}
 const normalUpdate=update,normalDraw=draw;function showBanner(t){$('onlineBanner').textContent=t;$('onlineBanner').style.display='block';clearTimeout(showBanner.t);showBanner.t=setTimeout(()=>$('onlineBanner').style.display='none',1300)}function updateOnlineHud(s){const list=Object.values(s.players||{});const runners=list.filter(p=>p.role==='runner'&&p.active).length;const tagger=list.find(p=>p.role==='tagger');$('onlineTimer').textContent=`${Math.max(0,s.t||0).toFixed(1)}s`;$('onlinePlayers').textContent=`${runners} runner${runners===1?'':'s'} live`;$('onlineLatency').textContent=tagger?`Tagger: ${cleanName(tagger.name)}`:'ONLINE'}
 function drawOnline(now){if(!net)return;const s=net.render||{players:{}};let local=s.players?.[net.id];const localEnt=net.players?.[net.id]?.entity||G?.p;if(!local&&localEnt){local={id:net.id,name:net.name,role:localEnt.role,x:localEnt.x,y:localEnt.y,z:localEnt.z,vx:localEnt.vx,vy:localEnt.vy,vz:localEnt.vz,active:localEnt.active!==false}}if(!local)return;const cx=Math.max(0,Math.min(W-VW,(local.x||W/2)-VW/2)),cy=Math.max(0,Math.min(H-VH,(local.y||H/2)-VH/2));ctx.save();ctx.translate(-Math.round(cx),-Math.round(cy));ctx.fillStyle=CUR.g;ctx.fillRect(0,0,W,H);ctx.fillStyle=CUR.p;ctx.fillRect(30,30,W-60,H-60);ctx.fillStyle='#ecd9a6';ctx.fillRect(OPEN.x,OPEN.y,OPEN.w,OPEN.h);ctx.strokeStyle='#fff';ctx.lineWidth=6;ctx.setLineDash([30,20]);ctx.strokeRect(OPEN.x,OPEN.y,OPEN.w,OPEN.h);ctx.setLineDash([]);for(const o of OB)if(o.x<cx+VW+80&&o.x+o.w>cx-80&&o.y<cy+VH+100&&o.y+o.d>cy-100)drawOb(o);for(const b of BU)if(b.x>cx-90&&b.x<cx+VW+90&&b.y>cy-90&&b.y<cy+VH+120)drawBush(b);const seen=new Set();for(const p of Object.values(s.players||{})){seen.add(p.id);drawNetPlayer(p,p.id===net.id,now/1000)}if(!seen.has(net.id))drawNetPlayer(local,true,now/1000);ctx.restore();ctx.textAlign='left';ctx.font='800 20px "Baloo 2"';ctx.fillStyle='#171717';ctx.strokeStyle='#fff';ctx.lineWidth=4;const label=local.role==='tagger'?'ONLINE • TAGGER':'ONLINE • RUNNER';ctx.strokeText(label,18,35);ctx.fillText(label,18,35);ctx.textAlign='right';ctx.strokeText(`${CUR.n}`,VW-18,35);ctx.fillText(`${CUR.n}`,VW-18,35)}
 function drawNetPlayer(p,isMe,t){let e=net?.players?.[p.id]?.entity;const x=(e&&isMe?e.x:p.x)+(isMe?e.vx||p.vx||0:p.vx||0)*.04,y=(e&&isMe?e.y:p.y)+(isMe?e.vy||p.vy||0:p.vy||0)*.04,z=Math.max(0,(e&&isMe?e.z:p.z)+(isMe?e.vz||p.vz||0:p.vz||0)*.04),yy=y-z*.5-6;const isTagger=p.role==='tagger';ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(x,y+5,10,5,0,0,7);ctx.fill();ctx.fillStyle=!p.active?'#9a9a9a':isTagger?'#ef4444':isMe?'#2f80c8':'#ffc93c';ctx.beginPath();ctx.arc(x,yy,11,0,7);ctx.fill();ctx.strokeStyle='#171717';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#222';ctx.fillRect(x-4,yy-3,2.5,4);ctx.fillRect(x+2,yy-3,2.5,4);if(isTagger){ctx.strokeStyle='#ef4444';ctx.globalAlpha=.45+.35*Math.sin(t*8);ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,yy,17,0,7);ctx.stroke();ctx.globalAlpha=1}ctx.fillStyle='#171717';ctx.font='800 12px "Baloo 2"';ctx.textAlign='center';ctx.fillText(cleanName(p.name),x,yy-18);if(isMe){ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,yy,15,0,7);ctx.stroke()}}
-function endHost(win,text){if(!net?.isHost)return;send('end',{room:net.room,win,text});showResult(win,text);net.started=false}function showResult(win,text){$('resultTitle').textContent=win?'TEAM WIN!':'TAGGED!';$('resultText').textContent=text;$('result').style.display='flex';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineStart').disabled=false;$('onlineStart').textContent='Start Run'}function leaveOnline(silent){if(net){if(net.helloTimer)clearInterval(net.helloTimer);if(net.joinTimer)clearTimeout(net.joinTimer);try{send('leave',{id:net.id})}catch(_){}try{net.channel.untrack()}catch(_){}try{net.client.removeChannel(net.channel)}catch(_){}net=null}$('result').style.display='none';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineBanner').style.display='none';$('onlineCard').style.display='none';$('panel').style.display='block';$('ov').style.display='flex';if(!silent)status('Choose a name, then create or join a room.')}
+function endHost(win,text){if(!net?.isHost)return;if(net.startBurst){clearInterval(net.startBurst);net.startBurst=null}send('end',{room:net.room,win,text});showResult(win,text);net.started=false;try{net.channel.track({id:net.id,name:net.name,host:true,started:false,map:net.map}).catch(()=>{})}catch(_){};updateOnlineStart(hostRoster())}function showResult(win,text){if(net?.startBurst){clearInterval(net.startBurst);net.startBurst=null}$('resultTitle').textContent=win?'TEAM WIN!':'TAGGED!';$('resultText').textContent=text;$('result').style.display='flex';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';updateOnlineStart();}function leaveOnline(silent){if(net){if(net.helloTimer)clearInterval(net.helloTimer);if(net.joinTimer)clearTimeout(net.joinTimer);if(net.startBurst)clearInterval(net.startBurst);try{send('leave',{id:net.id})}catch(_){}try{net.channel.untrack()}catch(_){}try{net.client.removeChannel(net.channel)}catch(_){}net=null}$('result').style.display='none';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineBanner').style.display='none';$('onlineCard').style.display='none';$('panel').style.display='block';$('ov').style.display='flex';if(!silent)status('Choose a name, then create or join a room.')}
 $('resultBack').onclick=()=>leaveOnline(false);
 addEventListener('beforeunload',()=>{try{if(net)send('leave',{id:net.id})}catch(_){} });
 // online loop wrapper
