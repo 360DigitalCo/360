@@ -139,9 +139,201 @@ function hostRoster(){return Object.values(net.players).map(p=>({id:p.id,name:p.
 function updateOnlineStart(list=hostRoster()){const b=$('onlineStart');if(!b)return;if(net?.started){b.disabled=true;b.textContent='RUNNING';return}const n=list.length;b.disabled=n<2;b.textContent=n<2?'Need 2 Players':'Start Run'}
 function setupOnlineG(roster,mapKey=onlineMap,taggerId=net?.taggerId){if(!MAPS[mapKey])mapKey='yard';onlineMap=mapKey;curMap=mapKey;CUR=MAPS[mapKey];build(CUR);EV=evFull({});G={mode:'classic',ents:[],p:null,t:90,t0:90,el:0,run:true,st:100,tired:false,combo:0,ct:0,tt:0,jb:0,fx:{speed:0,jump:0,ghost:0},pu:[],stars:[],coins:[],got:0,sn:0,shield:false,mt:0,mtxt:'',hid:false};net.players={};roster.forEach((p,i)=>{const pos=[[W/2,H/2],[W/2-180,H/2],[W/2+180,H/2],[W/2,H/2-180],[W/2,H/2+180],[W/2-260,H/2-170],[W/2+260,H/2+170],[W/2+260,H/2-170]][i]||[W/2,H/2];const role=p.role||(p.id===taggerId?'tagger':'runner');const e=mk(pos[0],pos[1],role,role==='tagger'?210:180);e.netId=p.id;e.netName=p.name;e.netRole=role;e.active=true;net.players[p.id]={id:p.id,name:p.name,role,entity:e,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};G.ents.push(e)});G.p=net.players[net.id]?.entity||G.ents[0];$('ov').style.display='none';$('onlineHud').style.display='flex';$('onlineLatency').style.display='block';$('onlineRole').textContent=G.p?.role==='tagger'?'You are the TAGGER. Catch the runners.':'You are a RUNNER. Stay away from the tagger.'}
 function localInput(){let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);if(dx||dy){const l=Math.hypot(dx,dy);dx/=l;dy/=l}return{dx,dy,sprint:!!keys.shift,jump:!!jumpReq}}
-async function connect(room,isHost){const sdk=await loadSupabase();const client=sdk.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false},realtime:{params:{eventsPerSecond:60}}});const id=nid(),name=cleanName($('onlineName').value);net={client,channel:null,id,name,room,isHost,players:{},started:false,lastSend:0,lastSnap:0,lastSeen:performance.now(),hostId:isHost?id:null,render:null,taggerId:null,map:onlineMap};net.channel=client.channel('vortex-backyard-tag-'+room,{config:{broadcast:{ack:false},presence:{key:id}}});
-net.channel.on('broadcast',{event:'hello'},({payload})=>{if(!net.isHost||!payload||net.players[payload.id])return;if(net.started){send('full',{to:payload.id});return}if(Object.keys(net.players).length>=8){send('full',{to:payload.id});return}net.players[payload.id]={id:payload.id,name:cleanName(payload.name),role:null,entity:null,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};send('welcome',{to:payload.id,hostId:net.id,roster:hostRoster(),started:net.started,map:net.map,taggerId:net.taggerId});renderRoster(hostRoster())}).on('broadcast',{event:'welcome'},({payload})=>{if(!net||net.isHost||payload?.to!==net.id)return;net.hostId=payload.hostId;net.map=payload.map||'yard';net.taggerId=payload.taggerId||null;onlineMap=net.map;setOnlineMapButtons();renderRoster(payload.roster||[]);showRoom(true);if(payload.started){setupOnlineG(payload.roster||[],net.map,net.taggerId);net.started=true;status('Run in progress.','good')}else{status('Joined room. Waiting for 2 players.','good')}updateOnlineStart(payload.roster||[])}).on('broadcast',{event:'roster'},({payload})=>{if(net&&payload?.room===net.room){if(payload.map){net.map=payload.map;onlineMap=payload.map;setOnlineMapButtons()}renderRoster(payload.players||[])}}).on('broadcast',{event:'map'},({payload})=>{if(!net||net.isHost||net.started)return;if(payload?.map&&MAPS[payload.map]){net.map=payload.map;onlineMap=payload.map;setOnlineMapButtons()}}).on('broadcast',{event:'start_request'},({payload})=>{if(!net?.isHost||net.started)return;if(Object.keys(net.players).length<2){send('not_ready',{to:payload?.from||null});status('Need at least 2 players to start.','bad');return}startOnlineRun()}).on('broadcast',{event:'not_ready'},({payload})=>{if(payload?.to===net?.id)status('Need at least 2 players to start.','bad')}).on('broadcast',{event:'start'},({payload})=>{if(!net||payload?.to&&payload.to!==net.id)return;net.map=payload.map||'yard';onlineMap=net.map;net.taggerId=payload.taggerId||null;setOnlineMapButtons();setupOnlineG(payload.roster||[],net.map,net.taggerId);net.started=true;status('RUN!','good');renderRoster(payload.roster||[]);$('onlineStart').textContent='RUNNING';$('onlineStart').disabled=true}).on('broadcast',{event:'input'},({payload})=>{if(!net?.isHost||!payload?.id||!net.players[payload.id])return;net.players[payload.id].input=payload;net.players[payload.id].lastSeen=performance.now()}).on('broadcast',{event:'state'},({payload})=>{if(!net||net.isHost||payload?.room!==net.room)return;net.render=payload;updateOnlineHud(payload)}).on('broadcast',{event:'end'},({payload})=>{if(!net||payload?.room!==net.room)return;showResult(!!payload.win,payload.text||'Run complete.')}).on('broadcast',{event:'full'},({payload})=>{if(payload?.to===net?.id){status('That room is full.','bad');leaveOnline(true)}}).on('broadcast',{event:'leave'},({payload})=>{if(!net?.isHost||!net.players[payload?.id])return;delete net.players[payload.id];if(Object.keys(net.players).length<2)net.taggerId=null;send('roster',{room:net.room,players:hostRoster(),map:net.map});renderRoster(hostRoster())});
-net.channel.subscribe(async st=>{if(st!=='SUBSCRIBED')return;try{await net.channel.track({id,name,host:isHost})}catch(_){}if(isHost){net.players[id]={id,name,role:null,entity:null,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};net.map=onlineMap;renderRoster(hostRoster());showRoom(true);status('Room '+room+' is ready. Waiting for 2 players.','good');$('roomCode').textContent=room;setOnlineMapButtons();updateOnlineStart(hostRoster())}else{send('hello',{id,name});status('Connecting to host...')}})}
+async function connect(room,isHost){
+  const sdk=await loadSupabase();
+  const client=sdk.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false},realtime:{params:{eventsPerSecond:60}}});
+  const id=nid(),name=cleanName($('onlineName').value);
+  net={client,channel:null,id,name,room,isHost,players:{},started:false,lastSend:0,lastSnap:0,lastSeen:performance.now(),hostId:isHost?id:null,render:null,taggerId:null,map:onlineMap,joinTimer:null,helloTimer:null,helloAttempts:0,joined:false};
+  const topic='vortex-backyard-tag-'+room;
+  net.channel=client.channel(topic,{config:{broadcast:{ack:false},presence:{key:id}}});
+
+  const presenceList=()=>{
+    const state=net?.channel?.presenceState?.()||{};
+    const out=[];
+    for(const key of Object.keys(state)){
+      for(const item of (state[key]||[])) out.push({key,...item});
+    }
+    return out;
+  };
+  const hasHostPresence=()=>presenceList().some(p=>p.id&&p.id!==net.id&&p.host===true);
+  const clearJoinTimers=()=>{
+    if(net?.helloTimer){clearInterval(net.helloTimer);net.helloTimer=null}
+    if(net?.joinTimer){clearTimeout(net.joinTimer);net.joinTimer=null}
+  };
+  const failJoin=(message)=>{
+    clearJoinTimers();
+    const doomed=net;
+    net=null;
+    try{doomed?.client?.removeChannel(doomed.channel)}catch(_){ }
+    $('onlineLatency').style.display='none';
+    status(message,'bad');
+    showRoom(false);
+  };
+
+  net.channel
+    .on('presence',{event:'sync'},()=>{
+      if(!net||net.room!==room)return;
+      if(!net.isHost){
+        if(hasHostPresence()){
+          net.hostSeen=true;
+          status('Room found. Joining...');
+          if(net.helloTimer===null) send('hello',{id:net.id,name:net.name});
+        }
+      }else{
+        const present=new Set(presenceList().map(p=>p.id).filter(Boolean));
+        for(const pid of Object.keys(net.players)){
+          if(pid!==net.id&&!present.has(pid)) delete net.players[pid];
+        }
+        const roster=hostRoster();
+        renderRoster(roster);
+        if(net.started&&roster.length<2) endHost(false,'The match ended because there are not enough players.');
+        else send('roster',{room:net.room,players:roster,map:net.map});
+      }
+    })
+    .on('presence',{event:'join'},({newPresences})=>{
+      if(!net||net.room!==room)return;
+      if(!net.isHost)return;
+      for(const p of newPresences||[]){
+        if(!p.id||p.id===net.id)continue;
+      }
+    })
+    .on('presence',{event:'leave'},({leftPresences})=>{
+      if(!net||net.room!==room||!net.isHost)return;
+      let changed=false;
+      for(const p of leftPresences||[]){
+        const pid=p.id;
+        if(pid&&pid!==net.id&&net.players[pid]){delete net.players[pid];changed=true}
+      }
+      if(changed){
+        if(Object.keys(net.players).length<2)net.taggerId=null;
+        const roster=hostRoster();
+        send('roster',{room:net.room,players:roster,map:net.map});
+        renderRoster(roster);
+        if(net.started&&roster.length<2)endHost(false,'The match ended because there are not enough players.');
+      }
+    })
+    .on('broadcast',{event:'hello'},({payload})=>{
+      if(!net?.isHost||!payload?.id||payload.id===net.id)return;
+      if(net.started){send('full',{to:payload.id});return}
+      const already=!!net.players[payload.id];
+      if(!already&&Object.keys(net.players).length>=8){send('full',{to:payload.id});return}
+      if(!already){
+        net.players[payload.id]={id:payload.id,name:cleanName(payload.name),role:null,entity:null,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};
+      }else{
+        net.players[payload.id].name=cleanName(payload.name);
+        net.players[payload.id].lastSeen=performance.now();
+      }
+      const roster=hostRoster();
+      send('welcome',{to:payload.id,hostId:net.id,roster,started:net.started,map:net.map,taggerId:net.taggerId});
+      send('roster',{room:net.room,players:roster,map:net.map});
+      renderRoster(roster);
+    })
+    .on('broadcast',{event:'welcome'},({payload})=>{
+      if(!net||net.isHost||payload?.to!==net.id)return;
+      clearJoinTimers();
+      net.joined=true;
+      net.hostId=payload.hostId;
+      net.map=payload.map||'yard';
+      net.taggerId=payload.taggerId||null;
+      onlineMap=net.map;
+      setOnlineMapButtons();
+      renderRoster(payload.roster||[]);
+      showRoom(true);
+      if(payload.started){
+        setupOnlineG(payload.roster||[],net.map,net.taggerId);
+        net.started=true;
+        status('Run in progress.','good');
+      }else{
+        status('Joined room. Waiting for 2 players.','good');
+      }
+      updateOnlineStart(payload.roster||[]);
+    })
+    .on('broadcast',{event:'roster'},({payload})=>{
+      if(!net||payload?.room!==net.room)return;
+      if(payload.map){net.map=payload.map;onlineMap=payload.map;setOnlineMapButtons()}
+      renderRoster(payload.players||[]);
+    })
+    .on('broadcast',{event:'map'},({payload})=>{
+      if(!net||net.isHost||net.started)return;
+      if(payload?.map&&MAPS[payload.map]){net.map=payload.map;onlineMap=payload.map;setOnlineMapButtons()}
+    })
+    .on('broadcast',{event:'start_request'},({payload})=>{
+      if(!net?.isHost||net.started)return;
+      if(Object.keys(net.players).length<2){send('not_ready',{to:payload?.from||null});status('Need at least 2 players to start.','bad');return}
+      startOnlineRun();
+    })
+    .on('broadcast',{event:'not_ready'},({payload})=>{if(payload?.to===net?.id)status('Need at least 2 players to start.','bad')})
+    .on('broadcast',{event:'start'},({payload})=>{
+      if(!net||payload?.to&&payload.to!==net.id)return;
+      clearJoinTimers();
+      net.map=payload.map||'yard';
+      onlineMap=net.map;
+      net.taggerId=payload.taggerId||null;
+      setOnlineMapButtons();
+      setupOnlineG(payload.roster||[],net.map,net.taggerId);
+      net.started=true;
+      net.joined=true;
+      status('RUN!','good');
+      renderRoster(payload.roster||[]);
+      $('onlineStart').textContent='RUNNING';
+      $('onlineStart').disabled=true;
+    })
+    .on('broadcast',{event:'input'},({payload})=>{
+      if(!net?.isHost||!payload?.id||!net.players[payload.id])return;
+      net.players[payload.id].input=payload;
+      net.players[payload.id].lastSeen=performance.now();
+    })
+    .on('broadcast',{event:'state'},({payload})=>{if(!net||net.isHost||payload?.room!==net.room)return;net.render=payload;updateOnlineHud(payload)})
+    .on('broadcast',{event:'end'},({payload})=>{if(!net||payload?.room!==net.room)return;showResult(!!payload.win,payload.text||'Run complete.')})
+    .on('broadcast',{event:'full'},({payload})=>{if(payload?.to===net?.id){status('That room is full.','bad');leaveOnline(true)}})
+    .on('broadcast',{event:'leave'},({payload})=>{
+      if(!net?.isHost||!net.players[payload?.id])return;
+      delete net.players[payload.id];
+      if(Object.keys(net.players).length<2)net.taggerId=null;
+      const roster=hostRoster();
+      send('roster',{room:net.room,players:roster,map:net.map});
+      renderRoster(roster);
+      if(net.started&&roster.length<2)endHost(false,'The match ended because there are not enough players.');
+    });
+
+  return await new Promise((resolve,reject)=>{
+    net.channel.subscribe(async(st,err)=>{
+      if(st==='SUBSCRIBED'){
+        try{await net.channel.track({id,name,host:isHost})}catch(e){reject(e);return}
+        if(isHost){
+          net.players[id]={id,name,role:null,entity:null,input:{dx:0,dy:0,sprint:false,jump:false},lastSeen:performance.now()};
+          net.map=onlineMap;
+          net.joined=true;
+          renderRoster(hostRoster());
+          showRoom(true);
+          status('Room '+room+' is ready. Waiting for 2 players.','good');
+          $('roomCode').textContent=room;
+          setOnlineMapButtons();
+          updateOnlineStart(hostRoster());
+          resolve();
+          return;
+        }
+        showRoom(true);
+        status('Looking for room '+room+'...');
+        const attempt=()=>{
+          if(!net||net.room!==room||net.joined)return;
+          net.helloAttempts++;
+          send('hello',{id:net.id,name:net.name});
+          if(net.helloAttempts>=6){clearJoinTimers();failJoin('Room not found or host is offline.');}
+        };
+        attempt();
+        net.helloTimer=setInterval(attempt,800);
+        net.joinTimer=setTimeout(()=>{if(net&&!net.joined)failJoin('Could not join that room. Check the code and try again.')},5500);
+        resolve();
+        return;
+      }
+      if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){
+        const message=err?.message||st;
+        reject(new Error(message));
+      }
+    });
+  });
+}
 function startOnlineRun(){if(!net||net.started)return;const roster=hostRoster();if(roster.length<2){status('Need at least 2 players to start.','bad');updateOnlineStart(roster);return}const tagger=roster[Math.floor(Math.random()*roster.length)];const finalRoster=roster.map(p=>({...p,role:p.id===tagger.id?'tagger':'runner'}));net.taggerId=tagger.id;for(const p of finalRoster)if(net.players[p.id])net.players[p.id].role=p.role;setupOnlineG(finalRoster,net.map,net.taggerId);net.started=true;send('start',{to:'all',roster:finalRoster,map:net.map,taggerId:net.taggerId});status('RUN! '+tagger.name+' is the tagger.','good');renderRoster(finalRoster);$('onlineStart').textContent='RUNNING';$('onlineStart').disabled=true}
 function setOnlineMapButtons(){for(const b of $('omp').querySelectorAll('button')){b.classList.toggle('sel',b.dataset.k===onlineMap);b.disabled=!!(net&&!net.isHost)}}
 $('omp').onclick=e=>{const k=e.target.dataset.k;if(!k||!MAPS[k]||!net||net.started||!net.isHost)return;onlineMap=k;net.map=k;setOnlineMapButtons();send('map',{room:net.room,map:k});send('roster',{room:net.room,players:hostRoster(),map:net.map})};
@@ -152,7 +344,7 @@ function onlineUpdate(dt){if(net?.isHost)hostOnline(dt);else clientOnline()}
 const normalUpdate=update,normalDraw=draw;function showBanner(t){$('onlineBanner').textContent=t;$('onlineBanner').style.display='block';clearTimeout(showBanner.t);showBanner.t=setTimeout(()=>$('onlineBanner').style.display='none',1300)}function updateOnlineHud(s){const list=Object.values(s.players||{});const runners=list.filter(p=>p.role==='runner'&&p.active).length;const tagger=list.find(p=>p.role==='tagger');$('onlineTimer').textContent=`${Math.max(0,s.t||0).toFixed(1)}s`;$('onlinePlayers').textContent=`${runners} runner${runners===1?'':'s'} live`;$('onlineLatency').textContent=tagger?`Tagger: ${cleanName(tagger.name)}`:'ONLINE'}
 function drawOnline(now){if(!net)return;const s=net.render||{players:{}};let local=s.players?.[net.id];const localEnt=net.players?.[net.id]?.entity||G?.p;if(!local&&localEnt){local={id:net.id,name:net.name,role:localEnt.role,x:localEnt.x,y:localEnt.y,z:localEnt.z,vx:localEnt.vx,vy:localEnt.vy,vz:localEnt.vz,active:localEnt.active!==false}}if(!local)return;const cx=Math.max(0,Math.min(W-VW,(local.x||W/2)-VW/2)),cy=Math.max(0,Math.min(H-VH,(local.y||H/2)-VH/2));ctx.save();ctx.translate(-Math.round(cx),-Math.round(cy));ctx.fillStyle=CUR.g;ctx.fillRect(0,0,W,H);ctx.fillStyle=CUR.p;ctx.fillRect(30,30,W-60,H-60);ctx.fillStyle='#ecd9a6';ctx.fillRect(OPEN.x,OPEN.y,OPEN.w,OPEN.h);ctx.strokeStyle='#fff';ctx.lineWidth=6;ctx.setLineDash([30,20]);ctx.strokeRect(OPEN.x,OPEN.y,OPEN.w,OPEN.h);ctx.setLineDash([]);for(const o of OB)if(o.x<cx+VW+80&&o.x+o.w>cx-80&&o.y<cy+VH+100&&o.y+o.d>cy-100)drawOb(o);for(const b of BU)if(b.x>cx-90&&b.x<cx+VW+90&&b.y>cy-90&&b.y<cy+VH+120)drawBush(b);const seen=new Set();for(const p of Object.values(s.players||{})){seen.add(p.id);drawNetPlayer(p,p.id===net.id,now/1000)}if(!seen.has(net.id))drawNetPlayer(local,true,now/1000);ctx.restore();ctx.textAlign='left';ctx.font='800 20px "Baloo 2"';ctx.fillStyle='#171717';ctx.strokeStyle='#fff';ctx.lineWidth=4;const label=local.role==='tagger'?'ONLINE • TAGGER':'ONLINE • RUNNER';ctx.strokeText(label,18,35);ctx.fillText(label,18,35);ctx.textAlign='right';ctx.strokeText(`${CUR.n}`,VW-18,35);ctx.fillText(`${CUR.n}`,VW-18,35)}
 function drawNetPlayer(p,isMe,t){let e=net?.players?.[p.id]?.entity;const x=(e&&isMe?e.x:p.x)+(isMe?e.vx||p.vx||0:p.vx||0)*.04,y=(e&&isMe?e.y:p.y)+(isMe?e.vy||p.vy||0:p.vy||0)*.04,z=Math.max(0,(e&&isMe?e.z:p.z)+(isMe?e.vz||p.vz||0:p.vz||0)*.04),yy=y-z*.5-6;const isTagger=p.role==='tagger';ctx.fillStyle='rgba(0,0,0,.23)';ctx.beginPath();ctx.ellipse(x,y+5,10,5,0,0,7);ctx.fill();ctx.fillStyle=!p.active?'#9a9a9a':isTagger?'#ef4444':isMe?'#2f80c8':'#ffc93c';ctx.beginPath();ctx.arc(x,yy,11,0,7);ctx.fill();ctx.strokeStyle='#171717';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#222';ctx.fillRect(x-4,yy-3,2.5,4);ctx.fillRect(x+2,yy-3,2.5,4);if(isTagger){ctx.strokeStyle='#ef4444';ctx.globalAlpha=.45+.35*Math.sin(t*8);ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,yy,17,0,7);ctx.stroke();ctx.globalAlpha=1}ctx.fillStyle='#171717';ctx.font='800 12px "Baloo 2"';ctx.textAlign='center';ctx.fillText(cleanName(p.name),x,yy-18);if(isMe){ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,yy,15,0,7);ctx.stroke()}}
-function endHost(win,text){if(!net?.isHost)return;send('end',{room:net.room,win,text});showResult(win,text);net.started=false}function showResult(win,text){$('resultTitle').textContent=win?'TEAM WIN!':'TAGGED!';$('resultText').textContent=text;$('result').style.display='flex';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineStart').disabled=false;$('onlineStart').textContent='Start Run'}function leaveOnline(silent){if(net){try{send('leave',{id:net.id})}catch(_){}try{net.client.removeChannel(net.channel)}catch(_){}net=null}$('result').style.display='none';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineBanner').style.display='none';$('onlineCard').style.display='none';$('panel').style.display='block';$('ov').style.display='flex';if(!silent)status('Choose a name, then create or join a room.')}
+function endHost(win,text){if(!net?.isHost)return;send('end',{room:net.room,win,text});showResult(win,text);net.started=false}function showResult(win,text){$('resultTitle').textContent=win?'TEAM WIN!':'TAGGED!';$('resultText').textContent=text;$('result').style.display='flex';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineStart').disabled=false;$('onlineStart').textContent='Start Run'}function leaveOnline(silent){if(net){if(net.helloTimer)clearInterval(net.helloTimer);if(net.joinTimer)clearTimeout(net.joinTimer);try{send('leave',{id:net.id})}catch(_){}try{net.channel.untrack()}catch(_){}try{net.client.removeChannel(net.channel)}catch(_){}net=null}$('result').style.display='none';$('onlineHud').style.display='none';$('onlineLatency').style.display='none';$('onlineBanner').style.display='none';$('onlineCard').style.display='none';$('panel').style.display='block';$('ov').style.display='flex';if(!silent)status('Choose a name, then create or join a room.')}
 $('resultBack').onclick=()=>leaveOnline(false);
 addEventListener('beforeunload',()=>{try{if(net)send('leave',{id:net.id})}catch(_){} });
 // online loop wrapper
