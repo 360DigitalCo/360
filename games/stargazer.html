@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stargazer: a cozy astronomy game</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+:root{--bg:hsl(250 40% 20%);--ink:hsl(40 60% 88%);--acc:hsl(45 80% 65%);--panel:rgba(255,255,255,.08);--r:18px;--font:'Nunito',system-ui,sans-serif;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.6;overflow-x:hidden;transition:background 2s}
+canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+#vig{position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,#000 130%);opacity:0;transition:opacity 2s}
+#app{position:relative;z-index:2;max-width:640px;margin:0 auto;padding:20px 18px 60px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:14px;opacity:.85;margin-bottom:18px}
+header b{color:var(--acc)}
+#snd{background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-decoration:underline;opacity:.7}
+.card{background:var(--panel);backdrop-filter:blur(3px);border-radius:var(--r);padding:22px 22px 18px;border:1px solid color-mix(in srgb,var(--acc) 25%,transparent)}
+h1{font-size:30px;line-height:1.15;margin:0 0 10px;color:var(--acc)}
+h2{font-size:22px;margin:0 0 12px;color:var(--acc)}
+.line{margin:0 0 12px;opacity:0;transform:translateY(4px);transition:opacity 1.2s,transform 1.2s}
+.line.on{opacity:1;transform:none}
+.line.me{font-style:italic;opacity:.9}
+.choices{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+button.c{font:inherit;color:var(--ink);background:color-mix(in srgb,var(--acc) 16%,transparent);border:1px solid var(--acc);border-radius:calc(var(--r) - 6px);padding:12px 14px;text-align:left;cursor:pointer;transition:background .2s}
+button.c:hover,button.c:focus-visible{background:color-mix(in srgb,var(--acc) 38%,transparent);outline:2px solid var(--ink);outline-offset:2px}
+#log{margin-top:20px;font-size:14px;opacity:.8}
+#log summary{cursor:pointer;color:var(--acc)}
+#log p{margin:6px 0;padding-left:10px;border-left:2px solid var(--acc)}
+#scope{display:none;position:fixed;inset:0;z-index:10;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:env(safe-area-inset-top,0px) 10px env(safe-area-inset-bottom,0px)}
+#lens{position:relative;border-radius:50%;overflow:hidden;box-shadow:0 0 0 7px #23232b,0 0 0 11px #0a0a0e;cursor:grab;touch-action:none}
+#lens::after{content:'';position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 60px 28px #000;pointer-events:none}
+#scv{display:block;touch-action:none}
+#sui{width:min(92vw,520px);display:flex;flex-direction:column;gap:8px;font-size:15px;color:var(--ink)}
+#shint{min-height:24px;text-align:center}
+#lock{height:6px;background:#ffffff1a;border-radius:3px;overflow:hidden}
+#lockbar{display:block;height:100%;width:0;background:var(--acc)}
+#sui label{display:flex;gap:10px;align-items:center}
+#foc{flex:1;accent-color:var(--acc)}
+#mini{display:none;position:fixed;inset:0;z-index:10;background:#02030a;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:env(safe-area-inset-top,0px) 10px env(safe-area-inset-bottom,0px);color:var(--ink)}
+#mgv{border:1px solid var(--acc);border-radius:var(--r);touch-action:none;cursor:crosshair}
+#mtitle{color:var(--acc);font-size:20px}#mhint{min-height:24px;font-size:15px;text-align:center}#mbtns{display:flex;gap:10px}
+.shake{animation:sh .35s}
+@keyframes sh{0%,100%{transform:translate(0)}20%{transform:translate(-4px,2px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,-2px)}80%{transform:translate(3px,3px)}}
+@media (prefers-reduced-motion:reduce){.shake{animation:none}.line{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="vig"></div>
+<div id="app">
+  <header><span><b>Stargazer</b> · Hollis Ridge Observatory</span><button id="snd" type="button">sound: off</button></header>
+  <div class="card" id="card"></div>
+  <details id="log"><summary>Observation log</summary><div id="entries"></div></details>
+</div>
+<div id="scope"><div id="lens"><canvas id="scv"></canvas></div>
+<div id="sui"><div id="shint"></div><div id="lock"><i id="lockbar"></i></div>
+<input id="foc" type="hidden" value="50">
+<button type="button" class="c" id="sback">Step back from the eyepiece</button></div></div>
+<div id="mini"><div id="mtitle"></div><canvas id="mgv"></canvas><div id="mhint"></div><div id="mbtns"></div><button type="button" class="c" id="mback">Step back</button></div>
+<script>
+// ---------- story ----------
+const NIGHTS=[
+{d:0,title:"Night 1: Clear skies",intro:["The kettle clicks off. The dome hums. Outside, the whole Milky Way is out and the mountain air smells like pine.","Dr. Pell left a sticky note on the console: “Welcome aboard! Be kind to the old telescope. She's temperamental.”"],
+ targets:[
+ {l:"Point at the Moon",o:["Craters sharp as chalk. You spend an hour just breathing.","You sip your tea. Perfect."],e:"Moon: gorgeous. Tea still warm."},
+ {l:"Point at Jupiter",o:["Four tiny moons lined up like beads on a string. You grin like a kid.","You name them after your childhood cats."],e:"Jupiter: 4 moons visible. Named them all."},
+ {l:"Point at the Pleiades",o:["A little blue cluster, like spilled glitter.","Seven sisters, they say. You count six, then seven. Fine."],e:"Pleiades: counted 7. (Counted 6 first?)"}]},
+{d:1,title:"Night 2: A small quirk",intro:["Email from Dr. Pell: “Funding approved! Keep up the logs. Also, don't mind the radio dish, it likes to hum.”","The dish hums. It's a low, patient sound, almost a note."],
+ targets:[
+ {l:"The Orion Nebula",o:["A glowing nursery of baby stars.","The hum in the walls drops half a tone while you look. Probably the heater."],e:"Orion Nebula: lovely. Heater is loud tonight."},
+ {l:"Saturn",o:["The rings tilt just so. You could cry.","The hum matches the shutter's click. Cute coincidence."],e:"Saturn: rings sharp. Dish hum synced w/ shutter."},
+ {l:"The Andromeda Galaxy",o:["A faint smear of two trillion suns, 2.5 million years old by the time the light reaches you.","It looks a little dimmer than the charts say. You decide it's the haze."],e:"Andromeda: dimmer than expected. Haze?"}]},
+{d:2.5,title:"Night 3: Patterns",intro:["No reply from Pell today. She's probably traveling.","You open the log. Yesterday's entry has an extra line at the bottom. It's in your handwriting. “Don't look at the stars that look back.”","You laugh. You must have been tired."],
+ targets:[
+ {l:"Mars",o:["A dust storm swirls across the south pole, in a tidy spiral.","It is very tidy. You check the charts. Nothing predicted it."],e:"Mars: storm shaped like a spiral. Too neat."},
+ {l:"Betelgeuse",o:["The red giant is dimming and brightening, slow and steady.","Like breathing. You time it against your own breath and then stop, uncomfortably."],e:"Betelgeuse pulses at 4s intervals. Not a known period."},
+ {l:"A blank patch of sky",o:["You stack an hour of deep-field exposure. Thousands of galaxies.","Every one of them is tilted the same direction. Toward you."],e:"Deep field: galaxy alignment ~100%. Impossible."}]},
+{d:4,title:"Night 4: Signal",intro:["The hum is not a hum anymore. The radio dish has locked onto something. A repeating pulse: three short, one long.","Pell's office light is on. The door is locked. Her coffee on the desk is still steaming.","You didn't hear anyone come in."],
+ targets:[
+ {l:"Trace the signal",o:["It's coming from a point near Tau Ceti. It is not noise. It is counting down.","The monitor shows a number. 11."],e:"Signal source triangulated. Countdown: 11."},
+ {l:"Ignore it, observe something nice",o:["You point the scope at the Moon. The Moon is in the wrong place by a hand's width.","The signal continues without you. It doesn't need you to listen."],e:"Moon is not where it should be."},
+ {l:"Call Dr. Pell",o:["It rings in the room next door. Once. Twice.","Then it picks up on the other end of the line, and breathes."],e:"Called Pell. She picked up. Didn't say anything."}]},
+{d:5.5,title:"Night 5: The sister",intro:["Following the pulse, the telescope drifts on its own and settles. The star catalog has no name for it, so you give it one: HR 7721 c.","Rocky. One Earth radius. Water and oxygen in the spectrum. The same orbit as ours, but on the far side of the Sun, always hidden. A sister planet.","You should be ecstatic. Your hands are cold."],
+ targets:[
+ {l:"Read its atmosphere",o:["Oxygen. Methane. Ozone. A perfect biosignature.","Too perfect. It is the exact mix of Earth's, to the decimal. Like something that studied for the test."],e:"HR 7721 c: atmosphere = Earth's. To the decimal."},
+ {l:"Image its surface",o:["Oceans. Continents. The continents are shaped like ours, mirrored.","Along the coasts, long dark lines ripple outward and back. Slowly. Like breathing."],e:"Surface features pulsing. Slow. Rhythmic."},
+ {l:"Check its orbit",o:["Your numbers say it is the same distance from us as last week.","Then the number changes while you're staring at it. Smaller."],e:"Distance to HR 7721 c: decreasing."}]},
+{d:7.5,title:"Night 6: It's closer",intro:["The planet fills a quarter of the eyepiece now. It should be a dot.","Outside, the stars have gone. Not clouded over. Gone. Only a black lid, and in one place, a pale disc, patiently growing.","Your phone buzzes. It's you, calling. You pick up. Your own voice says: “Don't look at it again.”"],
+ targets:[
+ {l:"Look again",o:["Its surface is not rock. It is wet. Folds, slow, opening and closing.","Every pulse, it comes a little nearer. It isn't orbiting. It is approaching."],e:"It is not a planet. It is hunting us."},
+ {l:"Call the world",o:["Every line is dead except one, and that line is the signal, now playing in every language at once.","Three short. One long. 4."],e:"All lines dead. Countdown: 4."},
+ {l:"Close the dome",o:["The shutter grinds shut. For a second the room is only dark and quiet.","Then the dome opens again, by itself, all the way."],e:"Dome opened. Not by me."}]},
+{d:9.5,title:"Night 7: Eye",intro:["There is no telescope now. You're just standing in the dome, looking up. The planet fills the whole slot of the sky.","A seam parts across it, slowly. Beneath it there's an iris the size of a continent, the exact blue of Earth's oceans.","It isn't looking at you. It's looking through you. Every night you pointed at it, you were handing it the way home."],
+ targets:[
+ {l:"Broadcast a warning to everyone",o:["You hit send. Every screen on Earth lights up with your face, your voice. Your signal rides out on the same pulse, and the planet drinks it in.","You were never the one sending a warning. You were the beacon."],e:"Warning sent. It heard where to go."},
+ {l:"Smash the instruments",o:["You tear the cables out. The dish stops. The hum stops. Everything stops.","The silence is the loudest thing you've ever heard, and it's not empty. It was waiting for you to stop looking away."],e:"Instruments destroyed. It doesn't need them."},
+ {l:"Look back",o:["You meet its eye and you don't flinch.","Something unfurls in your mind that feels like a door held open. You are very calm. You finally understand it, and it is so lonely."],e:"I looked back."}]}
+];
+const END=["The countdown reaches zero.","Across the planet, in every window, in every sleeping house, a faint blue light grows in the sky. People step outside to look. They all look up.","The oceans lift toward it first, gently, the way they would for a moon.","You are still at the eyepiece. The log has one more entry, in your handwriting. You don't remember writing it.","“Thank you for looking.”"];
+
+// ---------- engine ----------
+const $=id=>document.getElementById(id);
+const card=$('card'),root=document.documentElement;
+let t=0,night=-1,target=0,logs=[],snd=false,eyeMul=0;
+function setDread(d){target=Math.min(1,d/10)}
+function lerp(){t+= (target-t)*.02;applyTheme()}
+function applyTheme(){
+  const s=root.style;
+  s.setProperty('--bg',`hsl(${250-30*t} ${40-30*t}% ${20-18*t}%)`);
+  s.setProperty('--ink',`hsl(40 ${60-60*t}% ${88-35*t}%)`);
+  s.setProperty('--acc',`hsl(${45-45*t} 80% ${65-22*t}%)`);
+  s.setProperty('--r',`${Math.round(18*(1-t))}px`);
+  s.setProperty('--font',t>.5?"'Special Elite','Courier New',monospace":"'Nunito',system-ui,sans-serif");
+  s.setProperty('--panel',`rgba(${Math.round(255*(1-t))},${Math.round(255*(1-t))},${Math.round(255*(1-t))},${.08+.3*t})`);
+  $('vig').style.opacity=t*.9;
+  if(drone)drone.g.gain.value=snd?t*.12:0, drone.f.frequency.value=80+60*(1-t);
+}
+setInterval(lerp,50);
+
+function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function showLines(lines,done){
+  lines.forEach((tx,i)=>{const p=el('p','line'+(i%1===0&&tx[0]==='“'?' me':''),tx);p.dataset.o=tx;card.appendChild(p);setTimeout(()=>p.classList.add('on'),400+i*(1400+t*1200))});
+  setTimeout(done,400+lines.length*(1400+t*1200));
+}
+function choices(opts){
+  const box=el('div','choices');
+  opts.forEach(o=>{const b=el('button','c',o.l);b.type='button';b.onclick=()=>{blip();o.f()};box.appendChild(b)});
+  card.appendChild(box);
+}
+function clear(){card.replaceChildren()}
+function addLog(txt){
+  const who=t<.35?"— you":t<.6?"— you?":t<.85?"— (handwriting unclear)":"— not you";
+  logs.push(txt+" "+who);
+  const p=el('p',null,logs[logs.length-1]);p.dataset.o=p.textContent;$('entries').appendChild(p);
+}
+function start(){
+  clear();
+  card.appendChild(el('h1',null,'Stargazer'));
+  showLines(["A cozy astronomy game about quiet nights, warm tea, and the universe being very big.","You're the new night astronomer at Hollis Ridge. Each night, pick a target and look through the telescope, a spyglass, or the star charts. Two observations a night. Take your time. There's no rush."],()=>choices([{l:'Start your first shift',f:()=>{initAudio();night=0;scene()}}]));
+}
+let done=[],curI=0;
+const ttl=n=>n.title.replace(/^Night \d+/,'Night '+(night+1));
+function scene(){
+  const n=GAME[night];done=[];
+  setDread(n.d);
+  clear();card.appendChild(el('h2',null,ttl(n)));
+  if(n.d>=7.5)shake();
+  showLines(n.intro,()=>pick(true));
+}
+function pick(first){
+  const n=GAME[night];
+  if(!first){clear();card.appendChild(el('h2',null,ttl(n)));card.appendChild(el('p','line on','One more before dawn. The sky is waiting.'))}
+  choices(n.targets.map((x,i)=>({x,i})).filter(o=>!done.includes(o.i)).map(o=>{const k=n.kinds[o.i];return{l:(k?(k.startsWith('mg:')?'🎮 ':'🔭 '):'')+o.x.l,f:()=>{curI=o.i;k?(k.startsWith('mg:')?openMini(o.x,k.slice(3)):openScope(o.x,k)):outcome(o.x)}}}));
+}
+function outcome(x){
+  clear();const n=GAME[night];done.push(curI);setDread(n.d+.8*done.length);
+  addLog(x.e);
+  showLines(x.o,()=>choices(done.length<(n.one?1:2)?[{l:'Keep observing',f:()=>pick(false)}]:[{l:night<GAME.length-1?'Log it and rest':'Open your eyes',f:()=>{night++;night<GAME.length?scene():ending()}}]));
+}
+function ending(){
+  setDread(10);clear();shake();
+  showLines(END,()=>choices([{l:'Begin again',f:restart}]));
+}
+function restart(){
+  card.replaceChildren(el('p','line on','…it remembers.'));
+  setTimeout(()=>{t=0;target=0;logs=[];$('entries').replaceChildren();night=-1;start()},2200);
+}
+function shake(){document.body.classList.remove('shake');void document.body.offsetWidth;document.body.classList.add('shake')}
+
+// text corruption: higher dread = more flicker of wrong letters
+const junk="█▓▒░#?¿Ø";
+setInterval(()=>{
+  if(t<.45)return;
+  document.querySelectorAll('.line.on,#entries p').forEach(p=>{
+    if(Math.random()>t*.35)return;
+    const o=p.dataset.o||p.textContent;p.dataset.o=o;
+    const a=[...o];for(let i=0;i<Math.ceil(t*4);i++){const k=Math.random()*a.length|0;if(a[k]!==' ')a[k]=junk[Math.random()*junk.length|0]}
+    p.textContent=a.join('');setTimeout(()=>p.textContent=o,120);
+  });
+  if(t>.8&&Math.random()<.04)shake();
+},400);
+
+// ---------- sound ----------
+let ac,drone;
+function initAudio(){
+  if(ac)return;
+  try{
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    const g=ac.createGain(),f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=140;g.gain.value=0;
+    [55,55.7,82.4].forEach(fr=>{const o=ac.createOscillator();o.type='sawtooth';o.frequency.value=fr;o.connect(f);o.start()});
+    f.connect(g);g.connect(ac.destination);drone={g,f};
+    snd=true;$('snd').textContent='sound: on';
+  }catch(e){}
+}
+function blip(){if(!ac||!snd)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=t<.5?660:110+Math.random()*30;o.type=t<.5?'sine':'square';g.gain.value=.04;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.3);o.stop(ac.currentTime+.3)}
+$('snd').onclick=()=>{initAudio();snd=!snd;$('snd').textContent='sound: '+(snd?'on':'off');if(ac&&ac.state==='suspended')ac.resume()};
+
+// ---------- sky ----------
+const cv=$('sky'),cx=cv.getContext('2d');let W,H,stars=[],mx=0,my=0;
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;stars=Array.from({length:140},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+.3,p:Math.random()*6,b:Math.random()<.25}))}
+addEventListener('resize',resize);resize();
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+function draw(ms){
+  cx.clearRect(0,0,W,H);
+  const s=ms/1000;
+  const dim=t>.55?(Math.sin(s*1.57)>0?1:.1):1; // after a point, the stars blink in unison
+  stars.forEach(a=>{
+    const tw=.5+.5*Math.sin(s*1.5+a.p);
+    cx.globalAlpha=(t>.55?dim*(.4+.6*tw):.35+.65*tw)*(t>.85?.6:1);
+    cx.fillStyle=t>.7?`hsl(0 70% 80%)`:'#fff';
+    let x=a.x,y=a.y;
+    if(t>.4){const dx=mx-x,dy=my-y,d=Math.hypot(dx,dy)||1;const pull=(t-.4)*6;x+=dx/d*pull*(a.b?2:.5);y+=dy/d*pull*(a.b?2:.5)}
+    cx.beginPath();cx.arc(x,y,a.r*(a.b&&t>.6?1.8:1),0,7);cx.fill();
+  });
+  cx.globalAlpha=1;
+  // the sister planet: appears late, grows, then opens an eye
+  if(t>.5){
+    const k=(t-.5)/.5,R=12+k*k*Math.min(W,H)*.55,px=W*(.8-.3*k),py=H*(.2+.15*k);
+    const g=cx.createRadialGradient(px-R*.3,py-R*.3,R*.1,px,py,R);
+    g.addColorStop(0,'#5fb7d6');g.addColorStop(.7,'#15506b');g.addColorStop(1,'#04141c');
+    cx.globalAlpha=.55+.35*k;cx.fillStyle=g;cx.beginPath();cx.arc(px,py,R,0,7);cx.fill();
+    cx.strokeStyle=`rgba(0,0,0,.45)`;cx.lineWidth=2;
+    const br=1+.04*Math.sin(s*1.57);
+    for(let i=0;i<5;i++){cx.beginPath();cx.arc(px,py,R*br*(.4+i*.13),i,i+1.4);cx.stroke()}
+    if(t>.85){
+      const o=Math.min(1,(t-.85)/.12),ex=R*.55*o,ey=R*.3*o;
+      cx.globalAlpha=1;cx.fillStyle='#e8f6ff';cx.beginPath();cx.ellipse(px,py,ex,ey,0,0,7);cx.fill();
+      const ix=Math.max(-1,Math.min(1,(mx-px)/W))*ex*.4,iy=Math.max(-1,Math.min(1,(my-py)/H))*ey*.4;
+      cx.fillStyle='#0b3d5c';cx.beginPath();cx.arc(px+ix,py+iy,ey*.85,0,7);cx.fill();
+      cx.fillStyle='#000';cx.beginPath();cx.ellipse(px+ix,py+iy,ey*.15,ey*.7,0,0,7);cx.fill();
+    }
+    cx.globalAlpha=1;
+  }
+  requestAnimationFrame(draw);
+}
+
+// ---------- telescope ----------
+const KINDS=[["moon","jupiter","cluster"],["nebula","saturn","galaxy"],["mars","betel","deep"],["signal","moon",null],["exo","exo","exo"],["exo2",null,null],[null,null,null]];
+const sc=$('scope'),scv=$('scv'),sx=scv.getContext('2d'),foc=$('foc'),hint=$('shint'),bar=$('lockbar');
+let S=400,cam,tgt={x:1200,y:1200},fv=50,lock=0,cur,kind,scopeOpen=false,keys={},drag=null;
+function rnd(n){return()=>(n=(n*16807)%2147483647)/2147483647}
+const WORLD=[];{const r=rnd(7);for(let i=0;i<700;i++)WORLD.push({x:r()*2400,y:r()*2400,r:r()*1.6+.4,p:r()*6})}
+function sizeScope(){S=Math.max(220,Math.min(innerWidth-30,innerHeight-210,620));scv.width=scv.height=S;$('lens').style.width=$('lens').style.height=S+'px'}
+function openScope(x,k){
+  cur=x;kind=k;lock=0;scopeOpen=true;
+  const a=Math.random()*6.28,d=550+Math.random()*450;
+  cam={x:1200+Math.cos(a)*d,y:1200+Math.sin(a)*d};
+  fv=15+Math.random()*70;foc.value=fv>50?5:95;
+  sc.style.display='flex';sizeScope();requestAnimationFrame(scopeFrame);
+}
+function closeScope(){scopeOpen=false;sc.style.display='none';scv.style.filter='';keys={}}
+$('sback').onclick=closeScope;
+addEventListener('resize',()=>{if(scopeOpen)sizeScope()});
+addEventListener('keydown',e=>{if(scopeOpen)keys[e.key.toLowerCase()]=1});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
+$('lens').addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];e.currentTarget.setPointerCapture(e.pointerId)});
+$('lens').addEventListener('pointermove',e=>{if(!drag)return;cam.x-=e.clientX-drag[0];cam.y-=e.clientY-drag[1];drag=[e.clientX,e.clientY]});
+addEventListener('pointerup',()=>drag=null);
+function ball(R,c1,c2){const g=sx.createRadialGradient(-R*.35,-R*.35,R*.1,0,0,R);g.addColorStop(0,c1);g.addColorStop(1,c2);sx.fillStyle=g;sx.beginPath();sx.arc(0,0,R,0,7);sx.fill()}
+function glow(r,c){const g=sx.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,c);g.addColorStop(1,'rgba(0,0,0,0)');sx.fillStyle=g;sx.beginPath();sx.arc(0,0,r,0,7);sx.fill()}
+function clipC(R){sx.beginPath();sx.arc(0,0,R,0,7);sx.clip()}
+function dot(x,y,r,c){sx.fillStyle=c;sx.beginPath();sx.arc(x,y,r,0,7);sx.fill()}
+function drawTarget(k,x,y,s,ox,oy){
+  const r=rnd(3);sx.save();sx.translate(x,y);
+  if(k==='moon'){ball(95,'#eceadf','#4d4c48');sx.save();clipC(95);for(let i=0;i<10;i++){const a=r()*6.28,d=r()*70,cr=5+r()*14;sx.globalAlpha=.22;dot(Math.cos(a)*d,Math.sin(a)*d,cr,'#222')}sx.restore()}
+  else if(k==='jupiter'){ball(70,'#ecc99a','#5e3f24');sx.save();clipC(70);for(let i=-6;i<7;i++){sx.fillStyle='rgba(110,70,40,.28)';sx.fillRect(-70,i*11,140,4+(i&1)*3)}sx.fillStyle='rgba(190,80,50,.55)';sx.beginPath();sx.ellipse(22,18,13,7,0,0,7);sx.fill();sx.restore();[[-120,4],[-150,-3],[105,2],[140,-5]].forEach(m=>dot(m[0],m[1],2.6,'#fff'))}
+  else if(k==='saturn'){sx.rotate(-.3);sx.strokeStyle='rgba(225,205,150,.85)';sx.lineWidth=9;sx.beginPath();sx.ellipse(0,0,95,24,0,Math.PI,2*Math.PI);sx.stroke();ball(46,'#f1deae','#6b5a35');sx.beginPath();sx.ellipse(0,0,95,24,0,0,Math.PI);sx.stroke();sx.lineWidth=2;sx.strokeStyle='rgba(0,0,0,.5)';sx.beginPath();sx.ellipse(0,0,86,21,0,0,Math.PI);sx.stroke()}
+  else if(k==='mars'){ball(62,'#f0a074','#4a1c0e');sx.save();clipC(62);sx.fillStyle='rgba(60,20,10,.35)';sx.beginPath();sx.ellipse(-12,10,24,12,.5,0,7);sx.fill();sx.fillStyle='rgba(255,255,255,.8)';sx.beginPath();sx.ellipse(0,-58,24,8,0,0,7);sx.fill();sx.strokeStyle='rgba(255,210,170,.5)';sx.lineWidth=3;sx.beginPath();for(let a=0;a<14;a+=.2)sx.lineTo(Math.cos(a)*a*2.5,-45+Math.sin(a)*a*1.3);sx.stroke();sx.restore()}
+  else if(k==='cluster'){glow(130,'rgba(80,120,255,.2)');for(let i=0;i<6;i++){const a=i*1.05,d=30+(i%3)*18;sx.translate(0,0);glow(26,'rgba(170,210,255,.95)');dot(Math.cos(a)*d,Math.sin(a)*d,3.5,'#fff')}const fl=.5+.5*Math.sin(s*2.2);sx.globalAlpha=fl;dot(0,0,3.5,'#fff');glow(24,'rgba(170,210,255,.9)');sx.globalAlpha=1}
+  else if(k==='nebula'){for(let i=0;i<9;i++){sx.translate(0,0);sx.save();sx.translate((r()-.5)*150,(r()-.5)*110);glow(55+r()*40,i&1?'rgba(255,110,170,.3)':'rgba(130,90,255,.3)');sx.restore()}for(let i=0;i<4;i++)dot((i-1.5)*9,(i&1)*8,2.4,'#fff')}
+  else if(k==='galaxy'){sx.rotate(-.5);sx.scale(1,.38);glow(130,'rgba(255,235,200,.55)');for(let i=0;i<320;i++){const a=i*.11,d=i*.38;dot(Math.cos(a)*d,Math.sin(a)*d,1.4,'rgba(230,230,255,.8)')}}
+  else if(k==='betel'){const p=.5+.5*Math.sin(s*Math.PI/2);glow(60+30*p,'rgba(255,90,40,.7)');dot(0,0,14+8*p,'#ffb284')}
+  else if(k==='deep'){for(let i=0;i<46;i++){const px=(r()-.5)*300,py=(r()-.5)*300;sx.save();sx.translate(px,py);sx.rotate(Math.atan2(-py,-px));sx.fillStyle='rgba(255,230,200,.8)';sx.beginPath();sx.ellipse(0,0,8,2.6,0,0,7);sx.fill();sx.restore()}}
+  else if(k==='signal'){const ph=s%4.2,on=ph<.15||(ph>.45&&ph<.6)||(ph>.9&&ph<1.05)||(ph>1.5&&ph<2);glow(on?70:22,'rgba(160,205,255,.9)');dot(0,0,3,'#fff');if(on){sx.strokeStyle='rgba(160,205,255,.4)';sx.beginPath();sx.arc(0,0,40+(ph%.5)*120,0,7);sx.stroke()}}
+  else{ // exo, exo2: the sister planet
+    const R=k==='exo2'?150:85;glow(R*1.5,'rgba(120,200,255,.22)');ball(R,'#79cbe6','#08283a');sx.save();clipC(R);
+    for(let i=0;i<6;i++){sx.fillStyle='rgba(90,140,90,.55)';sx.beginPath();sx.ellipse((r()-.5)*R*1.3,(r()-.5)*R*1.3,R*(.15+r()*.2),R*(.1+r()*.14),r()*3,0,7);sx.fill()}
+    sx.strokeStyle='rgba(10,0,10,.65)';for(let i=0;i<8;i++){sx.lineWidth=1.2+1.6*Math.abs(Math.sin(s*1.57+i));sx.beginPath();sx.arc(0,0,R*(.25+i*.1),i,i+1.5);sx.stroke()}
+    if(k==='exo2'){const e=.12+lock*.88,ex=R*.62,ey=R*.34*e;sx.fillStyle='#04141c';sx.beginPath();sx.ellipse(0,0,ex*1.05,ey*1.2+2,0,0,7);sx.fill();sx.fillStyle='#e6f6ff';sx.beginPath();sx.ellipse(0,0,ex,ey,0,0,7);sx.fill();
+      const px=Math.max(-1,Math.min(1,-ox/100))*ex*.15,py=Math.max(-1,Math.min(1,-oy/100))*ey*.2;dot(px,py,ey*.9,'#0b4a6e');sx.fillStyle='#000';sx.beginPath();sx.ellipse(px,py,ey*.14+.5,ey*.8,0,0,7);sx.fill()}
+    sx.restore()}
+  sx.restore();
+}
+function scopeFrame(ms){
+  if(!scopeOpen)return;
+  const s=ms/1000,c=S/2,sp=7;
+  if(keys.arrowleft||keys.a)cam.x-=sp;if(keys.arrowright||keys.d)cam.x+=sp;if(keys.arrowup||keys.w)cam.y-=sp;if(keys.arrowdown||keys.s)cam.y+=sp;
+  sx.fillStyle='#02030a';sx.fillRect(0,0,S,S);
+  const sync=t>.55?(Math.sin(s*1.57)>0?1:.12):1;
+  WORLD.forEach(a=>{const x=a.x-cam.x+c,y=a.y-cam.y+c;if(x<-5||y<-5||x>S+5||y>S+5)return;sx.globalAlpha=sync*(.4+.6*Math.abs(Math.sin(s+a.p)));dot(x,y,a.r*1.3,t>.7?'#ffc8c8':'#fff')});
+  sx.globalAlpha=1;
+  const tx=tgt.x-cam.x+c,ty=tgt.y-cam.y+c,dist=Math.hypot(tx-c,ty-c);
+  drawTarget(kind,tx,ty,s,tx-c,ty-c);
+  const ok=dist<S*.08;
+  lock=ok?Math.min(1,lock+.012):Math.max(0,lock-.02);
+  if(dist>c*.8){const an=Math.atan2(ty-c,tx-c);sx.save();sx.translate(c+Math.cos(an)*c*.78,c+Math.sin(an)*c*.78);sx.rotate(an);sx.fillStyle='rgba(255,220,120,.85)';sx.beginPath();sx.moveTo(14,0);sx.lineTo(-8,-9);sx.lineTo(-8,9);sx.fill();sx.restore()}
+  sx.strokeStyle=ok?'rgba(255,220,120,.9)':'rgba(255,255,255,.35)';sx.lineWidth=1.5;sx.beginPath();sx.arc(c,c,S*.08,0,7);sx.moveTo(c-S*.13,c);sx.lineTo(c-S*.08,c);sx.moveTo(c+S*.08,c);sx.lineTo(c+S*.13,c);sx.moveTo(c,c-S*.13);sx.lineTo(c,c-S*.08);sx.moveTo(c,c+S*.08);sx.lineTo(c,c+S*.13);sx.stroke();
+  bar.style.width=lock*100+'%';
+  const h=ok?'Hold steady…':dist>c*.8?'Drag or use arrow keys to follow the arrow.':'Centre it in the crosshair.';
+  if(hint.textContent!==h)hint.textContent=h;
+  if(lock>=1){closeScope();blip();outcome(cur);return}
+  requestAnimationFrame(scopeFrame);
+}
+
+// ---------- minigames ----------
+const mini=$('mini'),mgv=$('mgv'),g2=mgv.getContext('2d'),MG={},hintM=x=>$('mhint').textContent=x;
+let mg=null,mcur,mP={x:0,y:0};
+const TT={spy:'Spyglass',tag:'Variable star survey',con:'Constellation',sig:'Signal tuner'};
+const dot2=(g,x,y,r,c)=>{g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,7);g.fill()};
+function openMini(x,spec){
+  const[ty,arg]=spec.split(':');mcur=x;mini.style.display='flex';
+  const w=Math.min(innerWidth-24,640),h=Math.max(240,Math.min(innerHeight-200,440));
+  mgv.width=w;mgv.height=h;mgv.style.width=w+'px';mgv.style.height=h+'px';
+  mP={x:w/2,y:h/2};$('mbtns').replaceChildren();$('mtitle').textContent=TT[ty];
+  mg=MG[ty](arg);requestAnimationFrame(mgLoop);
+}
+function closeMini(){if(mg&&mg.stop)mg.stop();mg=null;mini.style.display='none'}
+function mgDone(){closeMini();blip();outcome(mcur)}
+function mgLoop(ms){if(!mg)return;g2.clearRect(0,0,mgv.width,mgv.height);mg.draw(g2,mgv.width,mgv.height,ms/1000);requestAnimationFrame(mgLoop)}
+function mpos(e){const r=mgv.getBoundingClientRect();return{x:(e.clientX-r.left)*mgv.width/r.width,y:(e.clientY-r.top)*mgv.height/r.height}}
+mgv.addEventListener('pointermove',e=>{mP=mpos(e)});
+mgv.addEventListener('pointerdown',e=>{mP=mpos(e);if(mg&&mg.click)mg.click(mP.x,mP.y)});
+$('mback').onclick=closeMini;
+function beep(l){if(!ac||!snd)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=t>.5?180:520;g.gain.value=.05;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+(l?.65:.2))}
+
+// Spyglass: sweep a magnifying circle over the dark and click what hides there
+MG.spy=a=>{
+  const W=mgv.width,H=mgv.height,items=[],R=85,Z=2.2;let got=0,fin=0;
+  for(let i=0;i<4;i++)items.push({x:70+Math.random()*(W-140),y:H*(a==='sky'?.08+Math.random()*.4:a==='windows'?.62+Math.random()*.3:.6+Math.random()*.32),f:0});
+  hintM('Move the spyglass over the dark and click what you find (0/4).');
+  const bg=g=>{const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#03040c');gr.addColorStop(1,'#10131f');g.fillStyle=gr;g.fillRect(0,0,W,H);
+    for(let i=0;i<50;i++)dot2(g,(i*173.3)%W,(i*91.7)%(H*.55),1,'rgba(255,255,255,.7)');
+    g.fillStyle='#05060a';g.beginPath();g.moveTo(0,H);for(let x=0;x<=W;x+=20)g.lineTo(x,H*.55+Math.sin(x*.02)*14+Math.sin(x*.07)*6);g.lineTo(W,H);g.fill();
+    for(let x=10;x<W;x+=26){const y=H*.62+Math.sin(x)*8;g.fillStyle='#04050a';g.beginPath();g.moveTo(x,y);g.lineTo(x+8,y-30);g.lineTo(x+16,y);g.fill()}};
+  const ent=(g,i)=>{const{x,y}=i;
+    if(a==='owl'){dot2(g,x,y,7,'#6a4a2c');dot2(g,x-3,y-2,2.3,'#ffd54a');dot2(g,x+3,y-2,2.3,'#ffd54a')}
+    else if(a==='deer'){g.fillStyle='#4a3a2a';g.fillRect(x-9,y-6,18,8);g.fillRect(x-8,y+2,2,8);g.fillRect(x+6,y+2,2,8);dot2(g,x+11,y-9,3.5,'#4a3a2a');g.strokeStyle='#4a3a2a';g.beginPath();g.moveTo(x+11,y-12);g.lineTo(x+8,y-20);g.moveTo(x+11,y-12);g.lineTo(x+15,y-20);g.stroke();dot2(g,x+12,y-9,1.2,'#ffd54a')}
+    else if(a==='windows'){g.fillStyle='#ffcf70';g.fillRect(x-11,y-14,22,28);g.fillStyle='#120a05';g.fillRect(x-4,y-3,8,17);dot2(g,x,y-7,4.5,'#120a05')}
+    else{g.globalAlpha=a==='sky'?.7:1;g.fillStyle='#cfd8e6';g.fillRect(x-3,y-30,6,30);dot2(g,x,y-34,4.5,'#cfd8e6');const o=Math.max(-1,Math.min(1,(mP.x-x)/60))*1.5;dot2(g,x-1.6+o,y-34,1,'#e33');dot2(g,x+1.6+o,y-34,1,'#e33');g.globalAlpha=1}};
+  return{draw(g){bg(g);
+    items.forEach(i=>{if(i.f){g.strokeStyle='#ffd54a';g.beginPath();g.arc(i.x,i.y,14,0,7);g.stroke()}});
+    g.save();g.beginPath();g.arc(mP.x,mP.y,R,0,7);g.clip();g.translate(mP.x,mP.y);g.scale(Z,Z);g.translate(-mP.x,-mP.y);bg(g);items.forEach(i=>ent(g,i));g.restore();
+    g.strokeStyle='#8a7a5a';g.lineWidth=5;g.beginPath();g.arc(mP.x,mP.y,R,0,7);g.stroke();g.lineWidth=1;g.beginPath();g.moveTo(mP.x-8,mP.y);g.lineTo(mP.x+8,mP.y);g.moveTo(mP.x,mP.y-8);g.lineTo(mP.x,mP.y+8);g.stroke()},
+  click(x,y){items.forEach(i=>{if(!i.f&&Math.hypot(i.x-x,i.y-y)<22){i.f=1;got++;blip();hintM(`Found one (${got}/4).`);if(got===4&&!fin){fin=1;setTimeout(()=>mg&&mgDone(),900)}}})}}
+};
+
+// Variable star survey: click only the stars that change brightness
+MG.tag=a=>{
+  const N=+a||3,st=[];let got=0,fin=0;
+  for(let i=0;i<70;i++)st.push({x:20+Math.random()*(mgv.width-40),y:20+Math.random()*(mgv.height-40),r:1+Math.random()*1.5,v:i<N,p:Math.random()*6,f:0});
+  hintM(`Click the stars that change brightness (0/${N}). Steady ones don't count.`);
+  return{draw(g,W,H,s){g.fillStyle='#02030a';g.fillRect(0,0,W,H);
+    st.forEach(o=>{const sy=t>.55?Math.sin(s*1.57):Math.sin(s*1.3+o.p),al=o.v?.15+.85*Math.abs(sy):.55+.1*Math.sin(s+o.p);let x=o.x,y=o.y;
+      if(t>.5){const dx=mP.x-x,dy=mP.y-y,d=Math.hypot(dx,dy)||1;x+=dx/d*(t-.4)*5;y+=dy/d*(t-.4)*5}
+      g.globalAlpha=al;dot2(g,x,y,o.r*(o.v?1.6:1),t>.7?'#ffc8c8':'#fff');
+      if(o.f){g.globalAlpha=1;g.strokeStyle='#ffd54a';g.beginPath();g.arc(x,y,11,0,7);g.stroke()}});g.globalAlpha=1},
+  click(x,y){let b=null,bd=24;st.forEach(o=>{const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;b=o}});if(!b)return;
+    if(b.v&&!b.f){b.f=1;got++;blip();hintM(`Logged (${got}/${N}).`);if(got===N&&!fin){fin=1;setTimeout(()=>mg&&mgDone(),800)}}
+    else if(!b.v){hintM(t>.7?'That one was steady. It saw you click it.':'Steady. Not that one.');if(t>.7)shake()}}}
+};
+
+// Constellation: connect the stars in order
+const SHAPES={cup:[[.25,.35],[.28,.7],[.45,.8],[.62,.7],[.65,.35],[.8,.42],[.82,.58],[.65,.55]],cat:[[.3,.25],[.36,.45],[.3,.7],[.5,.8],[.7,.7],[.64,.45],[.7,.25],[.55,.38],[.45,.38]],hand:[[.3,.8],[.28,.5],[.35,.3],[.42,.55],[.48,.2],[.55,.52],[.62,.25],[.67,.55],[.78,.4],[.74,.7],[.65,.85]],eye:[[.15,.5],[.3,.35],[.5,.28],[.7,.35],[.85,.5],[.7,.65],[.5,.72],[.3,.65],[.15,.5],[.5,.5]]};
+MG.con=a=>{
+  const pts=SHAPES[a];let n=0,fl=0,fin=0;
+  hintM('Click the stars in order, 1, 2, 3… to draw the constellation.');
+  return{draw(g,W,H,s){g.fillStyle='#02030a';g.fillRect(0,0,W,H);
+    for(let i=0;i<60;i++)dot2(g,(i*137.5)%W,(i*71.3)%H,.9,'rgba(255,255,255,.35)');
+    g.strokeStyle=fin?`rgba(255,220,120,${.6+.4*Math.sin(s*3)})`:'rgba(255,220,120,.7)';g.lineWidth=fin?3:1.5;g.beginPath();
+    for(let i=0;i<n;i++){const q=pts[i];i?g.lineTo(q[0]*W,q[1]*H):g.moveTo(q[0]*W,q[1]*H)}g.stroke();g.lineWidth=1;
+    pts.forEach((q,i)=>{const on=i<n;dot2(g,q[0]*W,q[1]*H,on?5:3.5,on?'#ffd54a':'#fff');g.fillStyle='rgba(255,255,255,.5)';g.font='12px sans-serif';g.fillText(i+1,q[0]*W+8,q[1]*H-8)});
+    if(fl>0){fl--;g.fillStyle='rgba(255,60,60,.12)';g.fillRect(0,0,W,H)}},
+  click(x,y){if(fin)return;const W=mgv.width,H=mgv.height,q=pts[n];
+    if(Math.hypot(q[0]*W-x,q[1]*H-y)<20){n++;blip();if(n===pts.length){fin=1;hintM('It was already there.');setTimeout(()=>mg&&mgDone(),1800)}}
+    else if(pts.some((p,i)=>i>n&&Math.hypot(p[0]*W-x,p[1]*H-y)<20))fl=12}}
+};
+
+// Signal tuner: repeat the pulses you hear (Short / Long)
+MG.sig=a=>{
+  const R=+a||3;let r=0,seq=[],inp=[],phase='play',flash=0,alive=true;
+  const hold=v=>{flash=v?2:1;beep(v);setTimeout(()=>flash=0,v?650:220)};
+  function play(){phase='play';hintM('Listen…');let i=0;const step=()=>{if(!alive)return;if(i>=seq.length){phase='in';inp=[];hintM('Your turn. Tap it back.');return}hold(seq[i]);const d=seq[i]?650:220;i++;setTimeout(step,d+300)};setTimeout(step,600)}
+  function next(){seq=Array.from({length:2+r+R},()=>Math.random()<.5?0:1);play()}
+  function press(v){if(phase!=='in')return;hold(v);if(v!==seq[inp.length]){hintM('No. Listen again.');play();return}inp.push(v);
+    if(inp.length===seq.length){r++;phase='x';if(r>=R){hintM(t>.5?'The dish repeats it back. Then adds one pulse you did not send.':'Signal matched.');if(t>.5)setTimeout(()=>alive&&hold(1),1100);setTimeout(()=>alive&&mgDone(),2800)}else{hintM('Good. Longer…');setTimeout(()=>alive&&next(),1200)}}}
+  ['Short','Long'].forEach((l,v)=>{const b=el('button','c',l);b.type='button';b.onclick=()=>press(v);$('mbtns').appendChild(b)});
+  next();
+  return{stop(){alive=false},draw(g,W,H){g.fillStyle='#02030a';g.fillRect(0,0,W,H);const rad=flash?(flash==2?90:50):26;g.globalAlpha=flash?1:.4;
+    const gr=g.createRadialGradient(W/2,H/2,0,W/2,H/2,rad*2.2);gr.addColorStop(0,t>.6?'#ff6a5a':'#9fd0ff');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.beginPath();g.arc(W/2,H/2,rad*2.2,0,7);g.fill();
+    g.globalAlpha=1;g.fillStyle='rgba(255,255,255,.5)';g.font='14px sans-serif';g.fillText(`Pattern ${Math.min(r+1,R)} of ${R}`,12,22)}}
+};
+
+// ---------- the long game: 14 nights, two observations each ----------
+NIGHTS.forEach((n,i)=>n.kinds=KINDS[i]);
+const[o1,o2,o3,o4,o5,o6,o7]=NIGHTS;
+const N=(title,intro,kinds,...tg)=>({title,intro,kinds,targets:tg.map(x=>({l:x[0],o:x[1],e:x[2]}))});
+const A=N("Night 0: The treeline",["Between exposures you step outside with Dr. Pell's old brass spyglass. The pines are black against the stars.","Your tea cools on the railing. You decide to do a proper survey of the property, like the manual says."],['mg:spy:owl','mg:con:cup','mg:tag:3'],
+ ["Spyglass: sweep the treeline",["Owls. Then more owls. Four of them, round and blinking, all on the same branch.","All four are facing the dome. Owls are curious. That's all."],"Spyglass: 4 owls on one branch. All facing the dome."],
+ ["Trace the Teapot constellation",["Eight stars, and a little steam of cloud above. You trace the spout and feel absurdly proud.","Your actual tea is stone cold."],"Teapot constellation traced. Tea is cold."],
+ ["Survey variable stars",["Three stars that change brightness. You log them neatly.","One of them is pulsing in time with the hum."],"3 variable stars. One matches the hum."]);
+const B=N("Night 0: Static",["A voicemail from Dr. Pell, timestamped 3:14 a.m. There's only the hum, and under it, someone counting.","You play it again. You wish you hadn't."],['mg:sig:3','mg:spy:deer','mg:tag:4'],
+ ["Tune the radio dish",["You copy the pattern perfectly and the dish sends it back.","Something very far away is very pleased."],"Repeated the signal. Something was pleased. (Dishes can't be pleased.)"],
+ ["Spyglass: the parking lot",["A deer stands in the dark, staring at the dome. It doesn't graze. It doesn't blink.","When you lower the glass, it's gone. No tracks in the frost."],"Deer in lot. No tracks."],
+ ["Survey variable stars",["Four now. Last week it was three.","You decide the count was wrong. You log four anyway."],"4 variable stars. Was 3."]);
+const C=N("Night 0: The empty building",["The observatory has five other desks. Their coffee mugs are full. Their chairs are pulled out, as if everyone stood up at once.","You haven't seen another person in nine days. You can't remember when you stopped expecting to."],['mg:spy:figure','mg:con:cat','moon'],
+ ["Spyglass: the access road",["Someone is standing at the end of the road, perfectly still, pale, facing the dome.","You find a second, then a third. Their heads follow the glass as you sweep."],"People on the road. Facing me. Not people."],
+ ["Trace the Cat constellation",["A cat, the way a child would draw it. Ears, whiskers.","The star that makes its eye was missing from the charts last week."],"Cat constellation has a new star. Not on charts."],
+ ["Check the Moon again",["It's smaller than it was.","Not farther. Smaller, as if something were quietly eating it from behind."],"Moon: smaller."]);
+const D=N("Night 0: The town",["Down in the valley the town is still lit, a scatter of windows like embers.","You should call someone. Your phone has no contacts. It never did."],['mg:spy:windows','mg:con:hand','exo'],
+ ["Spyglass: the town",["In every lit window, someone stands facing the sky. Motionless.","Not looking at the stars. Looking at one spot. Your spot."],"Town: everyone at the windows, facing the dome."],
+ ["Trace the Hand constellation",["Five fingers, open, reaching down toward Earth.","Or reaching up from it. You can't tell which."],"Hand constellation. Palm toward Earth."],
+ ["Re-image HR 7721 c",["The shoreline has moved since last night. Not rotated. Moved, like a lip pulling back.","A thin dark seam runs along the equator. It wasn't there yesterday."],"HR 7721 c: new seam at the equator."]);
+const E=N("Night 0: Pell's notes",["In the back of the logbook are pages you never wrote, in tight, frightened handwriting. Dr. Pell's.","“It wants to be found. Every time someone looks, it comes closer. I looked anyway. I'm sorry.”"],['signal','mg:tag:5','mg:spy:figure'],
+ ["Follow her last coordinates",["They point at a patch of nothing. The nothing pulses: three short, one long.","A note is taped to the eyepiece: “It uses the eye.”"],"Pell's coordinates: signal. Note on the eyepiece."],
+ ["Survey the stars Pell circled",["Every star she circled is blinking now, together, like eyelids.","You feel the sky blink. You blink back, by accident."],"Pell's 5 stars blink in sync."],
+ ["Spyglass: the dome roof",["Someone is on the roof. A person's shape, pulled thin, wearing Pell's lab coat.","It waves, slowly, the way a toddler waves."],"Pell is on the roof. Not Pell."]);
+const F=N("Night 0: The sky turns",["The stars go out by the dozen, like windows switching off. The ones that remain all point at the dome.","You're no longer sure the dome is a roof."],['mg:sig:4','mg:tag:6','mg:spy:sky'],
+ ["Answer the signal",["You tap it out. The signal returns every pulse, then adds one more.","You didn't send that one."],"Signal replied with an extra pulse I didn't send."],
+ ["Survey the stars that remain",["Every star left is a variable. All blinking together.","The sky is breathing in and out."],"Remaining stars: all variable. Sky is breathing."],
+ ["Spyglass: the sky",["Shapes hang between the stars: long, pale, too many joints. Dozens of them, all facing the dome.","They aren't here to watch you. They're standing in line."],"Things in the sky, in a line. Waiting."]);
+const G=N("Night 0: The last quiet night",["It's calm. The hum has stopped. The planet hangs in the sky, perfectly still.","You make tea one last time. Your hands are steady. They shouldn't be."],['mg:con:eye','exo2','mg:spy:windows'],
+ ["Trace the final constellation",["The one the stars were making all along. An eye, drawn one star at a time, in your hand.","You didn't discover it. You completed it."],"The last constellation: an eye. I drew it."],
+ ["Look at the planet",["The eye is open. It stares at the eyepiece with something like gratitude.","You step back. It doesn't look away. It doesn't need to."],"HR 7721 c: open. Watching the lens."],
+ ["Spyglass: the town, once more",["Every window goes dark. Then, together, blue.","Everyone down there is smiling at the sky."],"Town: all windows blue. Everyone smiling."]);
+o7.one=true;
+const GAME=[o1,o2,A,o3,B,o4,C,o5,D,E,o6,F,G,o7];
+GAME.forEach((n,i)=>n.d=9.5*Math.pow(i/(GAME.length-1),1.15));
+requestAnimationFrame(draw);
+start();
+</script>
+</body>
+</html>
