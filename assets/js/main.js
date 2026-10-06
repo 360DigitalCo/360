@@ -1051,8 +1051,8 @@ function closeAuth() {
   if (authError) authError.textContent = "";
 }
 
-if (signInBtn) signInBtn.onclick = () => location.href = "signin.html?from=" + encodeURIComponent(currentUrl);
-if (signUpBtn) signUpBtn.onclick = () => location.href = "signup.html?from=" + encodeURIComponent(currentUrl);
+if (signInBtn) signInBtn.onclick = () => location.href = "account?from=" + encodeURIComponent(currentUrl);
+if (signUpBtn) signUpBtn.onclick = () => location.href = "account?from=" + encodeURIComponent(currentUrl);
 if (authCloseBtn) authCloseBtn.onclick = closeAuth;
 
 if (authPopup) {
@@ -1532,6 +1532,7 @@ function initPinnedAppsSettings() {
     </select>
     <div class="settings-label" style="margin-top:14px;">Pinned shortcuts</div>
     <div id="pinnedAppsList" class="pinned-apps-list"></div>
+    <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
   `;
   panel.appendChild(section);
 
@@ -1571,7 +1572,6 @@ function polishSettingsPanel() {
       <div class="settings-link-list">
         <a href="/tos"><span data-octicon="law"></span> Terms of Service</a>
         <a href="/privacypolicy"><span data-octicon="lock"></span> Privacy Policy</a>
-        <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
       </div>
     `;
     panel.appendChild(legal);
@@ -1602,7 +1602,7 @@ function initAppsPagePinButtons() {
 
     const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
     btn.classList.toggle("pinned", pinned);
-    btn.textContent = pinned ? "★ Pinned" : "☆ Pin";
+    btn.textContent = pinned ? "🌟 Pinned!" : "⭐ Pin";
     btn.setAttribute("aria-label", `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`);
   });
 }
@@ -1611,4 +1611,4 @@ initPinnedAppsSettings();
 polishSettingsPanel();
 initAppsPagePinButtons();
 
-console.log("%c360 V.3.6.0 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");
+console.log("%c360 V.3.6.2 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");
