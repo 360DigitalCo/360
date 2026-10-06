@@ -1603,8 +1603,8 @@ function initAppsPagePinButtons() {
    const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
 btn.classList.toggle("pinned", pinned);
 btn.textContent = pinned
-  ? "<span data-octicon=\"star-fill\"></span> Pinned!"
-  : "<span data-octicon=\"star\"></span> Pin";
+  ? "<span data-octicon="star-fill"></span> Pinned!"
+  : "<span data-octicon="star"></span> Pin";
 btn.setAttribute(
   "aria-label",
   `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`
