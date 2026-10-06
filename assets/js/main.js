@@ -1600,16 +1600,11 @@ function initAppsPagePinButtons() {
       card.appendChild(btn);
     }
 
-   const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
-btn.classList.toggle("pinned", pinned);
-btn.textContent = pinned
-  ? "<span data-octicon="star-fill"></span> Pinned!"
-  : "<span data-octicon="star"></span> Pin";
-btn.setAttribute(
-  "aria-label",
-  `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`
-);
-});
+    const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
+    btn.classList.toggle("pinned", pinned);
+    btn.innerHTML = pinned ? '<span data-octicon="star"></span> Pinned!' : '<span data-octicon="star"></span> Pin';
+    btn.setAttribute("aria-label", `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`);
+  });
 }
 
 initPinnedAppsSettings();
@@ -1617,4 +1612,3 @@ polishSettingsPanel();
 initAppsPagePinButtons();
 
 console.log("%c360 V.3.6.2 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");
-
