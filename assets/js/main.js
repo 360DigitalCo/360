@@ -1602,7 +1602,7 @@ function initAppsPagePinButtons() {
 
     const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
     btn.classList.toggle("pinned", pinned);
-    btn.innerHTML = pinned ? '<span data-octicon="star"></span> Pinned!' : '<span data-octicon="star"></span> Pin';
+    btn.innerHTML = pinned ? '<span data-octicon="star-fill"></span> Pinned!' : '<span data-octicon="star"></span> Pin';
     btn.setAttribute("aria-label", `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`);
   });
 }
