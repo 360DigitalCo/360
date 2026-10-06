@@ -1612,3 +1612,4 @@ polishSettingsPanel();
 initAppsPagePinButtons();
 
 console.log("%c360 V.3.6.2 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");
+
