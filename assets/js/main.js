@@ -1600,11 +1600,16 @@ function initAppsPagePinButtons() {
       card.appendChild(btn);
     }
 
-    const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
-    btn.classList.toggle("pinned", pinned);
-    btn.textContent = pinned ? "🌟 Pinned!" : "⭐ Pin";
-    btn.setAttribute("aria-label", `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`);
-  });
+   const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
+btn.classList.toggle("pinned", pinned);
+btn.textContent = pinned
+  ? "<span data-octicon=\"star-fill\"></span> Pinned!"
+  : "<span data-octicon=\"star\"></span> Pin";
+btn.setAttribute(
+  "aria-label",
+  `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`
+);
+});
 }
 
 initPinnedAppsSettings();
