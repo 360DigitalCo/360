@@ -1567,7 +1567,7 @@ function polishSettingsPanel() {
     legal.id = "settingsLegalLinks";
     legal.className = "settings-legal";
     legal.innerHTML = `
-      <summary>Legal</summary>
+      <summary>Legal & More Settings</summary>
       <div class="settings-link-list">
         <a href="/tos"><span data-octicon="law"></span> Terms of Service</a>
         <a href="/privacypolicy"><span data-octicon="lock"></span> Privacy Policy</a>
