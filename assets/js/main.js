@@ -1532,7 +1532,6 @@ function initPinnedAppsSettings() {
     </select>
     <div class="settings-label" style="margin-top:14px;">Pinned shortcuts</div>
     <div id="pinnedAppsList" class="pinned-apps-list"></div>
-    <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
   `;
   panel.appendChild(section);
 
@@ -1572,6 +1571,10 @@ function polishSettingsPanel() {
       <div class="settings-link-list">
         <a href="/tos"><span data-octicon="law"></span> Terms of Service</a>
         <a href="/privacypolicy"><span data-octicon="lock"></span> Privacy Policy</a>
+      </div>
+      <summary>More Settings</summary>
+      <div class="more-settings-link-list">
+      <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
       </div>
     `;
     panel.appendChild(legal);
