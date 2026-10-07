@@ -4236,7 +4236,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        MAPS TAB
        Uses OpenStreetMap's free, CORS-enabled Nominatim geocoder (no API
        key/backend needed) plus its embeddable map — no dedicated maps
-       backend exists in this project. Links out to the full 360 Maps app.
+       backend exists in this project. Links out to the full 360 Maps app. (broken)
     ───────────────────────────────── */
     async function renderMapsResults(q) {
       showLoading();
@@ -4574,7 +4574,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         }
       }
 
-      // Can't click directly — use prev/next arrow
+      // Can't click directly — use prev/next arrow (broken)
       const currentBtn = gcseContainer.querySelector('.gsc-cursor-current-page');
       const currentNum = currentBtn ? parseInt(currentBtn.textContent.trim()) : state.page;
       const goForward  = targetPage > currentNum;
@@ -4640,7 +4640,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        query re-renders from memory instantly instead of re-fetching.
        Keyed by tab+query+page; wiped on any new query. Nothing here ever
        touches localStorage/sessionStorage, so it's automatically gone the
-       moment the user leaves the page too.
+       moment the user leaves the page too. Yes, I know I'm a genius :)
     ───────────────────────────────── */
     function cacheKey(tab, query, page) { return `${tab}::${query}::${page || 1}`; }
 
@@ -4726,11 +4726,11 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         const { data: claimId, error } = await sb360.rpc('start_search_reward', { p_query: q });
         if (error || !claimId) return;
         _srClaimId = claimId;
-        // No auto-timer — reward only fires on actual result click
+        // No auto-timer; reward only fires on actual result click
       } catch (_) {}
     }
 
-    // Award on result click — only real outbound link clicks count
+    // Award on result click — only real outbound link clicks count (new: add a toggle to turn this off and open directly on site)
     if (resultsArea) {
       resultsArea.addEventListener('click', e => {
         const link = e.target.closest('a[href]');
@@ -4744,7 +4744,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        BOOT
     ───────────────────────────────── */
 
-    // Seed all persisted preferences from the user's account on load
+    // Seed all persisted preferences from the user's account on load (seprate from full account preferences that are saved from ACTUAL settings)
     Settings360.init(sb360).then(() => {
       // Note: recentSearches are no longer synced to/from the server —
       // only SHA-256 hashes are kept locally, and plaintext is in-memory only.
@@ -4755,6 +4755,6 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
   })();
   </script>
 <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41ae5871c5f72a7',t:'MTc5MDUxNjE3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"ff0a2d9a55154fa7bec0287a68d6f56f","r":1,"spa":2}' crossorigin="anonymous"></script>
-<script src="/assets/js/mobile-nav.js" defer></script>
+<script src="/assets/js/mobile-nav.js" defer></script> <!-- too lazy to write this comment on every file but please know that this script MUST be on every html page -->
 </body>
 </html>
