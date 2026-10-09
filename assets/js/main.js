@@ -3,7 +3,7 @@
       ____    __   ___  
      |___ \  / /  / _ \ 
        __) |/ /_ | | | |
-      |__ <| '_ \| | | |
+      |__ <| '_ \| | | |   tufff 😭😭😭
       ___) | (_) | |_| |
      |____/ \___/ \___/ 
    ============================================================ */
@@ -34,7 +34,7 @@ const version = "3.6.2";
 const popupConfig = {
   enabled: true,
   title: "&l&c360 Announcement",
-  body: "&eWelcome to 360 V.3.6.0! &aEnjoy the new updates and customize your experience in Settings."
+  body: "&tWelcome to 360 V.3.6.0! &aEnjoy the new updates and customize your experience in Settings."
 };
 
 /* Helper function to safely escape HTML special characters */
@@ -147,7 +147,7 @@ function parseMinecraftCodes(text, keepCodes = false) {
 
 /* Formats ANY tag, anywhere in the document — no [data-mc]/.mc-text
    opt-in required. Any element whose own text contains a code (§/& style)
-   gets parsed automatically. Containers that only wrap other elements are
+   gets parsed automatically. Containers that only wrap other elements are     /| THIS SHOULDONLY APPLY TO POPUPS AND CHAT
    left alone; only "leaf" text-holding elements are touched. */
 const MC_CODE_TEST = /[§&](?:#[0-9a-fA-F]{6}|[0-9a-fA-Fg-uG-U])/;
 const MC_SKIP_TAGS = new Set([
@@ -351,7 +351,7 @@ function setupMcInputs(root = document) {
    ============================================================ */
 const MC_OBFUSCATE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?@#$%&";
 const MC_OBFUSCATE_INTERVAL_MS = 50;
-
+// maybe add an unobfuscation function as well?
 function injectObfuscatedStyles() {
   if (document.getElementById("mc-obfuscated-style")) return;
   const style = document.createElement("style");
@@ -392,7 +392,7 @@ function initObfuscatedGlitch() {
    2. POPUP SYSTEM & TITLE-CHANGE DETECTOR
    ============================================================ */
 const POPUP_TITLE_STORAGE_KEY = "360_popup_last_title";
-
+// remember to add settings to customize popups - on topic, also save ALL possible user data in their account so they don't change every login to default
 function showCustomPopup({ title = "", body = "", buttonText = "OK", onClose = null }) {
   let modal = document.getElementById("custom-popup-modal");
   if (!modal) {
@@ -489,7 +489,7 @@ const $$ = s => document.querySelectorAll(s);
 const body = document.body;
 
 /* ============================================================
-   SIDEBAR — SINGLE SOURCE OF TRUTH
+   SIDEBAR — SINGLE SOURCE OF TRUTH <-- what 😭
    Every page just contains an empty <span id="sidebar-slot"></span>
    inside its <aside class="sidebar" id="sidebar">. This function
    builds the sidebar HTML (header, nav links, footer) and injects
@@ -555,13 +555,13 @@ function getPinnedAppsPosition() {
 
 const SIDEBAR_NAV_ITEMS = [
   { label: "Home",           href: "/" },
-  { label: "AI",             href: "/ai" },
   { label: "Weather",        href: "/weather" },
   { label: "Translator",     href: "/translator" },
   { label: "Stocks",         href: "/stocks" },
   { label: "URL Shortener",  href: "/url-shortener" },
-  { label: "Chat",           href: "/chat" },
+  { label: "Chat (Age Restricted)",           href: "/chat" },
   { label: "News",           href: "/news" },
+    { label: "AI",             href: "/ai" },
   { label: "Apps",           href: "/apps" },
   { label: "Games",          href: "/games" }
 ];
