@@ -154,6 +154,35 @@ input[type=range]{width:200px;accent-color:var(--sand)}
 #devbtn{position:fixed;left:12px;top:212px;z-index:45;display:none;font:inherit;font-size:15px;font-weight:700;padding:4px 12px;background:rgba(10,12,16,.85);color:var(--red);border:2px solid var(--red);cursor:pointer;pointer-events:auto}
 #devbtn:hover,#devbtn.on{background:var(--red);color:#fff}
 @media (max-width:760px){#mw{grid-template-columns:1fr;gap:20px}#keys{border:0;padding:0}}
+
+#mapseg{display:flex;flex-wrap:wrap;gap:5px}
+#mapseg button{font-size:12px;padding:5px 8px;letter-spacing:.035em}
+#mp-panel{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(3,7,12,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#mp-panel.hide{display:none!important}
+#mp-card{width:min(680px,100%);background:linear-gradient(145deg,rgba(20,29,39,.98),rgba(9,13,19,.98));border:1px solid rgba(143,180,205,.25);box-shadow:0 30px 100px rgba(0,0,0,.56),inset 0 1px rgba(255,255,255,.05);padding:clamp(20px,4vw,34px);position:relative;overflow:hidden}
+#mp-card:before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#45d6c8,#e8a93a,#f06a48)}
+#mp-card h2{font-family:"Black Ops One",sans-serif;font-size:clamp(25px,4vw,38px);line-height:1.02;margin:0 0 8px;color:#f5f2e9;letter-spacing:.035em}
+#mp-card .mp-kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#72d9d2;font-weight:700}
+#mp-card .mp-copy{max-width:550px;color:#9daab7;line-height:1.45;font-size:15px;margin:10px 0 22px}
+.mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mp-field{display:flex;flex-direction:column;gap:6px;color:#a6b1bd;font-size:11px;text-transform:uppercase;letter-spacing:.14em;font-weight:700}
+.mp-field input{width:100%;min-width:0;background:#090e14;color:#edf3f7;border:1px solid #334251;padding:12px 13px;font:600 16px "Rajdhani",sans-serif;outline:none;border-radius:2px}
+.mp-field input:focus{border-color:#58d9d1;box-shadow:0 0 0 2px rgba(88,217,209,.12)}
+.mp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.mp-actions button{min-height:42px;padding:9px 16px;font:700 13px "Rajdhani",sans-serif;letter-spacing:.12em;text-transform:uppercase;border:1px solid #526779;background:#1b2b39;color:#ecf3f7;cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
+.mp-actions button:hover{transform:translateY(-1px);border-color:#64dcd3;background:#244652}
+.mp-actions button.primary{background:#48cfc4;border-color:#48cfc4;color:#071314}
+.mp-actions button.primary:hover{background:#80eee4}
+.mp-actions button:disabled{opacity:.45;cursor:wait;transform:none}
+#mp-status{margin-top:15px;padding:11px 12px;background:rgba(0,0,0,.23);border-left:2px solid #526779;color:#a9b9c5;font-size:13px;min-height:18px;white-space:pre-wrap}
+#mp-status[data-state="ok"]{border-left-color:#63d5b5;color:#a5f1d8}
+#mp-status[data-state="error"]{border-left-color:#f0745c;color:#ffb5a6}
+#mp-status[data-state="busy"]{border-left-color:#e8a93a;color:#f3d6a2}
+#mp-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;color:#6e7f8f;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+#mp-hud{position:fixed;left:14px;top:58px;z-index:34;pointer-events:none;display:none;max-width:min(310px,calc(100vw - 28px));background:linear-gradient(115deg,rgba(7,14,20,.88),rgba(11,20,27,.66));border-left:2px solid #4ad7cd;padding:9px 12px;color:#e9f5f5;box-shadow:0 8px 24px rgba(0,0,0,.24);font:700 12px "Rajdhani",sans-serif;letter-spacing:.12em;text-transform:uppercase}
+#mp-hud .mp-small{display:block;margin-top:3px;color:#87a1b0;font-size:10px;font-weight:600;letter-spacing:.08em}
+#dr-grade{position:fixed;inset:0;z-index:8;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 42%,rgba(0,0,0,.11) 74%,rgba(0,0,0,.4) 120%),linear-gradient(180deg,rgba(10,20,30,.08),transparent 25%,transparent 75%,rgba(0,0,0,.15));mix-blend-mode:multiply}
+@media(max-width:540px){.mp-fields{grid-template-columns:1fr}#mp-foot{align-items:flex-start;flex-direction:column;gap:5px}#mp-card .mp-copy{font-size:13px}}
 </style></head><body>
 <canvas id="gl"></canvas>
 <div id="hud">
@@ -180,10 +209,26 @@ input[type=range]{width:200px;accent-color:var(--sand)}
   <div class="opt" id="odiff"><span>Bot skill</span><div class="seg"><button data-v="0">Rookie</button><button data-v="1" class="sel">Regular</button><button data-v="2">Elite</button></div></div>
   <div class="opt" id="oqual"><span>Graphics (pick Low if it runs slowly)</span><div class="seg"><button data-v="auto" class="sel">Auto</button><button data-v="low">Low</button><button data-v="high">High</button></div></div>
   <div class="opt"><span>Mouse sensitivity <b id="sensv">1.0</b></span><input type="range" id="sens" min="0.3" max="3" step="0.1" value="1"></div>
-  <button id="go">Start match</button> <button id="openld" class="cbtn">Loadout</button> <button id="opencases" class="cbtn">Cases &amp; skins <span id="mcr"></span></button><div id="tip"></div></div>
+  <button id="go">Start match</button> <button id="mp-open" class="cbtn">Online Multiplayer</button> <button id="openld" class="cbtn">Loadout</button> <button id="opencases" class="cbtn">Cases &amp; skins <span id="mcr"></span></button><div id="tip"></div></div>
  <div id="keys"><div>Move<b>W A S D</b></div><div>Sprint<b>Shift</b></div><div>Walk (quiet)<b>Z</b></div><div>Crouch<b>C / Ctrl</b></div><div>Jump / bunny hop<b>Space (hold)</b></div><div>Fire<b>Mouse 1 / F</b></div><div>Aim (toggle)<b>Q</b></div><div>Aim (hold)<b>Mouse 2</b></div><div>AWP zoom 3x / 6x<b>T</b></div><div>Reload<b>R</b></div><div>Weapons<b>1 2 3 · X</b></div><div>Swap within slot<b>press 1 / 2 again</b></div><div>Buy menu<b>B</b></div><div>Weapons &amp; attachments<b>Menu &rarr; Loadout</b></div><div>Plant / Defuse (hold)<b>E</b></div><div>Scoreboard<b>Tab</b></div><div>Grenades<b>4 pick · M1 throw · M2 lob</b></div><div>Ladders (cranes)<b>face + hold W · E to go down</b></div>
  <p>First to 15 rounds wins. Sides swap after round 15. Plant at A or B, then hold it. CTs have 40 seconds to defuse. Hold Space to chain jumps; strafe with A or D while turning the view to build speed in the air. If your browser blocks mouse capture, look with the arrow keys and fire with F.</p></div>
 </div></div>
+<div id="mp-panel" class="hide" role="dialog" aria-modal="true" aria-labelledby="mp-title">
+ <div id="mp-card">
+  <div class="mp-kicker">Dust Run · Network Operations</div>
+  <h2 id="mp-title">Enter the arena.</h2>
+  <p class="mp-copy">Host a room and share the code, or join a friend. Players, movement, shots, damage, and respawns sync over Supabase Realtime. Choose your side in the main menu before connecting.</p>
+  <div class="mp-fields">
+   <label class="mp-field">Callsign<input id="mp-name" maxlength="16" autocomplete="nickname" value="Operator" placeholder="Your callsign"></label>
+   <label class="mp-field">Room code<input id="mp-room" maxlength="8" autocomplete="off" spellcheck="false" placeholder="Generated when hosting"></label>
+  </div>
+  <div class="mp-actions"><button id="mp-host" class="primary">Host room</button><button id="mp-join">Join room</button><button id="mp-copy" disabled>Copy code</button><button id="mp-disconnect" disabled>Disconnect</button></div>
+  <div id="mp-status" data-state="idle">Offline · No room connected</div>
+  <div id="mp-foot"><span>Supabase Realtime · Broadcast + Presence</span><button id="mp-back" class="cbtn">Back to menu</button></div>
+ </div>
+</div>
+<div id="mp-hud"><span id="mp-hud-main">ONLINE</span><span id="mp-hud-sub" class="mp-small"></span></div>
+<div id="dr-grade"></div>
 <div id="cases" class="hide">
  <div id="cs-top"><h2>Cases &amp; skins</h2><div id="cs-cred">Credits <b id="cr">0</b></div>
   <button class="cbtn sel" data-t="open">Open cases</button><button class="cbtn" data-t="inv">Inventory</button><button class="cbtn" id="cs-close">Close</button></div>
@@ -202,6 +247,7 @@ input[type=range]{width:200px;accent-color:var(--sand)}
   <div><div id="ld-name"></div><canvas id="ld-cv" width="480" height="224"></canvas><div id="ld-stats"></div><button class="cbtn" id="ld-equip" style="margin-top:10px"></button></div>
   <div id="ld-att"></div></div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
@@ -508,6 +554,56 @@ const MAPS = [
     } }
 ];
 
+function drMapVariant(baseId, config) {
+  const base = MAPS.find(m => m.id === baseId);
+  return Object.assign({}, base, config, {
+    pal: Object.assign({}, base.pal, config.pal || {}),
+    build(H) {
+      base.build(H);
+      H.scatter({
+        n: config.coverCount || 18,
+        seed: config.seed || 361107,
+        x: [-76, 76], z: [-55, 55], mirror: true, pad: 3.4,
+        ok(cx, cz) {
+          return Math.hypot(cx - 50, cz - 40) > 12 && Math.hypot(cx - 76, cz + 38) > 9 && Math.abs(cx) < 79 && Math.abs(cz) < 58;
+        },
+        sizes: prng => {
+          const v = prng();
+          if (v < .48) return [3.4, 2.7, 1.45, 'c'];
+          if (v < .83) return prng() < .5 ? [5.8, 2.7, 2.6, 'b'] : [2.7, 5.8, 2.6, 'b'];
+          return prng() < .5 ? [7.5, 1.2, 3.8, 'w'] : [1.2, 7.5, 3.8, 'w'];
+        }
+      });
+      if (config.extraBuild) config.extraBuild(H);
+    }
+  });
+}
+MAPS.push(
+  drMapVariant('metro', {
+    id: 'foundry', name: 'Foundry', desc: 'A hot industrial maze with smoke-dark steel and reinforced cargo cover.',
+    sky: 0x343a43, fog: 0x45474b, fogN: 20, fogF: 190, hemi: .62, hemiG: 0x242c32, sunI: .72, sunC: 0xffb76c, outer: 0x4b5054, seed: 360041, coverCount: 22,
+    pal: { floor: '#57534c', wall: '#65615a', per: '#353a40', crate: '#a05d30', crateD: '#432a20', cont: '#365e64' },
+    extraBuild(H) { H.boxBoth(-60, -14, -54, -11, 3.1, 'b'); H.boxBoth(20, -25, 28, -23, 2.7, 'b'); H.boxBoth(41, -13, 44, -5, 3.8, 'w'); }
+  }),
+  drMapVariant('killhouse', {
+    id: 'blacksite', name: 'Blacksite', desc: 'Low-visibility training compound with cold floodlights and tight CQB routes.',
+    sky: 0x121e2e, fog: 0x26394b, fogN: 8, fogF: 145, hemi: .58, hemiG: 0x13222b, sunI: .88, sunC: 0x87b4de, outer: 0x222d35, seed: 360042, coverCount: 16,
+    pal: { floor: '#39454d', wall: '#56646b', per: '#202c35', crate: '#5e7474', crateD: '#273a42', cont: '#284f61' },
+    extraBuild(H) { H.boxBoth(-46, -28, -43, -18, 4.2, 'w'); H.boxBoth(34, -41, 41, -38, 2.8, 'b'); H.boxBoth(8, -8, 12, -4, 1.6, 'c'); }
+  }),
+  drMapVariant('highway', {
+    id: 'harbor', name: 'Harbor', desc: 'Container lanes, sea haze, and open sightlines across a working freight yard.',
+    sky: 0x9ebfc9, fog: 0xb7cbd0, fogN: 36, fogF: 230, hemi: .9, hemiG: 0x536b70, sunI: .92, sunC: 0xffe6c0, outer: 0x5b827f, seed: 360043, coverCount: 24,
+    pal: { floor: '#8c9a93', wall: '#a1afa7', per: '#586966', crate: '#a66c43', crateD: '#60412e', cont: '#276a75' },
+    extraBuild(H) { H.boxBoth(-66, -10, -56, -6, 2.8, 'b'); H.boxBoth(-8, -37, -4, -28, 3.5, 'w'); H.boxBoth(42, -22, 53, -18, 2.6, 'b'); }
+  }),
+  drMapVariant('ravod', {
+    id: 'citadel', name: 'Citadel', desc: 'A high-walled desert fortress with layered cover and long central lanes.',
+    sky: 0xb8b8ad, fog: 0xc2bfae, fogN: 42, fogF: 250, hemi: .9, hemiG: 0x706d58, sunI: 1.02, sunC: 0xffe0a3, outer: 0x9b8b68, seed: 360044, coverCount: 20,
+    pal: { floor: '#b2a17d', wall: '#bca984', per: '#7f7258', crate: '#806044', crateD: '#463322', cont: '#556b70' },
+    extraBuild(H) { H.roomBoth(-72, -30, -52, -17, [['E', -23, 4], ['N', -63, 4]], 4.5, 'w', 1.4); H.boxBoth(13, -31, 22, -28, 2.7, 'b'); }
+  })
+);
 
 /* ---- nav grid ---- */
 const stepOK = (ci, ni, diag) => Math.abs(CH[ni] - CH[ci]) <= (diag ? 1.15 : .8);
@@ -715,6 +811,14 @@ Object.assign(WP, {
   mag7: mk('shotgun', 5, { team: 'CT', n: 'MAG-7', pel: 6, dmg: 12, rate: .85, mag: 5, res: 32, spr: .06, rec: .08, ap: .5, spd: .93, price: 1300, rel: 2.7, rew: 900, fall: .5, len: .5, snd: 'pump' }),
   m249: mk('lmg', 5, { n: 'M249', auto: true, dmg: 32, rate: .08, mag: 100, res: 200, spr: .03, rec: .012, ap: .8, spd: .78, price: 5200, rel: 5.7, fall: .97, len: .6, snd: 'm4' }),
   negev: mk('lmg', 5, { n: 'Negev', auto: true, dmg: 35, rate: .06, mag: 150, res: 200, spr: .05, rec: .009, ap: .75, spd: .78, price: 1700, rel: 5.8, fall: .96, len: .6, snd: 'm4' })
+});
+Object.assign(WP, {
+  vector: mk('smg', 2, { n: 'Vector-9', auto: true, dmg: 23, rate: .055, mag: 40, res: 160, spr: .032, rec: .009, ap: .62, spd: 1.02, price: 1950, rel: 2.25, rew: 600, fall: .92, len: .34, snd: 'mp9' }),
+  ak12: mk('rifle', 3, { n: 'AK-12', auto: true, dmg: 34, rate: .085, mag: 30, res: 90, spr: .016, rec: .014, ap: .78, spd: .91, price: 2950, rel: 2.35, fall: .97, len: .56, snd: 'ak' }),
+  m16: mk('rifle', 3, { team: 'CT', n: 'M16A4', auto: false, dmg: 39, rate: .12, mag: 30, res: 90, spr: .009, rec: .022, ap: .82, spd: .92, price: 2850, rel: 2.25, fall: .975, len: .56, snd: 'm4' }),
+  aa12: mk('shotgun', 5, { n: 'AA-12', auto: true, pel: 6, dmg: 10, rate: .22, mag: 20, res: 60, spr: .075, rec: .045, ap: .52, spd: .82, price: 3150, rel: 3.3, rew: 900, fall: .5, len: .58, snd: 'pump' }),
+  railgun: mk('sniper', 4, { n: 'Railgun XR', scope: true, dmg: 145, rate: 1.7, mag: 4, res: 24, spr: .001, rec: .085, ap: .99, spd: .72, price: 6200, rel: 3.7, fall: 1, rew: 100, len: .86, snd: 'awp' }),
+  l86: mk('lmg', 5, { n: 'L86 Support', auto: true, dmg: 31, rate: .075, mag: 60, res: 180, spr: .029, rec: .013, ap: .79, spd: .8, price: 3900, rel: 4.4, fall: .965, len: .61, snd: 'm4' })
 });
 for (const k in WP) WP[k].id = k;
 
@@ -2305,6 +2409,454 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+const DR_MP = {
+  url: 'https://xcseqgpbwexfqbssfszq.supabase.co',
+  key: 'sb_publishable_C585ftZaW9iiIvrahjY3Ow_8jgDTXbt',
+  client: null, channel: null, id: 'p-' + Math.random().toString(36).slice(2, 11),
+  room: '', name: 'Operator', host: false, enabled: false, started: false,
+  connecting: false, remote: new Map(), publishClock: 0, respawnClock: 0,
+  receivedHit: false, configMap: null, error: '',
+  send(event, payload) {
+    if (!this.channel) return Promise.resolve();
+    return this.channel.send({ type: 'broadcast', event, payload }).catch(err => {
+      console.warn('Dust Run Realtime send failed', err);
+    });
+  }
+};
+function drCleanName(value) {
+  const clean = String(value || 'Operator').replace(/[^a-zA-Z0-9 _.-]/g, '').trim().slice(0, 16);
+  return clean || 'Operator';
+}
+function drRoomCode(value) { return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); }
+function drSetStatus(text, state) {
+  const el = $('mp-status');
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.state = state || 'idle';
+}
+function drTeam() {
+  const selected = $('oteam') && $('oteam').querySelector('button.sel');
+  return selected && selected.dataset.v === 'T' ? 'T' : 'CT';
+}
+function drActiveCount() { return 1 + Array.from(DR_MP.remote.values()).filter(e => e.netAlive !== false).length; }
+function drMapById(id) { return MAPS.find(m => m.id === id) || MAPS[0]; }
+function drRemoveRemote(id) {
+  const e = DR_MP.remote.get(id);
+  if (!e) return;
+  if (e.mesh) scene.remove(e.mesh);
+  const idx = ents.indexOf(e);
+  if (idx >= 0) ents.splice(idx, 1);
+  DR_MP.remote.delete(id);
+}
+function drRemoteFromState(st, source) {
+  if (!st || !st.id || st.id === DR_MP.id || typeof st.id !== 'string') return null;
+  let e = DR_MP.remote.get(st.id);
+  if (!e) {
+    e = makeEnt(drCleanName(st.name), st.team === 'T' ? 'T' : 'CT', false);
+    e.isRemote = true;
+    e.remoteId = st.id;
+    e.netAlive = st.alive !== false;
+    e.x = Number.isFinite(st.x) ? st.x : (e.team === 'T' ? -72 : 72);
+    e.y = Number.isFinite(st.y) ? st.y : groundH(e.x, 0);
+    e.z = Number.isFinite(st.z) ? st.z : 0;
+    e.yaw = Number.isFinite(st.yaw) ? st.yaw : 0;
+    e.pitch = Number.isFinite(st.pitch) ? st.pitch : 0;
+    e.hp = Number.isFinite(st.hp) ? st.hp : 100;
+    e.armor = Number.isFinite(st.armor) ? st.armor : 0;
+    e.cur = WP[st.cur] ? st.cur : 'p9';
+    e.mesh = botMesh(e.team);
+    e.mesh.traverse(o => {
+      if (!o.isMesh || !o.material || !o.material.color) return;
+      o.material = o.material.clone();
+      if (e.team === 'T') o.material.color.lerp(new THREE.Color(0xffc46a), .1);
+      else o.material.color.lerp(new THREE.Color(0x6ee8e0), .1);
+      if (typeof patchMaterial === 'function') patchMaterial(o.material, e.team === 'T' ? 0xe8a93a : 0x48cfc4);
+    });
+    scene.add(e.mesh);
+    ents.push(e);
+    DR_MP.remote.set(st.id, e);
+  }
+  const wasAlive = e.alive;
+  e.name = drCleanName(st.name || e.name);
+  e.team = st.team === 'T' ? 'T' : 'CT';
+  e.netTarget = {
+    x: Number.isFinite(st.x) ? st.x : e.x,
+    y: Number.isFinite(st.y) ? st.y : e.y,
+    z: Number.isFinite(st.z) ? st.z : e.z,
+    yaw: Number.isFinite(st.yaw) ? st.yaw : e.yaw,
+    pitch: Number.isFinite(st.pitch) ? st.pitch : e.pitch,
+    hp: Number.isFinite(st.hp) ? st.hp : e.hp,
+    armor: Number.isFinite(st.armor) ? st.armor : (e.armor || 0),
+    alive: st.alive !== false,
+    crouch: Number.isFinite(st.cr) ? st.cr : 0,
+    cur: WP[st.cur] ? st.cur : e.cur,
+    kills: Number.isFinite(st.kills) ? st.kills : e.kills,
+    deaths: Number.isFinite(st.deaths) ? st.deaths : e.deaths,
+    timestamp: Number.isFinite(st.timestamp) ? st.timestamp : Date.now()
+  };
+  e.netAlive = e.netTarget.alive;
+  e.hp = e.netTarget.hp;
+  e.armor = e.netTarget.armor;
+  e.cur = e.netTarget.cur;
+  e.kills = e.netTarget.kills;
+  e.deaths = e.netTarget.deaths;
+  if (!e.netTarget.alive) {
+    e.alive = false;
+    if (e.mesh) e.mesh.visible = false;
+    if (wasAlive && window.__queueDrRagdoll) window.__queueDrRagdoll(e, null, false, 'remote');
+  } else {
+    e.alive = true;
+    if (e.mesh) e.mesh.visible = true;
+  }
+  return e;
+}
+function drPublicState() {
+  if (!P) return null;
+  return {
+    id: DR_MP.id, name: DR_MP.name, host: DR_MP.host,
+    team: P.team, mapId: MAPD.id, mode: 'deathmatch',
+    x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch,
+    hp: P.hp, armor: P.armor || 0, alive: P.alive, cur: P.cur, cr: P.cr,
+    kills: P.kills || 0, deaths: P.deaths || 0,
+    timestamp: Date.now()
+  };
+}
+function drPublish() {
+  const st = drPublicState();
+  if (!st || !DR_MP.channel || !DR_MP.enabled) return;
+  DR_MP.send('state', st);
+}
+function drDrawRemoteShot(payload) {
+  if (!payload || payload.id === DR_MP.id || !Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !Number.isFinite(payload.z)) return;
+  const yaw = Number(payload.yaw) || 0, pitch = clamp(Number(payload.pitch) || 0, -1.5, 1.5);
+  const dx = -Math.sin(yaw) * Math.cos(pitch), dy = Math.sin(pitch), dz = -Math.cos(yaw) * Math.cos(pitch);
+  const range = WP[payload.weapon] && WP[payload.weapon].melee ? 3 : 62;
+  tracer(payload.x, payload.y, payload.z, payload.x + dx * range, payload.y + dy * range, payload.z + dz * range);
+  const shooter = DR_MP.remote.get(payload.id);
+  if (shooter) { shooter.fireT = .09; if (shooter.mesh) shooter.mesh.userData.fireT = .09; }
+}
+function drReceiveHit(payload) {
+  if (!payload || payload.target !== DR_MP.id || !P || !P.alive || !Number.isFinite(payload.damage)) return;
+  const shooter = DR_MP.remote.get(payload.shooter);
+  const weapon = WP[payload.weapon];
+  if (!shooter || !shooter.netTarget || shooter.team === P.team || !weapon || weapon.nade) return;
+  if (Date.now() - shooter.netTarget.timestamp > 2400) return;
+  const distance = Math.hypot(P.x - shooter.x, P.z - shooter.z);
+  const maxRange = weapon.melee ? (weapon.range || 2.5) + 1.5 : 225;
+  if (distance > maxRange) return;
+  const maxDamage = weapon.dmg * (weapon.pel || 1) * (payload.head ? 4 : 1) * 1.08;
+  const damage = clamp(payload.damage, 0, maxDamage);
+  if (damage <= 0) return;
+  const w = { id: weapon.id, dmg: damage, ap: clamp(Number(payload.ap ?? weapon.ap ?? .5), 0, 1), fall: 1, melee: !!weapon.melee };
+  DR_MP.receivedHit = true;
+  try { applyDamage(P, shooter, w, 0, false); } finally { DR_MP.receivedHit = false; }
+  drPublish();
+}
+function drApplyPresence() {
+  if (!DR_MP.channel) return;
+  const states = DR_MP.channel.presenceState();
+  for (const key of Object.keys(states || {})) for (const state of (states[key] || [])) {
+    if (state && state.id && state.id !== DR_MP.id) drRemoteFromState(state, 'presence');
+  }
+}
+function drSetupOnline(team) {
+  if (!DR_MP.enabled) return;
+  const player = P;
+  for (const e of [...ents]) if (e !== player && e.mesh) scene.remove(e.mesh);
+  ents.splice(0, ents.length, player);
+  DR_MP.remote.forEach(e => { if (!ents.includes(e)) ents.push(e); if (e.mesh && e.mesh.parent !== scene) scene.add(e.mesh); });
+  player.name = DR_MP.name;
+  player.team = team === 'T' ? 'T' : 'CT';
+  player.kills = 0;
+  player.deaths = 0;
+  player.money = 16000;
+  player.armor = 100;
+  player.kit = player.team === 'CT';
+  player.alive = true;
+  player.hp = 100;
+  S.phase = 'freeze';
+  S.t = 8;
+  S.liveT = 0;
+  S.clock = 0;
+  S.round = 1;
+  S.score = { CT: 0, T: 0 };
+  S.streak = { CT: 0, T: 0 };
+  S.over = null;
+  S.paused = false;
+  S.planted = false;
+  bomb.state = 'none';
+  bomb.carrier = null;
+  bombMesh.visible = false;
+  DR_MP.respawnClock = 0;
+  DR_MP.started = true;
+  const spawns = (MAPD.spawn && MAPD.spawn[player.team]) || SPAWN[player.team] || [[0, 0]];
+  let spawn = spawns[Math.floor(Math.random() * spawns.length)] || [0, 0];
+  player.x = spawn[0]; player.z = spawn[1]; player.y = groundH(player.x, player.z);
+  player.vx = player.vy = player.vz = 0;
+  player.yaw = player.team === 'T' ? -Math.PI / 2 : Math.PI / 2;
+  player.pitch = 0;
+  player.inv = {};
+  resetLoadout(player);
+  player.money = 16000;
+  player.armor = 100;
+  player.mesh = null;
+  $('menu').classList.add('hide');
+  $('mp-panel').classList.add('hide');
+  $('mp-hud').style.display = 'block';
+  $('mp-hud-main').textContent = 'LIVE OPERATIONS · ' + DR_MP.room;
+  $('mp-hud-sub').textContent = '0 FRAGS  ·  ' + drActiveCount() + ' OPERATORS  ·  WARMUP';
+  msg('ONLINE ROOM ' + DR_MP.room + ' · BUY PERIOD', 3.5);
+  if (document.exitPointerLock) document.exitPointerLock();
+  drApplyPresence();
+  if (DR_MP.channel) DR_MP.channel.track(drPublicState());
+  drPublish();
+}
+function drShareConfig() {
+  return { room: DR_MP.room, mapId: MAPD.id, mode: 'deathmatch', host: DR_MP.name, team: P ? P.team : drTeam(), version: 1 };
+}
+function drSelectTeam(team) {
+  const side = team === 'T' ? 'T' : 'CT';
+  for (const b of $('oteam').querySelectorAll('button')) b.classList.toggle('sel', b.dataset.v === side);
+}
+async function drConnect(host) {
+  if (DR_MP.connecting) return;
+  DR_MP.connecting = true;
+  const hostBtn = $('mp-host'), joinBtn = $('mp-join');
+  hostBtn.disabled = joinBtn.disabled = true;
+  DR_MP.host = !!host;
+  DR_MP.name = drCleanName($('mp-name').value);
+  $('mp-name').value = DR_MP.name;
+  let room = drRoomCode($('mp-room').value);
+  if (host && !room) room = Math.random().toString(36).slice(2, 8).toUpperCase();
+  if (!host && room.length < 4) {
+    drSetStatus('Enter a room code with at least four characters.', 'error');
+    DR_MP.connecting = false; hostBtn.disabled = joinBtn.disabled = false; return;
+  }
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    drSetStatus('Supabase client did not load. Check your connection and reload.', 'error');
+    DR_MP.connecting = false; hostBtn.disabled = joinBtn.disabled = false; return;
+  }
+  DR_MP.room = room;
+  $('mp-room').value = room;
+  if (!DR_MP.client) DR_MP.client = window.supabase.createClient(DR_MP.url, DR_MP.key, {
+    realtime: { params: { eventsPerSecond: 30 } }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+  if (DR_MP.channel) {
+    try { await DR_MP.channel.unsubscribe(); } catch (_) {}
+    DR_MP.channel = null;
+  }
+  DR_MP.remote.forEach((_, id) => drRemoveRemote(id));
+  DR_MP.enabled = true;
+  DR_MP.started = false;
+  DR_MP.configMap = null;
+  drSetStatus('Connecting to Supabase Realtime…', 'busy');
+  const channel = DR_MP.client.channel('dustrun-' + room.toLowerCase(), {
+    config: { broadcast: { self: false, ack: false }, presence: { key: DR_MP.id } }
+  });
+  DR_MP.channel = channel;
+  channel.on('presence', { event: 'sync' }, () => drApplyPresence());
+  channel.on('presence', { event: 'join' }, ({ newPresences }) => {
+    for (const st of (newPresences || [])) if (st && st.id) drRemoteFromState(st, 'presence');
+    drApplyPresence();
+  });
+  channel.on('presence', { event: 'leave' }, ({ key }) => { if (key && key !== DR_MP.id) drRemoveRemote(key); });
+  channel.on('broadcast', { event: 'state' }, ({ payload }) => drRemoteFromState(payload, 'broadcast'));
+  channel.on('broadcast', { event: 'shot' }, ({ payload }) => drDrawRemoteShot(payload));
+  channel.on('broadcast', { event: 'hit' }, ({ payload }) => drReceiveHit(payload));
+  channel.on('broadcast', { event: 'room-config-request' }, async () => {
+    if (DR_MP.host) await DR_MP.send('room-config', drShareConfig());
+  });
+  channel.on('broadcast', { event: 'room-config' }, async ({ payload }) => {
+    if (!payload || payload.room !== DR_MP.room) return;
+    DR_MP.configMap = payload.mapId;
+    if (!DR_MP.host && payload.team) drSelectTeam(payload.team === 'T' ? 'CT' : 'T');
+    const map = drMapById(payload.mapId);
+    if (MAPD !== map) loadMap(map, true);
+    if (!DR_MP.started) {
+      drSetStatus('Room synced. Loading ' + map.name + '…', 'busy');
+      DR_MP.connecting = false;
+      hostBtn.disabled = joinBtn.disabled = false;
+      drStartOnlineGame();
+    }
+  });
+  channel.subscribe(async status => {
+    if (status === 'SUBSCRIBED') {
+      const presence = drPublicState() || { id: DR_MP.id, name: DR_MP.name, host: DR_MP.host, team: drTeam(), mapId: MAPD.id };
+      await channel.track(presence);
+      $('mp-copy').disabled = false;
+      $('mp-disconnect').disabled = false;
+      drSetStatus((DR_MP.host ? 'Room hosted: ' : 'Connected to room ') + DR_MP.room + '. Share the code with other players.', 'ok');
+      DR_MP.connecting = false;
+      hostBtn.disabled = joinBtn.disabled = false;
+      if (DR_MP.host) {
+        drStartOnlineGame();
+        DR_MP.send('room-config', drShareConfig());
+      } else {
+        DR_MP.send('room-config-request', { id: DR_MP.id, name: DR_MP.name });
+        setTimeout(() => {
+          if (!DR_MP.started && DR_MP.channel === channel) {
+            drSetStatus('Connected, but no host replied. Ask the host to reconnect or check the room code.', 'error');
+          }
+        }, 4500);
+      }
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      drSetStatus('Realtime channel: ' + status + '. Check Realtime settings and try again.', 'error');
+      DR_MP.connecting = false;
+      hostBtn.disabled = joinBtn.disabled = false;
+    }
+  });
+}
+function drStartOnlineGame() {
+  if (DR_MP.started || !DR_MP.enabled) return;
+  const m = DR_MP.configMap ? drMapById(DR_MP.configMap) : MAPD;
+  if (MAPD !== m) loadMap(m, true);
+  DR_MP.started = true;
+  startMatch(drTeam());
+}
+function drDisconnect() {
+  const channel = DR_MP.channel;
+  DR_MP.enabled = false;
+  DR_MP.started = false;
+  DR_MP.connecting = false;
+  DR_MP.channel = null;
+  if (channel) { try { channel.untrack(); } catch (_) {} try { channel.unsubscribe(); } catch (_) {} }
+  DR_MP.remote.forEach((_, id) => drRemoveRemote(id));
+  $('mp-hud').style.display = 'none';
+  $('mp-disconnect').disabled = true;
+  $('mp-copy').disabled = true;
+  $('mp-host').disabled = $('mp-join').disabled = false;
+  drSetStatus('Disconnected · No room connected', 'idle');
+  if (S.phase !== 'menu' && S.phase !== 'over') {
+    S.phase = 'menu';
+    $('menu').classList.remove('hide');
+    setMenu('Disconnected', 'You left room ' + DR_MP.room + '.', 'Start match');
+  }
+}
+function drTick(dt) {
+  if (!DR_MP.enabled) return;
+  DR_MP.publishClock += dt;
+  if (DR_MP.publishClock >= .095) { DR_MP.publishClock = 0; drPublish(); }
+  for (const e of DR_MP.remote.values()) {
+    const target = e.netTarget;
+    if (!target) continue;
+    const k = Math.min(1, dt * 13);
+    e.x += (target.x - e.x) * k;
+    e.y += (target.y - e.y) * k;
+    e.z += (target.z - e.z) * k;
+    e.yaw += angDiff(e.yaw, target.yaw) * k;
+    e.pitch += (target.pitch - e.pitch) * k;
+    if (e.mesh && e.netAlive) {
+      e.mesh.position.set(e.x, e.y, e.z);
+      e.mesh.rotation.y = e.yaw;
+      const t = performance.now() * .012 + (e.remoteId.length * 1.7);
+      const speed = target.alive ? Math.min(1, Math.hypot(target.x - e.x, target.z - e.z) * 1.5) : 0;
+      if (e.mesh.userData.lL) e.mesh.userData.lL.rotation.x = Math.sin(t) * .6 * speed;
+      if (e.mesh.userData.lR) e.mesh.userData.lR.rotation.x = -Math.sin(t) * .6 * speed;
+    }
+  }
+  if (DR_MP.started && P) {
+    if (!P.alive) {
+      DR_MP.respawnClock += dt;
+      if (DR_MP.respawnClock >= 3.1) {
+        const spawns = (MAPD.spawn && MAPD.spawn[P.team]) || SPAWN[P.team] || [[0, 0]];
+        const base = spawns[Math.floor(Math.random() * spawns.length)] || [0, 0];
+        P.x = base[0] + rnd(-2.5, 2.5); P.z = base[1] + rnd(-2.5, 2.5); P.y = groundH(P.x, P.z);
+        P.vx = P.vy = P.vz = 0; P.hp = 100; P.armor = 100; P.alive = true; P.dieT = 0;
+        const w = WP[P.cur];
+        if (w && !w.melee && !w.nade && P.inv[P.cur]) { P.inv[P.cur].mag = w.mag; P.inv[P.cur].res = Math.max(P.inv[P.cur].res || 0, w.mag * 3); }
+        DR_MP.respawnClock = 0;
+        msg('RESPAWN · BACK IN THE FIGHT', 2);
+        drPublish();
+      }
+    } else DR_MP.respawnClock = 0;
+    if (S.phase === 'live') {
+      S.t = Math.max(0, 600 - S.liveT);
+      if (S.liveT >= 600) {
+        S.liveT = 0;
+        S.t = 600;
+        msg('NEW DEATHMATCH CYCLE', 2.4);
+      }
+    }
+    const count = drActiveCount();
+    $('mp-hud-main').textContent = 'LIVE OPERATIONS · ' + DR_MP.room;
+    $('mp-hud-sub').textContent = (P.kills || 0) + ' FRAGS  ·  ' + count + ' OPERATORS  ·  ' + (S.phase === 'freeze' ? 'BUY PERIOD' : 'DEATHMATCH');
+  }
+}
+window.__initDrMultiplayer = function () {
+  const baseStartMatch = startMatch;
+  startMatch = function (team) {
+    baseStartMatch(team);
+    if (DR_MP.enabled) drSetupOnline(team);
+  };
+  const baseBotThink = botThink;
+  botThink = function (e, dt) {
+    if (DR_MP.enabled && e && e.isRemote) return;
+    return baseBotThink(e, dt);
+  };
+  const baseCheckEnd = checkEnd;
+  checkEnd = function () {
+    if (DR_MP.enabled && DR_MP.started) return;
+    return baseCheckEnd();
+  };
+  const baseSeparate = separate;
+  separate = function () {
+    if (DR_MP.enabled && DR_MP.started) return;
+    return baseSeparate();
+  };
+  const baseFire = fire;
+  fire = function (e, yaw, pitch, spread) {
+    const out = baseFire(e, yaw, pitch, spread);
+    if (DR_MP.enabled && DR_MP.started && e && e.isP && DR_MP.channel) {
+      DR_MP.send('shot', { id: DR_MP.id, x: e.x, y: e.y + eyeH(e) - .15, z: e.z, yaw: yaw == null ? e.yaw : yaw, pitch: pitch == null ? e.pitch : pitch, weapon: e.cur, timestamp: Date.now() });
+    }
+    return out;
+  };
+  const baseApplyDamage = applyDamage;
+  applyDamage = function (t, att, w, dist, head) {
+    baseApplyDamage(t, att, w, dist, head);
+    if (DR_MP.enabled && DR_MP.started && att && att.isP && t && t.isRemote && !DR_MP.receivedHit && DR_MP.channel && w) {
+      const damage = Math.max(0, (w.dmg || 0) * Math.pow(w.fall || .97, (dist || 0) / 10) * (head && !w.melee ? 4 : 1));
+      if (damage > 0) DR_MP.send('hit', { target: t.remoteId, shooter: DR_MP.id, damage, ap: w.ap, head: !!head, weapon: w.id || att.cur, timestamp: Date.now() });
+    }
+  };
+  const baseKill = kill;
+  kill = function (target, attacker, weapon, head) {
+    const wasLocal = target === P;
+    baseKill(target, attacker, weapon, head);
+    if (DR_MP.enabled && DR_MP.started && wasLocal) {
+      DR_MP.respawnClock = .001;
+      drPublish();
+    }
+  };
+  const baseHud = hud;
+  hud = function () {
+    baseHud();
+    if (DR_MP.enabled && DR_MP.started && $('mp-hud')) $('mp-hud').style.display = 'block';
+  };
+  const baseUpdate = update;
+  update = function (dt) {
+    baseUpdate(dt);
+    drTick(dt);
+  };
+  $('mp-open').addEventListener('click', () => $('mp-panel').classList.remove('hide'));
+  $('mp-back').addEventListener('click', () => $('mp-panel').classList.add('hide'));
+  $('mp-host').addEventListener('click', () => drConnect(true));
+  $('mp-join').addEventListener('click', () => drConnect(false));
+  $('mp-disconnect').addEventListener('click', drDisconnect);
+  $('mp-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(DR_MP.room);
+      drSetStatus('Room code ' + DR_MP.room + ' copied. Send it to your squad.', 'ok');
+    } catch (_) {
+      $('mp-room').focus(); $('mp-room').select();
+      drSetStatus('Select and copy the room code above: ' + DR_MP.room, 'ok');
+    }
+  });
+  $('mp-room').addEventListener('input', () => { $('mp-room').value = drRoomCode($('mp-room').value); });
+  $('mp-name').addEventListener('change', () => { $('mp-name').value = drCleanName($('mp-name').value); });
+  window.addEventListener('beforeunload', () => { if (DR_MP.channel) { try { DR_MP.channel.untrack(); DR_MP.channel.unsubscribe(); } catch (_) {} } });
+};
 </script><script>
 (function () {
   let rp = null, world = null, fixed = null, accumulator = 0, shaderClock = 0, nextId = 1;
@@ -2537,6 +3089,7 @@ requestAnimationFrame(frame);
     msg('RAGDOLL TEST', 1.4);
   });
 })();
+if (window.__initDrMultiplayer) window.__initDrMultiplayer();
 </script>
 <script type="module">
 import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/+esm';
