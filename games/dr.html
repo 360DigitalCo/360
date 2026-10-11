@@ -2026,7 +2026,7 @@ function render() {
     VM.rotation.set(kick.r + (P.relT > 0 ? -.35 : 0) + sway.p * sk, sway.y * sk, 0);
   }
   for (const e of ents) if (e.mesh) {
-    e.mesh.visible = e !== v;
+    e.mesh.visible = e !== v && !e.__ragdollActive;
     e.mesh.position.set(e.x, e.y, e.z); e.mesh.rotation.y = e.yaw;
     if (e.alive) { const s = Math.sin(e.bob) * Math.min(1, Math.hypot(e.vx, e.vz) / 4) * .8; e.mesh.userData.lL.rotation.x = s; e.mesh.userData.lR.rotation.x = -s; e.mesh.rotation.x = 0; }
     else e.mesh.rotation.x = Math.min(Math.PI / 2, e.dieT * 4);
@@ -2296,6 +2296,7 @@ function frame(now) {
   try {
     if (dt > 0) fps += (1 / dt - fps) * .05;
     if (!S.paused) { const n = Math.min(8, Math.max(1, Math.ceil(dt / .034))), sd = dt / n * DEV.ts; for (let i = 0; i < n; i++) update(sd); }
+    if (!S.paused && window.__stepDrRapier) window.__stepDrRapier(dt);
     adaptT += dt;
     if (adaptT > 1.5) { adaptT = 0; if (QUAL === 'auto' && S.phase !== 'menu' && fps < 24 && renderScale > .45) { renderScale = Math.max(.45, renderScale * .8); resize(); msg('Low frame rate: lowering resolution', 2); } }
     if (S.phase !== 'menu' && P) { render(); hud(); }
@@ -2304,4 +2305,246 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-</script></body></html>
+</script><script>
+(function () {
+  let rp = null, world = null, fixed = null, accumulator = 0, shaderClock = 0, nextId = 1;
+  const ragdolls = [], shaderMaterials = new Set(), pending = [];
+  const groupMask = 0x0002fffd;
+  const toColor = c => c && c.isColor ? c.clone() : new THREE.Color(c || 0x73bfff);
+  function patchMaterial(m, accent) {
+    if (!m || m.userData.__drShader || !(m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
+    m.userData.__drShader = true;
+    const a = toColor(accent || (m.color ? m.color.clone().lerp(new THREE.Color(0xffffff), .52) : 0x73bfff));
+    m.onBeforeCompile = s => {
+      s.uniforms.u360Clock = { value: 0 };
+      s.uniforms.u360Accent = { value: a };
+      s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nuniform float u360Clock;\nuniform vec3 u360Accent;');
+      s.fragmentShader = s.fragmentShader.replace('#include <output_fragment>', 'float rim360 = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.5);\nfloat grain360 = sin(dot(vViewPosition, vec3(31.7, 47.1, 19.3)) * 1.8 + u360Clock * 0.28) * 0.006;\noutgoingLight *= 1.0 + grain360;\noutgoingLight += u360Accent * rim360 * 0.13;\n#include <output_fragment>');
+      m.userData.__drShaderRef = s;
+    };
+    m.customProgramCacheKey = () => 'dr-cinematic-rim-v2';
+    m.needsUpdate = true;
+    shaderMaterials.add(m);
+  }
+  function patchScene() {
+    scene.traverse(o => {
+      if (o.isMesh) {
+        if (!o.isInstancedMesh) { o.castShadow = true; o.receiveShadow = true; }
+        const materials = Array.isArray(o.material) ? o.material : [o.material];
+        materials.forEach(m => patchMaterial(m));
+      }
+    });
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -110;
+    sun.shadow.camera.right = 110;
+    sun.shadow.camera.top = 110;
+    sun.shadow.camera.bottom = -110;
+    sun.shadow.camera.near = .5;
+    sun.shadow.camera.far = 280;
+    sun.shadow.bias = -.00025;
+  }
+  function removeRagdoll(rd) {
+    if (rd.joints) for (const j of rd.joints) { try { world.removeImpulseJoint(j, true); } catch (_) {} }
+    for (const p of rd.parts) {
+      scene.remove(p.mesh);
+      try { world.removeRigidBody(p.body); } catch (_) {}
+      if (p.mesh.geometry && p.mesh.geometry.userData.__drOwned) p.mesh.geometry.dispose();
+    }
+    if (rd.entity && rd.entity.__ragdollToken === rd.id) rd.entity.__ragdollActive = false;
+  }
+  function rebuildStatics() {
+    if (!world || !rp) return;
+    if (fixed) { try { world.removeRigidBody(fixed); } catch (_) {} }
+    fixed = world.createRigidBody(rp.RigidBodyDesc.fixed());
+    const floor = rp.ColliderDesc.cuboid(500, .5, 500).setTranslation(0, -32, 0).setFriction(.95);
+    world.createCollider(floor, fixed);
+    try {
+      if (VH && VW && GW && GH && VH.length === VW * (GH + 1)) {
+        const verts = new Float32Array(VW * (GH + 1) * 3);
+        for (let iz = 0; iz <= GH; iz++) for (let ix = 0; ix <= GW; ix++) {
+          const i = ix + iz * VW;
+          verts[i * 3] = OX + ix;
+          verts[i * 3 + 1] = VH[i];
+          verts[i * 3 + 2] = OZ + iz;
+        }
+        const indices = new Uint32Array(GW * GH * 6);
+        let k = 0;
+        for (let iz = 0; iz < GH; iz++) for (let ix = 0; ix < GW; ix++) {
+          const a = ix + iz * VW, b = a + 1, c = a + VW, d = c + 1;
+          indices[k++] = a; indices[k++] = c; indices[k++] = b;
+          indices[k++] = b; indices[k++] = c; indices[k++] = d;
+        }
+        world.createCollider(rp.ColliderDesc.trimesh(verts, indices).setFriction(.9).setRestitution(.02), fixed);
+      }
+      if (BOX) for (const b of BOX) {
+        const sx = Math.max(.03, (b.x2 - b.x1) * .5), sy = Math.max(.03, b.h * .5), sz = Math.max(.03, (b.z2 - b.z1) * .5);
+        const cx = (b.x1 + b.x2) * .5, cy = b.y0 + b.h * .5, cz = (b.z1 + b.z2) * .5;
+        if (![sx, sy, sz, cx, cy, cz].every(Number.isFinite)) continue;
+        world.createCollider(rp.ColliderDesc.cuboid(sx, sy, sz).setTranslation(cx, cy, cz).setFriction(.85), fixed);
+      }
+    } catch (e) { console.warn('Ragdoll static collision setup:', e); }
+  }
+  function makePart(rd, name, off, dims, kind, color, yaw, entity, localPosition) {
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const x = entity.x + localPosition[0] * c + localPosition[2] * s;
+    const z = entity.z - localPosition[0] * s + localPosition[2] * c;
+    const y = entity.y + localPosition[1];
+    const q = { x: 0, y: Math.sin(yaw * .5), z: 0, w: Math.cos(yaw * .5) };
+    const rb = rp.RigidBodyDesc.dynamic().setTranslation(x, y, z).setRotation(q).setLinearDamping(.07).setAngularDamping(.72).setCanSleep(false);
+    const body = world.createRigidBody(rb);
+    const cd = kind === 'ball' ? rp.ColliderDesc.ball(dims[0]) : rp.ColliderDesc.cuboid(dims[0], dims[1], dims[2]);
+    cd.setDensity(kind === 'ball' ? 1.05 : 1.3).setFriction(.72).setRestitution(.035).setCollisionGroups(groupMask);
+    world.createCollider(cd, body);
+    const geom = kind === 'ball' ? new THREE.SphereGeometry(dims[0], 18, 14) : new THREE.BoxGeometry(dims[0] * 2, dims[1] * 2, dims[2] * 2);
+    geom.userData.__drOwned = true;
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: .68, metalness: .08 });
+    patchMaterial(mat, new THREE.Color(color).lerp(new THREE.Color(0xffffff), .5));
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    const p = { name, body, mesh };
+    rd.parts.push(p);
+    return p;
+  }
+  function connect(rd, a, b, aa, ab, hinge) {
+    const data = hinge ? rp.JointData.revolute(aa, ab, { x: 1, y: 0, z: 0 }) : rp.JointData.spherical(aa, ab);
+    rd.joints.push(world.createImpulseJoint(data, a.body, b.body, true));
+  }
+  function spawn(entity, attacker, head, weapon) {
+    if (!world || !entity || !Number.isFinite(entity.x) || !Number.isFinite(entity.z)) return null;
+    const id = nextId++, yaw = Number(entity.yaw) || 0;
+    let gy = Number(entity.y) || 0;
+    try { gy = groundH(entity.x, entity.z); } catch (_) {}
+    const e = { x: entity.x, y: gy, z: entity.z };
+    const teamT = entity.team === 'T';
+    const uniform = teamT ? 0xb8873a : 0x3d5fa8;
+    const helmet = teamT ? 0x3b3a2c : 0x1f2b4a;
+    const rd = { id, entity, parts: [], joints: [], age: 0 };
+    const add = (name, off, dims, kind, color) => makePart(rd, name, off, dims, kind, color, yaw, e, off);
+    const pelvis = add('pelvis', [0, .77, 0], [.19, .15, .13], 'box', 0x252a31);
+    const torso = add('torso', [0, 1.14, 0], [.245, .30, .15], 'box', uniform);
+    const neck = add('head', [0, 1.57, 0], [.13], 'ball', 0xd6aa87);
+    const helmetMesh = new THREE.Mesh(new THREE.BoxGeometry(.30, .12, .30), new THREE.MeshStandardMaterial({ color: helmet, roughness: .56, metalness: .2 }));
+    helmetMesh.position.set(0, .07, 0);
+    helmetMesh.castShadow = true;
+    neck.mesh.add(helmetMesh);
+    const thighs = [], shins = [], feet = [], upper = [], fore = [], hands = [];
+    for (const side of [-1, 1]) {
+      thighs.push(add('thigh', [side * .12, .52, 0], [.105, .22, .11], 'box', 0x292d33));
+      shins.push(add('shin', [side * .12, .18, 0], [.085, .19, .09], 'box', 0x25292e));
+      feet.push(add('foot', [side * .12, .07, -.08], [.08, .05, .14], 'box', 0x16191d));
+      upper.push(add('upperArm', [side * .33, 1.20, 0], [.075, .20, .075], 'box', uniform));
+      fore.push(add('forearm', [side * .36, .91, -.02], [.065, .18, .065], 'box', uniform));
+      hands.push(add('hand', [side * .36, .70, -.03], [.065, .07, .07], 'box', 0xd6aa87));
+    }
+    connect(rd, pelvis, torso, { x: 0, y: .15, z: 0 }, { x: 0, y: -.30, z: 0 }, false);
+    connect(rd, torso, neck, { x: 0, y: .30, z: 0 }, { x: 0, y: -.13, z: 0 }, false);
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? -1 : 1;
+      connect(rd, pelvis, thighs[i], { x: side * .12, y: -.03, z: 0 }, { x: 0, y: .22, z: 0 }, false);
+      connect(rd, thighs[i], shins[i], { x: 0, y: -.20, z: 0 }, { x: 0, y: .17, z: 0 }, true);
+      connect(rd, shins[i], feet[i], { x: 0, y: -.16, z: 0 }, { x: 0, y: .03, z: .06 }, true);
+      connect(rd, torso, upper[i], { x: side * .23, y: .19, z: 0 }, { x: -side * .075, y: .16, z: 0 }, false);
+      connect(rd, upper[i], fore[i], { x: 0, y: -.16, z: 0 }, { x: 0, y: .15, z: 0 }, true);
+      connect(rd, fore[i], hands[i], { x: 0, y: -.15, z: 0 }, { x: 0, y: .03, z: 0 }, true);
+    }
+    ragdolls.push(rd);
+    entity.__ragdollActive = true;
+    entity.__ragdollToken = id;
+    if (entity.mesh) entity.mesh.visible = false;
+    let dx = Math.sin(yaw), dz = -Math.cos(yaw);
+    if (attacker && attacker !== entity) {
+      dx = entity.x - attacker.x;
+      dz = entity.z - attacker.z;
+      const d = Math.hypot(dx, dz) || 1;
+      dx /= d; dz /= d;
+    }
+    const kick = head ? 2.8 : weapon === 'bomb' ? 3.2 : 1.25;
+    torso.body.applyImpulse({ x: dx * kick, y: head ? 4.4 : 1.45, z: dz * kick }, true);
+    pelvis.body.applyImpulse({ x: dx * kick * .55, y: .9, z: dz * kick * .55 }, true);
+    neck.body.applyImpulse({ x: dx * (head ? 4.1 : .8), y: head ? 3.1 : .45, z: dz * (head ? 4.1 : .8) }, true);
+    return rd;
+  }
+  window.__drPendingRagdolls = pending;
+  window.__queueDrRagdoll = (e, a, h, w) => { if (world) spawn(e, a, h, w); else pending.push([e, a, h, w]); };
+  const oldKill = kill;
+  kill = function (target, attacker, weapon, head) {
+    const aliveBefore = target && target.alive;
+    const result = oldKill.apply(this, arguments);
+    if (aliveBefore && target && !target.alive) window.__queueDrRagdoll(target, attacker, !!head, weapon);
+    return result;
+  };
+  const oldBeginRound = beginRound;
+  beginRound = function () {
+    const result = oldBeginRound.apply(this, arguments);
+    for (const e of ents) { e.__ragdollActive = false; e.__ragdollToken = (e.__ragdollToken || 0) + 1; }
+    return result;
+  };
+  const oldLoadMap = loadMap;
+  loadMap = function () {
+    const result = oldLoadMap.apply(this, arguments);
+    rebuildStatics();
+    return result;
+  };
+  window.__stepDrRapier = dt => {
+    if (!world) return;
+    shaderClock += Math.min(.06, dt || 0);
+    for (const m of shaderMaterials) if (m.userData.__drShaderRef) m.userData.__drShaderRef.uniforms.u360Clock.value = shaderClock;
+    accumulator += Math.min(.08, dt || 0);
+    let steps = 0;
+    while (accumulator >= 1 / 60 && steps < 5) {
+      world.timestep = 1 / 60;
+      world.step();
+      accumulator -= 1 / 60;
+      steps++;
+    }
+    if (steps === 5 && accumulator > .06) accumulator = 0;
+    for (let i = ragdolls.length - 1; i >= 0; i--) {
+      const rd = ragdolls[i];
+      rd.age += Math.min(.08, dt || 0);
+      for (const p of rd.parts) {
+        const t = p.body.translation(), q = p.body.rotation();
+        p.mesh.position.set(t.x, t.y, t.z);
+        p.mesh.quaternion.set(q.x, q.y, q.z, q.w);
+      }
+      if (rd.age > 26) { removeRagdoll(rd); ragdolls.splice(i, 1); }
+    }
+  };
+  window.startRapierPhysics = function (RAPIER) {
+    if (world) return;
+    rp = RAPIER;
+    world = new rp.World({ x: 0, y: -9.81, z: 0 });
+    world.timestep = 1 / 60;
+    patchScene();
+    rebuildStatics();
+    while (pending.length) { const p = pending.shift(); spawn(p[0], p[1], p[2], p[3]); }
+    window.__spawnDrRagdoll = spawn;
+    window.__ragdollPhysicsReady = true;
+  };
+  window.addEventListener('keydown', ev => {
+    if (ev.code !== 'F8' || !P || S.phase === 'menu' || S.phase === 'over') return;
+    ev.preventDefault();
+    const f = fwd(P.yaw);
+    const dummy = { x: P.x + f[0] * 2.5, y: groundH(P.x + f[0] * 2.5, P.z + f[1] * 2.5), z: P.z + f[1] * 2.5, yaw: P.yaw, team: P.team, mesh: null };
+    window.__queueDrRagdoll(dummy, P, false, 'test');
+    msg('RAGDOLL TEST', 1.4);
+  });
+})();
+</script>
+<script type="module">
+import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/+esm';
+try {
+  await RAPIER.init();
+  window.startRapierPhysics(RAPIER);
+} catch (error) {
+  console.error('Rapier physics failed to initialize', error);
+}
+</script>
+</body></html>
