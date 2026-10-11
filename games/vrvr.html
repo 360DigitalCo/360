@@ -1949,6 +1949,7 @@ document.getElementById("saveButton").onclick = async ()=>{
 /* ======================================================================
    3D RENDERER (Three.js) — scene, terrain, vehicles, tornado, FX
    World coordinates map as: game (x, y) -> three (x, z). Car heading 0 faces -z.
+   SCALE: roughly 6 world units per meter (a sedan is ~30 units long ≈ 5 m).
 ====================================================================== */
 const glCanvas = document.getElementById("gl");
 const renderer3 = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: "high-performance" });
@@ -2085,7 +2086,7 @@ function updateAtmosphere(dt){
   });
 })();
 
-/* ---- towns, cities, landmarks, scenery ---- */
+/* ---- towns, cities, landmarks, scenery (scaled to the vehicles) ---- */
 const turbines = [];
 let turbineBlades = null;
 (function buildSettlements(){
@@ -2105,14 +2106,14 @@ let turbineBlades = null;
     const ring = new THREE.Mesh(ringGeo, ringMat); ring.position.set(t.x, 0.8, t.y); scene3.add(ring);
     const disc = new THREE.Mesh(discGeo, discMat); disc.position.set(t.x, 0.7, t.y); scene3.add(disc);
     const beacon = new THREE.Mesh(beaconGeo, beaconMat); beacon.position.set(t.x, 160, t.y); scene3.add(beacon);
-    const garage = new THREE.Mesh(new THREE.BoxGeometry(46, 22, 34), new THREE.MeshLambertMaterial({ color:0x2c3a2c }));
-    garage.position.set(t.x, 11, t.y); scene3.add(garage);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(48, 2, 36), new THREE.MeshBasicMaterial({ color:0x39ff14 }));
-    roof.position.set(t.x, 23, t.y); scene3.add(roof);
-    const n = 16;
+    const garage = new THREE.Mesh(new THREE.BoxGeometry(110, 40, 80), new THREE.MeshLambertMaterial({ color:0x2c3a2c }));
+    garage.position.set(t.x, 20, t.y); scene3.add(garage);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(114, 3, 84), new THREE.MeshBasicMaterial({ color:0x39ff14 }));
+    roof.position.set(t.x, 41, t.y); scene3.add(roof);
+    const n = 14;
     for (let i=0; i<n; i++){
-      const a = (i/n)*Math.PI*2 + rnd()*0.3, d = 80 + rnd()*120;
-      bldgs.push({ x:t.x+Math.cos(a)*d, z:t.y+Math.sin(a)*d, w:16+rnd()*16, d:16+rnd()*16, h:8+rnd()*18, rot:rnd()*Math.PI, color:townPal[Math.floor(rnd()*townPal.length)] });
+      const a = (i/n)*Math.PI*2 + rnd()*0.3, d = 100 + rnd()*110;
+      bldgs.push({ x:t.x+Math.cos(a)*d, z:t.y+Math.sin(a)*d, w:40+rnd()*40, d:40+rnd()*40, h:18+rnd()*34, rot:rnd()*Math.PI, color:townPal[Math.floor(rnd()*townPal.length)] });
     }
   });
 
@@ -2120,11 +2121,13 @@ let turbineBlades = null;
   CITIES.forEach(c=>{
     if (TOWNS.some(t=>Math.hypot(t.x-c.x, t.y-c.y) < 350)) return; // already built as a town
     const f = cityFactor[c.name] || 1;
-    const n = Math.round(18 + f*10);
+    const n = Math.round(24 + f*16);
     for (let i=0; i<n; i++){
-      const a = rnd()*Math.PI*2, d = Math.sqrt(rnd())*170;
-      const h = (14 + rnd()*50) * f * (1.5 - d/170) * (0.5 + rnd()*0.8);
-      bldgs.push({ x:c.x+Math.cos(a)*d, z:c.y+Math.sin(a)*d, w:14+rnd()*22, d:14+rnd()*22, h:Math.max(10,h), rot:rnd()*Math.PI, color:cityPal[Math.floor(rnd()*cityPal.length)] });
+      const a = rnd()*Math.PI*2, d = Math.sqrt(rnd())*320;
+      const core = Math.max(0, 1 - d/320);
+      const h = 40 + rnd()*70 + core*rnd()*300*f*f;   // small towns stay low, big cities get real towers
+      const w = 50 + rnd()*60 + h*0.1;
+      bldgs.push({ x:c.x+Math.cos(a)*d, z:c.y+Math.sin(a)*d, w, d:w*(0.7+rnd()*0.4), h, rot:rnd()*Math.PI, color:cityPal[Math.floor(rnd()*cityPal.length)] });
     }
   });
 
@@ -2139,9 +2142,9 @@ let turbineBlades = null;
   scene3.add(bMesh);
 
   // landmark obelisks
-  const obGeo = new THREE.ConeGeometry(9, 110, 4).translate(0,55,0);
+  const obGeo = new THREE.ConeGeometry(30, 360, 4).translate(0,180,0);
   const obMat = new THREE.MeshBasicMaterial({ color:0xffd23f });
-  const obRing = new THREE.RingGeometry(26, 30, 32).rotateX(-Math.PI/2);
+  const obRing = new THREE.RingGeometry(70, 76, 32).rotateX(-Math.PI/2);
   const obRingMat = new THREE.MeshBasicMaterial({ color:0xffd23f, transparent:true, opacity:0.55, depthWrite:false });
   MAP_LANDMARKS.forEach(l=>{
     const o = new THREE.Mesh(obGeo, obMat); o.position.set(l.x, 0, l.y); scene3.add(o);
@@ -2169,8 +2172,8 @@ let turbineBlades = null;
     const c = centers[Math.floor(rnd()*centers.length)];
     const a = rnd()*Math.PI*2, d = Math.pow(rnd(), 0.7)*420;
     const x = c[0]+Math.cos(a)*d, z = c[1]+Math.sin(a)*d;
-    if (Math.abs(x) > WORLD_MAX || Math.abs(z) > WORLD_MAX || !freeSpot(x, z, 320, 260)) continue;
-    const s = 0.8 + rnd()*1.1;
+    if (Math.abs(x) > WORLD_MAX || Math.abs(z) > WORLD_MAX || !freeSpot(x, z, 420, 420)) continue;
+    const s = (0.8 + rnd()*1.1) * 1.7;
     dummy.position.set(x, 0, z); dummy.rotation.set(0, rnd()*6, 0); dummy.scale.set(s, s*(0.9+rnd()*0.4), s); dummy.updateMatrix();
     crowns.setMatrixAt(ti, dummy.matrix); trunks.setMatrixAt(ti, dummy.matrix);
     crowns.setColorAt(ti, _tc.setHSL(0.27+rnd()*0.07, 0.45, 0.2+rnd()*0.1));
@@ -2180,20 +2183,20 @@ let turbineBlades = null;
   crowns.frustumCulled = false; trunks.frustumCulled = false;
   scene3.add(crowns); scene3.add(trunks);
 
-  // wind turbines (blades spin)
+  // wind turbines (blades spin) — ~85 m hub height, ~45 m blades
   const NT = 70;
   let tries2 = 0;
   while (turbines.length < NT && tries2 < 2000){
     tries2++;
     const x = WORLD_MIN+200+rnd()*(WORLD_MAX-WORLD_MIN-400), z = WORLD_MIN+200+rnd()*(WORLD_MAX-WORLD_MIN-400);
-    if (!freeSpot(x, z, 420, 340)) continue;
+    if (!freeSpot(x, z, 520, 520)) continue;
     turbines.push({ x, z, ph: rnd()*6.28 });
   }
-  const towerGeo = new THREE.CylinderGeometry(1.5, 2.6, 92, 8).translate(0, 46, 0);
+  const towerGeo = new THREE.CylinderGeometry(4, 7, 500, 8).translate(0, 250, 0);
   const towers = new THREE.InstancedMesh(towerGeo, new THREE.MeshLambertMaterial({ color:0xe8eaec }), turbines.length);
   turbines.forEach((t,i)=>{ dummy.position.set(t.x,0,t.z); dummy.rotation.set(0,0,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); towers.setMatrixAt(i, dummy.matrix); });
   towers.frustumCulled = false; scene3.add(towers);
-  const bladeGeo = new THREE.BoxGeometry(2.4, 48, 1).translate(0, 24, 0);
+  const bladeGeo = new THREE.BoxGeometry(9, 270, 3).translate(0, 135, 0);
   turbineBlades = new THREE.InstancedMesh(bladeGeo, new THREE.MeshLambertMaterial({ color:0xf4f4f4 }), turbines.length*3);
   turbineBlades.frustumCulled = false;
   scene3.add(turbineBlades);
@@ -2207,7 +2210,7 @@ function updateTurbines(time){
   for (let i=0; i<turbines.length; i++){
     const t = turbines[i];
     for (let b=0; b<3; b++){
-      _dummy.position.set(t.x, 94, t.z);
+      _dummy.position.set(t.x, 505, t.z);
       _dummy.rotation.set(0, 0.6, spin + t.ph + b*2.0944, "YXZ");
       _dummy.scale.set(1,1,1);
       _dummy.updateMatrix();
@@ -2597,7 +2600,7 @@ const CAM_VIEWS = [
   { name:"CHASE",    dist:95,  speedDist:35, h:44,  look:70,  lookH:6, fov:64 },
   { name:"HIGH",     dist:210, speedDist:60, h:120, look:130, lookH:0, fov:62 },
   { name:"HOOD",     dist:-3,  speedDist:0,  h:11,  look:300, lookH:9, fov:78 },
-  { name:"OVERHEAD", dist:60,  speedDist:0,  h:900, look:10,  lookH:0, fov:55 }
+  { name:"OVERHEAD", dist:60,  speedDist:0,  h:1600, look:10,  lookH:0, fov:55 }
 ];
 let camMode = 0;
 window.addEventListener("keydown", e=>{
@@ -2671,14 +2674,14 @@ function draw3DLabels(){
   ctx.save();
   TOWNS.forEach(t=>{
     const d = Math.round(Math.hypot(t.x-car.x, t.y-car.y));
-    overlayLabel(t.x, 340, t.y, t.name.toUpperCase() + "  ·  " + d + " ft", "#39ff14", "bold 14px Courier New", 14000);
+    overlayLabel(t.x, 420, t.y, t.name.toUpperCase() + "  ·  " + d + " ft", "#39ff14", "bold 14px Courier New", 14000);
   });
   CITIES.forEach(c=>{
     if (TOWNS.some(t=>Math.hypot(t.x-c.x, t.y-c.y) < 350)) return;
-    overlayLabel(c.x, 230, c.y, c.name.toUpperCase(), "#b9dcff", "bold 13px Courier New", 7000);
+    overlayLabel(c.x, 800, c.y, c.name.toUpperCase(), "#b9dcff", "bold 13px Courier New", 7000);
   });
   MAP_LANDMARKS.forEach(l=>{
-    const p = overlayLabel(l.x, 125, l.y, l.name.toUpperCase(), "#ffeaa0", "bold 11px Courier New", 3200);
+    const p = overlayLabel(l.x, 420, l.y, l.name.toUpperCase(), "#ffeaa0", "bold 11px Courier New", 3200);
     if (p && l.city){ ctx.fillStyle = "rgba(220,225,220,0.7)"; ctx.font = "9px Courier New"; ctx.fillText(l.city, p.x, p.y+12); }
   });
   wildConvoys.forEach(c=>{
