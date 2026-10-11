@@ -1,0 +1,3443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VORTEX RUNNER 3D — Tornado Intercept</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0a0b0d; overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    color: #d7ffd9; user-select: none;
+  }
+  /* 3D scene sits underneath; the 2D canvas on top is a transparent overlay for radar / compass / labels */
+  #gl { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; display: block; pointer-events: none; }
+  #game { position: fixed; top: 0; left: 0; z-index: 1; display: block; background: transparent; cursor: crosshair; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; top: 10px; left: 10px; z-index: 5;
+    background: rgba(10,14,10,0.72); border: 1px solid #2c5a2c;
+    padding: 10px 14px; border-radius: 6px; min-width: 230px;
+    box-shadow: 0 0 12px rgba(57,255,20,0.15);
+  }
+  #hud .row { display:flex; justify-content:space-between; font-size:13px; margin:3px 0; letter-spacing:0.5px; }
+  #hud .label { color:#7fd07f; }
+  #hud .val { color:#39ff14; font-weight:bold; text-shadow:0 0 6px rgba(57,255,20,0.6); }
+  #hud .val.danger { color:#ff3131; text-shadow:0 0 8px rgba(255,49,49,0.8); }
+  #hud .val.warn { color:#ffd23f; text-shadow:0 0 6px rgba(255,210,63,0.6);}
+  #hud .bar-bg { width:100%; height:8px; background:#222; border:1px solid #333; border-radius:3px; margin-top:2px; overflow:hidden;}
+  #hud .bar-fill { height:100%; background:#39ff14; transition: width 0.15s linear, background 0.3s; }
+
+  #anchorBadge {
+    position: fixed; top: 10px; right: 10px; z-index:5;
+    background: rgba(10,14,10,0.72); border:1px solid #2c5a2c; border-radius:6px;
+    padding:10px 16px; font-size:15px; font-weight:bold; letter-spacing:1px;
+    color:#7fd07f;
+  }
+  #anchorBadge.active { color:#39ff14; border-color:#39ff14; text-shadow:0 0 8px #39ff14; }
+
+  #townPrompt {
+    position: fixed; bottom: 30px; left:50%; transform:translateX(-50%);
+    background: rgba(10,14,10,0.85); border:1px solid #39ff14; border-radius:6px;
+    padding:10px 22px; font-size:15px; color:#39ff14; letter-spacing:1px;
+    display:none; z-index:5; text-shadow:0 0 6px rgba(57,255,20,0.6);
+    animation: pulseGlow 1.4s infinite ease-in-out;
+  }
+  @keyframes pulseGlow { 0%,100%{opacity:0.75;} 50%{opacity:1;} }
+
+  #allyPrompt {
+    position: fixed; bottom: 74px; left:50%; transform:translateX(-50%);
+    background: rgba(10,14,10,0.85); border:1px solid #5c9ded; border-radius:6px;
+    padding:10px 22px; font-size:15px; color:#5c9ded; letter-spacing:1px;
+    display:none; z-index:5; text-shadow:0 0 6px rgba(92,157,237,0.6);
+    animation: pulseGlow 1.4s infinite ease-in-out;
+  }
+
+  #controlsHint {
+    position: fixed; bottom: 10px; right: 10px; z-index:5;
+    background: rgba(10,14,10,0.6); border:1px solid #2c5a2c; border-radius:6px;
+    padding:6px 10px; font-size:11px; color:#7fd07f; line-height:1.5;
+  }
+
+  #alertBanner {
+    position: fixed; top: 50%; left:50%; transform:translate(-50%,-50%);
+    font-size: 34px; font-weight:bold; color:#ff3131; letter-spacing:3px;
+    text-shadow: 0 0 20px #ff3131, 0 0 40px #ff3131;
+    z-index: 8; display:none; pointer-events:none;
+  }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: fixed; inset:0; z-index: 20;
+    background: radial-gradient(circle at 50% 40%, #131a13 0%, #06070a 100%);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .hidden { display:none !important; }
+
+  .panel {
+    background: rgba(15,20,15,0.92); border:1px solid #2c5a2c; border-radius:10px;
+    padding:28px 34px; max-width:920px; width:92%; max-height:88vh; overflow-y:auto;
+    box-shadow: 0 0 40px rgba(57,255,20,0.12);
+  }
+  .panel h1 { color:#39ff14; text-shadow:0 0 14px rgba(57,255,20,0.7); letter-spacing:3px; margin-top:0; font-size:30px;}
+  .panel h2 { color:#39ff14; letter-spacing:2px; font-size:18px; border-bottom:1px solid #2c5a2c; padding-bottom:6px;}
+  .subtext { color:#9fcf9f; font-size:13px; line-height:1.6; }
+
+  .vehicleGrid { display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; }
+  .vCard {
+    flex:1; min-width:230px; background: rgba(30,40,30,0.6); border:1px solid #2c5a2c;
+    border-radius:8px; padding:14px; cursor:pointer; transition: 0.15s;
+  }
+  .vCard:hover { border-color:#39ff14; box-shadow:0 0 14px rgba(57,255,20,0.25); }
+  .vCard.locked { opacity: 0.55; cursor:not-allowed; }
+  .vCard.selected { border-color:#39ff14; background: rgba(57,255,20,0.08); }
+  .vCard h3 { margin:4px 0; color:#eafff0; font-size:16px;}
+  .vCard .stat { font-size:12px; color:#9fcf9f; display:flex; justify-content:space-between; margin:2px 0;}
+  .vCard .price { color:#ffd23f; font-size:13px; margin-top:6px; }
+  .vSwatch { width:100%; height:46px; border-radius:5px; margin-bottom:8px; }
+
+  button.gameBtn {
+    background: linear-gradient(#1d3d1d, #122812); color:#39ff14; border:1px solid #39ff14;
+    padding:10px 20px; font-family:inherit; font-size:14px; letter-spacing:1px; border-radius:5px;
+    cursor:pointer; margin-top:16px; transition:0.15s;
+  }
+  button.gameBtn:hover { background: linear-gradient(#2c5a2c,#1d3d1d); box-shadow:0 0 14px rgba(57,255,20,0.4); }
+  button.gameBtn:disabled { opacity:0.4; cursor:not-allowed; }
+  button.smallBtn {
+    background:#182a18; color:#a9ffb0; border:1px solid #3a6a3a; padding:5px 10px; font-size:12px;
+    border-radius:4px; cursor:pointer; font-family:inherit;
+  }
+  button.smallBtn:hover:not(:disabled){ border-color:#39ff14; color:#39ff14; }
+  button.smallBtn:disabled { opacity:0.35; cursor:not-allowed; }
+
+  .garageGrid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:14px;}
+  .upRow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #223822;}
+  .upRow .lvl { color:#ffd23f; font-size:12px; }
+  .moneyLine { font-size:18px; color:#ffd23f; text-shadow:0 0 8px rgba(255,210,63,0.5); margin:10px 0;}
+  .closeRow { text-align:center; }
+  .flashText { color:#ff3131; font-size:12px; }
+
+  #saveButton {
+    position: fixed; bottom: 10px; left: 10px; z-index:5;
+    background: rgba(10,14,10,0.75); border:1px solid #2c5a2c; border-radius:6px;
+    padding:8px 14px; font-family:inherit; font-size:12px; letter-spacing:1px;
+    color:#39ff14; cursor:pointer;
+  }
+  #saveButton:hover { border-color:#39ff14; box-shadow:0 0 10px rgba(57,255,20,0.3); }
+  #saveToast {
+    position: fixed; bottom: 46px; left: 10px; z-index:5;
+    background: rgba(10,14,10,0.85); border:1px solid #39ff14; border-radius:6px;
+    padding:6px 12px; font-size:11px; color:#39ff14; letter-spacing:1px;
+    opacity:0; pointer-events:none; transition: opacity 0.3s;
+  }
+  #saveToast.show { opacity:1; }
+
+  /* ---- Online / Leaderboard ---- */
+  #lbPanel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
+    width: 260px; background: rgba(8,12,8,0.94); border-left: 1px solid #2c5a2c;
+    display: flex; flex-direction: column; transform: translateX(100%);
+    transition: transform 0.22s ease; box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+  }
+  #lbPanel.open { transform: translateX(0); }
+  #lbToggle {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+    z-index: 11; background: rgba(8,12,8,0.85); border: 1px solid #2c5a2c;
+    border-right: none; border-radius: 6px 0 0 6px;
+    padding: 10px 7px; cursor: pointer; color: #39ff14; font-family: inherit;
+    font-size: 11px; writing-mode: vertical-rl; letter-spacing: 1px;
+    transition: right 0.22s ease;
+  }
+  #lbToggle.open { right: 260px; }
+  #lbPanel h2 { color:#39ff14; font-size:13px; letter-spacing:2px; padding:12px 14px 6px; border-bottom:1px solid #2c5a2c; margin:0; }
+  #lbTabs { display:flex; border-bottom:1px solid #2c5a2c; }
+  .lbTab { flex:1; padding:7px 4px; text-align:center; font-size:11px; color:#7fd07f; cursor:pointer; border:none; background:none; font-family:inherit; letter-spacing:1px; }
+  .lbTab.active { color:#39ff14; border-bottom:2px solid #39ff14; }
+  #lbList { flex:1; overflow-y:auto; padding:8px 0; }
+  .lbRow { display:flex; align-items:center; gap:6px; padding:5px 12px; font-size:11px; border-bottom:1px dashed #1a2a1a; }
+  .lbRank { color:#ffd23f; min-width:20px; font-weight:bold; }
+  .lbName { flex:1; color:#d7ffd9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbVal { color:#39ff14; font-weight:bold; white-space:nowrap; }
+  #lbFooter { padding:10px 12px; border-top:1px solid #2c5a2c; font-size:10px; color:#7fd07f; }
+  #lbStatus { font-size:10px; color:#7fd07f; padding:6px 12px; }
+
+  #nameInputWrap { margin-top: 16px; display:flex; flex-direction:column; gap:6px; }
+  #nameInputWrap label { font-size: 12px; color:#9fcf9f; }
+  #playerNameInput {
+    background:#182a18; color:#39ff14; border:1px solid #2c5a2c; border-radius:4px;
+    padding:7px 10px; font-family:inherit; font-size:13px; letter-spacing:1px; width:100%;
+  }
+  #playerNameInput:focus { outline:none; border-color:#39ff14; }
+</style>
+<link rel="stylesheet" href="/assets/css/mobile-nav.css">
+</head>
+<body>
+
+<!-- Leaderboard Sidebar -->
+<button id="lbToggle">LEADERBOARD</button>
+<div id="lbPanel">
+  <h2>LEADERBOARD</h2>
+  <div id="lbTabs">
+    <button class="lbTab active" data-tab="storms">Storms</button>
+    <button class="lbTab" data-tab="money">Money</button>
+  </div>
+  <div id="lbStatus">Loading...</div>
+  <div id="lbList"></div>
+  <div id="lbFooter">CO-OP CONNECTING · Top 20</div>
+</div>
+
+<canvas id="gl"></canvas>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="row"><span class="label">WIND SPEED</span><span class="val" id="hudWind">0 MPH</span></div>
+  <div class="row"><span class="label">TORNADO</span><span class="val" id="hudCat">EF0</span></div>
+  <div class="row"><span class="label">DIST TO CORE</span><span class="val" id="hudDist">-- ft</span></div>
+  <div class="row"><span class="label">INTEGRITY</span><span class="val" id="hudHPtext">100%</span></div>
+  <div class="bar-bg"><div class="bar-fill" id="hudHPbar" style="width:100%"></div></div>
+  <div class="row" style="margin-top:6px;"><span class="label">FUEL</span><span class="val" id="hudFuelText">100%</span></div>
+  <div class="bar-bg"><div class="bar-fill" id="hudFuelBar" style="width:100%; background:#ffb74d;"></div></div>
+  <div class="row" style="margin-top:6px;"><span class="label">DATA (unsold)</span><span class="val" id="hudData">0.0 GB</span></div>
+  <div class="row"><span class="label">MONEY</span><span class="val" id="hudMoney">$0</span></div>
+  <div class="row"><span class="label">CONVOY</span><span class="val" id="hudConvoy">0/4 (single)</span></div>
+  <div class="row" style="margin-top:6px;"><span class="label">WEATHER</span><span class="val" id="hudWeather">Clear</span></div>
+  <div class="row"><span class="label">TOOLS</span><span class="val" id="hudTools" style="font-size:12px;">—</span></div>
+</div>
+
+<div id="anchorBadge">ANCHORS UP</div>
+<div id="townPrompt">Press <b>G</b> to enter Garage</div>
+<div id="allyPrompt"></div>
+<div id="alertBanner"></div>
+<div id="controlsHint">
+  WASD / ARROWS — drive&nbsp;&nbsp;|&nbsp;&nbsp;LMB — grapple (click the ground)&nbsp;&nbsp;|&nbsp;&nbsp;SPACE — anchor&nbsp;&nbsp;|&nbsp;&nbsp;V — camera&nbsp;&nbsp;|&nbsp;&nbsp;G — garage (in town)&nbsp;&nbsp;|&nbsp;&nbsp;M / click radar — expand map<br>
+  1 — single-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;2 — two-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;F — ally with nearby crew&nbsp;&nbsp;|&nbsp;&nbsp;P — infinite fuel<br>
+  3 — deploy Dorothy Probe&nbsp;&nbsp;|&nbsp;&nbsp;4 — deploy StickNet&nbsp;&nbsp;|&nbsp;&nbsp;5 — fireworks&nbsp;&nbsp;|&nbsp;&nbsp;6 — smoke flare
+</div>
+<button id="saveButton" title="Save progress">💾 SAVE</button>
+<div id="saveToast">PROGRESS SAVED</div>
+
+<!-- Title Screen -->
+<div class="overlay" id="titleScreen">
+  <div class="panel" style="text-align:center;">
+    <h1 style="font-size:52px; letter-spacing:6px;">🌪 VORTEX RUNNER</h1>
+    <p class="subtext">Chase. Anchor. Survive. <span style="color:#39ff14; font-size:11px;">ONLINE CO-OP · 3D</span></p>
+    <button class="gameBtn" id="titlePlayBtn" style="font-size:18px; padding:14px 40px;">▶ PLAY</button>
+  </div>
+</div>
+
+<!-- Start Screen -->
+<div class="overlay hidden" id="startScreen">
+  <div class="panel">
+    <h1>🌪 VORTEX RUNNER</h1>
+    <p class="subtext">Chase the storm. Drive into the vortex, deploy your anchors, and hold on while you harvest scientific
+    data from the core. Sell data and upgrade your rig in town — but don't let a tornado outgrow your anchors, or you'll be
+    torn off the road.</p>
+    <h2>Choose Your Vehicle</h2>
+    <p class="subtext" id="saveStatusNote"></p>
+    <div id="nameInputWrap">
+      <label for="playerNameInput">CALLSIGN (for online leaderboard / co-op)</label>
+      <input id="playerNameInput" maxlength="24" placeholder="Enter your callsign..." spellcheck="false" autocomplete="off"/>
+    </div>
+    <div class="vehicleGrid" id="startVehicleGrid"></div>
+    <div class="closeRow"><button class="gameBtn" id="beginBtn">START ENGINE</button></div>
+  </div>
+</div>
+
+<!-- Garage Screen -->
+<div class="overlay hidden" id="garageScreen">
+  <div class="panel">
+    <h1>🔧 GARAGE — <span id="garageTownName">Town</span></h1>
+    <div class="moneyLine">Balance: $<span id="garageMoney">0</span> &nbsp;|&nbsp; Unsold Data: <span id="garageDataGB">0.0</span> GB</div>
+    <button class="gameBtn" id="sellDataBtn">SELL DATA</button>
+    <button class="gameBtn" id="repairBtn">REPAIR HULL</button>
+    <button class="gameBtn" id="refuelBtn" style="border-color:#ffb74d; color:#ffb74d;">⛽ REFUEL</button>
+    <button class="gameBtn hidden" id="memeSummonBtn" style="border-color:#ff2fd6; color:#ff2fd6;">🎭 SUMMON MEME TORNADO</button>
+
+    <h2 style="margin-top:22px;">Fleet</h2>
+    <p class="subtext">Chase cars, interceptors, and support vehicles (DOWs and the rest) are all fully drivable — buy any of them, click to switch, and drive it yourself.</p>
+    <div class="vehicleGrid" id="garageVehicleGrid"></div>
+
+    <h2 style="margin-top:22px;">🎒 Tools &amp; Probes</h2>
+    <p class="subtext">Consumable field gear — bought here, deployed out on the road with the number keys shown on each card. Stock is per-unit; buy as many as you can carry.</p>
+    <div class="vehicleGrid" id="garageToolsGrid"></div>
+
+    <h2 style="margin-top:22px;">🤝 Convoy Roster</h2>
+    <p class="subtext">Owned support vehicles don't have to be driven — left-click a card below to toggle one in or out of your active convoy instead (up to your Max Convoy Size), where it rides along and grants its passive bonus to whichever vehicle you ARE driving. Allied crews are recruited out on the road — drive up close to an independent crew and press <b>F</b>. Once deployed, press <b>1</b> for a single-file line or <b>2</b> for a two-file line, and the whole convoy stays locked to your speed.</p>
+    <div style="display:flex; align-items:center; gap:12px; margin:12px 0;">
+      <span class="label" style="color:#7fd07f; font-size:13px;">Max Convoy Size</span>
+      <input type="range" id="convoySizeSlider" min="1" max="10" step="1" value="4" style="flex:1;">
+      <span class="val" id="convoySizeValue" style="color:#39ff14; font-weight:bold;">4</span>
+    </div>
+    <div class="vehicleGrid" id="garageRosterGrid"></div>
+    <button class="gameBtn" id="convoyToggleBtn" style="border-color:#5c9ded; color:#5c9ded;"></button>
+
+    <h2 style="margin-top:22px;">Upgrades — <span id="garageActiveVehicle"></span></h2>
+    <button class="gameBtn" id="maxAllUpgradesBtn" style="border-color:#ffd23f; color:#ffd23f;"></button>
+    <div class="garageGrid" id="garageUpgrades"></div>
+
+    <div class="closeRow">
+      <button class="gameBtn" id="closeGarageBtn">CLOSE &amp; DEPART</button>
+      <button class="smallBtn" id="resetSaveBtn" style="margin-left:14px; border-color:#5a2c2c; color:#ff8a8a;">⚠ Reset Save Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dev Panel (secret: type D E V while the garage is open) -->
+<div class="overlay hidden" id="devPanel">
+  <div class="panel" style="border-color:#ff2fd6; box-shadow:0 0 40px rgba(255,47,214,0.25);">
+    <h1 style="color:#ff2fd6; text-shadow:0 0 14px rgba(255,47,214,0.7);">🛠 DEV PANEL</h1>
+    <p class="subtext">You typed the secret code. Nobody else needs to know.</p>
+
+    <h2>Money</h2>
+    <button class="gameBtn" id="devInfiniteMoneyBtn">💰 GRANT $999,999,999</button>
+
+    <h2 style="margin-top:20px;">Spawn Tornado</h2>
+    <div class="subtext" style="margin-bottom:8px;">Drops a fresh storm just ahead of you at the chosen EF rating.</div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <input type="range" id="devEfSlider" min="0" max="20" step="1" value="5" style="flex:1; min-width:180px;">
+      <span class="moneyLine" id="devEfValue" style="margin:0;">EF5</span>
+      <select id="devTypeSelect" style="background:#182a18; color:#a9ffb0; border:1px solid #3a6a3a; padding:8px; border-radius:4px; font-family:inherit;"></select>
+      <button class="gameBtn" id="devSpawnBtn" style="margin-top:0;">SPAWN</button>
+    </div>
+
+    <h2 style="margin-top:20px;">Admin Vehicles</h2>
+    <div class="subtext" style="margin-bottom:8px;">Instantly unlock dev-exclusive interceptors — free, no cash required, not purchasable anywhere else.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="gameBtn" id="devUnlockTiv3Btn" style="border-color:#f5f5f5; color:#f5f5f5;">🛠 UNLOCK TIV3</button>
+      <button class="gameBtn" id="devUnlockDominator4Btn" style="border-color:#ffec3d; color:#ffec3d;">🛠 UNLOCK DOMINATOR 4</button>
+      <button class="gameBtn" id="devUnlockJokerBtn" style="border-color:#8e24aa; color:#ba68c8;">🃏 UNLOCK JOKER</button>
+      <button class="gameBtn" id="devUnlockJoker2Btn" style="border-color:#ff2fd6; color:#ff2fd6;">🃏 UNLOCK JOKER 2</button>
+    </div>
+
+    <h2 style="margin-top:20px;">Weather</h2>
+    <div class="subtext" style="margin-bottom:8px;">Force the current weather condition.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;" id="devWeatherBtns"></div>
+
+    <h2 style="margin-top:20px;">Secret</h2>
+    <button class="gameBtn" id="devMemeBtn" style="border-color:#ff2fd6; color:#ff2fd6;">🎭 SPAWN MEME TORNADO</button>
+
+    <div class="closeRow"><button class="gameBtn" id="closeDevBtn">CLOSE DEV PANEL</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ======================================================================
+   CONSTANTS & CONFIG
+====================================================================== */
+const ROAD_SPACING = 5600;
+const ROAD_WIDTH   = 104;
+const WORLD_MIN = -8000, WORLD_MAX = 8000;
+
+// World map is geographically anchored to the central Great Plains.
+const GEO_CENTER_LAT = 36.5;
+const GEO_CENTER_LON = -98.0;
+const GEO_SCALE = 1800; // world units per degree
+function geoPoint(lat, lon){
+  return { x:(lon-GEO_CENTER_LON)*GEO_SCALE, y:(GEO_CENTER_LAT-lat)*GEO_SCALE };
+}
+
+const TOWNS = [
+  (()=>{const p=geoPoint(34.4753,-101.3039); return {name:"Silverton", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(36.8837,-97.9067); return {name:"Wakita", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(37.7528,-100.0171); return {name:"Dodge City", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(37.6028,-99.2926); return {name:"Greensburg", x:p.x, y:p.y};})(),
+  (()=>{const p=geoPoint(35.2906,-98.9901); return {name:"Cordell", x:p.x, y:p.y};})()
+];
+const TOWN_RADIUS = 230;
+
+const CITIES = [
+  ["Oklahoma City",35.4676,-97.5164],
+  ["Norman",35.2226,-97.4395],
+  ["Stillwater",36.1156,-97.0584],
+  ["Enid",36.3956,-97.8784],
+  ["Wichita",37.6872,-97.3301],
+  ["Dodge City",37.7528,-100.0171],
+  ["Greensburg",37.6028,-99.2926],
+  ["Amarillo",35.2220,-101.8313],
+  ["Clinton",35.5156,-98.9670],
+  ["El Reno",35.5323,-97.9553],
+  ["Lawton",34.6037,-98.3959],
+  ["Hutchinson",38.0608,-97.9296],
+  ["Topeka",39.0473,-95.6752]
+].map(([name,lat,lon])=>{const p=geoPoint(lat,lon);return {name,x:p.x,y:p.y};});
+
+const MAP_LANDMARKS = [
+  (()=>{const p=geoPoint(35.2050,-97.4419); return {name:"National Weather Center", city:"Norman, OK", x:p.x,y:p.y,icon:"W",kind:"weather"};})(),
+  (()=>{const p=geoPoint(35.2050,-97.4419); return {name:"NOAA NSSL", city:"Norman, OK", x:p.x+34,y:p.y+28,icon:"N",kind:"weather"};})(),
+  (()=>{const p=geoPoint(35.4922,-97.5033); return {name:"Oklahoma State Capitol", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"C",kind:"civic"};})(),
+  (()=>{const p=geoPoint(35.4731,-97.5171); return {name:"Oklahoma City National Memorial", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"M",kind:"historic"};})(),
+  (()=>{const p=geoPoint(35.3931,-97.6007); return {name:"Will Rogers World Airport", city:"Oklahoma City, OK", x:p.x,y:p.y,icon:"A",kind:"airport"};})(),
+  (()=>{const p=geoPoint(35.2456,-97.4721); return {name:"Max Westheimer Airport", city:"Norman, OK", x:p.x,y:p.y,icon:"A",kind:"airport"};})(),
+  (()=>{const p=geoPoint(35.5156,-98.9690); return {name:"National Route 66 Museum", city:"Clinton, OK", x:p.x,y:p.y,icon:"6",kind:"historic"};})(),
+  (()=>{const p=geoPoint(37.7520,-100.0220); return {name:"Boot Hill Museum", city:"Dodge City, KS", x:p.x,y:p.y,icon:"H",kind:"historic"};})(),
+  (()=>{const p=geoPoint(38.0608,-97.9296); return {name:"Cosmosphere", city:"Hutchinson, KS", x:p.x,y:p.y,icon:"S",kind:"science"};})(),
+  (()=>{const p=geoPoint(37.7044,-97.3938); return {name:"Old Cowtown Museum", city:"Wichita, KS", x:p.x,y:p.y,icon:"O",kind:"historic"};})(),
+  (()=>{const p=geoPoint(38.4436,-96.5627); return {name:"Tallgrass Prairie National Preserve", city:"Strong City, KS", x:p.x,y:p.y,icon:"P",kind:"park"};})(),
+  (()=>{const p=geoPoint(36.7519,-98.1788); return {name:"Great Salt Plains", city:"Jet, OK", x:p.x,y:p.y,icon:"G",kind:"park"};})(),
+  (()=>{const p=geoPoint(34.9850,-101.6638); return {name:"Palo Duro Canyon State Park", city:"Canyon, TX", x:p.x,y:p.y,icon:"P",kind:"park"};})()
+];
+
+const HIGHWAYS = [
+  [geoPoint(39.0,-97.3),geoPoint(37.6872,-97.3301),geoPoint(35.4676,-97.5164),geoPoint(35.2226,-97.4395),geoPoint(34.6,-97.1)],
+  [geoPoint(35.2220,-101.8313),geoPoint(35.5156,-98.9670),geoPoint(35.4676,-97.5164),geoPoint(35.34,-96.96),geoPoint(36.15,-95.99)],
+  [geoPoint(37.7528,-100.0171),geoPoint(37.6872,-97.3301)],
+  [geoPoint(37.7528,-100.0171),geoPoint(37.6028,-99.2926),geoPoint(37.55,-98.7),geoPoint(37.6872,-97.3301)],
+  [geoPoint(34.4753,-101.3039),geoPoint(35.2220,-101.8313),geoPoint(35.5156,-98.9670)]
+];
+
+const VEHICLES = {
+  sedan: { key:"sedan", name:"Sedan", category:"chase", desc:"Everyday car. Cheap and nimble, terrible in the core.",
+    cost:0, color:"#4fc3f7", maxHealth:50, topSpeed:410, accel:290, mass:0.75, anchorCapacity:1.0, probeRate:0.8 },
+  hatchback: { key:"hatchback", name:"Hatchback", category:"chase", desc:"Zippy commuter car. Great on roads, useless in a vortex.",
+    cost:1800, color:"#64d8cb", maxHealth:58, topSpeed:425, accel:305, mass:0.7, anchorCapacity:1.3, probeRate:0.85 },
+  pickup: { key:"pickup", name:"Pickup Truck", category:"chase", desc:"Sturdier chase rig with a bit more grit.",
+    cost:4000, color:"#c0722e", maxHealth:75, topSpeed:390, accel:270, mass:1.0, anchorCapacity:1.6, probeRate:0.95 },
+  suv: { key:"suv", name:"SUV", category:"chase", desc:"Room for gear and a slightly stiffer frame.",
+    cost:9000, color:"#7c8a3e", maxHealth:95, topSpeed:365, accel:250, mass:1.15, anchorCapacity:2.0, probeRate:1.05 },
+  van: { key:"van", name:"Chaser Van", category:"chase", desc:"Best of the normal cars — lots of probe space, still no real anchors.",
+    cost:14000, color:"#9b6fd1", maxHealth:110, topSpeed:340, accel:230, mass:1.3, anchorCapacity:2.4, probeRate:1.15 },
+  subinterceptor1: { key:"subinterceptor1", name:"Interceptor Prototype", category:"interceptor", desc:"A first-generation homebrew intercept rig. Cheap steel, basic hydraulic anchors, but a real step up from a chase car.",
+    cost:15000, color:"#90a4ae", maxHealth:110, topSpeed:260, accel:260, mass:1.2, anchorCapacity:3.5, probeRate:1.1 },
+  subinterceptor2: { key:"subinterceptor2", name:"Rapid Interceptor", category:"interceptor", desc:"A refined second-gen prototype — better anchors, sturdier frame, still priced well under a proper TIV.",
+    cost:17500, color:"#78909c", maxHealth:130, topSpeed:280, accel:280, mass:1.35, anchorCapacity:4.8, probeRate:1.2 },
+  tiv: { key:"tiv", name:"TIV", category:"interceptor", desc:"The original Tornado Intercept Vehicle. Armored, weighted, spike-anchored.",
+    cost:20000, color:"#b0b0b0", maxHealth:150, topSpeed:300, accel:300, mass:1.5, anchorCapacity:6.0, probeRate:1.3 },
+  dominator: { key:"dominator", name:"Dominator", category:"interceptor", desc:"Reed Timmer's first intercept vehicle. Balanced armor & pneumatic lowering anchors.",
+    cost:38000, color:"#ff5722", maxHealth:190, topSpeed:375, accel:375, mass:1.8, anchorCapacity:8.5, probeRate:1.45 },
+  tiv2: { key:"tiv2", name:"TIV2", category:"interceptor", desc:"The tank-like successor to the TIV — since rebuilt into the strongest rig money can actually buy, second only to whatever's locked in the dev panel.",
+    cost:155000, color:"#d8d8d8", maxHealth:495, topSpeed:715, accel:715, mass:4.35, anchorCapacity:23.5, probeRate:2.5 },
+  vortexranger: { key:"vortexranger", name:"Vortex Ranger", category:"interceptor", desc:"Custom-built chassis with a lightweight titanium anchor frame.",
+    cost:68000, color:"#4dd0e1", maxHealth:259, topSpeed:480, accel:480, mass:2.48, anchorCapacity:11.9, probeRate:1.67 },
+  cyclonesentinel: { key:"cyclonesentinel", name:"Cyclone Sentinel", category:"interceptor", desc:"Custom rig with a reinforced belly plate and dual-stage anchors.",
+    cost:76000, color:"#7986cb", maxHealth:279, topSpeed:510, accel:510, mass:2.66, anchorCapacity:12.8, probeRate:1.74 },
+  dominator2: { key:"dominator2", name:"Dominator 2", category:"interceptor", desc:"A rebuilt, reinforced Dominator with a deeper anchor array.",
+    cost:90000, color:"#e0e0e0", maxHealth:300, topSpeed:525, accel:525, mass:2.9, anchorCapacity:14.0, probeRate:1.8 },
+  maelstromwarden: { key:"maelstromwarden", name:"Maelstrom Warden", category:"interceptor", desc:"Custom fabrication with a wide-set hydraulic anchor spread.",
+    cost:105000, color:"#66bb6a", maxHealth:328, topSpeed:555, accel:555, mass:3.12, anchorCapacity:15.1, probeRate:1.92 },
+  tempestjuggernaut: { key:"tempestjuggernaut", name:"Tempest Juggernaut", category:"interceptor", desc:"Custom near-flagship build, one step short of the Dominator 3's anchor rating.",
+    cost:122000, color:"#ab47bc", maxHealth:354, topSpeed:585, accel:585, mass:3.36, anchorCapacity:16.3, probeRate:2.01 },
+  dominator3: { key:"dominator3", name:"Dominator 3", category:"interceptor", desc:"The flagship of the fleet, with its signature rotating turret dome. Built to hold through the worst storms on record.",
+    cost:140000, color:"#ffd700", maxHealth:380, topSpeed:600, accel:600, mass:3.6, anchorCapacity:17.5, probeRate:2.1 },
+  tiv3: { key:"tiv3", name:"TIV3", category:"interceptor", adminOnly:true, desc:"A third-generation TIV, heavier armor and deeper anchors than anything on the open market. Dev panel exclusive.",
+    cost:Infinity, color:"#f5f5f5", maxHealth:410, topSpeed:625, accel:625, mass:3.8, anchorCapacity:19.0, probeRate:2.2 },
+  dominator4: { key:"dominator4", name:"Dominator 4", category:"interceptor", adminOnly:true, desc:"The next-generation Dominator, rebuilt from the ground up. Never made it past the prototype stage — dev panel exclusive.",
+    cost:Infinity, color:"#ffec3d", maxHealth:440, topSpeed:650, accel:650, mass:4.0, anchorCapacity:20.5, probeRate:2.3 },
+  joker: { key:"joker", name:"Joker", category:"interceptor", adminOnly:true, desc:"An experimental wildcard rig with no official backstory. Dev panel exclusive.",
+    cost:Infinity, color:"#8e24aa", maxHealth:465, topSpeed:685, accel:685, mass:4.15, anchorCapacity:22.0, probeRate:2.4 },
+  joker2: { key:"joker2", name:"Joker 2", category:"interceptor", adminOnly:true, desc:"The final form of the Joker line — the single most powerful interceptor in existence. Dev panel exclusive.",
+    cost:Infinity, color:"#ff2fd6", maxHealth:530, topSpeed:760, accel:760, mass:4.6, anchorCapacity:25.5, probeRate:2.65 },
+  toto: { key:"toto", name:"TOTO Recovery Truck", category:"support", desc:"Cheap, light recovery truck named for the original TOtable Tornado Observatory rig. A budget way into support ops.",
+    cost:6000, color:"#ffca28", maxHealth:90, topSpeed:380, accel:300, mass:1.0, anchorCapacity:1.8, probeRate:0.9,
+    effectDesc:"+6% data collection rate while parked in the convoy.", dataRateMult: 0.06 },
+  dow: { key:"dow", name:"DOW", category:"support", desc:"Doppler on Wheels — the real mobile radar truck storm research teams have used for decades.",
+    cost:16000, color:"#5c9ded", maxHealth:160, topSpeed:260, accel:200, mass:2.0, anchorCapacity:5.0, probeRate:1.2,
+    effectDesc:"+15% data collection rate while parked in the convoy.", dataRateMult: 0.15 },
+  stickdeployer: { key:"stickdeployer", name:"StickNet Deployer", category:"support", desc:"Drops a line of compact StickNet weather-station probes ahead of the storm.",
+    cost:13000, color:"#8bc34a", maxHealth:130, topSpeed:340, accel:260, mass:1.4, anchorCapacity:3.0, probeRate:1.3,
+    effectDesc:"+0.5 GB/s flat data bonus while anchored, convoy deployed.", flatDataBonus: 0.5 },
+  commandvehicle: { key:"commandvehicle", name:"Command & Comms Vehicle", category:"support", desc:"Coordinates the convoy and negotiates better rates for your data.",
+    cost:19000, color:"#ffb74d", maxHealth:150, topSpeed:320, accel:240, mass:1.6, anchorCapacity:3.5, probeRate:1.1,
+    effectDesc:"+12% money from data sales while parked in the convoy.", sellPriceMult: 0.12 },
+  fueltanker: { key:"fueltanker", name:"Fuel & Repair Tanker", category:"support", desc:"Rolling supply truck. Patches hulls on the move and cuts repair costs.",
+    cost:14500, color:"#e57373", maxHealth:180, topSpeed:550, accel:500, mass:2.1, anchorCapacity:4.0, probeRate:1.0,
+    effectDesc:"Slowly repairs your hull while driving; -25% repair costs. Convoy deployed.", healthRegenPerSec: 1.4, repairCostMult: -0.25 },
+  dow7: { key:"dow7", name:"DOW7", category:"support", desc:"The most advanced Doppler on Wheels — rapid-scan, dual-polarization radar in a much heavier rig.",
+    cost:55000, color:"#3f6fd1", maxHealth:220, topSpeed:600, accel:500, mass:2.6, anchorCapacity:7.0, probeRate:1.5,
+    effectDesc:"+28% data collection rate while parked in the convoy.", dataRateMult: 0.28 }
+};
+const SUPPORT_KEYS = ["toto","dow","stickdeployer","commandvehicle","fueltanker","dow7"];
+
+/* TOOLS & PROBES — consumable field gear, deployed with number keys 3-6. */
+const TOOLS = {
+  dorothyProbe: { key:"dorothyProbe", name:"Dorothy Probe", icon:"🛢️", color:"#ffd23f", slotKey:"Digit3", keyLabel:"3",
+    desc:"A barrel of sensors hurled directly into the vortex's path, in the tradition of the classic research probes. Deploy near an active tornado for a big one-time data burst.",
+    cost:2200, dataBurst:3.5 },
+  sticknetHandheld: { key:"sticknetHandheld", name:"Handheld StickNet", icon:"📍", color:"#8bc34a", slotKey:"Digit4", keyLabel:"4",
+    desc:"A cheap, disposable weather-station stake. Smaller data burst than the Dorothy Probe, but you can carry a lot more of them.",
+    cost:600, dataBurst:1.0 },
+  fireworks: { key:"fireworks", name:"Fireworks Launcher", icon:"🎆", color:"#ff5252", slotKey:"Digit5", keyLabel:"5",
+    desc:"Purely for celebration. Launches a burst of fireworks into the sky above your position — and scatters any wild convoy vehicles nearby.",
+    cost:350, dataBurst:0 },
+  smokeFlare: { key:"smokeFlare", name:"Smoke Flare", icon:"🚨", color:"#ff9800", slotKey:"Digit6", keyLabel:"6",
+    desc:"Marks your position with a tall column of colored smoke for a couple of minutes — visible on your own tactical map from a distance.",
+    cost:450, dataBurst:0 }
+};
+const TOOL_KEYS = ["dorothyProbe","sticknetHandheld","fireworks","smokeFlare"];
+
+const UPGRADE_COST_BASE = { armor:1200, engine:1400, anchor:1800, probe:1000 };
+const MAX_UPGRADE_LEVEL = 25;
+
+function costToMaxAllUpgrades(vehKey){
+  const u = state.upgrades[vehKey];
+  let total = 0;
+  Object.keys(UPGRADE_COST_BASE).forEach(key=>{
+    for (let lvl=u[key]; lvl<MAX_UPGRADE_LEVEL; lvl++){
+      total += Math.round(UPGRADE_COST_BASE[key] * (lvl+1) * 1.35);
+    }
+  });
+  return total;
+}
+
+const MAX_EF = 20;
+const MEME_EF = 24;
+const EF_MPH_TABLE = [70, 95, 120, 150, 185, 220];
+function efPeakMph(level){
+  const lvl = Math.max(0, Math.min(MAX_EF, level));
+  if (lvl <= 5) return EF_MPH_TABLE[Math.floor(lvl)];
+  return 220 + (lvl-5)*32;
+}
+
+const TORNADO_TYPES = {
+  single:      { label:"Single-Vortex", weight:50, radiusMult:1.0,  speedMult:1.0, rotMult:1.0, subVortices:0 },
+  multivortex: { label:"Multi-Vortex",  weight:20, radiusMult:1.15, speedMult:0.9, rotMult:1.3, subVortices:3 },
+  rope:        { label:"Rope Tornado",  weight:15, radiusMult:0.55, speedMult:1.4, rotMult:1.9, subVortices:0 },
+  wedge:       { label:"Wedge Tornado", weight:15, radiusMult:1.7,  speedMult:0.7, rotMult:0.7, subVortices:0 }
+};
+const TORNADO_TYPE_KEYS = Object.keys(TORNADO_TYPES);
+function pickTornadoType(){
+  const totalWeight = TORNADO_TYPE_KEYS.reduce((s,k)=>s+TORNADO_TYPES[k].weight, 0);
+  let r = Math.random()*totalWeight;
+  for (const k of TORNADO_TYPE_KEYS){
+    r -= TORNADO_TYPES[k].weight;
+    if (r <= 0) return k;
+  }
+  return "single";
+}
+
+/* WEATHER — independent ambient layer: clear, cloudy, rain, thunderstorm, fog. */
+const WEATHER_TYPES = {
+  clear:        { label:"Clear",        weight:38 },
+  cloudy:       { label:"Cloudy",       weight:22 },
+  rain:         { label:"Rain",         weight:20 },
+  thunderstorm: { label:"Thunderstorm", weight:14 },
+  fog:          { label:"Fog",          weight:6  }
+};
+const WEATHER_KEYS = Object.keys(WEATHER_TYPES);
+function pickWeatherType(excludeKey){
+  const pool = WEATHER_KEYS.filter(k=>k!==excludeKey);
+  const totalWeight = pool.reduce((s,k)=>s+WEATHER_TYPES[k].weight, 0);
+  let r = Math.random()*totalWeight;
+  for (const k of pool){
+    r -= WEATHER_TYPES[k].weight;
+    if (r <= 0) return k;
+  }
+  return pool[0];
+}
+
+/* ======================================================================
+   CANVAS SETUP (2D overlay: radar, compass, labels, rain streaks)
+====================================================================== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener("resize", resize);
+resize();
+
+/* ======================================================================
+   GAME STATE
+====================================================================== */
+let state = {
+  running: false,
+  paused: true,
+  money: 50000,
+  ownedVehicles: { sedan: true },
+  currentVehicleKey: "sedan",
+  tools: { dorothyProbe:0, sticknetHandheld:0, fireworks:0, smokeFlare:0 },
+  upgrades: {},
+  stormsIntercepted: 0,
+  radarFullscreen: false,
+  memeUnlocked: false,
+  devMode: false,
+  convoyActive: false,
+  maxConvoySize: 4,
+  convoyFormation: "double",
+  allies: [],
+  activeConvoyMembers: [],
+  infiniteFuel: false,
+  weather: "clear"
+};
+Object.keys(VEHICLES).forEach(k=>{ state.upgrades[k] = {armor:0, engine:0, anchor:0, probe:0}; });
+
+const car = {
+  x: TOWNS[0].x, y: TOWNS[0].y - 40,
+  angle: 0,           // 0 = facing north (-y in world coords)
+  vx: 0, vy: 0,
+  health: 60, maxHealth: 60,
+  fuel: 100, maxFuel: 100,
+  anchored: false,
+  dataGB: 0,
+  inTown: null,
+  ripFlashTimer: 0
+};
+
+const grapple = {
+  active: false, x: 0, y: 0, ropeLength: 0,
+  pullStrength: 720, maxPullSpeed: 1260, springStrength: 8.5, tangentialAssist: 205,
+  releaseBoost: 1.14, arriveDistance: 46,
+  swingMomentum: 0, previousDistance: 0, chain: 0, lastReleaseAt: 0
+};
+
+/* ======================================================================
+   WEATHER STATE
+====================================================================== */
+let weatherTimer = 20 + Math.random()*20;
+let lightningTimer = 5 + Math.random()*10;
+let lightningFlash = 0;
+let rainOffset = 0;
+let fxList = [];
+
+function updateWeather(dt){
+  weatherTimer -= dt;
+  if (weatherTimer <= 0){
+    const prev = state.weather;
+    state.weather = pickWeatherType(prev);
+    weatherTimer = 50 + Math.random()*90;
+    if (state.weather !== "clear" || prev !== "clear"){
+      showAlert("WEATHER: " + WEATHER_TYPES[state.weather].label.toUpperCase(), 1.6);
+    }
+  }
+  if (state.weather === "thunderstorm"){
+    lightningTimer -= dt;
+    if (lightningTimer <= 0){
+      lightningFlash = 1;
+      lightningTimer = 4 + Math.random()*9;
+      shake = Math.max(shake, 11);
+    }
+  }
+  lightningFlash *= Math.exp(-dt*3.2);
+  rainOffset += dt * (state.weather === "thunderstorm" ? 950 : 620);
+}
+function isPrecipitating(){ return state.weather === "rain" || state.weather === "thunderstorm"; }
+
+/* ======================================================================
+   TOOL DEPLOYMENT
+====================================================================== */
+function useTool(toolKey){
+  if (!state.running || state.paused) return;
+  const tool = TOOLS[toolKey];
+  if (!tool) return;
+  if ((state.tools[toolKey]||0) <= 0){
+    showAlert("NO " + tool.name.toUpperCase() + " LEFT — BUY MORE IN TOWN", 1.4);
+    return;
+  }
+  state.tools[toolKey]--;
+
+  if (toolKey === "dorothyProbe" || toolKey === "sticknetHandheld"){
+    let gained = 0;
+    if (tornado){
+      const dist = Math.hypot(tornado.x-car.x, tornado.y-car.y);
+      if (dist < tornado.radius*2.6){
+        gained = tool.dataBurst * (1 + tornado.category*0.15);
+        car.dataGB += gained;
+        tornado.collectedThisStorm += gained;
+      }
+    }
+    fxList.push({type:"probe", x:car.x, y:car.y, age:0, life:2.4, color:tool.color, icon:tool.icon});
+    showAlert(gained>0
+      ? `${tool.icon} ${tool.name.toUpperCase()} — +${gained.toFixed(1)} GB`
+      : `${tool.icon} ${tool.name.toUpperCase()} DEPLOYED — NO TORNADO IN RANGE`, 1.6);
+  } else if (toolKey === "fireworks"){
+    fxList.push({type:"fireworks", x:car.x, y:car.y, age:0, life:2.0, color:tool.color});
+    wildConvoys.forEach(convoy=>{
+      const d = Math.hypot(convoy.x-car.x, convoy.y-car.y);
+      if (d < 650){
+        convoy.state = "flee";
+        const town = nearestTown(convoy.x, convoy.y);
+        convoy.fleeTargetX = town.x; convoy.fleeTargetY = town.y;
+      }
+    });
+    showAlert("🎆 FIREWORKS!", 1.4);
+  } else if (toolKey === "smokeFlare"){
+    fxList.push({type:"smoke", x:car.x, y:car.y, age:0, life:110, color:tool.color});
+    showAlert("🚨 SMOKE FLARE MARKED", 1.4);
+  }
+  saveGame();
+}
+
+function updateFx(dt){
+  fxList.forEach(fx=>{ fx.age += dt; });
+  fxList = fxList.filter(fx=>fx.age < fx.life);
+}
+
+/* ======================================================================
+   LOCAL SAVE / LOAD
+====================================================================== */
+const SAVE_KEY = "vortexRunnerSaveV1";
+let localSaveAvailable = true;
+
+function saveGame(){
+  if (!localSaveAvailable) return;
+  try{
+    const payload = {
+      money: state.money,
+      ownedVehicles: state.ownedVehicles,
+      currentVehicleKey: state.currentVehicleKey,
+      upgrades: state.upgrades,
+      tools: state.tools,
+      stormsIntercepted: state.stormsIntercepted,
+      memeUnlocked: state.memeUnlocked,
+      dataGB: car.dataGB,
+      fuel: car.fuel,
+      infiniteFuel: state.infiniteFuel,
+      convoyActive: state.convoyActive,
+      maxConvoySize: state.maxConvoySize,
+      convoyFormation: state.convoyFormation,
+      allies: state.allies,
+      activeConvoyMembers: state.activeConvoyMembers,
+      devMode: state.devMode,
+      savedAt: Date.now()
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  } catch(e){
+    localSaveAvailable = false;
+  }
+}
+
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (typeof data.money === "number") state.money = data.money;
+    if (data.ownedVehicles) Object.assign(state.ownedVehicles, data.ownedVehicles);
+    if (data.currentVehicleKey && VEHICLES[data.currentVehicleKey]) state.currentVehicleKey = data.currentVehicleKey;
+    if (data.upgrades){
+      Object.keys(state.upgrades).forEach(k=>{
+        if (data.upgrades[k]) Object.assign(state.upgrades[k], data.upgrades[k]);
+      });
+    }
+    if (data.tools) Object.assign(state.tools, data.tools);
+    if (typeof data.stormsIntercepted === "number") state.stormsIntercepted = data.stormsIntercepted;
+    if (typeof data.memeUnlocked === "boolean") state.memeUnlocked = data.memeUnlocked;
+    if (typeof data.dataGB === "number") car.dataGB = data.dataGB;
+    if (typeof data.fuel === "number") car.fuel = data.fuel;
+    if (typeof data.infiniteFuel === "boolean") state.infiniteFuel = data.infiniteFuel;
+    if (typeof data.convoyActive === "boolean") state.convoyActive = data.convoyActive;
+    if (typeof data.maxConvoySize === "number") state.maxConvoySize = data.maxConvoySize;
+    if (data.convoyFormation === "single" || data.convoyFormation === "double") state.convoyFormation = data.convoyFormation;
+    if (Array.isArray(data.allies)) state.allies = data.allies;
+    if (Array.isArray(data.activeConvoyMembers)) state.activeConvoyMembers = data.activeConvoyMembers;
+    if (typeof data.devMode === "boolean") state.devMode = data.devMode;
+    return true;
+  } catch(e){
+    localSaveAvailable = false;
+    return false;
+  }
+}
+
+function resetSaveData(){
+  try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
+  state.money = 50000;
+  state.ownedVehicles = { sedan: true };
+  state.currentVehicleKey = "sedan";
+  state.tools = { dorothyProbe:0, sticknetHandheld:0, fireworks:0, smokeFlare:0 };
+  Object.keys(state.upgrades).forEach(k=>{ state.upgrades[k] = {armor:0, engine:0, anchor:0, probe:0}; });
+  state.stormsIntercepted = 0;
+  state.memeUnlocked = false;
+  car.dataGB = 0;
+  state.infiniteFuel = false;
+  state.convoyActive = false;
+  state.maxConvoySize = 4;
+  state.convoyFormation = "double";
+  state.allies = [];
+  state.activeConvoyMembers = [];
+  state.devMode = false;
+  convoyNPCs = [];
+  wildConvoys = [];
+  wildConvoyTarget = MIN_WILD_CONVOYS + Math.floor(Math.random()*(MAX_WILD_CONVOYS-MIN_WILD_CONVOYS+1));
+  ensureWildConvoys();
+  const stats = computedStats(state.currentVehicleKey);
+  car.maxFuel = fuelCapacity(stats);
+  car.fuel = car.maxFuel;
+}
+
+const hasSave = loadGame();
+
+let keys = {};
+window.addEventListener("keydown", e=>{
+  keys[e.code] = true;
+  if (e.code === "Space") e.preventDefault();
+});
+window.addEventListener("keyup", e=>{ keys[e.code] = false; });
+window.addEventListener("beforeunload", saveGame);
+
+/* ======================================================================
+   TORNADO
+====================================================================== */
+function spawnTornado(){
+  const margin = 800;
+  let x = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
+  let y = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
+  let baseFloor = Math.min(4, Math.floor(state.stormsIntercepted/2));
+  const towardCenter = Math.atan2(-y, -x);
+  const dir = towardCenter + (Math.random()-0.5) * (Math.PI*0.9);
+
+  const lifespan = 60;
+  const growthDuration = lifespan * 0.6;
+  const stormBonus = state.weather === "thunderstorm" ? 1.5 : 0;
+  baseFloor = Math.min(MAX_EF, baseFloor + (state.weather === "thunderstorm" ? 1 : 0));
+  const peakCategory = Math.min(MAX_EF, baseFloor + 11 + stormBonus + Math.random()*7);
+  const type = pickTornadoType();
+  const tt = TORNADO_TYPES[type];
+
+  return {
+    x, y,
+    dirAngle: dir,
+    speed: (6 + Math.random()*6) * tt.speedMult,
+    age: 0,
+    baseFloor,
+    lifespan, growthDuration, peakCategory,
+    category: baseFloor,
+    radius: (80 + baseFloor*20) * tt.radiusMult,
+    type,
+    rotPhase: 0,
+    dissipating: false,
+    collectedThisStorm: 0,
+    pathHistory: [{x, y}],
+    historyTimer: 0.8
+  };
+}
+let tornado = spawnTornado();
+let tornadoRespawnTimer = 0;
+
+function updateTornado(dt){
+  if (tornado === null){
+    tornadoRespawnTimer -= dt;
+    if (tornadoRespawnTimer <= 0){ tornado = spawnTornado(); }
+    return;
+  }
+  tornado.age += dt;
+  tornado.rotPhase += dt;
+
+  const vx = Math.cos(tornado.dirAngle)*tornado.speed;
+  const vy = Math.sin(tornado.dirAngle)*tornado.speed;
+  tornado.x += vx*dt;
+  tornado.y += vy*dt;
+
+  tornado.historyTimer -= dt;
+  if (tornado.historyTimer <= 0){
+    tornado.historyTimer = 0.8;
+    tornado.pathHistory.push({x: tornado.x, y: tornado.y});
+    if (tornado.pathHistory.length > 60) tornado.pathHistory.shift();
+  }
+
+  if (tornado.x < WORLD_MIN+200 || tornado.x > WORLD_MAX-200) tornado.dirAngle = Math.PI - tornado.dirAngle;
+  if (tornado.y < WORLD_MIN+200 || tornado.y > WORLD_MAX-200) tornado.dirAngle = -tornado.dirAngle;
+  tornado.x = Math.max(WORLD_MIN+150, Math.min(WORLD_MAX-150, tornado.x));
+  tornado.y = Math.max(WORLD_MIN+150, Math.min(WORLD_MAX-150, tornado.y));
+
+  const tt = TORNADO_TYPES[tornado.type] || TORNADO_TYPES.single;
+
+  if (!tornado.dissipating){
+    const t = Math.min(1, tornado.age / tornado.growthDuration);
+    tornado.category = tornado.baseFloor + (tornado.peakCategory - tornado.baseFloor) * t;
+    tornado.radius = (80 + tornado.category*20) * tt.radiusMult;
+    if (tornado.age >= tornado.growthDuration){
+      tornado.dissipating = true;
+      tornado.dissipateDuration = Math.max(15, tornado.lifespan - tornado.growthDuration);
+      tornado.dissipateStartCategory = tornado.category;
+      tornado.dissipateAge = 0;
+    }
+  } else {
+    tornado.dissipateAge += dt;
+    const dt2 = Math.min(1, tornado.dissipateAge / tornado.dissipateDuration);
+    tornado.category = tornado.dissipateStartCategory * (1 - dt2);
+    tornado.radius = (80 + tornado.category*20) * tt.radiusMult;
+    if (dt2 >= 1 || tornado.radius <= 20){
+      if (tornado.collectedThisStorm > 0) state.stormsIntercepted++;
+      tornado = null;
+      tornadoRespawnTimer = 10 + Math.random()*50;
+    }
+  }
+}
+
+function spawnCustomTornado(efLevel, isMeme, forceType){
+  const dropDist = 900;
+  const dropAngle = car.angle;
+  let x = car.x + Math.sin(dropAngle)*dropDist;
+  let y = car.y - Math.cos(dropAngle)*dropDist;
+  x = Math.max(WORLD_MIN+300, Math.min(WORLD_MAX-300, x));
+  y = Math.max(WORLD_MIN+300, Math.min(WORLD_MAX-300, y));
+  const cat = isMeme ? MEME_EF : Math.max(0, Math.min(MAX_EF, efLevel));
+  const type = forceType && TORNADO_TYPES[forceType] ? forceType : pickTornadoType();
+  const tt = TORNADO_TYPES[type];
+  tornado = {
+    x, y,
+    dirAngle: Math.random()*Math.PI*2,
+    speed: (isMeme ? 4 : (6 + Math.random()*6)) * tt.speedMult,
+    age: 0,
+    baseFloor: cat,
+    lifespan: 99999, growthDuration: 3, peakCategory: cat,
+    category: cat,
+    radius: (80 + cat*20) * tt.radiusMult,
+    type,
+    rotPhase: 0,
+    dissipating: false,
+    collectedThisStorm: 0,
+    pathHistory: [{x, y}],
+    historyTimer: 0.8,
+    isMeme: !!isMeme
+  };
+  showAlert(isMeme ? "🎭 MEME TORNADO INCOMING 🎭" : `EF${efLevel} ${tt.label.toUpperCase()} DEPLOYED`, 2.2);
+}
+
+function maybeUnlockMeme(){
+  if (!state.memeUnlocked && state.money >= 10000000){
+    state.memeUnlocked = true;
+  }
+}
+
+/* ======================================================================
+   ROADS / TERRAIN
+====================================================================== */
+function nearestGridDist(v){
+  const m = ((v % ROAD_SPACING) + ROAD_SPACING) % ROAD_SPACING;
+  return Math.min(m, ROAD_SPACING - m);
+}
+function isOnRoad(x, y){
+  return nearestGridDist(x) < ROAD_WIDTH/2 || nearestGridDist(y) < ROAD_WIDTH/2;
+}
+
+/* ======================================================================
+   VEHICLE / UPGRADE HELPERS
+====================================================================== */
+function activeVehicle(){ return VEHICLES[state.currentVehicleKey]; }
+function activeUpgrades(){ return state.upgrades[state.currentVehicleKey]; }
+
+function computedStats(vehKey){
+  const v = VEHICLES[vehKey];
+  const u = state.upgrades[vehKey];
+  return {
+    maxHealth: Math.round(v.maxHealth * (1 + u.armor*0.036)),
+    topSpeed:  v.topSpeed * (1 + u.engine*0.028),
+    accel:     v.accel * (1 + u.engine*0.028),
+    anchorCapacity: v.anchorCapacity + u.anchor*0.16,
+    probeRate: v.probeRate * (1 + u.probe*0.044),
+    mass: v.mass
+  };
+}
+
+function fuelCapacity(stats){ return Math.round(50 + stats.mass*28); }
+
+function switchVehicle(key){
+  if (!state.ownedVehicles[key]) return;
+  state.currentVehicleKey = key;
+  const stats = computedStats(key);
+  car.maxHealth = stats.maxHealth;
+  car.health = stats.maxHealth;
+  car.maxFuel = fuelCapacity(stats);
+  car.fuel = car.maxFuel;
+}
+
+function isMaxedDominator3(){
+  if (state.currentVehicleKey !== "dominator3") return false;
+  const u = state.upgrades.dominator3;
+  return u.armor>=MAX_UPGRADE_LEVEL && u.engine>=MAX_UPGRADE_LEVEL &&
+         u.anchor>=MAX_UPGRADE_LEVEL && u.probe>=MAX_UPGRADE_LEVEL;
+}
+
+/* ======================================================================
+   PHYSICS / UPDATE
+====================================================================== */
+let camera = { x: car.x, y: car.y, angle: 0 };
+let convoyNPCs = [];
+
+function convoyBonusSum(field){
+  if (!state.convoyActive) return 0;
+  let total = 0;
+  state.activeConvoyMembers.forEach(id=>{
+    if (SUPPORT_KEYS.includes(id) && state.ownedVehicles[id] && VEHICLES[id][field]){
+      total += VEHICLES[id][field];
+    }
+  });
+  return total;
+}
+
+function hasConvoyPerk(key){
+  return state.convoyActive && !!state.ownedVehicles[key] && state.activeConvoyMembers.includes(key);
+}
+
+function getFormationSlots(n, formation){
+  const lane = 75;
+  const gap = 95;
+  if (n <= 0) return [];
+  if (formation === "single"){
+    const slots = [];
+    for (let i=0; i<n; i++){
+      const rank = Math.floor(i/2) + 1;
+      const sign = (i % 2 === 0) ? 1 : -1;
+      slots.push({dx:0, dy: sign*rank*gap});
+    }
+    return slots;
+  }
+  const slots = [];
+  const half = Math.ceil(n/2);
+  for (let i=0; i<n; i++){
+    const side = i % 2 === 0 ? -1 : 1;
+    const rank = Math.floor(i/2);
+    const dy = (rank - (half-1)/2) * gap;
+    slots.push({dx: side*lane, dy});
+  }
+  return slots;
+}
+
+function getConvoyRoster(){
+  const roster = [];
+  SUPPORT_KEYS.forEach(k=>{
+    if (state.ownedVehicles[k]){
+      const v = VEHICLES[k];
+      roster.push({ id:k, type:"support", name:v.name, color:v.color });
+    }
+  });
+  state.allies.forEach(a=>{
+    roster.push({ id:a.id, type:"ally", name:a.name, color:a.color, vehicleKey:a.vehicleKey });
+  });
+  return roster;
+}
+
+function rebuildConvoy(){
+  convoyNPCs = [];
+  const roster = getConvoyRoster();
+  const active = roster.filter(m=>state.activeConvoyMembers.includes(m.id)).slice(0, state.maxConvoySize);
+  const slots = getFormationSlots(active.length, state.convoyFormation);
+  active.forEach((m,i)=>{
+    const slot = slots[i];
+    convoyNPCs.push({
+      id:m.id, type:m.type, vehicleKey:m.vehicleKey, name:m.name, color:m.color,
+      x: car.x + slot.dx, y: car.y + slot.dy, vx:0, vy:0,
+      angle: car.angle, slot, wanderPhase: Math.random()*100
+    });
+  });
+}
+
+function canDeployConvoy(){
+  return getConvoyRoster().length > 0 && state.activeConvoyMembers.length > 0;
+}
+
+function allyDataBonus(){
+  if (!state.convoyActive) return 0;
+  let count = 0;
+  state.activeConvoyMembers.forEach(id=>{
+    if (state.allies.some(a=>a.id===id)) count++;
+  });
+  return count * 0.03;
+}
+
+function updateConvoy(dt){
+  if (!state.convoyActive || convoyNPCs.length === 0) return;
+  const fx = Math.sin(car.angle), fy = -Math.cos(car.angle);
+  const rx = Math.cos(car.angle), ry = Math.sin(car.angle);
+  const t = performance.now()/1000;
+  convoyNPCs.forEach(npc=>{
+    const wobbleX = Math.sin(t*0.6 + npc.wanderPhase) * 14;
+    const wobbleY = Math.cos(t*0.5 + npc.wanderPhase) * 14;
+    const targetX = car.x - fx*npc.slot.dy + rx*npc.slot.dx + wobbleX;
+    const targetY = car.y - fy*npc.slot.dy + ry*npc.slot.dx + wobbleY;
+    const toX = targetX - npc.x, toY = targetY - npc.y;
+    const dist = Math.hypot(toX, toY) || 0.001;
+    const corrX = (toX/dist) * Math.min(dist*3, 320);
+    const corrY = (toY/dist) * Math.min(dist*3, 320);
+    npc.vx = car.vx + corrX;
+    npc.vy = car.vy + corrY;
+    npc.x += npc.vx*dt;
+    npc.y += npc.vy*dt;
+    const spd = Math.hypot(npc.vx, npc.vy);
+    if (spd > 5) npc.angle = Math.atan2(npc.vx, -npc.vy);
+  });
+}
+
+/* ======================================================================
+   WILD CONVOYS
+====================================================================== */
+let wildConvoys = [];
+const MIN_WILD_CONVOYS = 8, MAX_WILD_CONVOYS = 12;
+let wildConvoyTarget = MIN_WILD_CONVOYS + Math.floor(Math.random()*(MAX_WILD_CONVOYS-MIN_WILD_CONVOYS+1));
+const MIN_CONVOY_SIZE = 4, MAX_CONVOY_SIZE = 8;
+const ALLY_RANGE = 220;
+
+const RIVAL_TEAM_NAMES = ["Team Vortex","Storm Trackers","Team Vortex 2","Twistex","Twister Trackers","Squall Line Chasers","Maelstrom Media","Ridgeline Research"];
+
+function nearestTown(x, y){
+  let best = TOWNS[0], bestDist = Infinity;
+  TOWNS.forEach(t=>{
+    const d = Math.hypot(t.x-x, t.y-y);
+    if (d < bestDist){ bestDist = d; best = t; }
+  });
+  return best;
+}
+
+function spawnWildConvoy(){
+  const margin = 500;
+  const size = MIN_CONVOY_SIZE + Math.floor(Math.random()*(MAX_CONVOY_SIZE-MIN_CONVOY_SIZE+1));
+  const team = RIVAL_TEAM_NAMES[Math.floor(Math.random()*RIVAL_TEAM_NAMES.length)];
+  const formation = Math.random() < 0.5 ? "single" : "double";
+  const keys = Object.keys(VEHICLES);
+  const x = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
+  const y = WORLD_MIN + margin + Math.random()*(WORLD_MAX-WORLD_MIN-margin*2);
+  const homeTown = nearestTown(x, y);
+  const slots = getFormationSlots(size, formation);
+  const members = [];
+  for (let i=0; i<size; i++){
+    const vk = keys[Math.floor(Math.random()*keys.length)];
+    const v = VEHICLES[vk];
+    members.push({
+      id: "npc_" + Math.random().toString(36).slice(2,9),
+      vehicleKey: vk, color: v.color, name: team + " — " + v.name,
+      x: x + slots[i].dx, y: y + slots[i].dy, vx:0, vy:0, angle:0,
+      health: v.maxHealth, maxHealth: v.maxHealth,
+      slot: slots[i], wanderPhase: Math.random()*100,
+      allied: false
+    });
+  }
+  return {
+    id: "convoy_" + Math.random().toString(36).slice(2,9),
+    team, formation,
+    x, y, homeX: x, homeY: y, homeTown: {x: homeTown.x, y: homeTown.y},
+    angle: Math.random()*Math.PI*2, vx:0, vy:0,
+    state: "chase",
+    roamAngle: Math.random()*Math.PI*2,
+    roamTimer: 2+Math.random()*3,
+    anchorTimer: 0,
+    fleeTargetX: 0, fleeTargetY: 0,
+    chaseCooldown: 0,
+    members
+  };
+}
+
+const CONVOY_LEASH_RADIUS = 1800;
+
+function ensureWildConvoys(){
+  while (wildConvoys.length < wildConvoyTarget){ wildConvoys.push(spawnWildConvoy()); }
+  wildConvoys = wildConvoys.filter(c=>c.members.length > 0);
+}
+
+function convoyLeaderStats(convoy){
+  let cap = 0, spd = 0;
+  convoy.members.forEach(m=>{ const v = VEHICLES[m.vehicleKey]; cap += v.anchorCapacity; spd += v.topSpeed; });
+  return { anchorCapacity: cap/convoy.members.length, topSpeed: (spd/convoy.members.length)*0.8 };
+}
+
+function updateWildConvoy(convoy, dt){
+  const stats = convoyLeaderStats(convoy);
+  if (convoy.chaseCooldown > 0) convoy.chaseCooldown -= dt;
+
+  if (tornado){
+    const dist = Math.hypot(tornado.x-convoy.x, tornado.y-convoy.y);
+    if (convoy.state==="roam" && convoy.chaseCooldown<=0){ convoy.state = "chase"; }
+    if (convoy.state==="chase" && dist < tornado.radius*1.1){
+      convoy.state = "anchored";
+      convoy.anchorTimer = 15 + Math.random()*20;
+    }
+  } else if (convoy.state==="chase" || convoy.state==="anchored"){
+    convoy.state = "roam";
+  }
+  const avgHealthPct = convoy.members.reduce((s,m)=>s+m.health/m.maxHealth,0)/convoy.members.length;
+  if (avgHealthPct < 0.25 && convoy.state!=="flee"){
+    convoy.state = "flee";
+    const town = nearestTown(convoy.x, convoy.y);
+    convoy.fleeTargetX = town.x; convoy.fleeTargetY = town.y;
+  }
+  if (convoy.state === "flee"){
+    const arrived = Math.hypot(convoy.fleeTargetX-convoy.x, convoy.fleeTargetY-convoy.y) < TOWN_RADIUS*0.6;
+    if (arrived){
+      convoy.vx = 0; convoy.vy = 0;
+      convoy.members.forEach(m=>{
+        if (m.allied) return;
+        m.health = m.maxHealth;
+      });
+      convoy.state = tornado ? "chase" : "roam";
+      convoy.chaseCooldown = 0;
+    }
+  }
+
+  if (convoy.state === "anchored"){
+    convoy.vx = 0; convoy.vy = 0;
+    convoy.anchorTimer -= dt;
+    if (tornado){
+      const overload = tornado.category - stats.anchorCapacity;
+      if (overload > 0){
+        convoy.members.forEach(m=> m.health -= Math.max(0,overload)*1.2*dt );
+        if (Math.random() < overload*0.04*dt){
+          convoy.state = "flee";
+          const town = nearestTown(convoy.x, convoy.y);
+          convoy.fleeTargetX = town.x; convoy.fleeTargetY = town.y;
+        }
+      }
+    }
+    if (convoy.anchorTimer <= 0 && tornado){ convoy.state = "chase"; }
+    else if (convoy.anchorTimer <= 0){ convoy.state = "roam"; }
+  } else {
+    let targetAngle = convoy.angle;
+    const homeDist = Math.hypot(convoy.x-convoy.homeX, convoy.y-convoy.homeY);
+    if (convoy.state==="chase" && tornado){
+      targetAngle = Math.atan2(tornado.x-convoy.x, -(tornado.y-convoy.y));
+    } else if (convoy.state==="flee"){
+      targetAngle = Math.atan2(convoy.fleeTargetX-convoy.x, -(convoy.fleeTargetY-convoy.y));
+    } else if (homeDist > CONVOY_LEASH_RADIUS*0.5){
+      targetAngle = Math.atan2(convoy.homeX-convoy.x, -(convoy.homeY-convoy.y));
+    } else {
+      convoy.roamTimer -= dt;
+      if (convoy.roamTimer <= 0){
+        convoy.roamTimer = 3+Math.random()*4;
+        convoy.roamAngle = convoy.angle + (Math.random()-0.5)*2.0;
+      }
+      targetAngle = convoy.roamAngle;
+    }
+    const edgeMargin = 400;
+    let biasX = 0, biasY = 0;
+    if (convoy.x < WORLD_MIN+edgeMargin) biasX = 1;
+    else if (convoy.x > WORLD_MAX-edgeMargin) biasX = -1;
+    if (convoy.y < WORLD_MIN+edgeMargin) biasY = 1;
+    else if (convoy.y > WORLD_MAX-edgeMargin) biasY = -1;
+    if (biasX !== 0 || biasY !== 0){
+      const biasAngle = Math.atan2(biasX, -biasY);
+      let blendDiff = ((biasAngle-targetAngle+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2) - Math.PI;
+      targetAngle += blendDiff * 0.45;
+    }
+    let diff = ((targetAngle-convoy.angle+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2) - Math.PI;
+    convoy.angle += Math.max(-1.6*dt, Math.min(1.6*dt, diff));
+    const fx = Math.sin(convoy.angle), fy = -Math.cos(convoy.angle);
+    const headingHome = !tornado && homeDist > CONVOY_LEASH_RADIUS*0.5;
+    const spd = convoy.state==="flee" ? stats.topSpeed*1.1 : headingHome ? stats.topSpeed*0.9 : stats.topSpeed*0.65;
+    convoy.vx += (fx*spd - convoy.vx) * Math.min(1, 2.5*dt);
+    convoy.vy += (fy*spd - convoy.vy) * Math.min(1, 2.5*dt);
+
+    if (tornado){
+      const dx=tornado.x-convoy.x, dy=tornado.y-convoy.y, dist=Math.hypot(dx,dy)||0.001;
+      const influence = tornado.radius*5.2;
+      if (dist < influence){
+        const falloff = Math.pow(1-dist/influence, 2);
+        const wf = 260*falloff*(1+tornado.category*0.12);
+        convoy.vx += (dx/dist)*wf*dt; convoy.vy += (dy/dist)*wf*dt;
+        if (dist < tornado.radius){ convoy.members.forEach(m=> m.health -= (3+tornado.category*1.1)*dt ); }
+      }
+    }
+    convoy.x += convoy.vx*dt; convoy.y += convoy.vy*dt;
+  }
+  convoy.x = Math.max(WORLD_MIN, Math.min(WORLD_MAX, convoy.x));
+  convoy.y = Math.max(WORLD_MIN, Math.min(WORLD_MAX, convoy.y));
+
+  const fx = Math.sin(convoy.angle), fy = -Math.cos(convoy.angle);
+  const rx = Math.cos(convoy.angle), ry = Math.sin(convoy.angle);
+  const t = performance.now()/1000;
+  convoy.members.forEach(m=>{
+    if (m.allied) return;
+    const wobbleX = Math.sin(t*0.5 + m.wanderPhase) * 12;
+    const wobbleY = Math.cos(t*0.45 + m.wanderPhase) * 12;
+    const targetX = convoy.x - fx*m.slot.dy + rx*m.slot.dx + wobbleX;
+    const targetY = convoy.y - fy*m.slot.dy + ry*m.slot.dx + wobbleY;
+    const toX = targetX-m.x, toY = targetY-m.y, d = Math.hypot(toX,toY)||0.001;
+    const corrX = (toX/d)*Math.min(d*3, 260), corrY = (toY/d)*Math.min(d*3, 260);
+    m.vx = convoy.vx + corrX; m.vy = convoy.vy + corrY;
+    m.x += m.vx*dt; m.y += m.vy*dt;
+    const spd = Math.hypot(m.vx, m.vy);
+    if (spd > 5) m.angle = Math.atan2(m.vx, -m.vy);
+
+    if (m.health <= 0){
+      const closeTown = nearestTown(m.x, m.y);
+      const homeDist = Math.hypot(convoy.homeTown.x-m.x, convoy.homeTown.y-m.y);
+      const closeDist = Math.hypot(closeTown.x-m.x, closeTown.y-m.y);
+      const spawnTown = homeDist < closeDist ? convoy.homeTown : closeTown;
+      const keys = Object.keys(VEHICLES);
+      const vk = keys[Math.floor(Math.random()*keys.length)];
+      const v = VEHICLES[vk];
+      m.vehicleKey = vk; m.color = v.color; m.name = convoy.team + " — " + v.name;
+      m.health = v.maxHealth; m.maxHealth = v.maxHealth;
+      m.x = spawnTown.x; m.y = spawnTown.y; m.vx = 0; m.vy = 0;
+    }
+  });
+}
+
+function updateWildConvoys(dt){
+  ensureWildConvoys();
+  wildConvoys.forEach(c=>updateWildConvoy(c, dt));
+}
+
+function tryFormAlliance(){
+  if (!state.running || state.paused) return;
+  let nearestMember = null, nearestConvoy = null, best = ALLY_RANGE;
+  wildConvoys.forEach(convoy=>{
+    convoy.members.forEach(m=>{
+      if (m.allied) return;
+      const d = Math.hypot(m.x-car.x, m.y-car.y);
+      if (d < best){ best = d; nearestMember = m; nearestConvoy = convoy; }
+    });
+  });
+  if (!nearestMember){ showAlert("NO ALLY IN RANGE", 1.0); return; }
+  nearestMember.allied = true;
+  state.allies.push({ id: nearestMember.id, vehicleKey: nearestMember.vehicleKey, name: nearestMember.name, color: nearestMember.color });
+  nearestConvoy.members = nearestConvoy.members.filter(m=>m.id !== nearestMember.id);
+  if (state.activeConvoyMembers.length < state.maxConvoySize){
+    state.activeConvoyMembers.push(nearestMember.id);
+  }
+  showAlert("🤝 ALLIANCE FORMED — " + nearestMember.name + " JOINS!", 1.8);
+  if (state.convoyActive) rebuildConvoy();
+  saveGame();
+}
+
+let allyPromptTarget = null;
+function updateAllyPromptTarget(){
+  let best = null, bestDist = ALLY_RANGE;
+  wildConvoys.forEach(convoy=>{
+    convoy.members.forEach(m=>{
+      if (m.allied) return;
+      const d = Math.hypot(m.x-car.x, m.y-car.y);
+      if (d < bestDist){ bestDist = d; best = m; }
+    });
+  });
+  allyPromptTarget = best;
+}
+
+ensureWildConvoys();
+
+let shake = 0;
+let alertTimer = 0;
+let alertMessage = "ANCHORS FAILED!";
+function showAlert(msg, duration){ alertMessage = msg; alertTimer = duration; }
+
+/* ======================================================================
+   FUEL
+====================================================================== */
+const FUEL_BURN_AT_FULL_THROTTLE = 3.2;
+const FUEL_PRICE_PER_UNIT = 6;
+
+function updateFuel(dt, stats){
+  if (state.infiniteFuel){
+    car.fuel = car.maxFuel;
+    return;
+  }
+  if (car.anchored) return;
+  const speed = Math.hypot(car.vx, car.vy);
+  const speedRatio = Math.min(1, speed / Math.max(1, stats.topSpeed));
+  if (speedRatio > 0.02){
+    car.fuel = Math.max(0, car.fuel - FUEL_BURN_AT_FULL_THROTTLE*speedRatio*dt);
+  }
+}
+
+let goodByeFuelWarned = false;
+
+function updateCar(dt){
+  const stats = computedStats(state.currentVehicleKey);
+  const terrainMult = isPrecipitating() ? 0.94 : 1.0;
+  const outOfFuel = !state.infiniteFuel && car.fuel <= 0;
+
+  if (car.anchored){
+    car.vx = 0; car.vy = 0;
+  } else {
+    const turnRate = 2.6;
+    if (keys["KeyA"] || keys["ArrowLeft"])  car.angle -= turnRate*dt;
+    if (keys["KeyD"] || keys["ArrowRight"]) car.angle += turnRate*dt;
+
+    const fx = Math.sin(car.angle), fy = -Math.cos(car.angle);
+    const maxSpd = stats.topSpeed * terrainMult;
+    const accel = stats.accel * terrainMult;
+
+    if (!outOfFuel){
+      if (keys["KeyW"] || keys["ArrowUp"]){
+        car.vx += fx*accel*dt; car.vy += fy*accel*dt;
+      }
+      if (keys["KeyS"] || keys["ArrowDown"]){
+        car.vx -= fx*accel*0.7*dt; car.vy -= fy*accel*0.7*dt;
+      }
+    } else if (!goodByeFuelWarned){
+      showAlert("⛽ OUT OF FUEL — ENGINE DEAD", 1.8);
+      goodByeFuelWarned = true;
+    }
+    if (!outOfFuel) goodByeFuelWarned = false;
+
+    const fric = isPrecipitating() ? 0.965 : 0.975;
+    car.vx *= Math.pow(fric, dt*60);
+    car.vy *= Math.pow(fric, dt*60);
+
+    const spd = Math.hypot(car.vx, car.vy);
+    if (spd > maxSpd*1.05 && spd > 0){
+      const overshoot = Math.min(1, (spd-maxSpd*1.05)*dt*2);
+      car.vx -= (car.vx/spd)*overshoot*spd*0.3;
+      car.vy -= (car.vy/spd)*overshoot*spd*0.3;
+    }
+  }
+
+  applyWind(dt, stats);
+  updateGrapple(dt);
+  updateFuel(dt, stats);
+
+  const finalSpd = Math.hypot(car.vx, car.vy);
+  const HARD_CAP = 1400;
+  if (finalSpd > HARD_CAP){
+    car.vx = car.vx/finalSpd*HARD_CAP;
+    car.vy = car.vy/finalSpd*HARD_CAP;
+  }
+
+  car.x += car.vx*dt;
+  car.y += car.vy*dt;
+  car.x = Math.max(WORLD_MIN, Math.min(WORLD_MAX, car.x));
+  car.y = Math.max(WORLD_MIN, Math.min(WORLD_MAX, car.y));
+
+  if (car.ripFlashTimer > 0) car.ripFlashTimer -= dt;
+}
+
+function applyWind(dt, stats){
+  if (!tornado) { shake *= 0.9; return; }
+  const dx = tornado.x - car.x, dy = tornado.y - car.y;
+  const dist = Math.hypot(dx, dy) || 0.001;
+  const influence = tornado.radius * 5.2;
+  const intensity = 1 + tornado.category*0.22;
+
+  const proximity = Math.max(0, 1 - dist/(tornado.radius*3));
+  shake = Math.max(shake*0.85, proximity*14);
+
+  if (car.anchored){
+    const capacity = stats.anchorCapacity;
+    const overload = tornado.category - capacity;
+    const memeSurvivor = tornado.isMeme && isMaxedDominator3();
+    if (dist < tornado.radius*1.3){
+      if (overload > 0){
+        const ripChance = overload * 0.12 * dt;
+        car.health -= Math.max(0, overload) * 2.2 * dt;
+        if (memeSurvivor){
+          car.health = Math.max(1, car.health);
+        } else if (Math.random() < ripChance){
+          ripCarAway(dx, dy, dist);
+        }
+      }
+      const radarBonus = convoyBonusSum("dataRateMult");
+      const rate = 1.0 * (1 + tornado.category*0.4) * stats.probeRate * (1 + radarBonus + allyDataBonus());
+      const probeFlat = convoyBonusSum("flatDataBonus");
+      const gained = rate*dt + probeFlat*dt;
+      car.dataGB += gained;
+      tornado.collectedThisStorm += gained;
+    }
+    return;
+  }
+
+  if (dist < influence){
+    const falloff = Math.pow(1 - dist/influence, 2);
+    const windForce = 480 * falloff * intensity / (stats.mass*1.1);
+    const nx = dx/dist, ny = dy/dist;
+    car.vx += nx*windForce*dt;
+    car.vy += ny*windForce*dt;
+    const tx = -ny, ty = nx;
+    const spin = 340 * falloff * intensity / (stats.mass*1.1);
+    car.vx += tx*spin*dt;
+    car.vy += ty*spin*dt;
+
+    if (dist < tornado.radius){
+      car.health -= (6 + tornado.category*2.2) * dt;
+    }
+  }
+}
+
+function ripCarAway(dx, dy, dist){
+  car.anchored = false;
+  const nx = dx/dist, ny = dy/dist;
+  const impulse = 450 + tornado.category*45;
+  car.vx = -nx*impulse + (Math.random()-0.5)*200;
+  car.vy = -ny*impulse + (Math.random()-0.5)*200;
+  car.health -= 18 + tornado.category*3.5;
+  car.ripFlashTimer = 1.4;
+  showAlert("ANCHORS FAILED!", 1.4);
+}
+
+/* ======================================================================
+   TOWN / GARAGE LOGIC
+====================================================================== */
+function checkTown(){
+  car.inTown = null;
+  for (const t of TOWNS){
+    if (Math.hypot(car.x-t.x, car.y-t.y) < TOWN_RADIUS){ car.inTown = t; break; }
+  }
+  document.getElementById("townPrompt").style.display = (car.inTown && !state.paused) ? "block" : "none";
+}
+
+function updateAllyPromptUI(){
+  const el = document.getElementById("allyPrompt");
+  if (allyPromptTarget && !state.paused){
+    el.textContent = `Press F to form an alliance with ${allyPromptTarget.name}`;
+    el.style.display = "block";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function openGarage(){
+  if (!car.inTown) return;
+  state.paused = true;
+  document.getElementById("garageTownName").textContent = car.inTown.name;
+  refreshGarageUI();
+  document.getElementById("garageScreen").classList.remove("hidden");
+}
+function closeGarage(){
+  document.getElementById("garageScreen").classList.add("hidden");
+  state.paused = false;
+  saveGame();
+}
+
+function refreshGarageUI(){
+  maybeUnlockMeme();
+  document.getElementById("garageMoney").textContent = Math.floor(state.money).toLocaleString();
+  document.getElementById("garageDataGB").textContent = car.dataGB.toFixed(1);
+  document.getElementById("garageActiveVehicle").textContent = activeVehicle().name;
+  document.getElementById("memeSummonBtn").classList.toggle("hidden", !state.memeUnlocked);
+
+  const refuelBtn = document.getElementById("refuelBtn");
+  if (state.infiniteFuel){
+    refuelBtn.textContent = "⛽ FUEL: ∞ (cheat active)";
+    refuelBtn.disabled = true;
+  } else {
+    const missing = Math.max(0, car.maxFuel - car.fuel);
+    const cost = Math.round(missing * FUEL_PRICE_PER_UNIT);
+    refuelBtn.textContent = missing <= 0 ? "⛽ TANK FULL" : `⛽ REFUEL — $${cost.toLocaleString()}`;
+    refuelBtn.disabled = missing <= 0;
+  }
+
+  const grid = document.getElementById("garageVehicleGrid");
+  grid.innerHTML = "";
+  [["🚙 Chase Cars", CHASE_KEYS],["🛡 Prebuilt Interceptors", INTERCEPTOR_KEYS],["📡 Support Vehicles", SUPPORT_KEYS],["🛠 Admin Vehicles (Dev Panel Only)", ADMIN_KEYS]].forEach(([title, list])=>{
+    grid.appendChild(sectionHeader(title));
+    const wrap = document.createElement("div");
+    wrap.className = "vehicleGrid";
+    grid.appendChild(wrap);
+    buildVehicleSection(wrap, list, ()=>state.currentVehicleKey, ()=>{}, false);
+  });
+
+  const toolsGrid = document.getElementById("garageToolsGrid");
+  toolsGrid.innerHTML = "";
+  TOOL_KEYS.forEach(tk=>{
+    const tool = TOOLS[tk];
+    const owned = state.tools[tk]||0;
+    const card = document.createElement("div");
+    card.className = "vCard";
+    card.innerHTML = `
+      <div class="vSwatch" style="background:${tool.color}; display:flex; align-items:center; justify-content:center; font-size:22px;">${tool.icon}</div>
+      <h3>${tool.name} <span style="color:#7fd07f; font-size:11px;">[key ${tool.keyLabel}]</span></h3>
+      <div class="stat"><span>${tool.desc}</span></div>
+      <div class="stat"><span>In Inventory</span><span>${owned}</span></div>
+      <div class="price">$${tool.cost.toLocaleString()} / unit</div>
+    `;
+    const buyBtn = document.createElement("button");
+    buyBtn.className = "smallBtn";
+    buyBtn.textContent = "BUY 1";
+    buyBtn.style.marginTop = "8px";
+    buyBtn.disabled = state.money < tool.cost;
+    buyBtn.onclick = (ev)=>{
+      ev.stopPropagation();
+      if (state.money < tool.cost) return;
+      state.money -= tool.cost;
+      state.tools[tk] = (state.tools[tk]||0) + 1;
+      refreshGarageUI();
+    };
+    card.appendChild(buyBtn);
+    toolsGrid.appendChild(card);
+  });
+
+  const sizeSlider = document.getElementById("convoySizeSlider");
+  sizeSlider.value = state.maxConvoySize;
+  document.getElementById("convoySizeValue").textContent = state.maxConvoySize;
+
+  const rosterGrid = document.getElementById("garageRosterGrid");
+  rosterGrid.innerHTML = "";
+  const roster = getConvoyRoster();
+  if (roster.length === 0){
+    const p = document.createElement("p");
+    p.className = "subtext";
+    p.textContent = "No convoy members yet — buy a support vehicle above, or drive out and press F near an independent crew to ally with them.";
+    rosterGrid.appendChild(p);
+  }
+  roster.forEach(m=>{
+    const active = state.activeConvoyMembers.includes(m.id);
+    const card = document.createElement("div");
+    card.className = "vCard" + (active ? " selected" : "");
+    const typeLabel = m.type==="support" ? "Support Vehicle" : ("Allied Crew — " + VEHICLES[m.vehicleKey].name);
+    card.innerHTML = `
+      <div class="vSwatch" style="background:${m.color}"></div>
+      <h3>${m.name}</h3>
+      <div class="stat"><span>${typeLabel}</span></div>
+      <div class="price">${active ? "ACTIVE IN CONVOY — click to bench" : "click to add to convoy"}</div>
+    `;
+    card.onclick = ()=>{
+      if (active){
+        state.activeConvoyMembers = state.activeConvoyMembers.filter(id=>id!==m.id);
+      } else {
+        if (state.activeConvoyMembers.length >= state.maxConvoySize) return;
+        state.activeConvoyMembers.push(m.id);
+      }
+      if (state.convoyActive) rebuildConvoy();
+      refreshGarageUI();
+    };
+    rosterGrid.appendChild(card);
+  });
+
+  const convoyBtn = document.getElementById("convoyToggleBtn");
+  if (canDeployConvoy()){
+    convoyBtn.classList.remove("hidden");
+    convoyBtn.textContent = state.convoyActive ? "🚨 RECALL CONVOY" : "🚨 DEPLOY CONVOY";
+  } else {
+    convoyBtn.classList.add("hidden");
+  }
+
+  const maxAllBtn = document.getElementById("maxAllUpgradesBtn");
+  const uCheck = activeUpgrades();
+  const alreadyMaxed = Object.keys(UPGRADE_COST_BASE).every(key=>uCheck[key] >= MAX_UPGRADE_LEVEL);
+  if (alreadyMaxed){
+    maxAllBtn.textContent = "⭐ ALL UPGRADES MAXED";
+    maxAllBtn.disabled = true;
+  } else {
+    const maxAllCost = costToMaxAllUpgrades(state.currentVehicleKey);
+    maxAllBtn.textContent = `⭐ MAX ALL UPGRADES — $${maxAllCost.toLocaleString()}`;
+    maxAllBtn.disabled = state.money < maxAllCost;
+  }
+
+  const up = document.getElementById("garageUpgrades");
+  up.innerHTML = "";
+  const labels = {
+    armor:"Armor / Hull (+HP)",
+    engine:"Engine (+Top Speed)",
+    anchor:"Anchors (+Wind Rating)",
+    probe:"Data Probes (+Collection)"
+  };
+  const u = activeUpgrades();
+  Object.keys(labels).forEach(key=>{
+    const lvl = u[key];
+    const cost = Math.round(UPGRADE_COST_BASE[key] * (lvl+1) * 1.35);
+    const maxed = lvl >= MAX_UPGRADE_LEVEL;
+    const row = document.createElement("div");
+    row.className = "upRow";
+    row.innerHTML = `
+      <div>
+        <div>${labels[key]}</div>
+        <div class="lvl">Level ${lvl} / ${MAX_UPGRADE_LEVEL}${maxed? " (MAX)" : "  —  $"+cost.toLocaleString()}</div>
+      </div>
+      <button class="smallBtn" ${maxed || state.money<cost ? "disabled":""}>UPGRADE</button>
+    `;
+    row.querySelector("button").onclick = ()=>{
+      if (maxed || state.money < cost) return;
+      state.money -= cost;
+      u[key]++;
+      const pct = car.health / car.maxHealth;
+      const stats = computedStats(state.currentVehicleKey);
+      car.maxHealth = stats.maxHealth;
+      car.health = Math.min(car.maxHealth, car.maxHealth*pct + (key==="armor"?20:0));
+      car.maxFuel = fuelCapacity(stats);
+      refreshGarageUI();
+    };
+    up.appendChild(row);
+  });
+
+  saveGame();
+}
+
+document.getElementById("sellDataBtn").onclick = ()=>{
+  const commandBonus = convoyBonusSum("sellPriceMult");
+  const price = 850 * (1 + commandBonus);
+  state.money += car.dataGB * price;
+  car.dataGB = 0;
+  refreshGarageUI();
+};
+document.getElementById("repairBtn").onclick = ()=>{
+  const missing = car.maxHealth - car.health;
+  if (missing <= 0) return;
+  const tankerBonus = convoyBonusSum("repairCostMult");
+  const cost = Math.round(missing * 12 * (1 + tankerBonus));
+  if (state.money < cost) return;
+  state.money -= cost;
+  car.health = car.maxHealth;
+  refreshGarageUI();
+};
+document.getElementById("refuelBtn").onclick = ()=>{
+  if (state.infiniteFuel) return;
+  const missing = car.maxFuel - car.fuel;
+  if (missing <= 0) return;
+  const cost = Math.round(missing * FUEL_PRICE_PER_UNIT);
+  if (state.money < cost) return;
+  state.money -= cost;
+  car.fuel = car.maxFuel;
+  refreshGarageUI();
+};
+document.getElementById("convoySizeSlider").addEventListener("input", (e)=>{
+  state.maxConvoySize = parseInt(e.target.value, 10);
+  document.getElementById("convoySizeValue").textContent = state.maxConvoySize;
+  if (state.activeConvoyMembers.length > state.maxConvoySize){
+    state.activeConvoyMembers = state.activeConvoyMembers.slice(0, state.maxConvoySize);
+  }
+  if (state.convoyActive) rebuildConvoy();
+  refreshGarageUI();
+});
+document.getElementById("maxAllUpgradesBtn").onclick = ()=>{
+  const cost = costToMaxAllUpgrades(state.currentVehicleKey);
+  if (cost <= 0 || state.money < cost) return;
+  state.money -= cost;
+  const u = activeUpgrades();
+  Object.keys(UPGRADE_COST_BASE).forEach(key=>{ u[key] = MAX_UPGRADE_LEVEL; });
+  const stats = computedStats(state.currentVehicleKey);
+  car.maxHealth = stats.maxHealth;
+  car.health = car.maxHealth;
+  car.maxFuel = fuelCapacity(stats);
+  showAlert("⭐ ALL UPGRADES MAXED", 1.6);
+  refreshGarageUI();
+};
+document.getElementById("closeGarageBtn").onclick = closeGarage;
+document.getElementById("convoyToggleBtn").onclick = ()=>{
+  if (!canDeployConvoy()) return;
+  state.convoyActive = !state.convoyActive;
+  if (state.convoyActive){
+    rebuildConvoy();
+    showAlert("🚨 CONVOY DEPLOYED", 1.4);
+  } else {
+    convoyNPCs = [];
+  }
+  refreshGarageUI();
+};
+document.getElementById("resetSaveBtn").onclick = ()=>{
+  if (confirm("Reset all saved progress? This wipes your money, fleet, and upgrades permanently and cannot be undone.")){
+    resetSaveData();
+    switchVehicle("sedan");
+    refreshGarageUI();
+  }
+};
+document.getElementById("memeSummonBtn").onclick = ()=>{
+  spawnCustomTornado(18, true);
+  closeGarage();
+};
+
+/* ---- Dev Panel (secret code: type D E V while the garage is open) ---- */
+const devEfSlider = document.getElementById("devEfSlider");
+const devEfValue = document.getElementById("devEfValue");
+devEfSlider.addEventListener("input", ()=>{ devEfValue.textContent = "EF" + devEfSlider.value; });
+
+const devTypeSelect = document.getElementById("devTypeSelect");
+TORNADO_TYPE_KEYS.forEach(k=>{
+  const opt = document.createElement("option");
+  opt.value = k;
+  opt.textContent = TORNADO_TYPES[k].label;
+  devTypeSelect.appendChild(opt);
+});
+
+const devWeatherBtns = document.getElementById("devWeatherBtns");
+WEATHER_KEYS.forEach(wk=>{
+  const btn = document.createElement("button");
+  btn.className = "gameBtn";
+  btn.style.marginTop = "0";
+  btn.textContent = WEATHER_TYPES[wk].label.toUpperCase();
+  btn.onclick = ()=>{
+    state.weather = wk;
+    weatherTimer = 60 + Math.random()*60;
+    showAlert("WEATHER: " + WEATHER_TYPES[wk].label.toUpperCase(), 1.4);
+  };
+  devWeatherBtns.appendChild(btn);
+});
+
+function openDevPanel(){
+  state.devMode = true;
+  refreshGarageUI();
+  document.getElementById("devPanel").classList.remove("hidden");
+}
+function closeDevPanel(){ document.getElementById("devPanel").classList.add("hidden"); }
+document.getElementById("closeDevBtn").onclick = closeDevPanel;
+document.getElementById("devInfiniteMoneyBtn").onclick = ()=>{
+  state.money += 999999999;
+  refreshGarageUI();
+};
+function devUnlockVehicle(key, label){
+  state.ownedVehicles[key] = true;
+  showAlert("🛠 UNLOCKED: " + label, 1.8);
+  refreshGarageUI();
+}
+document.getElementById("devUnlockTiv3Btn").onclick = ()=> devUnlockVehicle("tiv3", "TIV3");
+document.getElementById("devUnlockDominator4Btn").onclick = ()=> devUnlockVehicle("dominator4", "DOMINATOR 4");
+document.getElementById("devUnlockJokerBtn").onclick = ()=> devUnlockVehicle("joker", "JOKER");
+document.getElementById("devUnlockJoker2Btn").onclick = ()=> devUnlockVehicle("joker2", "JOKER 2");
+document.getElementById("devSpawnBtn").onclick = ()=>{
+  spawnCustomTornado(parseInt(devEfSlider.value, 10), false, devTypeSelect.value);
+  closeDevPanel();
+  closeGarage();
+};
+document.getElementById("devMemeBtn").onclick = ()=>{
+  state.memeUnlocked = true;
+  spawnCustomTornado(20, true);
+  closeDevPanel();
+  closeGarage();
+};
+
+let devKeyBuffer = "";
+window.addEventListener("keydown", e=>{
+  const garageOpen = !document.getElementById("garageScreen").classList.contains("hidden");
+  const devOpen = !document.getElementById("devPanel").classList.contains("hidden");
+  if (!garageOpen || devOpen) { devKeyBuffer = ""; return; }
+  if (/^[a-zA-Z]$/.test(e.key)){
+    devKeyBuffer = (devKeyBuffer + e.key.toUpperCase()).slice(-3);
+    if (devKeyBuffer === "DEV"){
+      openDevPanel();
+      devKeyBuffer = "";
+    }
+  }
+});
+
+let gasKeyBuffer = "";
+window.addEventListener("keydown", e=>{
+  if (!state.running) { gasKeyBuffer = ""; return; }
+  if (/^[a-zA-Z]$/.test(e.key)){
+    gasKeyBuffer = (gasKeyBuffer + e.key.toUpperCase()).slice(-3);
+    if (gasKeyBuffer === "GAS" && !state.infiniteFuel){
+      state.infiniteFuel = true;
+      car.fuel = car.maxFuel;
+      showAlert("⛽ INFINITE FUEL UNLOCKED", 2.0);
+      saveGame();
+      gasKeyBuffer = "";
+    }
+  }
+});
+
+window.addEventListener("keydown", e=>{
+  if (e.code === "Space" && state.running && !state.paused){
+    car.anchored = !car.anchored;
+  }
+  if (e.code === "KeyG" && state.running){
+    if (!state.paused && car.inTown) openGarage();
+    else if (state.paused && !document.getElementById("garageScreen").classList.contains("hidden")) closeGarage();
+  }
+  if (state.running && !state.paused){
+    if (e.code === "Digit1" && state.convoyFormation !== "single"){
+      state.convoyFormation = "single";
+      rebuildConvoy();
+      showAlert("FORMATION: SINGLE FILE LINE", 1.2);
+    }
+    if (e.code === "Digit2" && state.convoyFormation !== "double"){
+      state.convoyFormation = "double";
+      rebuildConvoy();
+      showAlert("FORMATION: TWO-FILE LINE", 1.2);
+    }
+    if (e.code === "Digit3") useTool("dorothyProbe");
+    if (e.code === "Digit4") useTool("sticknetHandheld");
+    if (e.code === "Digit5") useTool("fireworks");
+    if (e.code === "Digit6") useTool("smokeFlare");
+    if (e.code === "KeyF"){ tryFormAlliance(); }
+    if (e.code === "KeyP" && !state.infiniteFuel){
+      state.infiniteFuel = true;
+      car.fuel = car.maxFuel;
+      showAlert("⛽ INFINITE FUEL UNLOCKED", 2.0);
+      saveGame();
+    }
+  }
+});
+
+/* ======================================================================
+   START SCREEN
+====================================================================== */
+function buildVehicleSection(container, keys, chosenGetter, chosenSetter, forStart){
+  keys.forEach(vk=>{
+    const v = VEHICLES[vk];
+    const owned = !!state.ownedVehicles[v.key];
+    const active = chosenGetter() === v.key;
+    const card = document.createElement("div");
+    card.className = "vCard" + (active ? " selected":"") + ((forStart || v.adminOnly) && !owned ? " locked":"");
+    const priceLabel = owned
+      ? (forStart ? "Ready to drive" : (active ? "IN USE" : "OWNED — click to select"))
+      : (v.adminOnly ? "🛠 DEV PANEL ONLY" : "$"+v.cost.toLocaleString());
+    card.innerHTML = `
+      <div class="vSwatch" style="background:${v.color}"></div>
+      <h3>${v.name}</h3>
+      <div class="stat"><span>${v.desc}</span></div>
+      <div class="stat"><span>Top Speed</span><span>${Math.round(v.topSpeed)}</span></div>
+      <div class="stat"><span>Hull</span><span>${v.maxHealth}</span></div>
+      <div class="stat"><span>Anchor Rating</span><span>EF${v.anchorCapacity.toFixed(1)}</span></div>
+      ${v.effectDesc ? `<div class="stat"><span style="color:#ffd23f;">${v.effectDesc}</span></div>` : ""}
+      <div class="price" style="${v.adminOnly && !owned ? "color:#ff2fd6;" : ""}">${priceLabel}</div>
+    `;
+    card.onclick = ()=>{
+      if (forStart){
+        if (!owned) return;
+        chosenSetter(v.key);
+        document.querySelectorAll("#startVehicleGrid .vCard").forEach(c=>c.classList.remove("selected"));
+        card.classList.add("selected");
+      } else {
+        if (owned){ switchVehicle(v.key); refreshGarageUI(); }
+        else if (!v.adminOnly && state.money >= v.cost){
+          state.money -= v.cost;
+          state.ownedVehicles[v.key] = true;
+          switchVehicle(v.key);
+          refreshGarageUI();
+        }
+      }
+    };
+    container.appendChild(card);
+  });
+}
+
+function sectionHeader(text){
+  const h = document.createElement("h2");
+  h.style.width = "100%";
+  h.style.margin = "14px 0 4px";
+  h.textContent = text;
+  return h;
+}
+
+const CHASE_KEYS = ["sedan","hatchback","pickup","suv","van"];
+const INTERCEPTOR_KEYS = ["subinterceptor1","subinterceptor2","tiv","dominator","vortexranger","cyclonesentinel","dominator2","maelstromwarden","tempestjuggernaut","dominator3","tiv2"];
+const ADMIN_KEYS = ["tiv3","dominator4","joker","joker2"];
+
+function buildStartGrid(){
+  const grid = document.getElementById("startVehicleGrid");
+  grid.innerHTML = "";
+  const note = document.getElementById("saveStatusNote");
+  if (hasSave){
+    note.textContent = "💾 Save data loaded — welcome back.";
+    note.style.color = "#39ff14";
+  } else if (!localSaveAvailable){
+    note.textContent = "⚠ Local storage isn't available here — progress won't be saved between visits.";
+    note.style.color = "#ff8a8a";
+  } else {
+    note.textContent = "Progress auto-saves to this browser as you play.";
+  }
+  let chosen = (state.ownedVehicles[state.currentVehicleKey]) ? state.currentVehicleKey : "sedan";
+  [["🚙 Chase Cars", CHASE_KEYS],["🛡 Prebuilt Interceptors", INTERCEPTOR_KEYS],["📡 Support Vehicles", SUPPORT_KEYS],["🛠 Admin Vehicles (Dev Panel Only)", ADMIN_KEYS]].forEach(([title, list])=>{
+    grid.appendChild(sectionHeader(title));
+    const wrap = document.createElement("div");
+    wrap.className = "vehicleGrid";
+    grid.appendChild(wrap);
+    buildVehicleSection(wrap, list, ()=>chosen, k=>{chosen=k;}, true);
+  });
+
+  document.getElementById("beginBtn").onclick = ()=>{
+    switchVehicle(chosen);
+    document.getElementById("startScreen").classList.add("hidden");
+    state.running = true;
+    state.paused = false;
+    if (state.convoyActive && canDeployConvoy()){
+      rebuildConvoy();
+    } else {
+      state.convoyActive = false;
+    }
+    lastTime = performance.now();
+    saveGame();
+    requestAnimationFrame(loop);
+  };
+}
+buildStartGrid();
+
+document.getElementById("titlePlayBtn").onclick = ()=>{
+  document.getElementById("titleScreen").classList.add("hidden");
+  document.getElementById("startScreen").classList.remove("hidden");
+};
+
+let saveToastTimer = null;
+document.getElementById("saveButton").onclick = async ()=>{
+  saveGame();
+  const toast = document.getElementById("saveToast");
+  toast.textContent = "SAVED";
+  toast.classList.add("show");
+  clearTimeout(saveToastTimer);
+  try {
+    await submitScore();
+    toast.textContent = "SAVED · SCORE SUBMITTED";
+  } catch(e) {
+    toast.textContent = "SAVED (OFFLINE)";
+  }
+  saveToastTimer = setTimeout(()=>{
+    toast.classList.remove("show");
+    toast.textContent = "PROGRESS SAVED";
+  }, 2400);
+};
+
+/* ======================================================================
+   3D RENDERER (Three.js) — scene, terrain, vehicles, tornado, FX
+   World coordinates map as: game (x, y) -> three (x, z). Car heading 0 faces -z.
+====================================================================== */
+const glCanvas = document.getElementById("gl");
+const renderer3 = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: "high-performance" });
+renderer3.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+renderer3.setSize(window.innerWidth, window.innerHeight, false);
+const scene3 = new THREE.Scene();
+scene3.fog = new THREE.Fog(0xb7d0e6, 6000, 22000);
+const cam3 = new THREE.PerspectiveCamera(64, window.innerWidth/window.innerHeight, 3, 40000);
+window.addEventListener("resize", ()=>{
+  renderer3.setSize(window.innerWidth, window.innerHeight, false);
+  cam3.aspect = window.innerWidth/window.innerHeight;
+  cam3.updateProjectionMatrix();
+});
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function canvasTex(w, h, draw){
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  draw(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = Math.min(8, renderer3.capabilities.getMaxAnisotropy());
+  return t;
+}
+
+/* ---- lights & sky ---- */
+const hemi = new THREE.HemisphereLight(0xcfe3ff, 0x55633f, 0.9);
+scene3.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d8, 0.95);
+sun.position.set(-3000, 5000, 2000);
+scene3.add(sun);
+
+const skyUniforms = { topColor:{ value:new THREE.Color(0x3b7bd0) }, bottomColor:{ value:new THREE.Color(0xb7d0e6) } };
+const skyMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(30000, 24, 16),
+  new THREE.ShaderMaterial({
+    uniforms: skyUniforms, side: THREE.BackSide, depthWrite: false, fog: false,
+    vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+    fragmentShader: "uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vP; void main(){ float h = clamp(vP.y,0.0,1.0); gl_FragColor = vec4(mix(bottomColor, topColor, pow(h,0.55)),1.0); }"
+  })
+);
+skyMesh.frustumCulled = false;
+skyMesh.renderOrder = -10;
+scene3.add(skyMesh);
+
+const WX = {
+  clear:        { top:0x3b7bd0, bottom:0xb7d0e6, fogN:6000, fogF:22000, hemi:0.9,  sun:0.95 },
+  cloudy:       { top:0x7d8791, bottom:0xb5bcc2, fogN:3500, fogF:16000, hemi:0.78, sun:0.35 },
+  rain:         { top:0x4f5963, bottom:0x7b858d, fogN:1200, fogF:8500,  hemi:0.62, sun:0.15 },
+  thunderstorm: { top:0x242a33, bottom:0x4b545d, fogN:900,  fogF:6500,  hemi:0.48, sun:0.08 },
+  fog:          { top:0x9aa3a6, bottom:0xbfc5c4, fogN:60,   fogF:2200,  hemi:0.82, sun:0.2  }
+};
+const wxCur = { fogN:6000, fogF:22000, hemi:0.9, sun:0.95 };
+const _tc = new THREE.Color();
+function updateAtmosphere(dt){
+  const w = WX[state.weather] || WX.clear;
+  const k = 1 - Math.exp(-dt*1.4);
+  skyUniforms.topColor.value.lerp(_tc.set(w.top), k);
+  skyUniforms.bottomColor.value.lerp(_tc.set(w.bottom), k);
+  scene3.fog.color.copy(skyUniforms.bottomColor.value);
+  wxCur.fogN += (w.fogN - wxCur.fogN)*k; wxCur.fogF += (w.fogF - wxCur.fogF)*k;
+  wxCur.hemi += (w.hemi - wxCur.hemi)*k; wxCur.sun += (w.sun - wxCur.sun)*k;
+  scene3.fog.near = wxCur.fogN; scene3.fog.far = wxCur.fogF;
+  hemi.intensity = wxCur.hemi + lightningFlash*1.4;
+  sun.intensity = wxCur.sun + lightningFlash*0.8;
+}
+
+/* ---- ground & roads ---- */
+(function buildTerrain(){
+  const rnd = mulberry32(7);
+  const groundTex = canvasTex(512, 512, (g,w,h)=>{
+    g.fillStyle = "#5f7c3b"; g.fillRect(0,0,w,h);
+    for (let i=0; i<700; i++){
+      const x = rnd()*w, y = rnd()*h, r = 8 + rnd()*44, t = rnd();
+      const col = t < 0.4 ? "rgba(96,128,52,"+(0.1+rnd()*0.2)+")" : t < 0.7 ? "rgba(150,156,74,"+(0.08+rnd()*0.16)+")" : "rgba(66,92,44,"+(0.1+rnd()*0.2)+")";
+      g.fillStyle = col;
+      for (let ox=-1; ox<=1; ox++) for (let oy=-1; oy<=1; oy++){
+        g.beginPath(); g.arc(x+ox*w, y+oy*h, r, 0, Math.PI*2); g.fill();
+      }
+    }
+  });
+  groundTex.repeat.set(64, 64);
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(44000, 44000).rotateX(-Math.PI/2),
+    new THREE.MeshLambertMaterial({ map: groundTex })
+  );
+  scene3.add(ground);
+
+  const roadTex = canvasTex(128, 256, (g,w,h)=>{
+    g.fillStyle = "#3d4044"; g.fillRect(0,0,w,h);
+    g.fillStyle = "#d9d9d0"; g.fillRect(6,0,3,h); g.fillRect(w-9,0,3,h);
+    g.fillStyle = "#e8e340"; g.fillRect(w/2-2, 0, 4, h/2);
+  });
+  const ROAD_LEN = 20000;
+  roadTex.repeat.set(1, ROAD_LEN/208);
+  const roadMat = new THREE.MeshLambertMaterial({ map: roadTex, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 });
+  const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_LEN).rotateX(-Math.PI/2);
+  for (let k=-2; k<=2; k++){
+    const p = k*ROAD_SPACING;
+    if (Math.abs(p) > 9000) continue;
+    const v = new THREE.Mesh(roadGeo, roadMat); v.position.set(p, 0.6, 0); scene3.add(v);
+    const h2 = new THREE.Mesh(roadGeo, roadMat); h2.rotation.y = Math.PI/2; h2.position.set(0, 0.9, p); scene3.add(h2);
+  }
+
+  // approximate highway corridors between the real locations
+  const hwMat = new THREE.MeshLambertMaterial({ color:0x4a4d52, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1 });
+  const hwGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI/2);
+  HIGHWAYS.forEach(path=>{
+    for (let i=0; i<path.length-1; i++){
+      const a = path[i], b = path[i+1];
+      const dx = b.x-a.x, dz = b.y-a.y, len = Math.hypot(dx,dz);
+      const m = new THREE.Mesh(hwGeo, hwMat);
+      m.scale.set(len, 1, 56);
+      m.position.set((a.x+b.x)/2, 0.35, (a.y+b.y)/2);
+      m.rotation.y = -Math.atan2(dz, dx);
+      scene3.add(m);
+    }
+  });
+
+  // translucent world-boundary walls
+  const wallMat = new THREE.MeshBasicMaterial({ color:0xff4040, transparent:true, opacity:0.12, side:THREE.DoubleSide, depthWrite:false });
+  const wallGeo = new THREE.PlaneGeometry(WORLD_MAX-WORLD_MIN, 260);
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(([sx,sz])=>{
+    const w = new THREE.Mesh(wallGeo, wallMat);
+    w.position.set(sx*WORLD_MAX, 130, sz*WORLD_MAX);
+    if (sx !== 0) w.rotation.y = Math.PI/2;
+    scene3.add(w);
+  });
+})();
+
+/* ---- towns, cities, landmarks, scenery ---- */
+const turbines = [];
+let turbineBlades = null;
+(function buildSettlements(){
+  const rnd = mulberry32(1337);
+  const bldgs = [];
+  const townPal = ["#c9b99a","#d8d2c4","#a85a4a","#8f9aa3","#7b6a58"];
+  const cityPal = ["#8a97a6","#6f7d8c","#a3adb8","#59687a","#b4bcc6"];
+
+  const ringGeo = new THREE.RingGeometry(TOWN_RADIUS-3, TOWN_RADIUS, 72).rotateX(-Math.PI/2);
+  const discGeo = new THREE.CircleGeometry(TOWN_RADIUS, 48).rotateX(-Math.PI/2);
+  const ringMat = new THREE.MeshBasicMaterial({ color:0x39ff14, transparent:true, opacity:0.6, depthWrite:false });
+  const discMat = new THREE.MeshBasicMaterial({ color:0x39ff14, transparent:true, opacity:0.07, depthWrite:false });
+  const beaconMat = new THREE.MeshBasicMaterial({ color:0x39ff14, transparent:true, opacity:0.32, side:THREE.DoubleSide, depthWrite:false });
+  const beaconGeo = new THREE.CylinderGeometry(4, 4, 320, 10, 1, true);
+
+  TOWNS.forEach(t=>{
+    const ring = new THREE.Mesh(ringGeo, ringMat); ring.position.set(t.x, 0.8, t.y); scene3.add(ring);
+    const disc = new THREE.Mesh(discGeo, discMat); disc.position.set(t.x, 0.7, t.y); scene3.add(disc);
+    const beacon = new THREE.Mesh(beaconGeo, beaconMat); beacon.position.set(t.x, 160, t.y); scene3.add(beacon);
+    const garage = new THREE.Mesh(new THREE.BoxGeometry(46, 22, 34), new THREE.MeshLambertMaterial({ color:0x2c3a2c }));
+    garage.position.set(t.x, 11, t.y); scene3.add(garage);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(48, 2, 36), new THREE.MeshBasicMaterial({ color:0x39ff14 }));
+    roof.position.set(t.x, 23, t.y); scene3.add(roof);
+    const n = 16;
+    for (let i=0; i<n; i++){
+      const a = (i/n)*Math.PI*2 + rnd()*0.3, d = 80 + rnd()*120;
+      bldgs.push({ x:t.x+Math.cos(a)*d, z:t.y+Math.sin(a)*d, w:16+rnd()*16, d:16+rnd()*16, h:8+rnd()*18, rot:rnd()*Math.PI, color:townPal[Math.floor(rnd()*townPal.length)] });
+    }
+  });
+
+  const cityFactor = { "Oklahoma City":1.9, "Wichita":1.6, "Topeka":1.3, "Amarillo":1.3, "Norman":0.8, "Lawton":0.8, "Stillwater":0.7, "Enid":0.7, "Clinton":0.5, "El Reno":0.5, "Hutchinson":0.7 };
+  CITIES.forEach(c=>{
+    if (TOWNS.some(t=>Math.hypot(t.x-c.x, t.y-c.y) < 350)) return; // already built as a town
+    const f = cityFactor[c.name] || 1;
+    const n = Math.round(18 + f*10);
+    for (let i=0; i<n; i++){
+      const a = rnd()*Math.PI*2, d = Math.sqrt(rnd())*170;
+      const h = (14 + rnd()*50) * f * (1.5 - d/170) * (0.5 + rnd()*0.8);
+      bldgs.push({ x:c.x+Math.cos(a)*d, z:c.y+Math.sin(a)*d, w:14+rnd()*22, d:14+rnd()*22, h:Math.max(10,h), rot:rnd()*Math.PI, color:cityPal[Math.floor(rnd()*cityPal.length)] });
+    }
+  });
+
+  const bGeo = new THREE.BoxGeometry(1,1,1).translate(0,0.5,0);
+  const bMesh = new THREE.InstancedMesh(bGeo, new THREE.MeshLambertMaterial({ color:0xffffff }), bldgs.length);
+  const dummy = new THREE.Object3D();
+  bldgs.forEach((b,i)=>{
+    dummy.position.set(b.x, 0, b.z); dummy.rotation.set(0, b.rot, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
+    bMesh.setMatrixAt(i, dummy.matrix); bMesh.setColorAt(i, _tc.set(b.color));
+  });
+  bMesh.frustumCulled = false;
+  scene3.add(bMesh);
+
+  // landmark obelisks
+  const obGeo = new THREE.ConeGeometry(9, 110, 4).translate(0,55,0);
+  const obMat = new THREE.MeshBasicMaterial({ color:0xffd23f });
+  const obRing = new THREE.RingGeometry(26, 30, 32).rotateX(-Math.PI/2);
+  const obRingMat = new THREE.MeshBasicMaterial({ color:0xffd23f, transparent:true, opacity:0.55, depthWrite:false });
+  MAP_LANDMARKS.forEach(l=>{
+    const o = new THREE.Mesh(obGeo, obMat); o.position.set(l.x, 0, l.y); scene3.add(o);
+    const r = new THREE.Mesh(obRing, obRingMat); r.position.set(l.x, 0.9, l.y); scene3.add(r);
+  });
+
+  function freeSpot(x, z, townPad, cityPad){
+    if (nearestGridDist(x) < 90 || nearestGridDist(z) < 90) return false;
+    for (const t of TOWNS) if (Math.hypot(t.x-x, t.y-z) < townPad) return false;
+    for (const c of CITIES) if (Math.hypot(c.x-x, c.y-z) < cityPad) return false;
+    return true;
+  }
+
+  // trees (clustered, instanced)
+  const TREES = 2400;
+  const crownGeo = new THREE.ConeGeometry(9, 30, 7).translate(0, 23, 0);
+  const trunkGeo = new THREE.CylinderGeometry(1.2, 1.7, 9, 6).translate(0, 4.5, 0);
+  const crowns = new THREE.InstancedMesh(crownGeo, new THREE.MeshLambertMaterial({ color:0xffffff }), TREES);
+  const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshLambertMaterial({ color:0x5a4330 }), TREES);
+  const centers = [];
+  for (let i=0; i<70; i++) centers.push([WORLD_MIN+300+rnd()*(WORLD_MAX-WORLD_MIN-600), WORLD_MIN+300+rnd()*(WORLD_MAX-WORLD_MIN-600)]);
+  let ti = 0, tries = 0;
+  while (ti < TREES && tries < TREES*8){
+    tries++;
+    const c = centers[Math.floor(rnd()*centers.length)];
+    const a = rnd()*Math.PI*2, d = Math.pow(rnd(), 0.7)*420;
+    const x = c[0]+Math.cos(a)*d, z = c[1]+Math.sin(a)*d;
+    if (Math.abs(x) > WORLD_MAX || Math.abs(z) > WORLD_MAX || !freeSpot(x, z, 320, 260)) continue;
+    const s = 0.8 + rnd()*1.1;
+    dummy.position.set(x, 0, z); dummy.rotation.set(0, rnd()*6, 0); dummy.scale.set(s, s*(0.9+rnd()*0.4), s); dummy.updateMatrix();
+    crowns.setMatrixAt(ti, dummy.matrix); trunks.setMatrixAt(ti, dummy.matrix);
+    crowns.setColorAt(ti, _tc.setHSL(0.27+rnd()*0.07, 0.45, 0.2+rnd()*0.1));
+    ti++;
+  }
+  crowns.count = ti; trunks.count = ti;
+  crowns.frustumCulled = false; trunks.frustumCulled = false;
+  scene3.add(crowns); scene3.add(trunks);
+
+  // wind turbines (blades spin)
+  const NT = 70;
+  let tries2 = 0;
+  while (turbines.length < NT && tries2 < 2000){
+    tries2++;
+    const x = WORLD_MIN+200+rnd()*(WORLD_MAX-WORLD_MIN-400), z = WORLD_MIN+200+rnd()*(WORLD_MAX-WORLD_MIN-400);
+    if (!freeSpot(x, z, 420, 340)) continue;
+    turbines.push({ x, z, ph: rnd()*6.28 });
+  }
+  const towerGeo = new THREE.CylinderGeometry(1.5, 2.6, 92, 8).translate(0, 46, 0);
+  const towers = new THREE.InstancedMesh(towerGeo, new THREE.MeshLambertMaterial({ color:0xe8eaec }), turbines.length);
+  turbines.forEach((t,i)=>{ dummy.position.set(t.x,0,t.z); dummy.rotation.set(0,0,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); towers.setMatrixAt(i, dummy.matrix); });
+  towers.frustumCulled = false; scene3.add(towers);
+  const bladeGeo = new THREE.BoxGeometry(2.4, 48, 1).translate(0, 24, 0);
+  turbineBlades = new THREE.InstancedMesh(bladeGeo, new THREE.MeshLambertMaterial({ color:0xf4f4f4 }), turbines.length*3);
+  turbineBlades.frustumCulled = false;
+  scene3.add(turbineBlades);
+})();
+
+const _dummy = new THREE.Object3D();
+function updateTurbines(time){
+  if (!turbineBlades) return;
+  const spin = time * (state.weather === "clear" ? 0.9 : 1.7);
+  let idx = 0;
+  for (let i=0; i<turbines.length; i++){
+    const t = turbines[i];
+    for (let b=0; b<3; b++){
+      _dummy.position.set(t.x, 94, t.z);
+      _dummy.rotation.set(0, 0.6, spin + t.ph + b*2.0944, "YXZ");
+      _dummy.scale.set(1,1,1);
+      _dummy.updateMatrix();
+      turbineBlades.setMatrixAt(idx++, _dummy.matrix);
+    }
+  }
+  turbineBlades.instanceMatrix.needsUpdate = true;
+}
+
+/* ---- vehicle models ---- */
+const _geoCache = {}, _matCache = {};
+function geoBox(w,h,l){ const k = "b"+w.toFixed(1)+"_"+h.toFixed(1)+"_"+l.toFixed(1); return _geoCache[k] || (_geoCache[k] = new THREE.BoxGeometry(w,h,l)); }
+function geoCyl(rt,rb,h,seg){ const k = "c"+rt+"_"+rb+"_"+h+"_"+seg; return _geoCache[k] || (_geoCache[k] = new THREE.CylinderGeometry(rt,rb,h,seg)); }
+function mat(color, emissive){
+  const k = color+"|"+(emissive||"");
+  return _matCache[k] || (_matCache[k] = new THREE.MeshLambertMaterial({ color, emissive: emissive || 0x000000 }));
+}
+function shade(hex, f){ return "#" + new THREE.Color(hex).multiplyScalar(f).getHexString(); }
+const wheelGeo = new THREE.CylinderGeometry(3.4, 3.4, 2.8, 12).rotateZ(Math.PI/2);
+const wheelMat = new THREE.MeshLambertMaterial({ color:0x15171a });
+const anchorRingMat = new THREE.MeshBasicMaterial({ color:0x39ff14, transparent:true, opacity:0.85, depthWrite:false });
+const shadowMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.32, depthWrite:false });
+const domeGeo = new THREE.SphereGeometry(5, 14, 8, 0, Math.PI*2, 0, Math.PI/2);
+const dishGeo = new THREE.SphereGeometry(7, 14, 6, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+const dishMat = new THREE.MeshLambertMaterial({ color:0xdfe6ee, side:THREE.DoubleSide });
+
+function buildVehicle(key, color, detail){
+  const v = key ? VEHICLES[key] : null;
+  const cat = v ? v.category : "interceptor";
+  const mass = v ? v.mass : 2.5;
+  const s = 0.9 + Math.min(4.6, mass)*0.1;
+  const dim = { chase:[15,6.5,30], interceptor:[19,8,35], support:[17,7,38] }[cat];
+  const W = dim[0]*s, H = dim[1]*s, L = dim[2]*s;
+  const g = new THREE.Group();
+  const wr = 3.4;
+  const bodyY = wr + H/2 - 0.5;
+  const top = bodyY + H/2;
+  const bodyCol = color;
+  const glass = mat("#26343f");
+  const dark = mat("#1e2429");
+
+  const body = new THREE.Mesh(geoBox(W, H, L), mat(bodyCol)); body.position.y = bodyY; g.add(body);
+
+  if (cat === "chase"){
+    const cab = new THREE.Mesh(geoBox(W*0.82, 5.5*s, L*0.46), glass); cab.position.set(0, top+2.6*s, L*0.06); g.add(cab);
+    const roof = new THREE.Mesh(geoBox(W*0.78, 0.8, L*0.4), mat(shade(bodyCol,0.85))); roof.position.set(0, top+5.4*s, L*0.06); g.add(roof);
+  } else if (cat === "interceptor"){
+    const cab = new THREE.Mesh(geoBox(W*0.7, 5*s, L*0.32), glass); cab.position.set(0, top+2.4*s, -L*0.12); g.add(cab);
+    const frame = new THREE.Mesh(geoBox(W*0.92, 1.6, L*0.3), mat(shade(bodyCol,0.6))); frame.position.set(0, top+0.8, L*0.22); g.add(frame);
+    if (detail){
+      const skirt = new THREE.Mesh(geoBox(W+1.8, 2.6, L*0.8), mat("#2b2f33")); skirt.position.set(0, wr+1.0, 0); g.add(skirt);
+      if (key === "tiv" || key === "tiv2" || key === "tiv3"){
+        const plow = new THREE.Mesh(geoBox(W*1.05, 3.4, 3), mat("#3a3f45")); plow.position.set(0, wr+1.6, -L/2-1.4); g.add(plow);
+      }
+    }
+    if (key && /dominator|joker|tempest|maelstrom/.test(key)){
+      const dome = new THREE.Mesh(domeGeo, mat(shade(bodyCol,0.8))); dome.scale.setScalar(s*1.05); dome.position.set(0, top+1.6, L*0.22); g.add(dome);
+    }
+  } else {
+    const cargoH = H + 5*s;
+    const cargo = new THREE.Mesh(geoBox(W, cargoH, L*0.6), mat(bodyCol)); cargo.position.set(0, bodyY + (cargoH-H)/2, L*0.2); g.add(cargo);
+    const cabin = new THREE.Mesh(geoBox(W*0.96, H+1.5, L*0.28), mat(shade(bodyCol,0.7))); cabin.position.set(0, bodyY+0.75, -L*0.34); g.add(cabin);
+    const win = new THREE.Mesh(geoBox(W*0.9, 3.2, 0.6), glass); win.position.set(0, top+0.6, -L*0.48); g.add(win);
+    const roofY = bodyY + cargoH/2 + H/2;
+    if (key === "dow" || key === "dow7"){
+      const pole = new THREE.Mesh(geoBox(1.2, 6, 1.2), dark); pole.position.set(0, roofY+3, L*0.2); g.add(pole);
+      const dish = new THREE.Mesh(dishGeo, dishMat); dish.scale.setScalar(key==="dow7"?1.25:1); dish.rotation.x = -0.55; dish.position.set(0, roofY+8, L*0.2); g.add(dish);
+    } else if (key === "fueltanker"){
+      const tank = new THREE.Mesh(geoCyl(5.2,5.2,L*0.55,14), mat("#c9cdd1")); tank.rotation.x = Math.PI/2; tank.position.set(0, roofY+4.4, L*0.2); g.add(tank);
+    } else if (key === "toto"){
+      const bar = new THREE.Mesh(geoBox(W*0.7, 1.4, 2.4), mat("#ffb300","#ff9800")); bar.position.set(0, top+2.2, -L*0.34); g.add(bar);
+    } else {
+      const mast = new THREE.Mesh(geoCyl(0.4,0.4,16,5), dark); mast.position.set(W*0.3, roofY+8, L*0.15); g.add(mast);
+    }
+  }
+
+  if (detail){
+    const wz = [-L*0.32, L*0.32];
+    wz.forEach(z=>{ [-1,1].forEach(sx=>{
+      const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(sx*(W/2), wr, z); g.add(w);
+    }); });
+    const hl = mat("#fff6c0","#fff6c0"), tl = mat("#ff3030","#ff2020");
+    [-1,1].forEach(sx=>{
+      const a = new THREE.Mesh(geoBox(3,1.8,0.6), hl); a.position.set(sx*W*0.32, bodyY, -L/2-0.1); g.add(a);
+      const b = new THREE.Mesh(geoBox(3,1.6,0.6), tl); b.position.set(sx*W*0.32, bodyY, L/2+0.1); g.add(b);
+    });
+  }
+
+  const shadow = new THREE.Mesh(geoBox(W*1.5, 0.1, L*1.15), shadowMat); shadow.position.y = 0.55; g.add(shadow);
+
+  // anchor visuals: ground ring + extended spikes (toggled when anchored)
+  const ag = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.RingGeometry(L*0.62, L*0.62+2.4, 40).rotateX(-Math.PI/2), anchorRingMat);
+  ring.position.y = 1.0; ag.add(ring);
+  if (detail){
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
+      const sp = new THREE.Mesh(geoCyl(1.5,0.5,9,6), mat("#444b52")); sp.position.set(sx*(W/2+1), 4.5, sz*L*0.36); ag.add(sp);
+      const pad = new THREE.Mesh(geoCyl(3.2,3.2,0.8,10), mat("#2f353a")); pad.position.set(sx*(W/2+1), 0.6, sz*L*0.36); ag.add(pad);
+    });
+  }
+  ag.visible = false;
+  g.add(ag);
+  g.userData.anchor = ag;
+  return g;
+}
+
+const vehEntries = new Map();
+let vehStamp = 0;
+function placeVehicle(id, key, color, detail, x, z, angle, anchored){
+  let e = vehEntries.get(id);
+  if (!e || e.key !== key || e.color !== color || e.detail !== detail){
+    if (e) scene3.remove(e.mesh);
+    e = { key, color, detail, mesh: buildVehicle(key, color, detail), stamp:0 };
+    vehEntries.set(id, e);
+    scene3.add(e.mesh);
+  }
+  e.stamp = vehStamp;
+  const m = e.mesh;
+  m.position.set(x, 0, z);
+  m.rotation.set(0, -angle, 0);
+  m.userData.anchor.visible = !!anchored;
+  m.visible = true;
+  return m;
+}
+function sweepVehicles(){
+  vehEntries.forEach((e,id)=>{ if (e.stamp !== vehStamp){ scene3.remove(e.mesh); vehEntries.delete(id); } });
+}
+function npcDetail(id, d){
+  const ex = vehEntries.get(id);
+  if (!ex) return d < 700;
+  if (!ex.detail && d < 500) return true;
+  if (ex.detail && d > 900) return false;
+  return ex.detail;
+}
+
+/* ---- tornado ---- */
+const softTex = canvasTex(64, 64, (g,w,h)=>{
+  const gr = g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+  gr.addColorStop(0,"rgba(255,255,255,1)"); gr.addColorStop(0.45,"rgba(255,255,255,0.55)"); gr.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+});
+softTex.wrapS = softTex.wrapT = THREE.ClampToEdgeWrapping;
+
+function makePts(n, size, opacity){
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(n*3), col = new Float32Array(n*3);
+  geo.setAttribute("position", new THREE.BufferAttribute(pos,3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col,3));
+  const mt = new THREE.PointsMaterial({ size, map:softTex, vertexColors:true, transparent:true, opacity, depthWrite:false, sizeAttenuation:true });
+  const pts = new THREE.Points(geo, mt);
+  pts.frustumCulled = false;
+  return { pts, pos, col, geo, mt, n };
+}
+const NF = 2600, NC = 520, ND = 700, NS = 660;
+const tFun = makePts(NF, 40, 0.62), tCloud = makePts(NC, 300, 0.5), tDeb = makePts(ND, 20, 0.7), tSub = makePts(NS, 24, 0.6);
+const tornGroup = new THREE.Group();
+[tFun, tCloud, tDeb, tSub].forEach(o=>tornGroup.add(o.pts));
+tornGroup.visible = false;
+scene3.add(tornGroup);
+(function seedTornado(){
+  const r = mulberry32(99);
+  const mk = (n, extra)=>{ const a = { u:new Float32Array(n), th:new Float32Array(n), rj:new Float32Array(n), sp:new Float32Array(n), nz:new Float32Array(n) };
+    for (let i=0;i<n;i++){ a.u[i]=Math.pow(r(),1.25); a.th[i]=r()*Math.PI*2; a.rj[i]=0.75+r()*0.4; a.sp[i]=0.8+r()*0.4; a.nz[i]=r(); }
+    return a; };
+  tFun.p = mk(NF); tCloud.p = mk(NC); tDeb.p = mk(ND); tSub.p = mk(NS);
+})();
+const TORN_SHAPE = { single:[0.32,1.0], multivortex:[0.36,1.05], rope:[0.14,0.75], wedge:[0.6,1.0] };
+
+const dangerRing = new THREE.Mesh(new THREE.RingGeometry(0.975, 1, 72).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({ color:0xffd23f, transparent:true, opacity:0.6, depthWrite:false }));
+dangerRing.visible = false; scene3.add(dangerRing);
+
+const dashTex = canvasTex(64, 8, (g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle="#ffdd33"; g.fillRect(0,0,w/2,h); });
+dashTex.repeat.set(1800/64, 1);
+const routeMesh = new THREE.Mesh(new THREE.PlaneGeometry(1800, 16).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({ map:dashTex, transparent:true, opacity:0.7, depthWrite:false }));
+routeMesh.visible = false; scene3.add(routeMesh);
+const routeArrow = new THREE.Mesh(new THREE.ConeGeometry(20, 50, 3).rotateZ(-Math.PI/2).rotateX(Math.PI/2), new THREE.MeshBasicMaterial({ color:0xffdd33 }));
+routeArrow.visible = false; scene3.add(routeArrow);
+const trailPts = makePts(64, 18, 0.85);
+trailPts.pts.visible = false; scene3.add(trailPts.pts);
+
+function updateTornado3D(){
+  if (!tornado){
+    tornGroup.visible = false; dangerRing.visible = false; routeMesh.visible = false; routeArrow.visible = false; trailPts.pts.visible = false;
+    return;
+  }
+  const T = tornado, tt = TORNADO_TYPES[T.type] || TORNADO_TYPES.single;
+  const R = Math.max(25, T.radius), H = 500 + R*2.2;
+  const sh = TORN_SHAPE[T.type] || TORN_SHAPE.single;
+  const gR = R*sh[0], tR = R*sh[1];
+  const rp = T.rotPhase, t = rp*tt.rotMult, meme = !!T.isMeme;
+  const time = performance.now()/1000;
+  tornGroup.visible = true;
+  tornGroup.position.set(T.x, 0, T.y);
+
+  // funnel
+  let P = tFun.p, pos = tFun.pos, col = tFun.col;
+  for (let i=0; i<NF; i++){
+    const h = (P.u[i] + rp*0.045*tt.rotMult) % 1;
+    const r = (gR + (tR-gR)*Math.pow(h,1.8)) * P.rj[i];
+    const a = P.th[i] + t*(2.2-1.3*h)*P.sp[i];
+    const sx = Math.sin(h*2.6 + rp*0.7)*R*0.18*h, sz = Math.cos(h*2.1 + rp*0.5)*R*0.12*h;
+    pos[i*3] = Math.cos(a)*r + sx; pos[i*3+1] = h*H; pos[i*3+2] = Math.sin(a)*r + sz;
+    if (meme){ _tc.setHSL(((time*60 + i*0.35 + h*200)%360)/360, 0.9, 0.55); col[i*3]=_tc.r; col[i*3+1]=_tc.g; col[i*3+2]=_tc.b; }
+    else { const g = 0.22 + 0.38*h + (P.nz[i]-0.5)*0.14; col[i*3]=g*1.06; col[i*3+1]=g; col[i*3+2]=g*(0.9+0.1*h); }
+  }
+  tFun.geo.attributes.position.needsUpdate = true; tFun.geo.attributes.color.needsUpdate = true;
+  tFun.mt.size = Math.max(16, R*0.16);
+
+  // wall cloud
+  P = tCloud.p; pos = tCloud.pos; col = tCloud.col;
+  for (let i=0; i<NC; i++){
+    const a = P.th[i] + rp*0.18, rr = Math.sqrt(P.u[i])*(tR*2.6+60);
+    pos[i*3] = Math.cos(a)*rr; pos[i*3+1] = H + (P.nz[i]-0.4)*R*0.22; pos[i*3+2] = Math.sin(a)*rr;
+    if (meme){ _tc.setHSL(((time*40 + i*0.8)%360)/360, 0.8, 0.4); col[i*3]=_tc.r; col[i*3+1]=_tc.g; col[i*3+2]=_tc.b; }
+    else { const g = 0.15 + 0.12*P.nz[i]; col[i*3]=g; col[i*3+1]=g*1.02; col[i*3+2]=g*1.08; }
+  }
+  tCloud.geo.attributes.position.needsUpdate = true; tCloud.geo.attributes.color.needsUpdate = true;
+  tCloud.mt.size = R*0.7 + 140;
+
+  // ground debris skirt
+  P = tDeb.p; pos = tDeb.pos; col = tDeb.col;
+  for (let i=0; i<ND; i++){
+    const a = P.th[i] + t*3.2*P.sp[i], rr = gR*0.8 + P.u[i]*R*1.05;
+    const hh = Math.pow(P.nz[i], 2.2)*(R*0.45+30) + 2 + Math.sin(time*3 + i)*2;
+    pos[i*3] = Math.cos(a)*rr; pos[i*3+1] = hh; pos[i*3+2] = Math.sin(a)*rr;
+    if (meme){ _tc.setHSL(((time*90 + i)%360)/360, 0.9, 0.6); col[i*3]=_tc.r; col[i*3+1]=_tc.g; col[i*3+2]=_tc.b; }
+    else { const g = 0.25 + 0.2*P.rj[i]; col[i*3]=g*1.3; col[i*3+1]=g*1.05; col[i*3+2]=g*0.8; }
+  }
+  tDeb.geo.attributes.position.needsUpdate = true; tDeb.geo.attributes.color.needsUpdate = true;
+  tDeb.mt.size = Math.max(10, R*0.07);
+
+  // multi-vortex satellites
+  tSub.pts.visible = tt.subVortices > 0 && !meme;
+  if (tSub.pts.visible){
+    P = tSub.p; pos = tSub.pos; col = tSub.col;
+    for (let i=0; i<NS; i++){
+      const s = i % tt.subVortices;
+      const h = (P.u[i] + rp*0.07) % 1;
+      const oa = rp*0.6*tt.rotMult + s*(Math.PI*2/tt.subVortices);
+      const orb = R*(0.38 + 0.1*h);
+      const lr = R*(0.06 + 0.12*h)*P.rj[i];
+      const a2 = P.th[i] + rp*5*P.sp[i];
+      pos[i*3] = Math.cos(oa)*orb + Math.cos(a2)*lr; pos[i*3+1] = h*H*0.62; pos[i*3+2] = Math.sin(oa)*orb + Math.sin(a2)*lr;
+      const g = 0.45 + 0.2*P.nz[i]; col[i*3]=g; col[i*3+1]=g; col[i*3+2]=g*1.05;
+    }
+    tSub.geo.attributes.position.needsUpdate = true; tSub.geo.attributes.color.needsUpdate = true;
+    tSub.mt.size = Math.max(12, R*0.1);
+  }
+
+  // danger ring at the influence boundary
+  dangerRing.visible = true;
+  dangerRing.position.set(T.x, 1.4, T.y);
+  dangerRing.scale.set(R*1.3, 1, R*1.3);
+  dangerRing.material.color.set(meme ? 0xff00dc : (T.category >= 12 ? 0xff3131 : 0xffd23f));
+
+  // projected route + traveled trail
+  routeMesh.visible = true; routeArrow.visible = true;
+  routeMesh.position.set(T.x + Math.cos(T.dirAngle)*900, 2, T.y + Math.sin(T.dirAngle)*900);
+  routeMesh.rotation.y = -T.dirAngle;
+  routeArrow.position.set(T.x + Math.cos(T.dirAngle)*1830, 2, T.y + Math.sin(T.dirAngle)*1830);
+  routeArrow.rotation.y = -T.dirAngle;
+  const hist = T.pathHistory, n = Math.min(63, hist.length);
+  for (let i=0; i<n; i++){
+    const p = hist[hist.length-n+i];
+    trailPts.pos[i*3] = p.x; trailPts.pos[i*3+1] = 3; trailPts.pos[i*3+2] = p.y;
+    trailPts.col[i*3] = 1; trailPts.col[i*3+1] = 0.87; trailPts.col[i*3+2] = 0.2;
+  }
+  trailPts.pos[n*3] = T.x; trailPts.pos[n*3+1] = 3; trailPts.pos[n*3+2] = T.y;
+  trailPts.col[n*3] = 1; trailPts.col[n*3+1] = 0.87; trailPts.col[n*3+2] = 0.2;
+  trailPts.geo.setDrawRange(0, n+1);
+  trailPts.geo.attributes.position.needsUpdate = true; trailPts.geo.attributes.color.needsUpdate = true;
+  trailPts.pts.visible = true;
+}
+
+/* ---- grapple ---- */
+const ropeGeo = new THREE.CylinderGeometry(1.1, 1.1, 1, 6).rotateX(Math.PI/2);
+const ropeMesh = new THREE.Mesh(ropeGeo, new THREE.MeshBasicMaterial({ color:0x7fb8ff }));
+const hookGroup = new THREE.Group();
+const hookBall = new THREE.Mesh(new THREE.SphereGeometry(7, 12, 10), new THREE.MeshBasicMaterial({ color:0x5c9ded }));
+hookBall.position.y = 16;
+const hookPole = new THREE.Mesh(geoCyl(1.6,1.6,16,6), mat("#2a3f58")); hookPole.position.y = 8;
+const hookRing = new THREE.Mesh(new THREE.RingGeometry(14, 16.5, 28).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({ color:0x5c9ded, transparent:true, opacity:0.6, depthWrite:false }));
+hookRing.position.y = 1.2;
+hookGroup.add(hookBall, hookPole, hookRing);
+ropeMesh.visible = false; hookGroup.visible = false;
+scene3.add(ropeMesh, hookGroup);
+const _va = new THREE.Vector3(), _vb = new THREE.Vector3();
+function updateGrapple3D(time){
+  if (!grapple.active){ ropeMesh.visible = false; hookGroup.visible = false; return; }
+  _va.set(car.x, 9, car.y); _vb.set(grapple.x, 16, grapple.y);
+  ropeMesh.visible = true;
+  ropeMesh.position.copy(_va).add(_vb).multiplyScalar(0.5);
+  ropeMesh.scale.set(1, 1, Math.max(1, _va.distanceTo(_vb)));
+  ropeMesh.lookAt(_vb);
+  hookGroup.visible = true;
+  hookGroup.position.set(grapple.x, 0, grapple.y);
+  hookRing.scale.setScalar(1 + Math.sin(time*8)*0.12);
+}
+
+/* ---- tool FX: fireworks, probe drops, smoke flares ---- */
+const unitRing = new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI/2);
+let fxObjs = [];
+function makeFxObj(fx){
+  const grp = new THREE.Group(); grp.position.set(fx.x, 0, fx.y); scene3.add(grp);
+  const o = { fx, grp };
+  if (fx.type === "probe"){
+    o.ring = new THREE.Mesh(unitRing, new THREE.MeshBasicMaterial({ color:fx.color, transparent:true, side:THREE.DoubleSide, depthWrite:false }));
+    o.ring.position.y = 1.5; grp.add(o.ring);
+    const barrel = new THREE.Mesh(geoCyl(3.2,3.2,7,10), mat(fx.color)); barrel.position.set(0,3.5,-18); grp.add(barrel);
+  } else if (fx.type === "fireworks"){
+    const n = 210, p = makePts(n, 7, 0.95);
+    o.p = p; o.vel = new Float32Array(n*3);
+    for (let i=0; i<n; i++){
+      const a = Math.random()*Math.PI*2, b = Math.acos(2*Math.random()-1);
+      o.vel[i*3] = Math.sin(b)*Math.cos(a); o.vel[i*3+1] = Math.cos(b); o.vel[i*3+2] = Math.sin(b)*Math.sin(a);
+    }
+    grp.add(p.pts);
+  } else {
+    const n = 40, p = makePts(n, 20, 0.55);
+    for (let i=0; i<n; i++){ _tc.set(fx.color); p.col[i*3]=_tc.r; p.col[i*3+1]=_tc.g; p.col[i*3+2]=_tc.b; }
+    p.geo.attributes.color.needsUpdate = true;
+    o.p = p; grp.add(p.pts);
+  }
+  return o;
+}
+function updateFx3D(){
+  fxObjs = fxObjs.filter(o=>{
+    if (fxList.includes(o.fx)) return true;
+    scene3.remove(o.grp); return false;
+  });
+  fxList.forEach(fx=>{
+    if (!fxObjs.some(o=>o.fx === fx)) fxObjs.push(makeFxObj(fx));
+  });
+  fxObjs.forEach(o=>{
+    const fx = o.fx, t = fx.age/fx.life;
+    if (fx.type === "probe"){
+      o.ring.scale.setScalar(10 + t*60); o.ring.material.opacity = Math.max(0, 1-t);
+    } else if (fx.type === "fireworks"){
+      const p = o.p;
+      for (let b=0; b<3; b++){
+        const bt = Math.max(0, Math.min(1, t*1.6 - b*0.22));
+        for (let k=0; k<70; k++){
+          const i = b*70 + k;
+          if (bt <= 0 || bt >= 1){ p.pos[i*3+1] = -1000; continue; }
+          p.pos[i*3]   = (b-1)*30 + o.vel[i*3]*bt*75;
+          p.pos[i*3+1] = 85 + b*14 + o.vel[i*3+1]*bt*75 - bt*bt*30;
+          p.pos[i*3+2] = o.vel[i*3+2]*bt*75;
+          _tc.setHSL(((b*70 + k*5 + fx.age*80)%360)/360, 0.95, 0.62);
+          p.col[i*3] = _tc.r*(1-bt); p.col[i*3+1] = _tc.g*(1-bt); p.col[i*3+2] = _tc.b*(1-bt);
+        }
+      }
+      p.geo.attributes.position.needsUpdate = true; p.geo.attributes.color.needsUpdate = true;
+    } else {
+      const p = o.p;
+      for (let i=0; i<40; i++){
+        const rise = (fx.age*18 + i*6.5) % 260;
+        p.pos[i*3] = Math.sin(fx.age*0.8 + i)*10 + (i%5-2)*3; p.pos[i*3+1] = rise + 4; p.pos[i*3+2] = Math.cos(fx.age*0.7 + i*1.3)*8;
+      }
+      p.geo.attributes.position.needsUpdate = true;
+      p.mt.opacity = Math.max(0, Math.min(0.6, 1 - t*0.9));
+    }
+  });
+}
+
+/* ---- screen projection (for 2D overlay labels) & ground picking ---- */
+const _pv = new THREE.Vector3();
+function projectToScreen(x, y, z){
+  _pv.set(x, y, z).applyMatrix4(cam3.matrixWorldInverse);
+  if (_pv.z > -1) return null;
+  _pv.applyMatrix4(cam3.projectionMatrix);
+  return { x:(_pv.x*0.5+0.5)*canvas.width, y:(-_pv.y*0.5+0.5)*canvas.height };
+}
+function worldToScreen(x, y, h){ return projectToScreen(x, h||0, y) || { x:-9999, y:-9999 }; }
+
+const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2();
+function screenToWorld(sx, sy){
+  _ndc.set(sx/canvas.width*2 - 1, -(sy/canvas.height)*2 + 1);
+  _ray.setFromCamera(_ndc, cam3);
+  const o = _ray.ray.origin, d = _ray.ray.direction;
+  if (d.y >= -0.0005) return null; // clicked at/above the horizon
+  const t = -o.y/d.y;
+  return { x:o.x + d.x*t, y:o.z + d.z*t };
+}
+
+/* ---- cameras ---- */
+const CAM_VIEWS = [
+  { name:"CHASE",    dist:95,  speedDist:35, h:44,  look:70,  lookH:6, fov:64 },
+  { name:"HIGH",     dist:210, speedDist:60, h:120, look:130, lookH:0, fov:62 },
+  { name:"HOOD",     dist:-3,  speedDist:0,  h:11,  look:300, lookH:9, fov:78 },
+  { name:"OVERHEAD", dist:60,  speedDist:0,  h:900, look:10,  lookH:0, fov:55 }
+];
+let camMode = 0;
+window.addEventListener("keydown", e=>{
+  if (e.code === "KeyV" && state.running && !state.paused){
+    camMode = (camMode+1) % CAM_VIEWS.length;
+    showAlert("CAMERA: " + CAM_VIEWS[camMode].name, 1.0);
+  }
+});
+
+function render3D(dt){
+  const time = performance.now()/1000;
+  const spd = Math.hypot(car.vx, car.vy), k = Math.min(1, spd/1400);
+  const view = CAM_VIEWS[camMode];
+  const fx = Math.sin(camera.angle), fz = -Math.cos(camera.angle);
+  const dist = view.dist + view.speedDist*k;
+  const sk = shake*0.35;
+  cam3.position.set(camera.x - fx*dist + (Math.random()-0.5)*sk, view.h + (Math.random()-0.5)*sk, camera.y - fz*dist + (Math.random()-0.5)*sk);
+  cam3.lookAt(camera.x + fx*view.look, view.lookH, camera.y + fz*view.look);
+  cam3.fov = view.fov + k*14;
+  cam3.updateProjectionMatrix();
+  cam3.updateMatrixWorld();
+  skyMesh.position.copy(cam3.position);
+
+  updateAtmosphere(dt);
+  updateTurbines(time);
+
+  vehStamp++;
+  const pm = placeVehicle("__player", state.currentVehicleKey, activeVehicle().color, true, car.x, car.y, car.angle, car.anchored);
+  pm.visible = camMode !== 2;
+  if (car.ripFlashTimer > 0){
+    const f = car.ripFlashTimer/1.4;
+    pm.position.y = Math.sin((1-f)*Math.PI)*30;
+    pm.rotation.z = Math.sin(time*22)*0.5*f;
+  }
+  if (state.convoyActive){
+    convoyNPCs.forEach(n=>{
+      placeVehicle("c_"+n.id, n.type === "support" ? n.id : n.vehicleKey, n.color, true, n.x, n.y, n.angle, false);
+    });
+  }
+  wildConvoys.forEach(c=>{
+    c.members.forEach(m=>{
+      if (m.allied) return;
+      const d = Math.hypot(m.x-car.x, m.y-car.y);
+      if (d > 6000) return;
+      placeVehicle("w_"+m.id, m.vehicleKey, m.color, npcDetail("w_"+m.id, d), m.x, m.y, m.angle, c.state === "anchored");
+    });
+  });
+  Object.keys(remoteCars).forEach(id=>{
+    const rc = remoteCars[id];
+    if (rc.renderX == null || rc.renderY == null) return;
+    placeVehicle("r_"+id, null, rc.color || "#39ff14", true, rc.renderX, rc.renderY, rc.renderAngle || 0, rc.anchoring);
+  });
+  sweepVehicles();
+
+  updateTornado3D();
+  updateGrapple3D(time);
+  updateFx3D();
+  renderer3.render(scene3, cam3);
+}
+
+/* ---- 2D overlay labels projected from 3D ---- */
+function overlayLabel(x, h, z, text, color, font, maxDist){
+  if (Math.hypot(x-car.x, z-car.y) > maxDist) return null;
+  const p = projectToScreen(x, h, z);
+  if (!p) return null;
+  ctx.fillStyle = color; ctx.font = font; ctx.textAlign = "center";
+  ctx.fillText(text, p.x, p.y);
+  return p;
+}
+function draw3DLabels(){
+  ctx.save();
+  TOWNS.forEach(t=>{
+    const d = Math.round(Math.hypot(t.x-car.x, t.y-car.y));
+    overlayLabel(t.x, 340, t.y, t.name.toUpperCase() + "  ·  " + d + " ft", "#39ff14", "bold 14px Courier New", 14000);
+  });
+  CITIES.forEach(c=>{
+    if (TOWNS.some(t=>Math.hypot(t.x-c.x, t.y-c.y) < 350)) return;
+    overlayLabel(c.x, 230, c.y, c.name.toUpperCase(), "#b9dcff", "bold 13px Courier New", 7000);
+  });
+  MAP_LANDMARKS.forEach(l=>{
+    const p = overlayLabel(l.x, 125, l.y, l.name.toUpperCase(), "#ffeaa0", "bold 11px Courier New", 3200);
+    if (p && l.city){ ctx.fillStyle = "rgba(220,225,220,0.7)"; ctx.font = "9px Courier New"; ctx.fillText(l.city, p.x, p.y+12); }
+  });
+  wildConvoys.forEach(c=>{
+    const tag = c.state==="anchored" ? " ⚓" : c.state==="chase" ? " (chasing)" : c.state==="flee" ? " (fleeing)" : "";
+    overlayLabel(c.x, 45, c.y, c.team + " (" + c.members.length + ")" + tag, "rgba(200,150,255,0.9)", "10px Courier New", 2600);
+  });
+  if (state.convoyActive){
+    convoyNPCs.forEach(n=> overlayLabel(n.x, 26, n.y, n.name, "rgba(230,240,230,0.85)", "9px Courier New", 700));
+  }
+  Object.values(remoteCars).forEach(rc=>{
+    if (rc.renderX == null) return;
+    const p = overlayLabel(rc.renderX, 30, rc.renderY, rc.name || "?", rc.color || "#39ff14", "bold 11px Courier New", 4000);
+    if (p && rc.maxHealth > 0){
+      const bw = 34, pct = Math.max(0, Math.min(1, rc.health/rc.maxHealth));
+      ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(p.x-bw/2, p.y+4, bw, 4);
+      ctx.fillStyle = pct>.5 ? "#39ff14" : pct>.25 ? "#ffd23f" : "#ff4b6e";
+      ctx.fillRect(p.x-bw/2, p.y+4, bw*pct, 4);
+    }
+  });
+  if (tornado){
+    const R = Math.max(25, tornado.radius), H = 500 + R*2.2, tt = TORNADO_TYPES[tornado.type] || TORNADO_TYPES.single;
+    overlayLabel(tornado.x, H + R*0.5, tornado.y,
+      tornado.isMeme ? "?! MEME TORNADO !?" : (tt.label.toUpperCase() + " · EF" + Math.max(0, Math.min(MAX_EF, Math.floor(tornado.category)))),
+      tornado.isMeme ? "#ff2fd6" : "rgba(235,242,235,0.9)", "bold 13px Courier New", 20000);
+  }
+  ctx.restore();
+}
+
+/* ======================================================================
+   GRAPPLE (physics unchanged; target is now picked by raycasting the ground)
+====================================================================== */
+function launchGrappleAt(screenX, screenY){
+  if (!state.running || state.paused || state.radarFullscreen) return;
+  const target = screenToWorld(screenX, screenY);
+  if (!target) return; // clicked the sky
+  const dx0 = target.x-car.x, dy0 = target.y-car.y, d0 = Math.hypot(dx0, dy0);
+  if (d0 > 2400){ target.x = car.x + dx0/d0*2400; target.y = car.y + dy0/d0*2400; }
+  target.x = Math.max(WORLD_MIN + 20, Math.min(WORLD_MAX - 20, target.x));
+  target.y = Math.max(WORLD_MIN + 20, Math.min(WORLD_MAX - 20, target.y));
+  const dist = Math.hypot(target.x-car.x, target.y-car.y);
+  if (dist < grapple.arriveDistance) return;
+
+  const now = performance.now();
+  if (now - grapple.lastReleaseAt > 1800 && !grapple.active){
+    grapple.swingMomentum *= 0.18;
+    grapple.chain = 0;
+    grapple.previousDistance = 0;
+  }
+
+  const prev = grapple.previousDistance;
+  if (prev > 0){
+    const shortFactor = Math.max(0, Math.min(1, 1 - dist / 1400));
+    const progressiveLongFactor = Math.max(0, Math.min(1, (dist - prev) / 900));
+    const stableSequence = dist >= prev * 0.72;
+    const gain = stableSequence
+      ? 0.055 + shortFactor * 0.14 + progressiveLongFactor * 0.12
+      : 0.025 + shortFactor * 0.08;
+    grapple.swingMomentum = Math.min(1, grapple.swingMomentum + gain);
+    grapple.chain = Math.min(12, grapple.chain + 1);
+  } else {
+    grapple.swingMomentum *= 0.12;
+    grapple.chain = 1;
+  }
+  grapple.previousDistance = dist;
+
+  grapple.active = true;
+  grapple.x = target.x;
+  grapple.y = target.y;
+  const ropeTightness = 0.965 - grapple.swingMomentum * 0.035;
+  grapple.ropeLength = Math.max(120, dist * ropeTightness);
+
+  const nx = (target.x-car.x)/dist, ny = (target.y-car.y)/dist;
+  const toward = car.vx*nx + car.vy*ny;
+  const initialPull = (75 + grapple.swingMomentum * 210) - Math.max(0, toward);
+  if (initialPull > 0){
+    car.vx += nx*initialPull*0.38;
+    car.vy += ny*initialPull*0.38;
+  }
+}
+
+function releaseGrapple(boost=true){
+  if (!grapple.active) return;
+  const dx = grapple.x-car.x, dy = grapple.y-car.y;
+  const dist = Math.hypot(dx,dy);
+  if (boost && dist > 0){
+    const nx = dx/dist, ny = dy/dist;
+    const tx = -ny, ty = nx;
+    const tangential = car.vx*tx + car.vy*ty;
+    const outward = car.vx*nx + car.vy*ny;
+    const momentumBoost = 1 + grapple.swingMomentum * 0.22;
+    car.vx += tx * tangential * (grapple.releaseBoost*momentumBoost - 1);
+    car.vy += ty * tangential * (grapple.releaseBoost*momentumBoost - 1);
+    car.vx += nx * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
+    car.vy += ny * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
+  }
+  grapple.active = false;
+  grapple.lastReleaseAt = performance.now();
+}
+
+function updateGrapple(dt){
+  if (!grapple.active){
+    const age = performance.now() - grapple.lastReleaseAt;
+    const decay = age < 1800 ? Math.exp(-0.9*dt) : Math.exp(-2.6*dt);
+    grapple.swingMomentum *= decay;
+    if (age > 1800){
+      grapple.chain = 0;
+      grapple.previousDistance = 0;
+    }
+    return;
+  }
+  if (car.anchored) return;
+
+  const dx = grapple.x-car.x, dy = grapple.y-car.y;
+  const dist = Math.hypot(dx,dy) || 0.001;
+  const nx = dx/dist, ny = dy/dist;
+  const tx = -ny, ty = nx;
+
+  const radialSpeed = car.vx*nx + car.vy*ny;
+  const tangentialSpeed = car.vx*tx + car.vy*ty;
+
+  const momentumScale = 1 + grapple.swingMomentum * 1.65;
+  const assist = Math.min(grapple.tangentialAssist * momentumScale,
+                          Math.abs(tangentialSpeed)*0.30 + 26 + grapple.swingMomentum*120);
+  const sign = tangentialSpeed >= 0 ? 1 : -1;
+  car.vx += tx * assist * sign * dt;
+  car.vy += ty * assist * sign * dt;
+
+  const chainSpeed = 360 + grapple.swingMomentum * 820;
+  if (tangentialSpeed !== 0){
+    const tangentialTarget = chainSpeed;
+    const tangentialError = tangentialTarget - Math.abs(tangentialSpeed);
+    const tangentialAccel = Math.max(-380, Math.min(520, tangentialError*0.82));
+    car.vx += tx * sign * tangentialAccel * dt;
+    car.vy += ty * sign * tangentialAccel * dt;
+  }
+
+  const targetLength = grapple.ropeLength;
+  if (dist > targetLength){
+    const excess = dist-targetLength;
+    if (radialSpeed > 0){
+      car.vx -= nx*radialSpeed;
+      car.vy -= ny*radialSpeed;
+    }
+    const spring = Math.min(grapple.pullStrength*(0.72 + grapple.swingMomentum*0.42),
+                            excess*grapple.springStrength + 120 + grapple.swingMomentum*170);
+    car.vx += nx*spring*dt;
+    car.vy += ny*spring*dt;
+
+    const correction = Math.min(excess, excess*(0.35 + grapple.swingMomentum*0.25));
+    car.x += nx*correction;
+    car.y += ny*correction;
+  } else {
+    const slack = targetLength-dist;
+    const desired = Math.min(grapple.maxPullSpeed, 100 + slack*0.22 + grapple.swingMomentum*260);
+    if (radialSpeed < desired){
+      const accel = Math.min(grapple.pullStrength*0.42, (desired-radialSpeed)*1.6);
+      car.vx += nx*accel*dt;
+      car.vy += ny*accel*dt;
+    }
+  }
+
+  const speed = Math.hypot(car.vx, car.vy);
+  const speedLimit = Math.min(grapple.maxPullSpeed, 760 + grapple.swingMomentum*500);
+  if (speed > speedLimit){
+    const scale = speedLimit/speed;
+    car.vx *= scale;
+    car.vy *= scale;
+  }
+}
+
+/* ======================================================================
+   2D OVERLAY — weather streaks, tactical map, compass
+====================================================================== */
+function drawWeatherOverlay(){
+  const w = state.weather;
+  if (w === "cloudy"){
+    ctx.fillStyle = "rgba(40,48,52,0.10)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  if (isPrecipitating()){
+    const heavy = w === "thunderstorm";
+    ctx.save();
+    ctx.strokeStyle = heavy ? "rgba(180,210,255,0.5)" : "rgba(170,200,235,0.34)";
+    ctx.lineWidth = heavy ? 1.6 : 1.1;
+    const spacing = 34;
+    const slant = 7;
+    const len = heavy ? 22 : 15;
+    for (let x=-spacing; x<canvas.width+spacing; x+=spacing){
+      for (let y=-40; y<canvas.height+40; y+=48){
+        const offset = ((rainOffset*0.32 + x*1.7) % 48);
+        const yy = ((y + offset) % (canvas.height+80)) - 40;
+        ctx.beginPath();
+        ctx.moveTo(x, yy);
+        ctx.lineTo(x+slant, yy+len);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.fillStyle = heavy ? "rgba(10,14,22,0.14)" : "rgba(10,14,18,0.07)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  if (w === "thunderstorm" && lightningFlash > 0.01){
+    ctx.fillStyle = `rgba(230,240,255,${Math.min(0.45, lightningFlash*0.5)})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
+let mapZoom = 1.0;
+const MAP_ZOOM_MIN = 0.28;
+const MAP_ZOOM_MAX = 4.5;
+let radarBounds = { x:0, y:0, width:0, height:0 };
+
+function clampMapZoom(v){ return Math.max(MAP_ZOOM_MIN, Math.min(MAP_ZOOM_MAX, v)); }
+
+function mapProject(x,y,mx,my,width,range,height=width){
+  const scaleX=width/range, scaleY=height/range;
+  return {x:mx+width/2+(x-car.x)*scaleX, y:my+height/2+(y-car.y)*scaleY};
+}
+
+// The radar stays north-up (world-aligned) like the original, with the player arrow rotating on it.
+function drawTacticalGrid(mx,my,width,range,big,height=width){
+  const scaleX=width/range, scaleY=height/range;
+  const left=car.x-range/2, top=car.y-range/2;
+  ctx.save();ctx.beginPath();ctx.rect(mx,my,width,height);ctx.clip();
+  const grid=big ? (range>5000?500:250) : 500;
+  const firstX=Math.floor(left/grid)*grid, firstY=Math.floor(top/grid)*grid;
+  ctx.lineWidth=1;
+  for(let x=firstX;x<=left+range;x+=grid){
+    const sx=mx+(x-left)*scaleX;
+    ctx.strokeStyle=(Math.round(x/grid)%4===0)?"rgba(57,255,20,.16)":"rgba(57,255,20,.055)";
+    ctx.beginPath();ctx.moveTo(sx,my);ctx.lineTo(sx,my+height);ctx.stroke();
+  }
+  for(let y=firstY;y<=top+range;y+=grid){
+    const sy=my+(y-top)*scaleY;
+    ctx.strokeStyle=(Math.round(y/grid)%4===0)?"rgba(57,255,20,.16)":"rgba(57,255,20,.055)";
+    ctx.beginPath();ctx.moveTo(mx,sy);ctx.lineTo(mx+width,sy);ctx.stroke();
+  }
+  ctx.strokeStyle=big?"rgba(140,150,140,.34)":"rgba(140,150,140,.16)";
+  ctx.lineWidth=Math.max(1,ROAD_WIDTH*((scaleX+scaleY)*.5)*.38);
+  let rx=Math.floor((left-WORLD_MIN)/ROAD_SPACING)*ROAD_SPACING+WORLD_MIN;
+  let ry=Math.floor((top-WORLD_MIN)/ROAD_SPACING)*ROAD_SPACING+WORLD_MIN;
+  for(let x=rx;x<=left+range;x+=ROAD_SPACING){const sx=mx+(x-left)*scaleX;ctx.beginPath();ctx.moveTo(sx,my);ctx.lineTo(sx,my+height);ctx.stroke();}
+  for(let y=ry;y<=top+range;y+=ROAD_SPACING){const sy=my+(y-top)*scaleY;ctx.beginPath();ctx.moveTo(mx,sy);ctx.lineTo(mx+width,sy);ctx.stroke();}
+  ctx.strokeStyle=big?"rgba(95,120,110,.62)":"rgba(95,120,110,.28)";ctx.lineWidth=big?3:1.25;
+  HIGHWAYS.forEach(path=>{ctx.beginPath();path.forEach((pt,i)=>{const q=mapProject(pt.x,pt.y,mx,my,width,range,height);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});ctx.stroke();});
+  const bx=mx+(WORLD_MIN-left)*scaleX, by=my+(WORLD_MIN-top)*scaleY;
+  const bw=(WORLD_MAX-WORLD_MIN)*scaleX, bh=(WORLD_MAX-WORLD_MIN)*scaleY;
+  ctx.strokeStyle=big?"rgba(255,80,80,.48)":"rgba(255,80,80,.20)";ctx.lineWidth=big?2:1;ctx.strokeRect(bx,by,bw,bh);
+  ctx.restore();
+}
+
+function drawMapArrow(x,y,angle,r,fill){
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(r*.72,r*.72);ctx.lineTo(0,r*.35);ctx.lineTo(-r*.72,r*.72);ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle="#071007";ctx.lineWidth=Math.max(1,r*.16);ctx.stroke();ctx.restore();
+}
+
+function drawLocationLabel(q,label,sub,color,big){
+  ctx.textAlign="center";ctx.fillStyle=color;ctx.font=`${big?"bold ":""}${big?12:8}px Courier New`;ctx.fillText(label,q.x,q.y-(big?13:8));
+  if(big && sub){ctx.fillStyle="rgba(180,205,185,.68)";ctx.font="9px Courier New";ctx.fillText(sub,q.x,q.y+20);}
+}
+
+function drawRadarContent(mx,my,width,big,height=width){
+  const range=(big?8200:3200)/mapZoom;
+  const scale=Math.min(width,height)/range;
+  ctx.fillStyle=big?"rgba(4,8,5,.98)":"rgba(7,12,8,.94)";ctx.fillRect(mx,my,width,height);
+  drawTacticalGrid(mx,my,width,range,big,height);
+  ctx.save();ctx.beginPath();ctx.rect(mx,my,width,height);ctx.clip();
+
+  if(tornado){
+    if(tornado.pathHistory&&tornado.pathHistory.length>1){
+      ctx.strokeStyle=big?"rgba(255,221,51,.78)":"rgba(255,221,51,.52)";ctx.lineWidth=big?3:1.4;ctx.setLineDash(big?[10,7]:[4,4]);ctx.beginPath();
+      tornado.pathHistory.forEach((pt,i)=>{const q=mapProject(pt.x,pt.y,mx,my,width,range,height);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});
+      const q=mapProject(tornado.x,tornado.y,mx,my,width,range,height);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);
+    }
+    const q1=mapProject(tornado.x,tornado.y,mx,my,width,range,height),fx=tornado.x+Math.cos(tornado.dirAngle)*2500,fy=tornado.y+Math.sin(tornado.dirAngle)*2500,q2=mapProject(fx,fy,mx,my,width,range,height);
+    ctx.strokeStyle=big?"rgba(255,221,51,.46)":"rgba(255,221,51,.25)";ctx.lineWidth=big?2:1;ctx.setLineDash([4,8]);ctx.beginPath();ctx.moveTo(q1.x,q1.y);ctx.lineTo(q2.x,q2.y);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  CITIES.forEach(city=>{
+    const q=mapProject(city.x,city.y,mx,my,width,range,height);if(q.x<mx-60||q.x>mx+width+60||q.y<my-30||q.y>my+height+30)return;
+    ctx.fillStyle="rgba(92,157,237,.12)";ctx.beginPath();ctx.arc(q.x,q.y,big?22:10,0,Math.PI*2);ctx.fill();ctx.fillStyle="#5c9ded";ctx.fillRect(q.x-(big?4:2),q.y-(big?4:2),big?8:4,big?8:4);
+    if(big)drawLocationLabel(q,city.name.toUpperCase(),`${Math.round(Math.hypot(city.x-car.x,city.y-car.y))} ft`,"#b9dcff",true);
+  });
+
+  TOWNS.forEach(t=>{
+    const q=mapProject(t.x,t.y,mx,my,width,range,height);if(q.x<mx-60||q.x>mx+width+60||q.y<my-40||q.y>my+height+40)return;
+    ctx.fillStyle="rgba(57,255,20,.11)";ctx.beginPath();ctx.arc(q.x,q.y,big?17:8,0,Math.PI*2);ctx.fill();ctx.fillStyle="#39ff14";ctx.fillRect(q.x-(big?5:2),q.y-(big?5:2),big?10:4,big?10:4);
+    if(big)drawLocationLabel(q,t.name.toUpperCase(),`${Math.round(Math.hypot(t.x-car.x,t.y-car.y))} ft`,"#c7ffcb",true);
+  });
+
+  MAP_LANDMARKS.forEach(l=>{
+    const q=mapProject(l.x,l.y,mx,my,width,range,height);if(q.x<mx-45||q.x>mx+width+45||q.y<my-35||q.y>my+height+35)return;
+    ctx.fillStyle="#ffd23f";ctx.strokeStyle="#3b2f00";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q.x,q.y,big?7:4,0,Math.PI*2);ctx.fill();ctx.stroke();
+    if(big)drawLocationLabel(q,l.name.toUpperCase(),l.city||"","#ffeaa0",true);
+  });
+
+  fxList.forEach(fx=>{
+    if (fx.type !== "smoke") return;
+    const q=mapProject(fx.x,fx.y,mx,my,width,range,height);if(q.x<mx-15||q.x>mx+width+15||q.y<my-15||q.y>my+height+15)return;
+    ctx.fillStyle=fx.color;ctx.beginPath();ctx.arc(q.x,q.y,big?5:3,0,Math.PI*2);ctx.fill();
+  });
+
+  wildConvoys.forEach(convoy=>{
+    convoy.members.forEach(m=>{if(m.allied)return;const q=mapProject(m.x,m.y,mx,my,width,range,height);if(q.x<mx-15||q.x>mx+width+15||q.y<my-15||q.y>my+height+15)return;ctx.fillStyle="#a855f7";ctx.beginPath();ctx.arc(q.x,q.y,big?4:2,0,Math.PI*2);ctx.fill();});
+    if(big){const q=mapProject(convoy.x,convoy.y,mx,my,width,range,height);if(q.x>=mx&&q.x<=mx+width&&q.y>=my&&q.y<=my+height){ctx.fillStyle="#c99cff";ctx.font="9px Courier New";ctx.textAlign="center";ctx.fillText(convoy.team,q.x,q.y-10);}}
+  });
+
+  Object.values(remoteCars).forEach(rc=>{
+    if(!Number.isFinite(rc.renderX)||!Number.isFinite(rc.renderY))return;const q=mapProject(rc.renderX,rc.renderY,mx,my,width,range,height);if(q.x<mx-25||q.x>mx+width+25||q.y<my-25||q.y>my+height+25)return;
+    const c=rc.color||"#39ff14";ctx.strokeStyle="rgba(255,255,255,.28)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.x+Math.sin(rc.renderAngle||0)*16,q.y-Math.cos(rc.renderAngle||0)*16);ctx.stroke();ctx.fillStyle=c;ctx.beginPath();ctx.arc(q.x,q.y,big?6:3,0,Math.PI*2);ctx.fill();
+    if(big){ctx.fillStyle=c;ctx.font="bold 10px Courier New";ctx.textAlign="center";ctx.fillText((rc.name||"CHASER").slice(0,16),q.x,q.y-12);}
+  });
+
+  if(grapple.active){
+    const q=mapProject(grapple.x,grapple.y,mx,my,width,range,height),p=mapProject(car.x,car.y,mx,my,width,range,height);
+    if(q.x>=mx-40&&q.x<=mx+width+40&&q.y>=my-40&&q.y<=my+height+40){ctx.strokeStyle="rgba(92,157,237,.75)";ctx.setLineDash([5,5]);ctx.lineWidth=big?2:1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#5c9ded";ctx.beginPath();ctx.arc(q.x,q.y,big?7:4,0,Math.PI*2);ctx.fill();}
+  }
+
+  const pp=mapProject(car.x,car.y,mx,my,width,range,height);ctx.strokeStyle="rgba(255,49,49,.25)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(pp.x,pp.y,big?22:11,0,Math.PI*2);ctx.stroke();drawMapArrow(pp.x,pp.y,car.angle,big?11:5,"#ff3131");
+
+  if(tornado){const q=mapProject(tornado.x,tornado.y,mx,my,width,range,height);if(q.x>=mx-40&&q.x<=mx+width+40&&q.y>=my-40&&q.y<=my+height+40){const pulse=(big?8:4)+Math.sin(performance.now()/125)*(big?2:1.2);ctx.fillStyle=tornado.isMeme?`hsl(${(performance.now()/5)%360},95%,60%)`:"#3fa9ff";ctx.beginPath();ctx.arc(q.x,q.y,pulse,0,Math.PI*2);ctx.fill();ctx.strokeStyle=tornado.isMeme?"rgba(255,0,220,.55)":"rgba(63,169,255,.58)";ctx.lineWidth=big?2:1;ctx.beginPath();ctx.arc(q.x,q.y,Math.max(8,tornado.radius*scale),0,Math.PI*2);ctx.stroke();if(big){ctx.fillStyle="#cbe9ff";ctx.font="bold 10px Courier New";ctx.textAlign="center";ctx.fillText(`EF${Math.round(tornado.category)}`,q.x,q.y+24);}}}
+
+  const ccx=mx+width/2,ccy=my+height/2;ctx.strokeStyle=big?"rgba(255,255,255,.18)":"rgba(255,255,255,.10)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ccx-8,ccy);ctx.lineTo(ccx+8,ccy);ctx.moveTo(ccx,ccy-8);ctx.lineTo(ccx,ccy+8);ctx.stroke();ctx.restore();ctx.strokeStyle=big?"#39ff14":"#2c5a2c";ctx.lineWidth=big?2:1;ctx.strokeRect(mx,my,width,height);
+}
+
+const COMPASS_DIRS=[{deg:0,label:"N"},{deg:45,label:"NE"},{deg:90,label:"E"},{deg:135,label:"SE"},{deg:180,label:"S"},{deg:225,label:"SW"},{deg:270,label:"W"},{deg:315,label:"NW"}];
+function drawCompass(){
+  const barW=340,barH=30,windowDeg=100,cx=canvas.width/2,topY=14,left=cx-barW/2,headingDeg=((car.angle*180/Math.PI)%360+360)%360;
+  ctx.save();ctx.fillStyle="rgba(10,14,10,.75)";ctx.strokeStyle="#2c5a2c";ctx.lineWidth=1;ctx.fillRect(left,topY,barW,barH);ctx.strokeRect(left,topY,barW,barH);ctx.save();ctx.beginPath();ctx.rect(left,topY,barW,barH);ctx.clip();
+  for(let d=0;d<360;d+=15){let rel=((d-headingDeg+180)%360+360)%360-180;if(Math.abs(rel)>windowDeg)continue;const x=cx+(rel/windowDeg)*(barW/2),major=d%45===0;ctx.strokeStyle=major?"#39ff14":"rgba(57,255,20,.35)";ctx.lineWidth=major?2:1;ctx.beginPath();ctx.moveTo(x,topY+barH);ctx.lineTo(x,topY+barH-(major?14:7));ctx.stroke();}
+  ctx.font="bold 13px Courier New";ctx.textAlign="center";COMPASS_DIRS.forEach(dir=>{let rel=((dir.deg-headingDeg+180)%360+360)%360-180;if(Math.abs(rel)>windowDeg)return;const x=cx+(rel/windowDeg)*(barW/2);ctx.fillStyle=dir.label==="N"?"#ff3131":"#39ff14";ctx.fillText(dir.label,x,topY+16);});ctx.restore();ctx.fillStyle="#ffd23f";ctx.beginPath();ctx.moveTo(cx,topY-6);ctx.lineTo(cx-6,topY);ctx.lineTo(cx+6,topY);ctx.closePath();ctx.fill();ctx.fillStyle="#ffd23f";ctx.font="11px Courier New";ctx.textAlign="center";ctx.fillText(Math.round(headingDeg).toString().padStart(3,"0")+"°",cx,topY+barH+16);ctx.restore();
+}
+
+function drawMinimap(){
+  const size=Math.min(280,Math.max(220,Math.floor(Math.min(canvas.width,canvas.height)*.27))),pad=14;const mx=canvas.width-size-pad,my=canvas.height-size-pad;radarBounds={x:mx,y:my,width:size,height:size};drawRadarContent(mx,my,size,false,size);ctx.fillStyle="rgba(5,10,6,.88)";ctx.fillRect(mx,my+size+6,size,19);ctx.fillStyle="#b7ffbd";ctx.font="10px Courier New";ctx.textAlign="center";ctx.fillText("M / CLICK  ·  TACTICAL MAP  ·  LMB GRAPPLE",mx+size/2,my+size+19);
+}
+
+function drawFullscreenRadar(){
+  ctx.save();ctx.fillStyle="rgba(2,5,3,.975)";ctx.fillRect(0,0,canvas.width,canvas.height);
+  const mx=28,my=88,width=Math.max(300,canvas.width-56),height=Math.max(240,canvas.height-116);radarBounds={x:mx,y:my,width,height};drawRadarContent(mx,my,width,true,height);
+  const sw=Math.min(360,Math.floor(canvas.width*.24)),sh=170,sx=canvas.width-sw-42,sy=my+18;ctx.fillStyle="rgba(8,13,9,.90)";ctx.strokeStyle="rgba(57,255,20,.34)";ctx.lineWidth=1;ctx.fillRect(sx,sy,sw,sh);ctx.strokeRect(sx,sy,sw,sh);ctx.textAlign="left";ctx.fillStyle="#39ff14";ctx.font="bold 14px Courier New";ctx.fillText("TACTICAL OVERVIEW",sx+14,sy+24);
+  const legends=[["#ff3131","YOU"],["#39ff14","ONLINE CHASER"],["#5c9ded","CITIES / TORNADO"],["#a855f7","WILD CONVOY"],["#39ff14","TOWNS / SERVICES"],["#ffd23f","LANDMARKS / RESEARCH"]];
+  legends.forEach((it,i)=>{const yy=sy+46+i*20;ctx.fillStyle=it[0];ctx.beginPath();ctx.arc(sx+14,yy-4,4,0,Math.PI*2);ctx.fill();ctx.fillStyle="#d7ffd9";ctx.font="10px Courier New";ctx.fillText(it[1],sx+26,yy);});
+  const online=Object.keys(remoteCars).length;let nearest=TOWNS[0],best=Infinity;TOWNS.forEach(t=>{const d=Math.hypot(t.x-car.x,t.y-car.y);if(d<best){best=d;nearest=t;}});ctx.fillStyle="#9fcf9f";ctx.fillText(`ONLINE ${online} · NEAREST ${nearest.name} ${Math.round(best)} FT · ZOOM ${mapZoom.toFixed(2)}x · WEATHER ${WEATHER_TYPES[state.weather].label.toUpperCase()}`,sx+14,sy+158);
+  ctx.textAlign="center";ctx.fillStyle="#39ff14";ctx.font="bold 18px Courier New";ctx.fillText("VORTEX RUNNER · WORLD MAP",canvas.width/2,38);ctx.fillStyle="#9fcf9f";ctx.font="11px Courier New";ctx.fillText("Cities · towns · roads · storm track · research sites · convoys · online chasers",canvas.width/2,60);ctx.fillStyle="#b7ffbd";ctx.font="10px Courier New";ctx.fillText("WHEEL / + - ZOOM · 0 RESET · M / ESC CLOSE",canvas.width/2,canvas.height-24);ctx.restore();
+}
+
+canvas.addEventListener("click",e=>{
+  if(!state.running||state.paused)return;
+  if(state.radarFullscreen){return;}
+  if(e.clientX>=radarBounds.x&&e.clientX<=radarBounds.x+radarBounds.width&&e.clientY>=radarBounds.y&&e.clientY<=radarBounds.y+radarBounds.height){state.radarFullscreen=true;return;}
+  launchGrappleAt(e.clientX,e.clientY);
+});
+canvas.addEventListener("contextmenu",e=>{
+  if(!state.running||state.paused||state.radarFullscreen)return;
+  e.preventDefault();
+  releaseGrapple(true);
+});
+canvas.addEventListener("wheel",e=>{if(!state.running||state.paused||!state.radarFullscreen)return;e.preventDefault();mapZoom=clampMapZoom(mapZoom*(e.deltaY>0?.86:1.16));},{passive:false});
+window.addEventListener("keydown",e=>{
+  if(!state.running)return;
+  if(e.code==="KeyR"){ releaseGrapple(true); return; }
+  if(e.code==="KeyM"){state.radarFullscreen=!state.radarFullscreen;return;}
+  if(e.code==="Escape"&&state.radarFullscreen){state.radarFullscreen=false;return;}
+  if(!state.radarFullscreen)return;
+  if(e.code==="Equal"||e.code==="NumpadAdd")mapZoom=clampMapZoom(mapZoom*1.15);
+  if(e.code==="Minus"||e.code==="NumpadSubtract")mapZoom=clampMapZoom(mapZoom/1.15);
+  if(e.code==="Digit0")mapZoom=1;
+});
+
+/* ======================================================================
+   HUD UPDATE
+====================================================================== */
+function categoryLabel(cat){ return "EF" + Math.max(0, Math.min(MAX_EF, Math.floor(cat))); }
+
+function updateHUD(){
+  let windMph = 5;
+  let windText = "5 MPH";
+  let distText = "--";
+  let catText = "CALM";
+  if (tornado){
+    const dist = Math.hypot(tornado.x-car.x, tornado.y-car.y);
+    const influence = tornado.radius*5.2;
+    const falloff = Math.max(0, 1 - dist/influence);
+    const peak = efPeakMph(tornado.category);
+    windMph = Math.round(5 + peak*falloff);
+    windText = tornado.isMeme ? "??? MPH" : (windMph + " MPH");
+    distText = Math.max(0, Math.round(dist - tornado.radius)) + " ft";
+    const tt = TORNADO_TYPES[tornado.type] || TORNADO_TYPES.single;
+    catText = tornado.isMeme ? "EF-MEME" : (categoryLabel(tornado.category) + " " + tt.label);
+  }
+  const windEl = document.getElementById("hudWind");
+  windEl.textContent = windText;
+  windEl.className = "val " + (windMph>180 || (tornado&&tornado.isMeme)?"danger":windMph>110?"warn":"");
+
+  document.getElementById("hudCat").textContent = catText;
+  document.getElementById("hudDist").textContent = distText;
+
+  const hpPct = Math.max(0, car.health/car.maxHealth*100);
+  document.getElementById("hudHPtext").textContent = Math.round(hpPct) + "%";
+  const bar = document.getElementById("hudHPbar");
+  bar.style.width = hpPct + "%";
+  bar.style.background = hpPct>50 ? "#39ff14" : hpPct>22 ? "#ffd23f" : "#ff3131";
+  document.getElementById("hudHPtext").className = "val " + (hpPct<=22?"danger":hpPct<=50?"warn":"");
+
+  const fuelPct = state.infiniteFuel ? 100 : Math.max(0, car.fuel/car.maxFuel*100);
+  document.getElementById("hudFuelText").textContent = state.infiniteFuel ? "∞" : Math.round(fuelPct) + "%";
+  const fuelBar = document.getElementById("hudFuelBar");
+  fuelBar.style.width = fuelPct + "%";
+  fuelBar.style.background = state.infiniteFuel ? "#39ff14" : (fuelPct>40 ? "#ffb74d" : fuelPct>15 ? "#ffd23f" : "#ff3131");
+  document.getElementById("hudFuelText").className = "val " + (!state.infiniteFuel && fuelPct<=15?"danger":!state.infiniteFuel && fuelPct<=40?"warn":"");
+
+  document.getElementById("hudData").textContent = car.dataGB.toFixed(1) + " GB";
+  document.getElementById("hudMoney").textContent = "$" + Math.floor(state.money).toLocaleString();
+  const convoyCount = state.convoyActive ? convoyNPCs.length : 0;
+  document.getElementById("hudConvoy").textContent = convoyCount + "/" + state.maxConvoySize + " (" + (state.convoyFormation==="single"?"single":"double") + ")";
+
+  const weatherEl = document.getElementById("hudWeather");
+  weatherEl.textContent = WEATHER_TYPES[state.weather].label;
+  weatherEl.className = "val " + (state.weather==="thunderstorm"?"warn":"");
+
+  const toolsEl = document.getElementById("hudTools");
+  toolsEl.textContent = TOOL_KEYS.map(tk=>`${TOOLS[tk].icon}${state.tools[tk]||0}`).join("  ");
+
+  const badge = document.getElementById("anchorBadge");
+  badge.textContent = car.anchored ? "⚓ ANCHORED" : "ANCHORS UP";
+  badge.className = car.anchored ? "active" : "";
+
+  const alertEl = document.getElementById("alertBanner");
+  if (alertTimer > 0){
+    alertEl.textContent = alertMessage;
+    alertEl.style.display = "block";
+    alertTimer -= 1/60;
+  } else {
+    alertEl.style.display = "none";
+  }
+
+  maybeUnlockMeme();
+}
+
+/* ======================================================================
+   MAIN LOOP
+====================================================================== */
+let lastTime = performance.now();
+let autosaveTimer = 0;
+
+function updateGame(dt){
+  if (state.paused) return;
+  updateCar(dt);
+  updateTornado(dt);
+  updateWeather(dt);
+  updateFx(dt);
+  checkTown();
+  updateConvoy(dt);
+  updateWildConvoys(dt);
+  updateAllyPromptTarget();
+  updateAllyPromptUI();
+
+  const tankerRegen = convoyBonusSum("healthRegenPerSec");
+  if (tankerRegen > 0 && car.health > 0){
+    car.health = Math.min(car.maxHealth, car.health + tankerRegen * dt);
+  }
+
+  if (car.health <= 0){
+    let nearest = TOWNS[0], best = Infinity;
+    TOWNS.forEach(t=>{ const d=Math.hypot(t.x-car.x,t.y-car.y); if(d<best){best=d; nearest=t;} });
+    car.x = nearest.x; car.y = nearest.y - 60;
+    car.vx = 0; car.vy = 0; car.anchored = false;
+    car.dataGB *= 0.3;
+    car.health = car.maxHealth;
+    if (!state.infiniteFuel) car.fuel = car.maxFuel * 0.4;
+    showAlert("VEHICLE TOTALED — TOWED TO TOWN", 1.6);
+  }
+
+  autosaveTimer += dt;
+  if (autosaveTimer > 15){ autosaveTimer = 0; saveGame(); }
+
+  updateRemoteCarsRender(dt);
+}
+
+// Keep the simulation running (at a coarser rate) while the tab is hidden.
+let backgroundInterval = null;
+document.addEventListener("visibilitychange", ()=>{
+  if (document.hidden){
+    if (state.running && !backgroundInterval){
+      lastTime = performance.now();
+      backgroundInterval = setInterval(()=>{
+        const now = performance.now();
+        let dt = (now - lastTime)/1000;
+        lastTime = now;
+        dt = Math.min(dt, 2);
+        updateGame(dt);
+      }, 250);
+    }
+  } else {
+    if (backgroundInterval){ clearInterval(backgroundInterval); backgroundInterval = null; }
+    lastTime = performance.now();
+    camera.x = car.x; camera.y = car.y; camera.angle = car.angle;
+  }
+});
+
+function loop(now){
+  requestAnimationFrame(loop);
+  if (document.hidden) return;
+
+  let dt = (now - lastTime)/1000;
+  lastTime = now;
+  dt = Math.min(dt, 0.05);
+
+  updateGame(dt);
+
+  // chase-cam: locked to the car's position, heading eased for a nice swing on turns
+  camera.x = car.x;
+  camera.y = car.y;
+  let angleDiff = ((car.angle - camera.angle + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+  camera.angle += angleDiff * Math.min(1, 8*dt);
+
+  if (state.radarFullscreen){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  } else {
+    render3D(dt);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    draw3DLabels();
+  }
+  drawWeatherOverlay();
+  drawCompass();
+
+  if (state.radarFullscreen){
+    drawFullscreenRadar();
+  } else {
+    drawMinimap();
+  }
+  updateHUD();
+}
+
+/* ======================================================================
+   ONLINE — CO-OP PRESENCE + LEADERBOARD (unchanged)
+====================================================================== */
+const SUPABASE_URL = "https://tojtsvnjbebdjxdtuhxq.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvanRzdm5qYmViZGp4ZHR1aHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjI2MDYsImV4cCI6MjEwNDAzODYwNn0.n1m4J3rK6rIFBs1KQ3kM_Uw69bbVqLVmXqx1phXntBE";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const myCoopId = Math.random().toString(36).slice(2, 10);
+const COOP_SEND_INTERVAL_MS = 1000;
+const COOP_POLL_INTERVAL_MS = 1000;
+const REMOTE_TIMEOUT_MS = 12000;
+const REMOTE_MAX_PREDICTION_MS = 1150;
+const REMOTE_CORRECTION_RATE = 12;
+const REMOTE_HARD_SNAP_DISTANCE = 900;
+
+let playerName = "";
+let lbTab = "storms";
+let lbOpen = false;
+let remoteCars = {};
+let coopPushInFlight = false;
+let coopPollInFlight = false;
+
+try {
+  const saved = localStorage.getItem("vortexPlayerName");
+  if (saved) playerName = saved;
+} catch(e){}
+
+const playerNameInput = document.getElementById("playerNameInput");
+if (playerNameInput) {
+  playerNameInput.value = playerName;
+  playerNameInput.addEventListener("input", e => {
+    playerName = e.target.value.trim().slice(0,24);
+    try { localStorage.setItem("vortexPlayerName", playerName); } catch(e){}
+  });
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function fetchLeaderboard(){
+  const statusEl = document.getElementById("lbStatus");
+  const listEl = document.getElementById("lbList");
+  if (!statusEl || !listEl) return;
+  statusEl.textContent = "Loading...";
+  listEl.innerHTML = "";
+  try {
+    const col = lbTab === "storms" ? "storms_intercepted" : "money";
+    const {data,error} = await sb.from("vortex_runner_scores")
+      .select("player_name, money, storms_intercepted")
+      .order(col,{ascending:false})
+      .limit(20);
+    if (error) throw error;
+    statusEl.textContent = `${data.length} entries`;
+    data.forEach((row,i) => {
+      const div = document.createElement("div");
+      div.className = "lbRow";
+      const val = lbTab === "storms" ? `${row.storms_intercepted} storms` : "$" + Number(row.money).toLocaleString();
+      div.innerHTML = `<span class="lbRank">#${i+1}</span><span class="lbName">${escHtml(row.player_name)}</span><span class="lbVal">${val}</span>`;
+      listEl.appendChild(div);
+    });
+    if (!data.length) statusEl.textContent = "No scores yet — be first!";
+  } catch(e) {
+    statusEl.textContent = "Offline";
+  }
+}
+
+async function submitScore(){
+  try {
+    const {error} = await sb.from("vortex_runner_scores").insert({
+      player_name: playerName || "Unknown Chaser",
+      money: Math.floor(state.money),
+      storms_intercepted: state.stormsIntercepted
+    });
+    if (error) throw error;
+    if (lbOpen) fetchLeaderboard();
+  } catch(e){}
+}
+
+const lbToggleBtn = document.getElementById("lbToggle");
+const lbPanel = document.getElementById("lbPanel");
+if (lbToggleBtn && lbPanel) {
+  lbToggleBtn.addEventListener("click", () => {
+    lbOpen = !lbOpen;
+    lbPanel.classList.toggle("open", lbOpen);
+    lbToggleBtn.classList.toggle("open", lbOpen);
+    if (lbOpen) fetchLeaderboard();
+  });
+}
+document.querySelectorAll(".lbTab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".lbTab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    lbTab = btn.dataset.tab;
+    fetchLeaderboard();
+  });
+});
+
+function normalizeAngle(a){
+  const full = Math.PI * 2;
+  return ((a % full) + full) % full;
+}
+function shortestAngleDelta(from,to){
+  return ((to - from + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+}
+function lerpAngle(a,b,t){
+  return normalizeAngle(a + shortestAngleDelta(a,b) * t);
+}
+
+function acceptRemoteSnapshot(id,row){
+  if(!id||id===myCoopId||!row)return;
+  const x=Number(row.x),y=Number(row.y);
+  if(!Number.isFinite(x)||!Number.isFinite(y))return;
+  const now=performance.now();
+  let rc=remoteCars[id];
+  if(!rc){
+    rc=remoteCars[id]={id,baseX:x,baseY:y,baseAngle:Number(row.angle)||0,renderX:x,renderY:y,renderAngle:Number(row.angle)||0,snapshotAt:now,vx:0,vy:0,correctionX:0,correctionY:0,lastSeen:now,name:"Chaser",health:0,maxHealth:0,anchoring:false,color:"#39ff14"};
+  }else{
+    const dt=Math.max(.20,Math.min(2.5,(now-(rc.snapshotAt||now))/1000));
+    let vx=(x-rc.baseX)/dt,vy=(y-rc.baseY)/dt;
+    const speed=Math.hypot(vx,vy);
+    if(speed>1400){const sc=1400/speed;vx*=sc;vy*=sc;}
+    rc.vx=rc.vx*.25+vx*.75;rc.vy=rc.vy*.25+vy*.75;
+    const errX=(rc.renderX??x)-x,errY=(rc.renderY??y);
+    const errorY=(rc.renderY??y)-y;
+    if(Math.hypot(errX,errorY)>REMOTE_HARD_SNAP_DISTANCE){rc.renderX=x;rc.renderY=y;rc.correctionX=0;rc.correctionY=0;}
+    else {rc.correctionX=errX;rc.correctionY=errorY;}
+    rc.baseX=x;rc.baseY=y;rc.baseAngle=Number(row.angle)||0;rc.snapshotAt=now;
+  }
+  rc.lastSeen=now;rc.name=String(row.player_name||"Chaser").slice(0,24);rc.health=Number(row.health)||0;rc.maxHealth=Number(row.max_health)||0;rc.anchoring=!!row.anchoring;rc.color=row.color||"#39ff14";
+}
+
+function updateRemoteCarsRender(dt){
+  const now=performance.now();
+  const decay=Math.exp(-REMOTE_CORRECTION_RATE*Math.max(0,dt));
+  Object.keys(remoteCars).forEach(id=>{
+    const rc=remoteCars[id];
+    if(!rc||now-rc.lastSeen>REMOTE_TIMEOUT_MS){delete remoteCars[id];return;}
+    const elapsed=Math.min(REMOTE_MAX_PREDICTION_MS,Math.max(0,now-(rc.snapshotAt||now)))/1000;
+    const targetX=rc.baseX+rc.vx*elapsed,targetY=rc.baseY+rc.vy*elapsed,targetAngle=rc.baseAngle||0;
+    rc.correctionX*=decay;rc.correctionY*=decay;
+    rc.renderX=targetX+rc.correctionX;rc.renderY=targetY+rc.correctionY;
+    rc.renderAngle=lerpAngle(rc.renderAngle??targetAngle,targetAngle,1-Math.exp(-20*Math.max(0,dt)));
+  });
+}
+
+async function coopPush(){
+  if (coopPushInFlight) return;
+  coopPushInFlight=true;
+  try {
+    const veh=VEHICLES[state.currentVehicleKey];
+    const {error}=await sb.from("vortex_presence").upsert({
+      id:myCoopId,
+      player_name:playerName || "Chaser",
+      x:Number(car.x) || 0,
+      y:Number(car.y) || 0,
+      angle:Number(car.angle) || 0,
+      health:Number(car.health) || 0,
+      max_health:Number(car.maxHealth) || 0,
+      anchoring:!!car.anchored,
+      color:veh ? veh.color : "#39ff14",
+      updated_at:new Date().toISOString()
+    },{onConflict:"id"});
+    if (error) throw error;
+    const footer=document.getElementById("lbFooter");
+    if (footer && !Object.keys(remoteCars).length) footer.textContent="CO-OP SEARCHING · Top 20";
+  } catch(e) {
+    const footer=document.getElementById("lbFooter");
+    if (footer) footer.textContent="CO-OP OFFLINE · Retrying";
+  } finally {
+    coopPushInFlight=false;
+  }
+}
+
+async function coopPoll(){
+  if (coopPollInFlight) return;
+  coopPollInFlight=true;
+  try {
+    const cutoff=new Date(Date.now()-REMOTE_TIMEOUT_MS).toISOString();
+    const {data,error}=await sb.from("vortex_presence")
+      .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
+      .neq("id",myCoopId)
+      .gte("updated_at",cutoff);
+    if (error) throw error;
+
+    const now=performance.now();
+    (data || []).forEach(row=>acceptRemoteSnapshot(row.id,row));
+    Object.keys(remoteCars).forEach(id=>{
+      if (now-remoteCars[id].lastSeen > REMOTE_TIMEOUT_MS) delete remoteCars[id];
+    });
+
+    if (!(data || []).length) {
+      const fallback=await sb.from("vortex_presence")
+        .select("id, player_name, x, y, angle, health, max_health, anchoring, color, updated_at")
+        .neq("id",myCoopId);
+      if (!fallback.error && fallback.data) fallback.data.forEach(row=>acceptRemoteSnapshot(row.id,row));
+    }
+
+    const footer=document.getElementById("lbFooter");
+    if (footer) {
+      const count=Object.keys(remoteCars).length;
+      footer.textContent=`${count ? count+" chasers online · " : ""}CO-OP LIVE · Top 20`;
+    }
+  } catch(e) {
+    const footer=document.getElementById("lbFooter");
+    if (footer) footer.textContent="CO-OP RETRYING · Top 20";
+  } finally {
+    coopPollInFlight=false;
+  }
+}
+
+async function coopRemove(){
+  try { await sb.from("vortex_presence").delete().eq("id",myCoopId); } catch(e){}
+}
+
+coopPush();
+coopPoll();
+setInterval(coopPush,COOP_SEND_INTERVAL_MS);
+setInterval(coopPoll,COOP_POLL_INTERVAL_MS);
+setInterval(() => { if (lbOpen) fetchLeaderboard(); },30000);
+fetchLeaderboard();
+window.addEventListener("beforeunload",coopRemove);
+
+})();
+</script>
+<script src="/assets/js/mobile-nav.js" defer></script>
+</body>
+</html>
