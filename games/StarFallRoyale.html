@@ -999,10 +999,62 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function fmtTime(s){s=Math.max(0,Math.floor(s));return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
 function rand(a=0,b=1){return a+(b-a)*rng()}
 function choice(a){return a[Math.floor(rng()*a.length)]}
-function dispose(obj){obj.traverse?.(o=>{o.geometry?.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}})}
+function dispose(obj){obj.traverse?.(o=>{
+  if(o.geometry&&!o.geometry.userData?.svSharedGeometry)o.geometry.dispose();
+  if(o.material){
+    if(Array.isArray(o.material))o.material.forEach(m=>{if(!m.userData?.svSharedMaterial)m.dispose()});
+    else if(!o.material.userData?.svSharedMaterial)o.material.dispose();
+  }
+})}
 function showScreen(s){[UI.menu,UI.game,UI.pause,UI.result].forEach(x=>x.classList.remove('active'));s.classList.add('active')}
 function nextFrame(){return new Promise(r=>requestAnimationFrame(r))}
 const MAT_CACHE=new Map();
+const SHAPE_GEOMETRY_CACHE=new Map();
+let renderObjectSerial=1;
+function shapeNumber(value){return Number(value).toFixed(4)}
+function sharedShapeGeometry(shapeClass,parameters,create){
+  const key=`${shapeClass}:${parameters.map(shapeNumber).join(':')}`;
+  let geometry=SHAPE_GEOMETRY_CACHE.get(key);
+  if(!geometry){
+    geometry=create();
+    geometry.userData.svSharedGeometry=true;
+    geometry.userData.svShapeClass=shapeClass;
+    geometry.userData.svShapeId=`shape-${Math.abs(hashString(key)).toString(36)}`;
+    SHAPE_GEOMETRY_CACHE.set(key,geometry);
+  }
+  return geometry;
+}
+function sceneObjectClass(obj){
+  const name=(obj.name||'').toLowerCase(),ud=obj.userData||{};
+  if(ud.svVehicle||name.includes('vehicle'))return 'vehicle';
+  if(name.startsWith('tree-')||name.includes('tree'))return 'tree';
+  if(name.startsWith('house-')||name.includes('building')||ud.svBuilding)return 'structure';
+  if(name.includes('bot')||name.includes('player-model'))return name.includes('bot')?'bot':'player';
+  if(name.includes('loot')||name.includes('chest'))return 'pickup';
+  if(name.includes('storm')||name.includes('hurricane'))return 'storm';
+  return obj.isMesh?'mesh':obj.isGroup?'group':'object';
+}
+function registerRenderIdentity(obj){
+  if(!obj)return null;
+  const ud=obj.userData||(obj.userData={});
+  if(!ud.svObjectId)ud.svObjectId=`${activeMap?.seed??GAME.seed}:o${(renderObjectSerial++).toString(36)}`;
+  if(!ud.svObjectClass)ud.svObjectClass=sceneObjectClass(obj);
+  const geometry=obj.geometry;
+  if(geometry){
+    const gd=geometry.userData||(geometry.userData={});
+    if(!gd.svShapeClass)gd.svShapeClass=(geometry.type||'buffer').replace(/Geometry$/,'').toLowerCase();
+    if(!gd.svShapeId){
+      const pos=geometry.attributes?.position;
+      const index=geometry.index;
+      const params=geometry.parameters?JSON.stringify(geometry.parameters):geometry.uuid;
+      const key=`${gd.svShapeClass}:${params}:${pos?.count||0}:${index?.count||0}`;
+      gd.svShapeId=`shape-${Math.abs(hashString(key)).toString(36)}`;
+    }
+    if(!ud.svShapeClass)ud.svShapeClass=gd.svShapeClass;
+    if(!ud.svShapeId)ud.svShapeId=gd.svShapeId;
+  }
+  return ud;
+}
 function surfaceCanvas(kind,size=64){
   const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');
   const img=x.createImageData(size,size),d=img.data;
@@ -1040,14 +1092,30 @@ function surfaceMaps(kind,repeat=1){
   const maps={map,rough,bump};MAT_CACHE.set('tex:'+kind,maps);return maps;
 }
 function makeMat(color,rough=1,metal=0,kind='generic'){
-  const k=String(kind||'generic'), m=surfaceMaps(k,k==='terrain'?6:k==='asphalt'?10:k==='concrete'?2.3:k==='roof'?3.4:k==='wood'?2.8:k==='metal'?2.5:k==='foliage'?2.4:1);
-  const opts={color,roughness:clamp(rough,.12,1),metalness:clamp(metal,0,1),bumpMap:m.bump,bumpScale:k==='terrain'?.16:k==='concrete'?.07:k==='wood'?.08:k==='metal'?.035:.025};
-  if(k!=='generic'){opts.map=m.map;opts.roughnessMap=m.rough}
-  return new THREE.MeshStandardMaterial(opts);
+  const k=String(kind||'generic'),r=clamp(rough,.12,1),mval=clamp(metal,0,1);
+  const key=`mat:${Number(color).toString(16)}:${r.toFixed(3)}:${mval.toFixed(3)}:${k}`;
+  const cached=MAT_INSTANCE_CACHE.get(key);if(cached)return cached;
+  const maps=surfaceMaps(k,k==='terrain'?6:k==='asphalt'?10:k==='concrete'?2.3:k==='roof'?3.4:k==='wood'?2.8:k==='metal'?2.5:k==='foliage'?2.4:1);
+  const opts={color,roughness:r,metalness:mval,bumpMap:maps.bump,bumpScale:k==='terrain'?.16:k==='concrete'?.07:k==='wood'?.08:k==='metal'?.035:.025};
+  if(k!=='generic'){opts.map=maps.map;opts.roughnessMap=maps.rough}
+  const material=new THREE.MeshStandardMaterial(opts);material.userData.svSharedMaterial=true;MAT_INSTANCE_CACHE.set(key,material);return material;
 }
-function box(w,h,d,color,rough=1,metal=0,kind='generic'){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),makeMat(color,rough,metal,kind))}
-function cyl(r,h,color,radial=12,rough=1,metal=0,kind='generic'){return new THREE.Mesh(new THREE.CylinderGeometry(r,r*.96,h,radial,1),makeMat(color,rough,metal,kind))}
-function sphere(r,color,kind='generic'){return new THREE.Mesh(new THREE.SphereGeometry(r,12,8),makeMat(color,.76,0,kind))}
+function capsule(radius,length,color,capSegments=3,radialSegments=8,rough=.72,metal=.03,kind='fabric'){
+  const geometry=sharedShapeGeometry('capsule',[radius,length,capSegments,radialSegments],()=>new THREE.CapsuleGeometry(radius,length,capSegments,radialSegments));
+  return new THREE.Mesh(geometry,makeMat(color,rough,metal,kind));
+}
+function box(w,h,d,color,rough=1,metal=0,kind='generic'){
+  const geometry=sharedShapeGeometry('box',[w,h,d],()=>new THREE.BoxGeometry(w,h,d));
+  return new THREE.Mesh(geometry,makeMat(color,rough,metal,kind));
+}
+function cyl(r,h,color,radial=12,rough=1,metal=0,kind='generic'){
+  const geometry=sharedShapeGeometry('cylinder',[r,r*.96,h,radial,1],()=>new THREE.CylinderGeometry(r,r*.96,h,radial,1));
+  return new THREE.Mesh(geometry,makeMat(color,rough,metal,kind));
+}
+function sphere(r,color,kind='generic'){
+  const geometry=sharedShapeGeometry('sphere',[r,12,8],()=>new THREE.SphereGeometry(r,12,8));
+  return new THREE.Mesh(geometry,makeMat(color,.76,0,kind));
+}
 
 const BUILDING_ARCHETYPES=[];
 const CAR_ARCHETYPES=[];
@@ -1564,8 +1632,8 @@ function applyCustomizationToPlayer(){
   }
   const pal=CUSTOM_PALETTES[customization.operator]||CUSTOM_PALETTES.astral;
   const visor=VISORS[customization.visor]||VISORS.cyan;
-  player.mesh.userData.parts.body.material.color.setHex(pal.hex);
-  player.mesh.userData.parts.visor.material.color.setHex(visor.hex);
+  player.mesh.userData.parts.body.material=makeMat(pal.hex,.72,.03,'metal');
+  player.mesh.userData.parts.visor.material=makeMat(visor.hex,.1,.55,'metal');
   refreshWeaponMesh(player);
   camera.fov=Number(customization.fov);camera.updateProjectionMatrix();
   styleCrosshair();
@@ -1830,8 +1898,19 @@ class SVRawRenderer{
     this.rawBuffer=this.gl.createBuffer();
     this.vao=this.gl.createVertexArray();
     this.program=this.makeProgram(SV_SHADERS.vs,SV_SHADERS.fs);
+    const instanceVertex=SV_SHADERS.vs
+      .replace('uniform mat4 uModel;', 'layout(location=2) in vec4 aModel0;\nlayout(location=3) in vec4 aModel1;\nlayout(location=4) in vec4 aModel2;\nlayout(location=5) in vec4 aModel3;')
+      .replace('void main(){\n  vec4 world=uModel*vec4(aPosition,1.0);', 'void main(){\n  mat4 model=mat4(aModel0,aModel1,aModel2,aModel3);\n  vec4 world=model*vec4(aPosition,1.0);')
+      .replace('mat3(uModel)*aNormal','mat3(model)*aNormal');
+    this.instanceProgram=this.makeProgram(instanceVertex,SV_SHADERS.fs);
     this.spriteProgram=this.makeProgram(SV_SPRITE_SHADERS.vs,SV_SPRITE_SHADERS.fs);
     this.spriteVao=this.gl.createVertexArray();
+    this.instanceVao=this.gl.createVertexArray();
+    this.instanceBuffer=this.gl.createBuffer();
+    this.instanceData=new Float32Array(256*16);
+    this.instanceCapacity=256;
+    this.renderGroups=new Map();
+    this.renderGroupKeys=[];
     this.skyProgram=this.makeProgram(
       `#version 300 es
 precision highp float;
@@ -1854,7 +1933,7 @@ void main(){outColor=texture(uTex,vUV);}`
     this.skyVao=this.gl.createVertexArray();
     this.skyUniform=this.gl.getUniformLocation(this.skyProgram,'uTex');
     this.textureCache=new Map();
-    this.worldRoot=null;this.staticItems=[];this.staticBuckets=[];this.staticSprites=[];this.dynamicWorldRoots=[];this.frameSprites=[];this.frameItems=[];this.opaqueItems=[];this.transparentItems=[];this.spriteScratch=[];this.spritePosition=new THREE.Vector3();this.stats={draws:0,visible:0,static:0,dynamic:0};
+    this.worldRoot=null;this.staticItems=[];this.staticBuckets=[];this.staticSprites=[];this.dynamicWorldRoots=[];this.frameSprites=[];this.frameItems=[];this.opaqueItems=[];this.transparentItems=[];this.spriteScratch=[];this.spritePosition=new THREE.Vector3();this.stats={draws:0,visible:0,static:0,dynamic:0,instancedDraws:0,instances:0,geometryUploads:0,geometryCacheHits:0,frameMs:0};
     this.clearColor=[.027,.048,.067];
     this.uniforms={};
     this.spriteUniforms={};
@@ -1866,9 +1945,22 @@ void main(){outColor=texture(uTex,vUV);}`
     this.gl.vertexAttribPointer(0,3,this.gl.FLOAT,false,24,0);
     this.gl.enableVertexAttribArray(1);
     this.gl.vertexAttribPointer(1,3,this.gl.FLOAT,false,24,12);
-    this.gl.bindVertexArray(null);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER,null);
-    this.gl.enable(this.gl.DEPTH_TEST);
+    const gl=this.gl;
+    gl.bindVertexArray(null);
+    gl.bindVertexArray(this.instanceVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER,this.rawBuffer);
+    gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,24,0);
+    gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,24,12);
+    gl.bindBuffer(gl.ARRAY_BUFFER,this.instanceBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,this.instanceData.byteLength,gl.DYNAMIC_DRAW);
+    for(let col=0;col<4;col++){
+      const location=2+col;gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(location,4,gl.FLOAT,false,64,col*16);
+      gl.vertexAttribDivisor(location,1);
+    }
+    gl.bindVertexArray(null);
+    gl.bindBuffer(gl.ARRAY_BUFFER,null);
+    gl.enable(gl.DEPTH_TEST);
     this.gl.depthFunc(this.gl.LEQUAL);
     this.gl.enable(this.gl.CULL_FACE);
     this.gl.cullFace(this.gl.BACK);
@@ -1892,15 +1984,12 @@ void main(){outColor=texture(uTex,vUV);}`
     return p;
   }
 
+  uniformsFor(program,names){const out={};for(const name of names)out[name]=this.gl.getUniformLocation(program,name);return out}
   getUniforms(){
-    const gl=this.gl;
-    [
-      'uVP','uModel','uCamera','uColor','uMetal','uRough','uEmissive',
-      'uOpacity','uExposure','uFogDensity','uFogColor','uLightColor','uMap','uUseMap','uMapScale',
-      'uUnlit','uPrimitive','uPointSize','uPixelRatio','uSunDir','uSunStrength','uLocalLightPos','uLocalLightColor','uLocalLightStrength'
-    ].forEach(n=>this.uniforms[n]=gl.getUniformLocation(this.program,n));
-    ['uVP','uCenter','uScale','uRight','uUp','uTex','uColor','uOpacity','uFogDensity','uFogColor']
-      .forEach(n=>this.spriteUniforms[n]=gl.getUniformLocation(this.spriteProgram,n));
+    const names=['uVP','uModel','uCamera','uColor','uMetal','uRough','uEmissive','uOpacity','uExposure','uFogDensity','uFogColor','uLightColor','uMap','uUseMap','uMapScale','uUnlit','uPrimitive','uPointSize','uPixelRatio','uSunDir','uSunStrength','uLocalLightPos','uLocalLightColor','uLocalLightStrength'];
+    this.uniforms=this.uniformsFor(this.program,names);
+    this.instanceUniforms=this.uniformsFor(this.instanceProgram,names.filter(n=>n!=='uModel'));
+    this.spriteUniforms=this.uniformsFor(this.spriteProgram,['uVP','uCenter','uScale','uRight','uUp','uTex','uColor','uOpacity','uFogDensity','uFogColor']);
   }
 
   clear(){
@@ -1957,7 +2046,7 @@ void main(){outColor=texture(uTex,vUV);}`
     const key=g.uuid;
     const version=`${pos.version||0}:${normal?.version||0}:${idx?.version||0}:${pos.count}:${idx?.count||0}`;
     const old=this.geometry.get(key);
-    if(old&&old.version===version)return old;
+    if(old&&old.version===version){this.stats.geometryCacheHits++;return old;}
 
     const start=this.used/6;
     const count=idx?idx.count:pos.count;
@@ -1999,7 +2088,7 @@ void main(){outColor=texture(uTex,vUV);}`
 
     this.used=o;
     const info={version,start,count};
-    this.geometry.set(key,info);
+    this.geometry.set(key,info);this.stats.geometryUploads++;
 
     const gl=this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER,this.rawBuffer);
@@ -2048,7 +2137,7 @@ void main(){outColor=texture(uTex,vUV);}`
   makeItem(obj,cacheGeometry=false){
     if(!(obj.isMesh||obj.isLine||obj.isLineSegments||obj.isPoints)||!obj.geometry)return null;
     const mat=Array.isArray(obj.material)?obj.material[0]:obj.material;if(!mat)return null;
-    const primitive=obj.isPoints?2:(obj.isLine||obj.isLineSegments?1:0),ud=obj.userData||(obj.userData={});
+    const primitive=obj.isPoints?2:(obj.isLine||obj.isLineSegments?1:0),ud=registerRenderIdentity(obj);
     let item=ud.svRawRenderItem;
     if(item&&item.geometryRef===obj.geometry&&item.materialRef===mat&&item.primitive===primitive){
       this.objectInfo(obj,item);this.materialState(mat,item.mat);
@@ -2064,6 +2153,7 @@ void main(){outColor=texture(uTex,vUV);}`
   freezeWorld(root){
     this.worldRoot=root;this.staticItems=[];this.staticSprites=[];this.dynamicWorldRoots=[];root.updateWorldMatrix(true,true);
     const walk=(obj,dynamic=false)=>{
+      registerRenderIdentity(obj);
       if(obj!==root&&obj.userData?.svDynamicRoot){this.setDynamicBounds(obj);this.dynamicWorldRoots.push(obj);return}
       if(obj.isSprite&&obj.material?.map){this.staticSprites.push(obj);return}
       if(obj.isMesh||obj.isLine||obj.isLineSegments||obj.isPoints){const item=this.makeItem(obj,false);if(item)this.staticItems.push(item)}
@@ -2075,6 +2165,7 @@ void main(){outColor=texture(uTex,vUV);}`
     root.updateWorldMatrix(true,true);
     let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity,found=false;
     root.traverse(obj=>{
+      registerRenderIdentity(obj);
       if(!(obj.isMesh||obj.isLine||obj.isLineSegments||obj.isPoints)||!obj.geometry)return;
       const info=this.objectInfo(obj);if(!info)return;found=true;const c=info.center,r=info.radius;
       minX=Math.min(minX,c[0]-r);minY=Math.min(minY,c[1]-r);minZ=Math.min(minZ,c[2]-r);
@@ -2116,6 +2207,7 @@ void main(){outColor=texture(uTex,vUV);}`
   collectDynamic(root,out,camera,c){this.collectDynamicNode(root,out,camera,c)}
   collectDynamicNode(obj,out,camera,c){
     if(!obj.visible)return;
+    registerRenderIdentity(obj);
     if(obj.isSprite&&obj.material?.map){this.frameSprites.push(obj);return}
     const item=this.makeItem(obj,false);
     if(item&&this.visibleInfo(item,camera,c)){item.g=this.ensureGeometry(obj.geometry);if(item.g)out.push(item)}
@@ -2177,49 +2269,49 @@ void main(){outColor=texture(uTex,vUV);}`
     return {vp:SVU.mul(p,v),eye,forward,right:SVU.norm([cm[0],cm[1],cm[2]]),up,tanV:Math.tan(halfV)*1.17+.06,tanH:Math.tan(halfH)*1.17+.06,near:camera.near||.05,far:(camera.far||560)*1.04};
   }
 
-  setFrameState(scene,c){
+  setFrameState(scene,c,program=this.program,uniforms=this.uniforms){
     const gl=this.gl;
     const fc=scene.fog?.color;
-    gl.useProgram(this.program);
-    gl.uniform3f(this.uniforms.uCamera,c.eye[0],c.eye[1],c.eye[2]);
-    gl.uniform1f(this.uniforms.uExposure,this.base.toneMappingExposure??1);
-    gl.uniform1f(this.uniforms.uFogDensity,scene.fog?.density??0);
-    gl.uniform3f(this.uniforms.uFogColor,fc?.r??.45,fc?.g??.57,fc?.b??.63);
+    gl.useProgram(program);
+    gl.uniform3f(uniforms.uCamera,c.eye[0],c.eye[1],c.eye[2]);
+    gl.uniform1f(uniforms.uExposure,this.base.toneMappingExposure??1);
+    gl.uniform1f(uniforms.uFogDensity,scene.fog?.density??0);
+    gl.uniform3f(uniforms.uFogColor,fc?.r??.45,fc?.g??.57,fc?.b??.63);
     const sun=scene.userData.svSun;
     const lights=scene.userData.svLights||[];
     const sd=sun?.position?SVU.norm([sun.position.x,sun.position.y,sun.position.z]):SVU.norm([.32,.86,.28]);
-    gl.uniform3f(this.uniforms.uSunDir,sd[0],sd[1],sd[2]);
-    gl.uniform1f(this.uniforms.uSunStrength,Math.min(1.8,Math.max(.65,(sun?.intensity??3.5)/3.5)));
+    gl.uniform3f(uniforms.uSunDir,sd[0],sd[1],sd[2]);
+    gl.uniform1f(uniforms.uSunStrength,Math.min(1.8,Math.max(.65,(sun?.intensity??3.5)/3.5)));
     const lc=sun?.color?sun.color:[1,.97,.9];
-    gl.uniform3f(this.uniforms.uLightColor,lc.r??1,lc.g??.97,lc.b??.9);
+    gl.uniform3f(uniforms.uLightColor,lc.r??1,lc.g??.97,lc.b??.9);
     let local=lights[0];
     if(lights.length){
       let best=Infinity;
       for(const l of lights){const dx=l.position.x-c.eye[0],dy=l.position.y-c.eye[1],dz=l.position.z-c.eye[2];const d=dx*dx+dy*dy+dz*dz;if(d<best){best=d;local=l;}}
     }
     if(local){
-      gl.uniform3f(this.uniforms.uLocalLightPos,local.position.x,local.position.y,local.position.z);
-      gl.uniform3f(this.uniforms.uLocalLightColor,local.color.r,local.color.g,local.color.b);
-      gl.uniform1f(this.uniforms.uLocalLightStrength,Math.min(1.4,local.intensity/8));
+      gl.uniform3f(uniforms.uLocalLightPos,local.position.x,local.position.y,local.position.z);
+      gl.uniform3f(uniforms.uLocalLightColor,local.color.r,local.color.g,local.color.b);
+      gl.uniform1f(uniforms.uLocalLightStrength,Math.min(1.4,local.intensity/8));
     }else{
-      gl.uniform3f(this.uniforms.uLocalLightPos,c.eye[0],c.eye[1],c.eye[2]);
-      gl.uniform3f(this.uniforms.uLocalLightColor,.15,.2,.25);
-      gl.uniform1f(this.uniforms.uLocalLightStrength,0);
+      gl.uniform3f(uniforms.uLocalLightPos,c.eye[0],c.eye[1],c.eye[2]);
+      gl.uniform3f(uniforms.uLocalLightColor,.15,.2,.25);
+      gl.uniform1f(uniforms.uLocalLightStrength,0);
     }
-    gl.uniformMatrix4fv(this.uniforms.uVP,false,c.vp);
+    gl.uniformMatrix4fv(uniforms.uVP,false,c.vp);
   }
 
-  bindMaterial(mat,primitive){
+  bindMaterial(mat,primitive,uniforms=this.uniforms){
     const gl=this.gl;
-    gl.uniform3f(this.uniforms.uColor,mat.color[0],mat.color[1],mat.color[2]);
-    gl.uniform1f(this.uniforms.uMetal,mat.metal);
-    gl.uniform1f(this.uniforms.uRough,Math.max(.05,Math.min(1,mat.rough)));
-    gl.uniform1f(this.uniforms.uEmissive,mat.emissive);
-    gl.uniform1f(this.uniforms.uOpacity,mat.opacity);
-    gl.uniform1i(this.uniforms.uUnlit,mat.basic?1:0);
-    gl.uniform1i(this.uniforms.uPrimitive,primitive);
-    gl.uniform1f(this.uniforms.uPointSize,mat.pointSize??1);
-    gl.uniform1f(this.uniforms.uPixelRatio,this.pixelRatio);
+    gl.uniform3f(uniforms.uColor,mat.color[0],mat.color[1],mat.color[2]);
+    gl.uniform1f(uniforms.uMetal,mat.metal);
+    gl.uniform1f(uniforms.uRough,Math.max(.05,Math.min(1,mat.rough)));
+    gl.uniform1f(uniforms.uEmissive,mat.emissive);
+    gl.uniform1f(uniforms.uOpacity,mat.opacity);
+    gl.uniform1i(uniforms.uUnlit,mat.basic?1:0);
+    gl.uniform1i(uniforms.uPrimitive,primitive);
+    gl.uniform1f(uniforms.uPointSize,mat.pointSize??1);
+    gl.uniform1f(uniforms.uPixelRatio,this.pixelRatio);
   }
 
   bindTexture(tex){
@@ -2297,7 +2389,34 @@ void main(){outColor=texture(uTex,vUV);}`
     gl.bindVertexArray(null);
   }
 
+  ensureInstanceCapacity(count){
+    if(count<=this.instanceCapacity)return;
+    let capacity=this.instanceCapacity;while(capacity<count)capacity*=2;
+    const next=new Float32Array(capacity*16);next.set(this.instanceData.subarray(0,Math.min(this.instanceData.length,next.length)));
+    this.instanceData=next;this.instanceCapacity=capacity;
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.instanceBuffer);this.gl.bufferData(this.gl.ARRAY_BUFFER,this.instanceData.byteLength,this.gl.DYNAMIC_DRAW);this.gl.bindBuffer(this.gl.ARRAY_BUFFER,null);
+  }
+  groupOpaqueItems(items){
+    for(const key of this.renderGroupKeys){const group=this.renderGroups.get(key);if(group)group.length=0;}
+    this.renderGroupKeys.length=0;
+    for(const item of items){
+      const key=`${item.g.start}:${item.g.count}:${item.primitive}:${item.materialRef.uuid}`;
+      let group=this.renderGroups.get(key);
+      if(!group){group=[];this.renderGroups.set(key,group);}
+      if(group.length===0)this.renderGroupKeys.push(key);
+      group.push(item);
+    }
+  }
+  uploadInstanceMatrices(items){
+    this.ensureInstanceCapacity(items.length);
+    let offset=0;
+    for(const item of items){this.instanceData.set(item.obj.matrixWorld.elements,offset);offset+=16;}
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.instanceBuffer);
+    this.gl.bufferSubData(this.gl.ARRAY_BUFFER,0,this.instanceData.subarray(0,offset));
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER,null);
+  }
   render(scene,camera){
+    const frameStart=performance.now();
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,null);
     const gl=this.gl;
     this.pixelRatio=this.base.getPixelRatio();
@@ -2338,52 +2457,52 @@ void main(){outColor=texture(uTex,vUV);}`
       }
     }
 
-    gl.bindVertexArray(this.vao);
     this.pixelRatio=this.base.getPixelRatio();
-    this.setFrameState(scene,c);
-
-    const draw=(item)=>{
-      const mat=item.mat;
-      const mode=item.primitive===2?gl.POINTS:item.primitive===1?gl.LINES:gl.TRIANGLES;
-      this.bindMaterial(mat,item.primitive);
+    this.setFrameState(scene,c,this.program,this.uniforms);
+    this.setFrameState(scene,c,this.instanceProgram,this.instanceUniforms);
+    const bindTextureUniforms=(mat,uniforms)=>{
       const tex=this.bindTexture(mat.map);
       if(tex){
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D,tex);
-        gl.uniform1i(this.uniforms.uMap,0);
-        gl.uniform1i(this.uniforms.uUseMap,1);
-        gl.uniform2f(this.uniforms.uMapScale,mat.mapRepeat[0],mat.mapRepeat[1]);
+        gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
+        gl.uniform1i(uniforms.uMap,0);gl.uniform1i(uniforms.uUseMap,1);
+        gl.uniform2f(uniforms.uMapScale,mat.mapRepeat[0],mat.mapRepeat[1]);
       }else{
-        gl.uniform1i(this.uniforms.uUseMap,0);
-        gl.uniform2f(this.uniforms.uMapScale,1,1);
+        gl.uniform1i(uniforms.uUseMap,0);gl.uniform2f(uniforms.uMapScale,1,1);
       }
-      gl.uniformMatrix4fv(
-        this.uniforms.uModel,
-        false,
-        item.obj.matrixWorld.elements
-      );
-
-      if(mat.doubleSide)gl.disable(gl.CULL_FACE);
-      else gl.enable(gl.CULL_FACE);
-
+    };
+    const setMaterialState=mat=>{
+      if(mat.doubleSide)gl.disable(gl.CULL_FACE);else gl.enable(gl.CULL_FACE);
       if(mat.transparent){
         gl.enable(gl.BLEND);
-        if(item.obj.material.blending===THREE.AdditiveBlending)gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+        if(mat.objBlending===THREE.AdditiveBlending)gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
         else gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-      }else{
-        gl.disable(gl.BLEND);
-      }
-
+      }else gl.disable(gl.BLEND);
       gl.depthMask(mat.depthWrite);
-
-      gl.drawArrays(
-        mode,
-        item.g.start,
-        item.g.count
-      );drawCount++;
     };
-
-    for(const item of opaque)draw(item);
+    const draw=(item)=>{
+      const mat=item.mat,mode=item.primitive===2?gl.POINTS:item.primitive===1?gl.LINES:gl.TRIANGLES;
+      gl.useProgram(this.program);gl.bindVertexArray(this.vao);
+      this.bindMaterial(mat,item.primitive,this.uniforms);bindTextureUniforms(mat,this.uniforms);
+      gl.uniformMatrix4fv(this.uniforms.uModel,false,item.obj.matrixWorld.elements);
+      if(mat.doubleSide)gl.disable(gl.CULL_FACE);else gl.enable(gl.CULL_FACE);
+      if(mat.transparent){gl.enable(gl.BLEND);if(item.obj.material.blending===THREE.AdditiveBlending)gl.blendFunc(gl.SRC_ALPHA,gl.ONE);else gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA)}else gl.disable(gl.BLEND);
+      gl.depthMask(mat.depthWrite);gl.drawArrays(mode,item.g.start,item.g.count);drawCount++;
+    };
+    const drawInstanced=(items)=>{
+      if(items.length<2){if(items.length)draw(items[0]);return;}
+      const first=items[0],mat=first.mat,mode=first.primitive===2?gl.POINTS:first.primitive===1?gl.LINES:gl.TRIANGLES;
+      this.uploadInstanceMatrices(items);
+      gl.useProgram(this.instanceProgram);gl.bindVertexArray(this.instanceVao);
+      this.bindMaterial(mat,first.primitive,this.instanceUniforms);bindTextureUniforms(mat,this.instanceUniforms);
+      if(mat.doubleSide)gl.disable(gl.CULL_FACE);else gl.enable(gl.CULL_FACE);
+      gl.disable(gl.BLEND);gl.depthMask(mat.depthWrite);
+      gl.drawArraysInstanced(mode,first.g.start,first.g.count,items.length);
+      drawCount++;this.stats.instancedDraws++;this.stats.instances+=items.length;
+    };
+    this.stats.instancedDraws=0;this.stats.instances=0;
+    this.groupOpaqueItems(opaque);
+    for(const key of this.renderGroupKeys){const group=this.renderGroups.get(key);if(group?.length)drawInstanced(group);}
+    gl.bindVertexArray(this.vao);
     for(const item of transparent)draw(item);
 
     gl.bindVertexArray(null);
@@ -2391,16 +2510,20 @@ void main(){outColor=texture(uTex,vUV);}`
 
     this.renderSprites(scene,c);
     this.stats.draws=drawCount;
+    this.stats.frameMs=performance.now()-frameStart;
   }
 
   dispose(){
     const gl=this.gl;
     for(const x of this.textureCache.values())gl.deleteTexture(x.texture);
     gl.deleteBuffer(this.rawBuffer);
+    gl.deleteBuffer(this.instanceBuffer);
     gl.deleteVertexArray(this.vao);
+    gl.deleteVertexArray(this.instanceVao);
     gl.deleteVertexArray(this.spriteVao);
     gl.deleteVertexArray(this.skyVao);
     gl.deleteProgram(this.program);
+    gl.deleteProgram(this.instanceProgram);
     gl.deleteProgram(this.spriteProgram);
     gl.deleteProgram(this.skyProgram);
     this.geometry.clear();
@@ -3036,35 +3159,36 @@ function makeWeaponMesh(w){
   return g;
 }
 function createCharacter(isPlayer=false,color=0x6ec7ff){
-  const g=new THREE.Group();
+  const g=new THREE.Group();g.name=isPlayer?'player-model':'bot-model';
+  g.userData.svObjectClass=isPlayer?'player':'bot';registerRenderIdentity(g);
   const pal=isPlayer?(CUSTOM_PALETTES[customization.operator]?.hex??0x66c8ff):color;
   const visorCol=isPlayer?(VISORS[customization.visor]?.hex??0x79e6ff):0xff4258;
 
-  const body=box(.82,1.15,.48,pal,.72,.03,'metal');
-  body.position.y=1.35;body.castShadow=true;g.add(body);
+  const body=capsule(.30,.54,pal,3,10,.72,.03,'metal');
+  body.scale.set(1.02,1,.78);body.position.y=1.35;body.castShadow=true;g.add(body);
 
-  const vest=box(.88,.75,.53,0x263342,.76,.14,'fabric');
-  vest.position.set(0,1.4,0);vest.castShadow=true;g.add(vest);
+  const vest=capsule(.32,.30,0x263342,2,8,.76,.14,'fabric');
+  vest.scale.set(1.08,.90,.86);vest.position.set(0,1.40,0);vest.castShadow=true;g.add(vest);
 
-  const head=sphere(.33,isPlayer?0xe0b898:0xc98d73);
-  head.position.y=2.22;head.castShadow=true;g.add(head);
+  const head=sphere(.32,isPlayer?0xe0b898:0xc98d73);
+  head.position.y=2.22;head.scale.set(1,.98,.94);head.castShadow=true;g.add(head);
 
-  const visor=box(.25,.11,.37,visorCol,.1,.55,'metal');
-  visor.position.set(0,2.25,.27);g.add(visor);
+  const visor=box(.25,.11,.12,visorCol,.1,.55,'metal');
+  visor.position.set(0,2.25,.285);g.add(visor);
 
   const armL=new THREE.Group(),armR=new THREE.Group();
-  armL.position.set(-.5,1.72,0);armR.position.set(.5,1.72,0);
-  const armMeshL=cyl(.12,.86,isPlayer?0x6a7e94:0x526171,10,.8);
-  const armMeshR=cyl(.12,.86,isPlayer?0x6a7e94:0x526171,10,.8);
-  armMeshL.position.y=-.40;armMeshR.position.y=-.40;
+  armL.position.set(-.47,1.72,0);armR.position.set(.47,1.72,0);
+  const armMeshL=capsule(.105,.42,isPlayer?0x6a7e94:0x526171,2,8,.8,.02,'fabric');
+  const armMeshR=capsule(.105,.42,isPlayer?0x6a7e94:0x526171,2,8,.8,.02,'fabric');
+  armMeshL.position.y=-.34;armMeshR.position.y=-.34;
   armMeshL.castShadow=armMeshR.castShadow=true;
   armL.add(armMeshL);armR.add(armMeshR);g.add(armL,armR);
 
   const legL=new THREE.Group(),legR=new THREE.Group();
   legL.position.set(-.22,.98,0);legR.position.set(.22,.98,0);
-  const legMeshL=cyl(.14,1.04,0x182532,10,.92);
-  const legMeshR=cyl(.14,1.04,0x182532,10,.92);
-  legMeshL.position.y=-.52;legMeshR.position.y=-.52;
+  const legMeshL=capsule(.125,.40,0x182532,2,8,.92,.02,'metal');
+  const legMeshR=capsule(.125,.40,0x182532,2,8,.92,.02,'metal');
+  legMeshL.position.y=-.40;legMeshR.position.y=-.40;
   legMeshL.castShadow=legMeshR.castShadow=true;
   legL.add(legMeshL);legR.add(legMeshR);g.add(legL,legR);
 
@@ -3164,14 +3288,17 @@ function spawnBots(count=GAME.botCount){
     }
     const wk=choice(['ar','ar','smg','shotgun','dmr']);const wd=weapons[wk];
     const mesh=createCharacter(false,palette[i%palette.length]);scene.add(mesh);
-    const aggression=rand(.95,1.22);
+    const skillLevel=clamp(.12+rand(0,.86),.12,.98);
+    const aiHz=Math.round(5+skillLevel*25);
+    const aggression=.68+skillLevel*.62;
     const bot={
       id:'bot'+i,name:botNames[i%botNames.length],mesh,
       pos:new THREE.Vector3(x,groundY(x,z),z),vel:new THREE.Vector3(),
       yaw:Math.atan2(player?player.pos.x-x:-x,player?player.pos.z-z:-z),health:100,shield:choice([0,0,25,50]),
-      speed:rand(4.6,6.2),radius:.65,
+      skillLevel,aiHz,aiSkill:skillLevel<.28?'beginner':skillLevel<.45?'easy':skillLevel<.68?'normal':skillLevel<.86?'hard':'expert',
+      speed:4.2+skillLevel*2.0,radius:.65,
       weapon:{...wd,mag:wd.mag,reserve:wd.reserve},weaponKey:wk,
-      state:'hunt',target:player,nextThink:rand(.02,.16),nextShot:rand(.2,.7),
+      state:'hunt',target:player,nextThink:rand(.02,.16)+(1-skillLevel)*.52,nextShot:rand(.2,.7)+(1-skillLevel)*.5,
       waypoint:new THREE.Vector3(rand(-GAME.playableRadius+12,GAME.playableRadius-12),0,rand(-GAME.playableRadius+12,GAME.playableRadius-12)),
       lastSeen:0,flash:0,aggression,coverTimer:0,flankTimer:0
     };
@@ -3771,7 +3898,7 @@ function botUpdate(b,dt){
   const engagement=Math.min(b.weapon.range,165);
 
   if(b.nextThink<=0){
-    b.nextThink=rand(.12,.24);
+    b.nextThink=rand(.82,1.18)/Math.max(5,b.aiHz||12);
     sees=distance<Math.min(250,b.weapon.range+25)&&lineOfSight(eye,targetEye);b.seesPlayer=sees;
     b.state=distance<220?'hunt':'patrol';
     b.target=player;
@@ -3826,7 +3953,7 @@ function botShoot(b){
   const origin=b.pos.clone().add(new THREE.Vector3(0,1.42,0)),target=player.pos.clone().add(new THREE.Vector3(0,1.18,0));
   const pellets=b.weaponKey==='shotgun'?6:1;
   for(let i=0;i<pellets;i++){
-    const d=target.clone().sub(origin).normalize(),spread=b.weapon.spread*(1.08-b.aggression*.15);d.x+=rand(-spread,spread);d.y+=rand(-spread*.65,spread*.65);d.z+=rand(-spread,spread);d.normalize();
+    const d=target.clone().sub(origin).normalize(),spread=b.weapon.spread*(1.68-(b.skillLevel??.5)*1.05);d.x+=rand(-spread,spread);d.y+=rand(-spread*.65,spread*.65);d.z+=rand(-spread,spread);d.normalize();
     const ray=new THREE.Raycaster(origin,d,0,b.weapon.range),targetHit=safeRaycastObject(ray,player.mesh,true)[0],rayEnd=origin.clone().addScaledVector(d,b.weapon.range),worldHit=safeRaycastObjects(ray,buildingsAlongSegment(origin,rayEnd),true)[0];
     let end=origin.clone().addScaledVector(d,b.weapon.range),hitsPlayer=!!targetHit&&(!worldHit||targetHit.distance<worldHit.distance);
     if(worldHit&&!hitsPlayer)end=worldHit.point.clone();
@@ -3928,8 +4055,6 @@ function setBuildingDoor(b,open=true){
   if(!b?.door)return;
   b.door.target=open?1:0;
   if(open){
-    b.door.mesh.material.opacity=1;
-    b.door.mesh.material.transparent=false;
     b.interior.visible=true;
     showToast(`${getZoneName(b.x,b.z)} · DOOR OPEN`,'good');
   }
@@ -4121,13 +4246,13 @@ const BUILD_COST=10;
 const BUILD_COLORS={wood:0x9f744b,brick:0x7d8795,metal:0x66859a};
 function buildGroup(kind,material,preview=false){
   const g=new THREE.Group(),color=BUILD_COLORS[material]||BUILD_COLORS.wood;
-  const part=(w,h,d,x,y,z,c=color,rough=.78,metal=0)=>{const m=box(w,h,d,c,rough,metal,material==='wood'?'wood':material==='brick'?'concrete':'metal');m.position.set(x,y,z);m.castShadow=!preview;m.receiveShadow=true;if(preview){m.material.transparent=true;m.material.opacity=.48;m.material.depthWrite=false;m.material.color.setHex(c)}g.add(m);return m};
+  const part=(w,h,d,x,y,z,c=color,rough=.78,metal=0)=>{const m=box(w,h,d,c,rough,metal,material==='wood'?'wood':material==='brick'?'concrete':'metal');m.position.set(x,y,z);m.castShadow=!preview;m.receiveShadow=true;if(preview){m.material=m.material.clone();m.material.userData.svSharedMaterial=false;m.material.transparent=true;m.material.opacity=.48;m.material.depthWrite=false;m.material.color.setHex(c)}g.add(m);return m};
   if(kind==='wall'){
     part(4,2.8,.22,0,1.4,0,color,.72,material==='metal'?.48:.04);
     part(.16,2.95,.28,-1.9,1.45,0,0x263645,.62,.2);part(.16,2.95,.28,1.9,1.45,0,0x263645,.62,.2);
     part(4.05,.16,.28,0,2.78,0,0x263645,.62,.2);
     for(let x=-1.35;x<=1.35;x+=.9)part(.08,2.5,.25,x,1.4,-.015,color,.76,.03);
-    const band=box(4.02,.07,.3,material==='metal'?0x76d9ff:material==='brick'?0xb2bcc8:0xffd28a,.28,.1);band.position.y=.14;g.add(band);if(preview){band.material.transparent=true;band.material.opacity=.55;band.material.depthWrite=false}
+    const band=box(4.02,.07,.3,material==='metal'?0x76d9ff:material==='brick'?0xb2bcc8:0xffd28a,.28,.1);band.position.y=.14;if(preview){band.material=band.material.clone();band.material.userData.svSharedMaterial=false;band.material.transparent=true;band.material.opacity=.55;band.material.depthWrite=false}g.add(band)
   }else if(kind==='floor'){
     part(4,.22,4,0,.12,0,color,.74,material==='metal'?.5:.04);
     for(let x=-1.5;x<=1.5;x+=1)part(.09,.27,4,x,.14,0,0x263645,.64,.15);
@@ -4413,7 +4538,7 @@ async function optimizeStaticScene(){
   scene.updateMatrixWorld(true);
   if(typeof svRawRenderer?.freezeWorld==='function')svRawRenderer.freezeWorld(worldRoot);
   else console.warn('Static scene freezing skipped: raw renderer does not support freezeWorld');
-  if(UI.network)UI.network.title=`WebGL2 · ${processed.toLocaleString()} static pieces batched`;
+  if(UI.network)UI.network.title=`SV-Core WebGL2 · ${processed.toLocaleString()} static pieces combined, shape IDs cached, opaque repeated meshes instanced`;
 }
 function chooseWorldLod(item,d,near,far){
   const old=item.sfrLod;
@@ -4505,7 +4630,11 @@ function gameLoop(){
   svFpsAccum+=dt;svFpsFrames++;
   if(svFpsAccum>=.25){
     const fpsEl=document.getElementById('sv-fps');
-    if(fpsEl)fpsEl.textContent=`FPS ${Math.round(svFpsFrames/svFpsAccum)} · ${camera?.fov?Math.round(camera.fov):0}°`;
+    if(fpsEl){
+      const stats=svRawRenderer?.stats,draws=stats?.draws??0,instanced=stats?.instancedDraws??0;
+      fpsEl.textContent=`FPS ${Math.round(svFpsFrames/svFpsAccum)} · ${draws} draws`;
+      fpsEl.title=`SV-Core WebGL2 · ${stats?.visible??0} visible objects · ${instanced} instanced draw calls · ${stats?.instances??0} instances batched · ${svRawRenderer?.geometry.size??0} unique geometry buffers · ${SHAPE_GEOMETRY_CACHE.size} cached shape classes/IDs · ${stats?.frameMs?.toFixed(2)??'0.00'} ms renderer frame`;
+    }
     svFpsAccum=0;svFpsFrames=0;
   }
   qualityAccum+=dt;qualityFrames++;qualityCooldown=Math.max(0,qualityCooldown-dt);
