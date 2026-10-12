@@ -416,7 +416,7 @@ button,input,output{font:inherit}button{cursor:pointer;border:none;outline:none}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
 </style>
-<link rel="stylesheet" href="/assets/css/mobile-nav.css">
+
 </head>
 <body>
 <div id="app">
@@ -925,6 +925,7 @@ let cameraKick=0,localLightTick=0;
 let onlineMode=false,playerId=createClientId(),playerName='Operator',matchId=null,matchSeed=GAME.seed,matchStartAt=0;
 let customization=loadCustomization(),queueEnteredAt=0;
 let mpClient=null,rewardsClient=null,lobbyChannel=null,matchChannel=null,lobbyPlayers=[],queueing=false;
+const closingLobbyChannels=new WeakSet();
 let countdownStart=0,countdownMatchId=null,countdownSeed=null,countdownMapId=0,countdownTimer=null,pendingRoster=[];
 let networkAccum=0,networkPresenceAccum=0,matchPresenceState=new Map(),lastRemoteUpdate=new Map();
 let rewardSessionId=null,rewardActiveSeconds=0,rewardLastTick=performance.now(),rewardVisible=true;
@@ -4226,7 +4227,9 @@ async function optimizeStaticScene(){
   scene.updateMatrixWorld(true);
   const worldRoot=new THREE.Group();worldRoot.name='SR-STATIC-WORLD';
   const children=[...scene.children];scene.add(worldRoot);for(const child of children)worldRoot.add(child);
-  scene.updateMatrixWorld(true);renderer?.freezeWorld(worldRoot);
+  scene.updateMatrixWorld(true);
+  if(typeof svRawRenderer?.freezeWorld==='function')svRawRenderer.freezeWorld(worldRoot);
+  else console.warn('Static scene freezing skipped: raw renderer does not support freezeWorld');
   if(UI.network)UI.network.title=`WebGL2 · ${processed.toLocaleString()} static pieces batched`;
 }
 function updateWorldLods(dt){
@@ -4328,6 +4331,12 @@ function gameLoop(){
 // ══════════════════════════════════════════
 async function bootSupabase(){
   try{
+    if(location.protocol==='file:'){
+      UI.network.textContent='HTTP(S) required';
+      UI.network.title='Supabase Realtime multiplayer requires localhost or an HTTPS site. Open this game through a local web server or the deployed site.';
+      if(UI.queueState)UI.queueState.innerHTML='MULTIPLAYER OFFLINE · <b>open through localhost or HTTPS</b>';
+      return;
+    }
     if(window.supabase?.createClient){
       mpClient=window.supabase.createClient(MP_URL,MP_KEY,{realtime:{params:{eventsPerSecond:30}}});
       rewardsClient=window.supabase.createClient(REWARDS_URL,REWARDS_KEY);
@@ -4349,14 +4358,19 @@ function lobbySnapshot(){if(!lobbyChannel)return[];const state=lobbyChannel.pres
 async function trackLobby(state='menu',extra={}){if(!lobbyChannel)return;try{await lobbyChannel.track({uid:playerId,username:playerName,state,...extra,updatedAt:Date.now()})}catch(_){}}
 async function joinLobby(){
   if(!mpClient||lobbyChannel)return;
-  lobbyChannel=mpClient.channel('sfr-lobby-v3',{config:{broadcast:{self:false},presence:{key:playerId}}});
-  lobbyChannel.on('presence',{event:'sync'},refreshLobby);lobbyChannel.on('presence',{event:'join'},refreshLobby);lobbyChannel.on('presence',{event:'leave'},refreshLobby);
+  const channel=mpClient.channel('sfr-lobby-v3',{config:{broadcast:{self:false},presence:{key:playerId}}});
+  lobbyChannel=channel;
+  channel.on('presence',{event:'sync'},refreshLobby);channel.on('presence',{event:'join'},refreshLobby);channel.on('presence',{event:'leave'},refreshLobby);
   const status=await new Promise(resolve=>{
     let settled=false;const finish=s=>{if(settled)return;settled=true;resolve(s)};
     const timer=setTimeout(()=>finish('TIMED_OUT'),5000);
-    lobbyChannel.subscribe((s,err)=>{if(s==='SUBSCRIBED'){clearTimeout(timer);trackLobby('menu');finish(s)}else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){clearTimeout(timer);console.warn('StarFall lobby Realtime',s,err);finish(s)}});
+    channel.subscribe((s,err)=>{
+      if(s==='CLOSED'&&closingLobbyChannels.has(channel))return;
+      if(s==='SUBSCRIBED'){clearTimeout(timer);trackLobby('menu');finish(s)}
+      else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){clearTimeout(timer);console.warn('StarFall lobby Realtime',s,err||'(no error details supplied)');finish(s)}
+    });
   });
-  if(status!=='SUBSCRIBED'){UI.network.textContent='Lobby offline';try{await lobbyChannel?.unsubscribe()}catch(_){}lobbyChannel=null}
+  if(status!=='SUBSCRIBED'){UI.network.textContent='Lobby offline';closingLobbyChannels.add(channel);try{await channel.unsubscribe()}catch(_){}if(lobbyChannel===channel)lobbyChannel=null}
 }
 function refreshLobby(){
   lobbyPlayers=lobbySnapshot();const queued=lobbyPlayers.filter(p=>p.state==='queue');
@@ -4408,7 +4422,10 @@ async function beginOnlineMatch(mid,seed,startAt,mapId=0){
   matchTime=0;kills=0;killStreak=0;damageDone=0;shotsTotal=0;shotsHit=0;headshotCount=0;chestsOpened=0;distanceTraveled=0;matchXp=0;grenadeCount=3;grenadeCooldown=0;botCombatGrace=5;buildMode=false;harvestMode=false;buildResources={wood:150,brick:100,metal:100};processedHitIds.clear();processedEliminations.clear();
   currentPhase=0;phaseTimer=0;phaseState='wait';stormRadius=GAME.stormPhases[0].radius;safeCenter.set(0,0);
   activeMapIndex=Number.isFinite(Number(mapId))?Math.max(0,Math.min(199,Math.trunc(Number(mapId)))):0;configureMap(activeMapIndex);reseed((seed^activeMap.seed)||GAME.seed);input.move.set(0,0);input.look.set(0,0);keys.clear();mouseDown=false;aiming=false;reloadRequested=false;jumpRequested=false;grenadeRequested=false;lastPos=null;
-  try{await lobbyChannel?.untrack()}catch(_){}try{await lobbyChannel?.unsubscribe()}catch(_){}lobbyChannel=null;
+  const oldLobby=lobbyChannel;
+  if(oldLobby)closingLobbyChannels.add(oldLobby);
+  try{await oldLobby?.untrack()}catch(_){}try{await oldLobby?.unsubscribe()}catch(_){}
+  if(lobbyChannel===oldLobby)lobbyChannel=null;
   resetEntities();showScreen(UI.game);UI.loading.classList.remove('hide');UI.loading.style.display='flex';$('loading-text').textContent='building verdant reach';updateNadeUI();
   try{
     initProceduralWorkers();const load=$('loading-text');if(load)load.textContent=`generating ${activeMap.name} · preparing detailed models`;
@@ -4579,7 +4596,12 @@ UI.loading.style.display='flex';
 updateProfileUI();
 bootSupabase();
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"ff0a2d9a55154fa7bec0287a68d6f56f","r":1,"spa":2}' crossorigin="anonymous"></script>
-<script src="/assets/js/mobile-nav.js" defer></script>
+
+<script>
+if(location.protocol==='http:'||location.protocol==='https:'){
+  const navCss=document.createElement('link');navCss.rel='stylesheet';navCss.href=new URL('../assets/css/mobile-nav.css',location.href).href;document.head.appendChild(navCss);
+  const navScript=document.createElement('script');navScript.src=new URL('../assets/js/mobile-nav.js',location.href).href;navScript.defer=true;document.body.appendChild(navScript);
+}
+</script>
 </body>
 </html>
