@@ -779,8 +779,60 @@ button,input,output{font:inherit}button{cursor:pointer;border:none;outline:none}
 
 </div><!-- #app -->
 
+<script>
+(() => {
+  window.__sfrShowStartupError = (title, detail) => {
+    let panel = document.getElementById('sfr-engine-error');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'sfr-engine-error';
+      panel.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:#050914;color:#edf5ff;font:14px/1.55 Inter,system-ui,sans-serif';
+      const card = document.createElement('div');
+      card.style.cssText = 'width:min(600px,100%);padding:28px;border:1px solid rgba(121,230,255,.25);border-radius:14px;background:#0b1422;box-shadow:0 24px 80px #0009';
+      const heading = document.createElement('h1');
+      heading.style.cssText = 'margin:0 0 12px;font:700 24px Rajdhani,system-ui,sans-serif;color:#79e6ff';
+      heading.dataset.role = 'title';
+      const body = document.createElement('p');
+      body.style.cssText = 'margin:0;color:#bdcadd;overflow-wrap:anywhere';
+      body.dataset.role = 'detail';
+      const reload = document.createElement('button');
+      reload.textContent = 'Reload game';
+      reload.style.cssText = 'margin-top:20px;padding:11px 16px;border:0;border-radius:7px;background:#79e6ff;color:#04101a;font-weight:800;cursor:pointer';
+      reload.onclick = () => location.reload();
+      card.append(heading, body, reload);
+      panel.append(card);
+      document.body.append(panel);
+    }
+    panel.querySelector('[data-role="title"]').textContent = title || 'Game startup failed';
+    panel.querySelector('[data-role="detail"]').textContent = String(detail || 'The 3D engine could not start. Check the browser console for details.');
+    panel.style.display = 'flex';
+  };
+  window.addEventListener('error', event => {
+    if (!window.__sfrAppReady && event.message) window.__sfrShowStartupError('StarFall Royale failed to start', event.message);
+  }, true);
+  window.addEventListener('unhandledrejection', event => {
+    if (!window.__sfrAppReady) window.__sfrShowStartupError('3D engine failed to load', event.reason?.message || event.reason || 'The engine module could not be loaded.');
+  });
+  setTimeout(() => {
+    if (!window.__sfrModuleLoaded) window.__sfrShowStartupError('3D engine did not load', 'StarFall Royale could not load its Three.js module. Check your internet connection or whether your network blocks jsDelivr and unpkg, then reload.');
+  }, 18000);
+})();
+</script>
+
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+let THREE;
+try {
+  THREE = await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+} catch (primaryError) {
+  try {
+    THREE = await import('https://unpkg.com/three@0.180.0/build/three.module.js');
+  } catch (fallbackError) {
+    const reason = fallbackError || primaryError;
+    window.__sfrShowStartupError?.('Unable to load the 3D engine', reason?.message || reason);
+    throw reason;
+  }
+}
+window.__sfrModuleLoaded = true;
 
 function safeRaycastObjects(ray, objects, recursive=true){
   if(!ray || typeof ray.intersectObjects!=='function') return [];
@@ -967,7 +1019,7 @@ let rngState = GAME.seed;
 function rng(){let s=rngState|0;s=(s+0x6D2B79F5)|0;let t=Math.imul(s^s>>>15,1|s);t^=t+Math.imul(t^t>>>7,61|t);rngState=s;return((t^t>>>14)>>>0)/4294967296}
 function reseed(seed){rngState=(seed|0)||GAME.seed}
 
-let renderer,scene,camera,clock,terrain,stormRing,stormWall,miniCanvas,miniCtx;
+let renderer,scene,camera,clock,terrain,stormRing,stormWall,miniCanvas,miniCtx,rendererBackend='Three.js WebGL2';
 let hudAccum=0,minimapAccum=0,qualityAccum=0,qualityFrames=0,qualityScale=1,qualityCooldown=0,lastCameraFov=0;
 let running=false,paused=false,trainingMode=false,ended=false;
 let player=null,bots=[],remotePlayers=[],loot=[],chests=[],buildings=[],vehicles=[],trees=[],shots=[],particles=[],grenades=[];
@@ -2614,38 +2666,138 @@ function glUsage(gl){
 
 let svRawRenderer=null;
 
-class SVCoreSurface{
+class SVCoreOptimizer{
   constructor(){
-    this.domElement=document.createElement('canvas');
-    this.domElement.className='sv-core-canvas';
-    this.domElement.style.width='100%';this.domElement.style.height='100%';this.domElement.style.display='block';
-    this.pixelRatio=1;this.shadowMap={enabled:false,type:null,autoUpdate:false};this.toneMappingExposure=1.08;
-    this._clearColor=new THREE.Color(0x6d92ab);this._clearAlpha=1;
-    const lowSpec=(navigator.hardwareConcurrency||4)<=4||(navigator.deviceMemory||8)<=4;
-    this.gl=this.domElement.getContext('webgl2',{alpha:false,antialias:!lowSpec,depth:true,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
-    if(!this.gl)throw new Error('SV-Core requires WebGL2');
+    this.worldRoot=null;
+    this.dynamicWorldRoots=[];
+    this.geometry=SHAPE_GEOMETRY_CACHE;
+    this.stats={draws:0,visible:0,static:0,dynamic:0,instancedDraws:0,instances:0,geometryUploads:0,geometryCacheHits:0,frameMs:0,triangles:0};
+    this.lightElapsed=0;
+    this.lightSites=[];
+    this.lightCursor=0;
+    this.lastRenderStart=0;
   }
-  getContext(){return this.gl}
-  getPixelRatio(){return this.pixelRatio}
-  setPixelRatio(v){this.pixelRatio=Math.max(.5,Math.min(2,v||1));this.resizeToClient();return this}
-  setSize(w,h){this.domElement.style.width=w+'px';this.domElement.style.height=h+'px';this.domElement.width=Math.max(1,Math.floor(w*this.pixelRatio));this.domElement.height=Math.max(1,Math.floor(h*this.pixelRatio));this.gl.viewport(0,0,this.domElement.width,this.domElement.height);return this}
-  resizeToClient(){this.setSize(this.domElement.clientWidth||innerWidth,this.domElement.clientHeight||innerHeight)}
-  setClearColor(color,alpha=1){this._clearColor.set(color);this._clearAlpha=alpha;if(svRawRenderer)svRawRenderer.clearColor=[this._clearColor.r,this._clearColor.g,this._clearColor.b];return this}
-  getClearColor(target){return target?target.copy(this._clearColor):this._clearColor}
-  render(targetScene,targetCamera){svRawRenderer?.render(targetScene,targetCamera)}
-  dispose(){svRawRenderer?.dispose();svRawRenderer=null;this.gl.getExtension('WEBGL_lose_context')?.loseContext()}
+  freezeWorld(root){
+    this.worldRoot=root;
+    this.dynamicWorldRoots.length=0;
+    let count=0;
+    root.updateWorldMatrix(true,true);
+    root.traverse(obj=>{
+      registerRenderIdentity(obj);
+      if(obj.isMesh||obj.isLine||obj.isLineSegments||obj.isPoints)count++;
+      if(obj.userData?.svDynamicRoot)this.dynamicWorldRoots.push(obj);
+    });
+    this.stats.static=count;
+  }
+  promoteToDynamic(root){
+    if(!root||!this.worldRoot||!isDescendantOf(root,this.worldRoot))return;
+    root.userData.svDynamicRoot=true;
+    root.removeFromParent();
+    scene.add(root);
+    root.updateWorldMatrix(true,true);
+    if(!this.dynamicWorldRoots.includes(root))this.dynamicWorldRoots.push(root);
+  }
+  removeStaticRoot(root){
+    if(!root)return;
+    this.dynamicWorldRoots=this.dynamicWorldRoots.filter(obj=>!isDescendantOf(obj,root));
+  }
+  updateLights(dt){
+    this.lightElapsed+=dt;
+    if(this.lightElapsed<.18)return;
+    this.lightElapsed=0;
+    const lights=scene?.userData?.svLights||[];
+    const sites=scene?.userData?.svLightSites||[];
+    if(!lights.length||!sites.length||!camera)return;
+    const cx=camera.position.x,cy=camera.position.y,cz=camera.position.z;
+    const nearest=sites.map(site=>({site,d:(site[0]-cx)**2+(7-cy)**2+(site[1]-cz)**2})).sort((a,b)=>a.d-b.d);
+    for(let i=0;i<lights.length;i++){
+      const light=lights[i],site=nearest[i%nearest.length].site;
+      light.position.set(site[0],7,site[1]);
+      light.color.setHex(site[2]);
+      light.intensity=site[3];
+      light.distance=34;
+      light.decay=2;
+    }
+  }
+  beginRender(){this.lastRenderStart=performance.now()}
+  endRender(){
+    this.stats.frameMs=performance.now()-this.lastRenderStart;
+    if(renderer?.info?.render){
+      this.stats.draws=renderer.info.render.calls;
+      this.stats.triangles=renderer.info.render.triangles;
+      this.stats.visible=renderer.info.render.calls;
+      this.stats.dynamic=this.dynamicWorldRoots.length;
+    }
+  }
 }
-function initRenderer(){
+
+let svRendererRecoveryAttempted=false;
+function showRendererFailure(error){
+  console.error('StarFall render failure',error);
+  running=false;
+  stopGameLoop();
+  window.__sfrShowStartupError?.('Graphics renderer stopped',`${error?.message||error||'Unknown rendering error'}\n\nThe game stopped safely instead of leaving a blank canvas. Reload the game and use the default WebGL2 renderer.`);
+}
+function recoverRendererToWebGL2(cause){
+  const previous=renderer;
+  const lowSpec=(navigator.hardwareConcurrency||4)<=4||(navigator.deviceMemory||8)<=4;
+  const fallback=new THREE.WebGLRenderer({alpha:false,antialias:!lowSpec,depth:true,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+  fallback.outputColorSpace=THREE.SRGBColorSpace;
+  fallback.toneMapping=THREE.ACESFilmicToneMapping;
+  fallback.toneMappingExposure=1.12;
+  fallback.shadowMap.enabled=!lowSpec;
+  fallback.shadowMap.type=THREE.PCFSoftShadowMap;
+  fallback.shadowMap.autoUpdate=true;
+  const oldRatio=previous?.getPixelRatio?.()||(devicePixelRatio||1)*qualityScale;
+  fallback.setPixelRatio(Math.max(.5,Math.min(oldRatio,(devicePixelRatio||1)*.85)));
+  fallback.setSize(innerWidth,innerHeight);
+  fallback.setClearColor(0x6d92ab,1);
+  UI.wrap.replaceChildren(fallback.domElement);
+  renderer=fallback;
+  rendererBackend='Three.js WebGL2 recovery';
+  try{previous?.dispose?.()}catch{}
+  console.warn('Recovered from WebGPU rendering failure with WebGL2',cause);
+}
+
+async function initRenderer(){
+  svRendererRecoveryAttempted=false;
   const dpr=devicePixelRatio||1;
-  renderer=new SVCoreSurface();
-  qualityScale=(navigator.deviceMemory||8)<=4?.55:(navigator.hardwareConcurrency||4)<=4?.64:.76;
-  renderer.setPixelRatio(Math.max(.5,Math.min(dpr*qualityScale,(navigator.deviceMemory||8)<=4?.72:(navigator.hardwareConcurrency||4)<=4?.82:.94)));renderer.setSize(innerWidth,innerHeight);rendererInputBound=false;
+  const lowSpec=(navigator.hardwareConcurrency||4)<=4||(navigator.deviceMemory||8)<=4;
+  renderer=null;
+  const requestWebGPU=new URLSearchParams(location.search).get('renderer')==='webgpu';
+  if(requestWebGPU&&navigator.gpu&&!lowSpec){
+    let gpuRenderer=null;
+    try{
+      const gpuModule=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js');
+      gpuRenderer=new gpuModule.WebGPURenderer({alpha:false,antialias:true,depth:true,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+      await gpuRenderer.init();
+      renderer=gpuRenderer;
+      rendererBackend='Three.js WebGPU';
+    }catch(err){
+      try{gpuRenderer?.dispose?.()}catch{}
+      console.warn('WebGPU test failed; falling back to Three.js WebGL2',err);
+    }
+  }else if(requestWebGPU){
+    console.info('WebGPU test requested, but this device is unsupported or classed as low-spec; using WebGL2.');
+  }
+  if(!renderer){
+    renderer=new THREE.WebGLRenderer({alpha:false,antialias:!lowSpec,depth:true,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
+    rendererBackend='Three.js WebGL2';
+  }
+  renderer.domElement.className='sv-core-canvas';
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.12;
+  if(renderer.shadowMap){renderer.shadowMap.enabled=!lowSpec;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=true;}
+  qualityScale=(navigator.deviceMemory||8)<=4?.48:(navigator.hardwareConcurrency||4)<=4?.58:.72;
+  renderer.setPixelRatio(Math.max(.5,Math.min(dpr*qualityScale,(navigator.deviceMemory||8)<=4?.68:(navigator.hardwareConcurrency||4)<=4?.78:.92)));
+  renderer.setSize(innerWidth,innerHeight);
   renderer.setClearColor(0x6d92ab,1);
   UI.wrap.appendChild(renderer.domElement);
   scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.05,900);clock=new THREE.Clock();
-  svRawRenderer=new SVRawRenderer(renderer);svRawRenderer.clearColor=[renderer._clearColor.r,renderer._clearColor.g,renderer._clearColor.b];
+  svRawRenderer=new SVCoreOptimizer();
   bindRendererInput();
-  addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+  addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/Math.max(1,innerHeight);camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }
 
 // ══════════════════════════════════════════
@@ -2679,7 +2831,7 @@ async function buildWorld(){
     const cx=skyHash(i+band*101)*570-28,cy=48+band*48+skyHash(i+band*131)*26,rx=18+skyHash(i+band*151)*36,ry=4+skyHash(i+band*173)*9;
     const cg=sx.createRadialGradient(cx,cy,1,cx,cy,rx);cg.addColorStop(0,`rgba(255,255,255,${.15+skyHash(i+band*191)*.13})`);cg.addColorStop(1,'rgba(255,255,255,0)');sx.fillStyle=cg;sx.beginPath();sx.ellipse(cx,cy,Number.isFinite(rx)?Math.max(.5,Math.abs(rx)):.5,Number.isFinite(ry)?Math.max(.5,Math.abs(ry)):.5,0,0,Math.PI*2);sx.fill();
   }
-  const skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.colorSpace=THREE.SRGBColorSpace;scene.background=skyTex;
+  const skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.colorSpace=THREE.SRGBColorSpace;skyTex.mapping=THREE.EquirectangularReflectionMapping;scene.background=skyTex;scene.environment=skyTex;scene.environmentIntensity=.48;
   scene.fog=new THREE.FogExp2(theme.fog,theme.density);
   const hemi=new THREE.HemisphereLight(0xd8f1ff,theme.terrain,2.25);
   scene.add(hemi);
@@ -2687,12 +2839,13 @@ async function buildWorld(){
   sun.shadow.camera.left=-185;sun.shadow.camera.right=185;sun.shadow.camera.top=185;sun.shadow.camera.bottom=-185;sun.shadow.camera.near=10;sun.shadow.camera.far=420;sun.shadow.bias=-.00018;sun.shadow.normalBias=.025;scene.add(sun);
   const fill=new THREE.DirectionalLight(0x8bc9ee,1.8);fill.position.set(-95,54,-72);scene.add(fill);
   const rim=new THREE.DirectionalLight(0x92b8ed,.78);rim.position.set(-40,65,120);scene.add(rim);
+  const svLightSites=[[-120,-78,0x4fd7ff,10],[108,-95,0x61d9ff,9],[126,82,0xffd66d,12],[-108,106,0xb47aff,10],[-45,72,0x72e1a5,8]];
   const svLights=[];
-  for(const spec of [[-120,-78,0x4fd7ff,10],[108,-95,0x61d9ff,9],[126,82,0xffd66d,12],[-108,106,0xb47aff,10],[-45,72,0x72e1a5,8]]){
-    const l=new THREE.PointLight(spec[2],spec[3],34,2);
-    l.position.set(spec[0],7,spec[1]);scene.add(l);svLights.push(l);
+  for(let i=0;i<2;i++){
+    const spec=svLightSites[i],l=new THREE.PointLight(spec[2],spec[3],34,2);
+    l.position.set(spec[0],7,spec[1]);l.castShadow=false;scene.add(l);svLights.push(l);
   }
-  scene.userData.svSun=sun;scene.userData.svLights=svLights;scene.userData.svFillLights=[fill,rim];
+  scene.userData.svSun=sun;scene.userData.svLights=svLights;scene.userData.svLightSites=svLightSites;scene.userData.svFillLights=[fill,rim];
   const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(11.5,24,16),new THREE.MeshBasicMaterial({color:0xfff0bc,transparent:true,opacity:.96,depthWrite:false}));
   sunDisc.position.copy(sun.position);scene.add(sunDisc);scene.userData.svSunDisc=sunDisc;
 
@@ -4596,7 +4749,7 @@ function startMatch(training){
       configureMap(selectedMapIndex);initProceduralWorkers();
       const load=$('loading-text');if(load)load.textContent=`generating ${activeMap.name} · loading procedural model recipes`;
       await ensureProceduralCatalog();await prepareWorldPlan();
-      initRenderer();
+      await initRenderer();
       await buildWorld();await optimizeStaticScene();
       spawnPlayer();await nextFrame();
       spawnBots(GAME.botCount);await nextFrame();
@@ -4610,8 +4763,10 @@ function startMatch(training){
       startGameLoop();
     } catch(err){
       console.error('WorldBuildError',err);
-      $('loading-text').textContent='world build failed · refresh';
-      setTimeout(()=>{UI.loading.style.display='none';showScreen(UI.menu)},2000);
+      $('loading-text').textContent='world build failed · see diagnostic';
+      window.__sfrShowStartupError?.('StarFall world build failed',err?.stack||err?.message||err);
+      UI.loading.style.display='none';
+      showScreen(UI.menu);
     }
   }));
 }
@@ -4622,7 +4777,7 @@ function resetEntities(){
   bots=[];remotePlayers=[];loot=[];chests=[];particles=[];buildings=[];buildingDoors=[];trees=[];vehicles=[];insideBuilding=null;grenades=[];pingMarkers=[];tacticalCovers=[];
   for(const node of nametagNodes.values())node.remove();nametagNodes.clear();const tagLayer=$('nametag-layer');if(tagLayer)tagLayer.replaceChildren();nametagAccum=0;
   shots=[];if(player){scene?.remove(player.mesh);player=null}
-  if(renderer){renderer.dispose();UI.wrap.innerHTML='';renderer=null;scene=null;camera=null;clock=null;terrain=null;stormRing=null;stormWall=null;waterPlane=null}
+  if(renderer){renderer.dispose();renderer.forceContextLoss?.();UI.wrap.innerHTML='';renderer=null;svRawRenderer=null;scene=null;camera=null;clock=null;terrain=null;stormRing=null;stormWall=null;waterPlane=null}
 }
 function endMatch(win){
   if(ended)return;ended=true;running=false;paused=false;
@@ -4677,7 +4832,7 @@ function showControls(){
 
 function isDescendantOf(obj,root){for(let p=obj;p;p=p.parent)if(p===root)return true;return false}
 function isTreeVisible(obj,root){for(let p=obj;p;p=p.parent){if(!p.visible)return false;if(p===root)return true}return false}
-function materialBatchKey(m){const c=m.color;return [m.isMeshBasicMaterial?1:0,c?c.r.toFixed(3):1,c?c.g.toFixed(3):1,c?c.b.toFixed(3):1,m.roughness??1,m.metalness??0,m.opacity??1,m.depthWrite===false?0:1,m.side??0,m.map?.uuid||'',m.map?.repeat?.x??1,m.map?.repeat?.y??1].join(':')}
+function materialBatchKey(m){const c=m.color,e=m.emissive;return [m.type||'',c?c.r.toFixed(3):1,c?c.g.toFixed(3):1,c?c.b.toFixed(3):1,e?e.r.toFixed(3):0,e?e.g.toFixed(3):0,e?e.b.toFixed(3):0,m.emissiveIntensity??1,m.roughness??1,m.metalness??0,m.opacity??1,m.transparent?1:0,m.alphaTest??0,m.depthWrite===false?0:1,m.side??0,m.blending??0,m.flatShading?1:0,m.envMapIntensity??1,m.map?.uuid||'',m.map?.repeat?.x??1,m.map?.repeat?.y??1,m.roughnessMap?.uuid||'',m.metalnessMap?.uuid||'',m.normalMap?.uuid||'',m.bumpMap?.uuid||'',m.emissiveMap?.uuid||''].join(':')}
 async function optimizeStaticScene(){
   if(!scene)return;scene.updateMatrixWorld(true);
   const keepRoots=new Set([...buildings.map(v=>v.group),...buildings.map(v=>v.interior).filter(Boolean),...trees.map(v=>v.group),...vehicles.map(v=>v.group),...chests.map(v=>v.group),scene.userData.stormGroup].filter(Boolean));
@@ -4686,14 +4841,14 @@ async function optimizeStaticScene(){
   const cells=new Map(),chunkSize=58;let processed=0;
   for(const obj of candidates){
     if(!obj.parent)continue;const mat=obj.material,geo=obj.geometry,pos=geo.attributes.position,nor=geo.attributes.normal,idx=geo.index,center=geo.boundingSphere.center.clone().applyMatrix4(obj.matrixWorld),cell=`${Math.floor(center.x/chunkSize)},${Math.floor(center.z/chunkSize)}`,key=`${cell}|${materialBatchKey(mat)}`;
-    let bucket=cells.get(key);if(!bucket){bucket={material:mat,positions:[],normals:[]};cells.set(key,bucket)}
-    const matrix=obj.matrixWorld,normalMatrix=new THREE.Matrix3().getNormalMatrix(matrix),pv=new THREE.Vector3(),nv=new THREE.Vector3(),count=idx?idx.count:pos.count;
-    for(let i=0;i<count;i++){const j=idx?idx.getX(i):i;pv.set(pos.getX(j),pos.getY(j),pos.getZ(j)).applyMatrix4(matrix);bucket.positions.push(pv.x,pv.y,pv.z);nv.set(nor?.getX(j)??0,nor?.getY(j)??1,nor?.getZ(j)??0).applyMatrix3(normalMatrix).normalize();bucket.normals.push(nv.x,nv.y,nv.z)}
+    let bucket=cells.get(key);if(!bucket){bucket={material:mat,positions:[],normals:[],uvs:[]};cells.set(key,bucket)}
+    const matrix=obj.matrixWorld,normalMatrix=new THREE.Matrix3().getNormalMatrix(matrix),pv=new THREE.Vector3(),nv=new THREE.Vector3(),uv=geo.attributes.uv,count=idx?idx.count:pos.count;
+    for(let i=0;i<count;i++){const j=idx?idx.getX(i):i;pv.set(pos.getX(j),pos.getY(j),pos.getZ(j)).applyMatrix4(matrix);bucket.positions.push(pv.x,pv.y,pv.z);nv.set(nor?.getX(j)??0,nor?.getY(j)??1,nor?.getZ(j)??0).applyMatrix3(normalMatrix).normalize();bucket.normals.push(nv.x,nv.y,nv.z);bucket.uvs.push(uv?.getX(j)??0,uv?.getY(j)??0)}
     obj.removeFromParent();processed++;
     if(processed%240===0)await nextFrame();
   }
   for(const bucket of cells.values()){
-    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(bucket.positions),3));geo.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(bucket.normals),3));geo.computeBoundingSphere();const mesh=new THREE.Mesh(geo,bucket.material);mesh.name='SR-static-batch';mesh.userData.svStaticBatch=true;scene.add(mesh);
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(bucket.positions),3));geo.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(bucket.normals),3));geo.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(bucket.uvs),2));geo.computeBoundingSphere();const mesh=new THREE.Mesh(geo,bucket.material);mesh.name='SR-static-batch';mesh.userData.svStaticBatch=true;mesh.receiveShadow=true;scene.add(mesh);
   }
   scene.updateMatrixWorld(true);
   const worldRoot=new THREE.Group();worldRoot.name='SR-STATIC-WORLD';
@@ -4789,14 +4944,24 @@ function gameLoop(){
     if(rewardVisible){rewardActiveSeconds+=(performance.now()-rewardLastTick)/1000}
     rewardLastTick=performance.now();
   }
-  renderer.render(scene,camera);
+  svRawRenderer?.updateLights(dt);
+  svRawRenderer?.beginRender();
+  try{
+    renderer.render(scene,camera);
+  }catch(err){
+    if(rendererBackend==='Three.js WebGPU'&&!svRendererRecoveryAttempted){
+      svRendererRecoveryAttempted=true;
+      try{recoverRendererToWebGL2(err);renderer.render(scene,camera)}catch(fallbackError){showRendererFailure(fallbackError);return}
+    }else{showRendererFailure(err);return}
+  }
+  svRawRenderer?.endRender();
   svFpsAccum+=dt;svFpsFrames++;
   if(svFpsAccum>=.25){
     const fpsEl=document.getElementById('sv-fps');
     if(fpsEl){
       const stats=svRawRenderer?.stats,draws=stats?.draws??0,instanced=stats?.instancedDraws??0;
       fpsEl.textContent=`FPS ${Math.round(svFpsFrames/svFpsAccum)} · ${draws} draws`;
-      fpsEl.title=`SV-Core WebGL2 · ${stats?.visible??0} visible objects · ${instanced} instanced draw calls · ${stats?.instances??0} instances batched · ${svRawRenderer?.geometry.size??0} unique geometry buffers · ${SHAPE_GEOMETRY_CACHE.size} cached shape classes/IDs · ${stats?.frameMs?.toFixed(2)??'0.00'} ms renderer frame`;
+      fpsEl.title=`${rendererBackend} renderer · SV-Core optimization layer · ${stats?.draws??0} draw calls · ${(stats?.triangles??0).toLocaleString()} triangles · ${stats?.static??0} static meshes tracked · ${svRawRenderer?.geometry.size??0} shared shape geometries · ${SHAPE_GEOMETRY_CACHE.size} cached shape classes/IDs · ${stats?.frameMs?.toFixed(2)??'0.00'} ms CPU render submission · two nearest local lights`;
     }
     svFpsAccum=0;svFpsFrames=0;
   }
@@ -4805,7 +4970,7 @@ function gameLoop(){
     const fps=qualityFrames/qualityAccum;qualityAccum=0;qualityFrames=0;
     if(qualityCooldown<=0&&renderer){
       const dpr=devicePixelRatio||1,limit=(navigator.deviceMemory||8)<=4?.72:(navigator.hardwareConcurrency||4)<=4?.82:.94;
-      const target=fps<20?.44:fps<26?.48:fps<32?.53:fps<40?.60:fps<48?.67:fps<56?.76:fps>60?limit:Math.min(limit,qualityScale);
+      const target=fps<20?.42:fps<26?.46:fps<32?.51:fps<40?.57:fps<48?.64:fps<56?.72:fps>60?limit:Math.min(limit,qualityScale);
       if(Math.abs(target-qualityScale)>.035){qualityScale=clamp(target,.44,1);renderer.setPixelRatio(Math.max(.5,Math.min(dpr*qualityScale,limit)));qualityCooldown=1.35;}
     }
   }
@@ -4930,14 +5095,14 @@ async function beginOnlineMatch(mid,seed,startAt,mapId=0,mode='solo'){
   try{
     initProceduralWorkers();const load=$('loading-text');if(load)load.textContent=`generating ${activeMap.name} · preparing detailed models`;
     await ensureProceduralCatalog();await prepareWorldPlan();
-    initRenderer();
+    await initRenderer();
     await buildWorld();await optimizeStaticScene();spawnPlayer();await nextFrame();
     spawnBots(Math.max(0,GAME.maxPlayers-Math.max(1,pendingRoster.length)));await nextFrame();
     spawnLoot();makeMinimap();stormRadius=GAME.stormPhases[0].radius;
     running=true;clock.start();UI.loading.classList.add('hide');setTimeout(()=>UI.loading.style.display='none',300);
     renderer.domElement.requestPointerLock?.();startRewardsSession();
     updateHUD();updateProfileUI();setupMatchChannel();startGameLoop();
-  } catch(err){console.error('OnlineMatchError',err);$('loading-text').textContent='error · refreshing';setTimeout(()=>{UI.loading.style.display='none';showScreen(UI.menu)},1500)}
+  } catch(err){console.error('OnlineMatchError',err);$('loading-text').textContent='match startup failed · see diagnostic';window.__sfrShowStartupError?.('Online match startup failed',err?.stack||err?.message||err);UI.loading.style.display='none';showScreen(UI.menu)}
 }
 function leaveNetworkMatch(){
   queueing=false;onlineMode=false;matchChannelReady=false;activeMatchMode='solo';playerTeamId=null;if(countdownTimer){clearTimeout(countdownTimer);countdownTimer=null}
@@ -5100,6 +5265,7 @@ UI.loading.classList.add('hide');
 UI.loading.style.display='flex';
 updateProfileUI();
 bootSupabase();
+window.__sfrAppReady = true;
 </script>
 
 <script>
