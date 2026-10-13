@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ball Arena</title>
+<style>
+:root{--bg:#f3efe6;--panel:#fffdf8;--ink:#1d2433;--mute:#6a7180;--line:#d9d3c4;--arena:#e7e1d1;--grid:#d3ccb8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121826;--panel:#1a2236;--ink:#eef1f7;--mute:#98a2b8;--line:#2c3550;--arena:#0d1322;--grid:#1c2540}}
+:root[data-theme="dark"]{--bg:#121826;--panel:#1a2236;--ink:#eef1f7;--mute:#98a2b8;--line:#2c3550;--arena:#0d1322;--grid:#1c2540}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;line-height:1.4}
+main{max-width:920px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.5px}
+p.sub{margin:0 0 18px;color:var(--mute)}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.cards{grid-template-columns:1fr}}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dot{width:38px;height:38px;border-radius:50%;flex:none;border:3px solid var(--ink)}
+.head input[type=text]{flex:1;min-width:0;font:inherit;font-weight:700;font-size:18px;background:transparent;color:var(--ink);border:0;border-bottom:2px solid var(--line);padding:4px 2px}
+.head input[type=color]{width:34px;height:34px;border:0;background:none;padding:0;cursor:pointer}
+select{font:inherit;padding:7px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink);width:100%}
+.cdesc{margin:5px 0 8px;color:var(--mute);font-size:13px;min-height:2.6em}
+.row{display:grid;grid-template-columns:78px 1fr 26px;align-items:center;gap:8px;margin:7px 0}
+.row span.v{text-align:right;font-weight:700}
+input[type=range]{width:100%}
+.left{margin:10px 0 0;color:var(--mute);font-size:14px}
+.arena-pick{max-width:300px;margin:16px auto 0}
+.arena-pick label{font-weight:700;display:block;margin-bottom:4px}
+.actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;padding:11px 22px;border-radius:10px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+button.alt{background:transparent;color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ff8a3d;outline-offset:2px}
+#game{display:none}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto 10px}
+.bar b{display:block;font-size:14px}
+.track{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.fill{height:100%;width:100%;transition:width .12s}
+.wrap{position:relative;max-width:520px;margin:0 auto}
+canvas{display:block;width:100%;height:auto;aspect-ratio:1;touch-action:none}
+#over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.55);color:#fff;font-size:28px;font-weight:800;text-align:center}
+#over button{background:#fff;color:#111;border-color:#fff}
+.hint{text-align:center;color:var(--mute);font-size:13px;margin-top:10px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:700;display:none}
+</style>
+</head>
+<body>
+<main>
+<section id="setup">
+  <h1>Ball Arena</h1>
+  <p class="sub">Pick a class for each ball, spend 25 points on stats, then choose an arena.</p>
+  <div class="cards" id="cards"></div>
+  <div class="arena-pick"><label for="shape">Arena shape</label>
+    <select id="shape"><option value="square">Square</option><option value="circle">Circle</option><option value="hexagon">Hexagon</option><option value="triangle">Triangle</option><option value="diamond">Diamond</option></select></div>
+  <div class="actions"><button id="go">Fight</button></div>
+</section>
+<section id="game">
+  <div class="bars" id="bars"></div>
+  <div class="wrap">
+    <canvas id="c" width="500" height="500"></canvas>
+    <div id="over"><div id="msg"></div><button id="again">Rematch</button><button id="back" class="alt">Edit balls</button></div>
+  </div>
+  <p class="hint">Steer: Ball 1 uses W A S D, Ball 2 uses arrow keys.</p>
+</section>
+</main>
+<div id="toast" role="status"></div>
+<script>
+const BUDGET=25;
+const STATS=[["hp","Health"],["atk","Attack"],["def","Defense"],["spd","Speed"],["size","Size"]];
+const CL={
+ balanced:{n:"Balanced",d:"No bonuses, no penalties."},
+ tank:{n:"Tank",d:"+30% health, +2 defense, 15% slower.",hp:1.3,def:2,spd:.85},
+ striker:{n:"Striker",d:"+3 attack, 15% less health.",atk:3,hp:.85},
+ sprinter:{n:"Sprinter",d:"30% faster and a smaller body.",spd:1.3,rad:.85},
+ heavy:{n:"Heavy",d:"Double mass, wins shoving matches, 20% slower.",m:2,spd:.8},
+ unarmed:{n:"Unarmed",d:"A tank, but far stronger: 1000 health, +6 defense, +4 attack, extra mass.",hpFixed:1000,hp:1,def:6,atk:4,spd:.85,m:1.5,secret:1},
+ boots:{n:"Boots",d:"Every stat maxed, 500-750 health. Starts slow and gains speed very fast.",secret:1}
+};
+const cls=k=>({hp:1,atk:0,def:0,spd:1,rad:1,m:1,...CL[k]});
+const unlocked={};
+const balls=[
+ {name:"Ember",color:"#e8572f",cls:"striker",hp:5,atk:6,def:4,spd:5,size:5},
+ {name:"Tide",color:"#2f8fe8",cls:"tank",hp:6,atk:4,def:6,spd:4,size:5}
+];
+const total=b=>STATS.reduce((s,[k])=>s+b[k],0);
+const $=id=>document.getElementById(id);
+
+function buildCards(){
+  $("cards").innerHTML="";
+  balls.forEach((b,i)=>{
+    b.size=1;
+    const opts=Object.keys(CL).filter(k=>!CL[k].secret||unlocked[k]).map(k=>`<option value="${k}" ${b.cls===k?"selected":""}>${CL[k].n}</option>`).join("");
+    const d=document.createElement("div");d.className="card";
+    d.innerHTML=`<div class="head"><div class="dot" style="background:${b.color}"></div>
+      <input type="text" maxlength="12" value="${b.name}" aria-label="Ball ${i+1} name">
+      <input type="color" value="${b.color}" aria-label="Ball ${i+1} color"></div>
+      <select aria-label="Ball ${i+1} class">${opts}</select><p class="cdesc">${CL[b.cls].d}</p>`+
+      STATS.map(([k,l])=>`<div class="row"><label for="s${i}${k}">${l}</label><input id="s${i}${k}" type="range" min="1" max="10" value="${b[k]}" ${k==="size"?"disabled":""}><span class="v">${b[k]}</span></div>`).join("")+
+      `<p class="left"></p>`;
+    const upd=()=>{d.querySelector(".left").textContent=(BUDGET-total(b))+" points left";};
+    d.querySelector("input[type=text]").oninput=e=>{b.name=e.target.value||"Ball "+(i+1);if(CL[e.target.value.trim().toLowerCase()]?.secret)tryUnlock(e.target.value)};
+    d.querySelector("input[type=color]").oninput=e=>{b.color=e.target.value;d.querySelector(".dot").style.background=b.color};
+    d.querySelector("select").onchange=e=>{b.cls=e.target.value;d.querySelector(".cdesc").textContent=CL[b.cls].d};
+    STATS.forEach(([k])=>{
+      const r=d.querySelector("#s"+i+k);
+      r.oninput=()=>{
+        let v=+r.value;const others=total(b)-b[k];
+        v=Math.max(1,Math.min(v,BUDGET-others));
+        b[k]=v;r.value=v;r.parentNode.querySelector(".v").textContent=v;upd();
+      };
+    });
+    upd();$("cards").appendChild(d);
+  });
+}
+buildCards();
+
+// Arena shapes
+const W=500,C=250;
+let A={};
+function setArena(s){
+  A={circle:s==="circle",R:236,s};
+  if(A.circle)return;
+  let v;
+  if(s==="square")v=[[16,16],[484,16],[484,484],[16,484]];
+  else{const n={hexagon:6,triangle:3,diamond:4}[s],rot={hexagon:0,triangle:-Math.PI/2,diamond:0}[s],R=s==="triangle"?250:240;
+    v=Array.from({length:n},(_,k)=>[C+R*Math.cos(rot+6.2832*k/n),C+R*Math.sin(rot+6.2832*k/n)]);}
+  A.v=v;A.edges=v.map((p,k)=>{
+    const q=v[(k+1)%v.length],ex=q[0]-p[0],ey=q[1]-p[1],l=Math.hypot(ex,ey);
+    let nx=-ey/l,ny=ex/l;
+    if((C-p[0])*nx+(C-p[1])*ny<0){nx=-nx;ny=-ny}
+    return{x:p[0],y:p[1],nx,ny};
+  });
+}
+function bounce(p,nx,ny){const vn=p.vx*nx+p.vy*ny;if(vn<0){p.vx-=2*vn*nx;p.vy-=2*vn*ny}}
+function wall(p){
+  if(A.circle){
+    const dx=p.x-C,dy=p.y-C,d=Math.hypot(dx,dy)||1,lim=A.R-p.r;
+    if(d>lim){p.x=C+dx/d*lim;p.y=C+dy/d*lim;bounce(p,-dx/d,-dy/d)}
+    return;
+  }
+  for(const e of A.edges){
+    const d=(p.x-e.x)*e.nx+(p.y-e.y)*e.ny;
+    if(d<p.r){p.x+=(p.r-d)*e.nx;p.y+=(p.r-d)*e.ny;bounce(p,e.nx,e.ny)}
+  }
+}
+
+const cv=$("c"),ctx=cv.getContext("2d");
+let P=[],running=false,last=0,cool=0,keys={};
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=1;if(e.key.startsWith("Arrow"))e.preventDefault()});
+addEventListener("keyup",e=>delete keys[e.key.toLowerCase()]);
+
+// Secret code: type b o o t s on the setup screen
+let buf="";
+function tryUnlock(txt){
+  txt=txt.toLowerCase();let hit=null;
+  for(const k in CL)if(CL[k].secret&&!unlocked[k]&&txt.includes(k))hit=k;
+  if(!hit)return;
+  unlocked[hit]=true;buildCards();
+  const t=$("toast");t.textContent=CL[hit].n+" unlocked. Check the class menu.";t.style.display="block";
+  setTimeout(()=>t.style.display="none",3000);
+}
+addEventListener("keydown",e=>{
+  if($("setup").style.display==="none"||e.target.tagName==="INPUT"&&e.target.type==="text"||e.key.length>1)return;
+  buf=(buf+e.key.toLowerCase()).slice(-10);tryUnlock(buf);
+});
+// pasting a code anywhere on the setup screen also works
+addEventListener("paste",e=>{
+  if($("setup").style.display==="none")return;
+  tryUnlock((e.clipboardData||window.clipboardData).getData("text")||"");
+});
+
+function start(){
+  setArena($("shape").value);
+  $("setup").style.display="none";$("game").style.display="block";$("over").style.display="none";
+  P=balls.map((b0,i)=>{
+    const boots=b0.cls==="boots",b=boots?{...b0,hp:10,atk:10,def:10,spd:10,size:1}:b0;
+    b.size=1;
+    const c=boots?cls("balanced"):cls(b.cls),r=(12+b.size*2.6)*c.rad,a=Math.random()*6.28;
+    const sp=boots?70:(100+b.spd*38)*c.spd,maxhp=boots?Math.round(500+Math.random()*250):c.hpFixed||(40+b.hp*16)*c.hp;
+    return{...b,i,r,boots,ember:/^ember$/i.test(b.name.trim()),m:r*r*c.m,maxhp,hpNow:maxhp,sp,atkV:b.atk+c.atk,defV:b.def+c.def,
+      x:C+(i?55:-55),y:C,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,flash:0,trail:[]};
+  });
+  $("bars").innerHTML=P.map(p=>`<div class="bar"><b>${p.name}</b><div class="track"><div class="fill" id="f${p.i}" style="background:${p.color}"></div></div></div>`).join("");
+  running=true;cool=0;last=performance.now();requestAnimationFrame(loop);
+}
+
+function sub(h){
+  P.forEach(p=>{p.x+=p.vx*h;p.y+=p.vy*h;wall(p)});
+  const [a,b]=P,dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy),min=a.r+b.r;
+  if(dist<min&&dist>0){
+    const nx=dx/dist,ny=dy/dist,ov=min-dist,M=a.m+b.m;
+    a.x-=nx*ov*b.m/M;a.y-=ny*ov*b.m/M;b.x+=nx*ov*a.m/M;b.y+=ny*ov*a.m/M;
+    const rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+    if(rv<0){
+      const j=-2*rv/(1/a.m+1/b.m);
+      a.vx-=j*nx/a.m;a.vy-=j*ny/a.m;b.vx+=j*nx/b.m;b.vy+=j*ny/b.m;
+      if(cool<=0){
+        cool=.35;
+        const impact=Math.min(2.2,.6+Math.abs(rv)/250);
+        [[a,b],[b,a]].forEach(([x,y])=>{
+          y.hpNow-=Math.max(2,(4+x.atkV*2.4)*impact*(.8+x.m/M)-y.defV*1.4);y.flash=.15;
+        });
+      }
+    }
+  }
+}
+function step(dt){
+  cool-=dt;
+  const ctl=[["w","s","a","d"],["arrowup","arrowdown","arrowleft","arrowright"]];
+  P.forEach((p,i)=>{
+    if(p.boots)p.sp=Math.min(12000,p.sp+600*dt);
+    const [u,d,l,r]=ctl[i],acc=Math.min(p.sp,450)*2.2*dt;
+    if(keys[u])p.vy-=acc;if(keys[d])p.vy+=acc;if(keys[l])p.vx-=acc;if(keys[r])p.vx+=acc;
+    const s=Math.hypot(p.vx,p.vy)||1,t=s+(p.sp-s)*Math.min(1,dt*(p.boots?10:1.5));
+    p.vx*=t/s;p.vy*=t/s;p.flash=Math.max(0,p.flash-dt);
+    p.fast=(p.boots||p.ember)&&t>420; // afterimage threshold
+  });
+  // sub-step so very fast balls can't skip through walls or each other
+  const maxv=Math.max(...P.map(p=>Math.hypot(p.vx,p.vy))),n=Math.min(400,Math.max(1,Math.ceil(maxv*dt/6)));
+  for(let k=0;k<n;k++)sub(dt/n);
+  P.forEach(p=>{p.trail.push([p.x,p.y]);if(p.trail.length>9)p.trail.shift();$("f"+p.i).style.width=Math.max(0,p.hpNow/p.maxhp*100)+"%"});
+  const [a,b]=P;
+  if(P.some(p=>p.hpNow<=0)){
+    running=false;
+    const w=a.hpNow>b.hpNow?a:b;
+    $("msg").textContent=(a.hpNow<=0&&b.hpNow<=0)?"Draw":w.name+" wins";
+    $("over").style.display="flex";
+  }
+}
+
+function shapePath(){
+  ctx.beginPath();
+  if(A.circle)ctx.arc(C,C,A.R,0,6.2832);
+  else{A.v.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();}
+}
+function ball(x,y,p,alpha,fill){
+  ctx.globalAlpha=alpha;ctx.beginPath();ctx.arc(x,y,p.r,0,6.2832);
+  ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="#1d2433";ctx.stroke();ctx.globalAlpha=1;
+}
+function draw(){
+  const cs=getComputedStyle(document.documentElement),ink=cs.getPropertyValue("--ink");
+  ctx.clearRect(0,0,W,W);
+  shapePath();ctx.fillStyle=cs.getPropertyValue("--arena");ctx.fill();
+  ctx.save();ctx.clip();ctx.strokeStyle=cs.getPropertyValue("--grid");ctx.lineWidth=1;
+  for(let i=50;i<W;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,W);ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke()}
+  ctx.restore();
+  shapePath();ctx.lineWidth=6;ctx.strokeStyle=ink;ctx.stroke();
+  P.forEach(p=>{
+    if(p.fast)p.trail.forEach((t,k)=>ball(t[0],t[1],p,.08+.42*k/p.trail.length,p.color));
+    ball(p.x,p.y,p,1,p.flash>0?"#fff":p.color);
+    ctx.fillStyle=ink;ctx.font="bold 12px sans-serif";ctx.textAlign="center";
+    ctx.fillText(p.name+((p.boots||p.ember)?" "+Math.round(p.sp):""),p.x,p.y-p.r-6);
+  });
+}
+function loop(t){
+  const dt=Math.min(.03,(t-last)/1000);last=t;
+  if(running)step(dt);
+  draw();
+  if(running)requestAnimationFrame(loop);
+}
+$("go").onclick=start;$("again").onclick=start;
+$("back").onclick=()=>{running=false;$("game").style.display="none";$("setup").style.display="block"};
+</script>
+</body>
+</html>
