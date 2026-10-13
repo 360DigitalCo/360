@@ -170,9 +170,6 @@ input{font:inherit;color:inherit}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
-/* =====================================================================
-   360DRIFT — utilities, track generation, world construction
-   ===================================================================== */
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -190,10 +187,10 @@ const fmt=t=>{if(t==null||!isFinite(t))return '-:--.---';const m=Math.floor(t/60
 const fmtD=d=>(d<0?'-':'+')+Math.abs(d).toFixed(2);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
-/* ---------- constants ---------- */
+// constants
 const ROAD_HALF=10, KERB=1.8, BARRIER=ROAD_HALF+KERB+9, SPACING=2, GATE_COUNT=5, FINISH_IDX=6;
 
-/* ---------- themes ---------- */
+// themes
 const THEMES={
   grass:{name:'GRASSLAND',skyTop:0x3a86d8,skyMid:0x8cc4f2,skyHor:0xdff1ff,fog:0xd7ecff,fogN:300,fogF:2200,
     ground:0x58a63c,ground2:0x6cb948,hill:0x88c95e,rockc:0x8c9097,road:0x3f434d,sun:0xfff1d0,sunI:.9,hemiS:0xe4f2ff,hemiG:0x86a866,hemiI:.72,
@@ -217,7 +214,7 @@ function customDef(seed){
     sx:1.15+((h>>5)%8)/10,sz:.9+((h>>8)%4)/10,var:.22+((h>>10)%13)/100,minR:60};
 }
 
-/* ---------- track generation ---------- */
+// track generation
 const trackCache={};
 function genTrack(def){
   if(trackCache[def.key])return trackCache[def.key];
@@ -281,8 +278,8 @@ function nearestIdx(tr,x,z,hint){
   return bi;
 }
 
-/* ---------- geometry helpers ---------- */
-const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_v=new THREE.Vector3(),_s=new THREE.Vector3(),_c=new THREE.Color();
+// geometry helpers
+const _q=new THREE.Quaternion(),_e=new THREE.Euler(),_v=new THREE.Vector3(),_s=new THREE.Vector3(),_c=new THREE.Color();
 function MX(x,y,z,rx,ry,rz,sx,sy,sz){_e.set(rx||0,ry||0,rz||0);_q.setFromEuler(_e);return new THREE.Matrix4().compose(_v.set(x,y,z),_q,_s.set(sx==null?1:sx,sy==null?1:sy,sz==null?1:sz))}
 function mergeParts(parts){
   const gs=[];let total=0;
@@ -293,10 +290,9 @@ function mergeParts(parts){
   const out=new THREE.BufferGeometry();out.setAttribute('position',new THREE.BufferAttribute(pos,3));out.setAttribute('color',new THREE.BufferAttribute(col,3));out.computeVertexNormals();return out;
 }
 function taperBox(w,h,d,tw,td){const g=new THREE.BoxGeometry(w,h,d),p=g.attributes.position;for(let i=0;i<p.count;i++)if(p.getY(i)>0){p.setX(i,p.getX(i)*tw/w);p.setZ(i,p.getZ(i)*td/d)}return g}
-function wedgeBox(w,h,d,frontDrop){const g=new THREE.BoxGeometry(w,h,d),p=g.attributes.position;for(let i=0;i<p.count;i++)if(p.getY(i)>0&&p.getZ(i)>0)p.setY(i,p.getY(i)-frontDrop);return g}
 const phong=(o)=>new THREE.MeshPhongMaterial(Object.assign({vertexColors:true,flatShading:true,specular:0x000000,shininess:0},o||{}));
 
-/* ---------- scatter geometries ---------- */
+// scatter geometries
 function geoPine(snowy){
   const dk=snowy?0x2c6048:0x2f7a3a,md=snowy?0x3a7656:0x3c8f46;
   return mergeParts([
@@ -322,7 +318,7 @@ function geoCactus(){
     {g:new THREE.CylinderGeometry(.28,.28,1.3,5),m:MX(-1.4,4,0),c}]);
 }
 
-/* ---------- world ---------- */
+// world
 function makeSkyMaterial(th){
   return new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
     uniforms:{top:{value:new THREE.Color(th.skyTop)},mid:{value:new THREE.Color(th.skyMid)},hor:{value:new THREE.Color(th.skyHor)}},
@@ -391,7 +387,7 @@ function buildWorld(tr,th){
       j=j===undefined?(i+1)%N:j;const L0=P(i,oL,y),R0=P(i,oR,y),L1=P(j,oL,y),R1=P(j,oR,y);
       pos.push(...L0,...R0,...L1,...R0,...R1,...L1);for(let k=0;k<6;k++)col.push(c.r,c.g,c.b);
     };
-    const white=new THREE.Color(0xeeeeee),red=new THREE.Color(0xd9372f),yel=new THREE.Color(0xf2c200);
+    const white=new THREE.Color(0xeeeeee),red=new THREE.Color(0xd9372f);
     for(let i=0;i<N;i++){
       quad(i,ROAD_HALF,-ROAD_HALF,0,((i/6|0)%2)?cB:cA);
       const kc=((i/3|0)%2)?red:white;
@@ -428,16 +424,15 @@ function buildWorld(tr,th){
   /* gates */
   const gateMats=[];
   {
-    const arch=(idx,c,w,h)=>{
+    const arch=(idx,c,h)=>{
       const i=tr.gates[idx],yaw=Math.atan2(tr.TX[i],tr.TZ[i]);
-      const mat=new THREE.MeshBasicMaterial({color:c});gateMats[idx]=mat;
       const off=ROAD_HALF+KERB+1;
       const geo=mergeParts([{g:new THREE.BoxGeometry(.7,h,.7),m:MX(off,h/2,0),c:0xffffff},{g:new THREE.BoxGeometry(.7,h,.7),m:MX(-off,h/2,0),c:0xffffff},
         {g:new THREE.BoxGeometry(off*2+.7,.55,.7),m:MX(0,h,0),c:0xffffff}]);
       const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,color:c}));gateMats[idx]=m.material;
       m.position.set(tr.X[i],0,tr.Z[i]);m.rotation.y=yaw;m.castShadow=true;group.add(m);
     };
-    for(let k=1;k<=GATE_COUNT;k++)arch(k,0x6a6a6a,0,6.5);
+    for(let k=1;k<=GATE_COUNT;k++)arch(k,0x6a6a6a,6.5);
     // finish gantry
     const i=tr.gates[0],yaw=Math.atan2(tr.TX[i],tr.TZ[i]),off=ROAD_HALF+KERB+1.4;
     const geo=mergeParts([{g:new THREE.BoxGeometry(1.1,10,1.1),m:MX(off,5,0),c:0xe9e9e9},{g:new THREE.BoxGeometry(1.1,10,1.1),m:MX(-off,5,0),c:0xe9e9e9},
@@ -453,7 +448,7 @@ function buildWorld(tr,th){
     group.add(gs);
     const crowd=new THREE.InstancedMesh(new THREE.BoxGeometry(.7,1.1,.7),phong({vertexColors:false}),260);crowd.frustumCulled=false;
     const pal=[0xe94b3c,0xf2c200,0x3a86d8,0xffffff,0x4cab3b,0xe07ac4];
-    for(let n=0;n<260;n++){const s=Math.floor(rnd()*4),lz=(rnd()-.5)*66,lx=s*2.2+3.2-(rnd()*3.5)+ (-s*0);
+    for(let n=0;n<260;n++){const s=Math.floor(rnd()*4),lz=(rnd()-.5)*66,lx=s*2.2+3.2-rnd()*3.5;
       const wpos=new THREE.Vector3(lx-1,1.3+s*1.3+.9,lz).applyAxisAngle(new THREE.Vector3(0,1,0),gy).add(gs.position);
       crowd.setMatrixAt(n,MX(wpos.x,wpos.y,wpos.z,0,gy,0));crowd.setColorAt(n,_c.setHex(pal[Math.floor(rnd()*pal.length)]));}
     crowd.instanceMatrix.needsUpdate=true;crowd.instanceColor.needsUpdate=true;group.add(crowd);
@@ -510,9 +505,6 @@ function buildWorld(tr,th){
   return {group,sun,sunDir,sky,sunSpr,clouds,groundY,gateMats,th,
     dispose(){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}};
 }
-/* =====================================================================
-   cars, physics, effects, audio
-   ===================================================================== */
 const CAR_COLORS=[0xe5382e,0xf2a900,0x2f8cf0,0x35c46a,0xf2f2f2,0xe05ac8];
 
 function makeCar(color,ghost){
@@ -551,7 +543,7 @@ function nameSprite(txt){
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true,fog:false}));s.scale.set(9,2.25,1);s.renderOrder=20;return s;
 }
 
-/* ---------- vehicle state & physics ---------- */
+// vehicle state & physics
 const WB=2.7,GRIP=23,ENG=17,VMAX=62,BRAKE=36,REVMAX=12;
 const GEARS=[15,27,38,48,57,80];
 function newCar(){return {x:0,z:0,yaw:0,vx:0,vz:0,yr:0,steer:0,idx:0,d:0,onRoad:true,vF:0,vL:0,speed:0,beta:0,gear:1,rpm:0,
@@ -570,7 +562,7 @@ function stepCar(c,inp,dt){
   c.px=c.x;c.pz=c.z;c.pyaw=c.yaw;
   const sy=Math.sin(c.yaw),cy=Math.cos(c.yaw);
   let vF=c.vx*sy+c.vz*cy,vL=c.vx*cy-c.vz*sy;
-  const sp=Math.abs(vF),spd=Math.hypot(c.vx,c.vz);
+  const sp=Math.abs(vF);
   c.onRoad=Math.abs(c.d)<ROAD_HALF+KERB+.5;
   const thr=inp.throttle,brk=inp.brake,hb=inp.hb?1:0;
 
@@ -637,7 +629,7 @@ function stepCar(c,inp,dt){
   c.pitchV+=((pt-c.pitch)*140-c.pitchV*15)*dt;c.pitch+=c.pitchV*dt;
 }
 
-/* ---------- skid marks ---------- */
+// skid marks
 const SKID_MAX=3000;
 const skid={pos:new Float32Array(SKID_MAX*18),head:0,count:0,last:[null,null],mesh:null,dirty:false,
   init(scene){
@@ -659,7 +651,7 @@ const skid={pos:new Float32Array(SKID_MAX*18),head:0,count:0,last:[null,null],me
   flush(){if(!this.dirty)return;this.dirty=false;const g=this.mesh.geometry;g.attributes.position.needsUpdate=true;g.setDrawRange(0,this.count*6)}
 };
 
-/* ---------- smoke / dust ---------- */
+// smoke / dust
 const PMAX=360;
 const parts={pos:new Float32Array(PMAX*3),size:new Float32Array(PMAX),alpha:new Float32Array(PMAX),col:new Float32Array(PMAX*3),
   vel:new Float32Array(PMAX*3),age:new Float32Array(PMAX).fill(9),life:new Float32Array(PMAX).fill(1),a0:new Float32Array(PMAX),s0:new Float32Array(PMAX),head:0,pts:null,mat:null,
@@ -692,7 +684,7 @@ const parts={pos:new Float32Array(PMAX*3),size:new Float32Array(PMAX),alpha:new 
   clear(){this.age.fill(9);this.size.fill(0)}
 };
 
-/* ---------- audio ---------- */
+// audio
 const audio={ctx:null,on:true,
   init(){
     if(this.ctx){this.resume();return}
@@ -731,9 +723,6 @@ const audio={ctx:null,on:true,
     g.gain.setValueAtTime(clamp(v/25,.1,.8),t);g.gain.exponentialRampToValueAtTime(.001,t+.3);s.connect(f);f.connect(g);g.connect(this.master);s.start(t,Math.random(),.35);
   }
 };
-/* =====================================================================
-   renderer, race logic, ghost, HUD, multiplayer, main loop
-   ===================================================================== */
 const canvas=$('#gl');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -753,7 +742,7 @@ const player=newCar();
 let playerMesh=null,ghostMesh=null;
 const ghostPos={x:0,z:0,yaw:0,steer:0,on:false};
 
-/* ---------- race state ---------- */
+// race state
 const race={state:'idle',t:0,goAt:0,cdLen:3,laps:1,done:0,crossings:0,nextGate:0,lastGateIdx:0,cpTimes:[],lapTimes:[],lapStart:0,clean:true,
   rec:[],recT:0,best:null,bestTotal:null,wrongT:0,driftRun:0,driftBank:0,driftMult:1,driftIdle:0,total:0,bestDrift:0,finishTime:null,newBest:false,lastCd:-1};
 const bestKey=(k,l)=>'d360.best|'+k+'|'+l;
@@ -868,7 +857,7 @@ function showResults(){
   $('#rr').onclick=()=>beginRace(null,1.5);$('#rm').onclick=toMenu;
 }
 
-/* ---------- ghost ---------- */
+// ghost
 function updateGhost(){
   const b=race.best;if(!b||!b.g||race.state!=='go'&&race.state!=='countdown'||MP.on){ghostPos.on=false;return}
   const g=b.g,f=Math.max(0,race.t)*30,i=Math.floor(f),n=g.length/4;
@@ -880,7 +869,7 @@ function record(){
   if(race.t>=race.recT){race.recT+=1/30;race.rec.push(Math.round(player.x*10),Math.round(player.z*10),Math.round(player.yaw*100),Math.round(player.steer*100))}
 }
 
-/* ---------- input ---------- */
+// input
 const keys={};const touch={l:0,r:0,g:0,b:0,h:0};
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'){return}
@@ -899,14 +888,23 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 const input={steer:0,throttle:0,brake:0,hb:false};
+// the gamepad api throws inside sandboxed frames, so stop asking after the first failure
+let padOk=!!navigator.getGamepads;
+function readPad(){
+  if(!padOk)return null;
+  try{return navigator.getGamepads()[0]||null}catch(e){padOk=false;return null}
+}
 function readInput(){
   let s=0,t=0,b=0,h=false;
   if(keys.KeyA||keys.ArrowLeft)s+=1;if(keys.KeyD||keys.ArrowRight)s-=1;
   if(keys.KeyW||keys.ArrowUp)t=1;if(keys.KeyS||keys.ArrowDown)b=1;if(keys.Space)h=true;
   s+=touch.l-touch.r;if(touch.g)t=1;if(touch.b)b=1;if(touch.h)h=true;
-  const gp=navigator.getGamepads?navigator.getGamepads()[0]:null;
-  if(gp){const ax=gp.axes[0]||0;if(Math.abs(ax)>.12)s-=ax;const rt=gp.buttons[7]?gp.buttons[7].value:0,lt=gp.buttons[6]?gp.buttons[6].value:0;
-    if(rt>.05)t=Math.max(t,rt);if(lt>.05)b=Math.max(b,lt);if(gp.buttons[0]&&gp.buttons[0].pressed&&!t)t=1;if(gp.buttons[1]&&gp.buttons[1].pressed||gp.buttons[2]&&gp.buttons[2].pressed)h=true;}
+  const gp=readPad();
+  if(gp){const ax=gp.axes[0]||0;if(Math.abs(ax)>.12)s-=ax;
+    const rt=gp.buttons[7]?gp.buttons[7].value:0,lt=gp.buttons[6]?gp.buttons[6].value:0;
+    if(rt>.05)t=Math.max(t,rt);if(lt>.05)b=Math.max(b,lt);
+    if(gp.buttons[0]&&gp.buttons[0].pressed&&!t)t=1;
+    if((gp.buttons[1]&&gp.buttons[1].pressed)||(gp.buttons[2]&&gp.buttons[2].pressed))h=true;}
   input.steer=clamp(s,-1,1);input.throttle=t;input.brake=b;input.hb=h;
 }
 function bindTouch(){
@@ -919,7 +917,7 @@ function bindTouch(){
 bindTouch();
 const isTouch=matchMedia('(pointer:coarse)').matches;
 
-/* ---------- simulation step ---------- */
+// simulation step
 const STEP=1/120;
 function simStep(){
   const now=performance.now();
@@ -944,7 +942,7 @@ function simStep(){
   if(player.impact>0){if(player.impact>4){audio.thump(player.impact);camShake=Math.min(1,camShake+player.impact/30)}player.impact=0}
 }
 
-/* ---------- camera ---------- */
+// camera
 let camYaw=0,camShake=0;const camPos=new THREE.Vector3(),camLook=new THREE.Vector3();
 function updateCamera(dt,rx,rz,ryaw){
   const p=player,sp=p.speed;
@@ -971,7 +969,7 @@ function menuCamera(dt){
   if(camera.fov!==58){camera.fov=58;camera.updateProjectionMatrix()}
 }
 
-/* ---------- visuals ---------- */
+// visuals
 function setCarTransform(m,x,z,yaw,c,steerVis,spin){
   m.root.position.set(x,0,z);m.root.rotation.y=yaw;
   if(c){m.body.rotation.z=c.roll;m.body.rotation.x=c.pitch;m.body.position.y=Math.abs(c.pitch)*.2}
@@ -1017,7 +1015,7 @@ function updateVisuals(dt,alpha){
   }
 }
 
-/* ---------- HUD ---------- */
+// HUD
 const hudCache={};
 function setT(id,txt){if(hudCache[id]!==txt){hudCache[id]=txt;$('#'+id).textContent=txt}}
 const rpmCv=$('#rpm'),rpmCx=rpmCv.getContext('2d');
@@ -1070,7 +1068,7 @@ function progress(){
   const N=track.N,p=((player.idx-FINISH_IDX+N)%N)/N;return (race.crossings-1)+p+(race.state==='finished'?1000:0);
 }
 
-/* ---------- multiplayer (BroadcastChannel, same browser) ---------- */
+// multiplayer (BroadcastChannel, same browser)
 const MP={ch:null,room:null,id:Math.random().toString(36).slice(2,8),on:false,name:store.get('d360.name')||''};
 const peers=new Map();
 function send(o){if(!MP.ch)return;try{MP.ch.postMessage(Object.assign({id:MP.id},o))}catch(e){}}
@@ -1128,7 +1126,7 @@ function renderPlist(){
   $('#plist').innerHTML=MP.on?('ROOM <b>'+MP.room+'</b> · '+(peers.size+1)+' DRIVER'+(peers.size?'S':'')+'<br>'+rows.join(' · ')):'';
 }
 
-/* ---------- menu ---------- */
+// menu
 function buildMenu(){
   const box=$('#tracks');box.innerHTML='';
   TRACKS.forEach((d,i)=>{
@@ -1174,7 +1172,7 @@ function toMenu(){
   syncMenuSel();
 })();
 
-/* ---------- main loop ---------- */
+// main loop
 let last=performance.now(),acc=0,fpsT=0,fpsN=0,perfChecked=false;
 function frame(now){
   requestAnimationFrame(frame);
@@ -1190,9 +1188,7 @@ function frame(now){
   updateVisuals(dt,alpha);
   renderer.render(scene,camera);
 }
-selTrack=0;
 setTrack(TRACKS[0]);
-window.__g={player,race,input,keys,get track(){return track},get mode(){return mode},stepCar,beginRace,simStep,startSolo,respawn,get peers(){return peers},MP,renderer,scene,camera,applySeed,genTrack,TRACKS};
 requestAnimationFrame(frame);
 </script>
 
