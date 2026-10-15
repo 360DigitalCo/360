@@ -226,7 +226,7 @@ input{font:inherit;color:inherit}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script>
 // Supabase (only present in the standalone build, which loads supabase-js)
 const SB_URL='https://xcseqgpbwexfqbssfszq.supabase.co',SB_KEY='sb_publishable_C585ftZaW9iiIvrahjY3Ow_8jgDTXbt';
-window.SB=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
+window.SB=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:60}}}):null;
 'use strict';
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -1699,7 +1699,7 @@ function progress(){
 const MP={ch:null,room:null,id:Math.random().toString(36).slice(2,8),on:false,name:store.get('d360.name')||''};
 const peers=new Map();
 function send(o){
-  if(MP.ch){try{MP.ch.send({type:'broadcast',event:'m',payload:Object.assign({id:MP.id},o)})}catch(e){}}
+  if(MP.ch&&MP.ch.state==='joined'){try{MP.ch.send({type:'broadcast',event:'m',payload:Object.assign({id:MP.id},o)})}catch(e){}}
 }
 function applyPeer(id,m){
   let p=peers.get(id);
@@ -1709,6 +1709,11 @@ function applyPeer(id,m){
   p.x=+m.x;p.z=+m.z;p.yaw=+m.y||0;p.steer=+m.st||0;p.h=+m.h||0;p.tl=+m.tl||0;p.spd=+m.sp||0;p.prog=+m.pr||0;
   if(m.fin!==undefined)p.fin=m.fin==null?null:+m.fin;
   p.t=performance.now();
+  // snapshot buffer keyed by the sender's clock; the offset tracks the fastest packets seen so jitter doesn't leak into motion
+  const now=Date.now(),ts=+m.ts||now,o=now-ts;
+  if(p.off==null){p.off=o;p.delay=110;p.buf=[]}else if(o<p.off)p.off=o;else p.off+=(o-p.off)*.01;
+  const T=ts+p.off,b=p.buf;
+  if(!b.length||T>b[b.length-1].t){b.push({t:T,x:p.x,z:p.z,yaw:p.yaw,h:p.h,tl:p.tl,st:p.steer,sp:p.spd});if(b.length>24)b.shift()}
   if(p.rx==null){p.rx=p.x;p.rz=p.z;p.ryaw=p.yaw;p.ry=p.h}
 }
 function sbMsg(m){
@@ -1753,15 +1758,30 @@ function mpStart(m){
 }
 let lastBroadcast=0;
 function broadcastState(force){
-  const now=performance.now();if(!MP.on||(!force&&now-lastBroadcast<50))return;lastBroadcast=now;
-  send({t:'s',n:MP.name||'DRIVER',c:CAR_COLORS[selCar],x:+player.x.toFixed(2),z:+player.z.toFixed(2),y:+player.yaw.toFixed(3),st:+player.steer.toFixed(2),h:+player.y.toFixed(2),tl:+player.tilt.toFixed(2),sp:+player.speed.toFixed(1),pr:+progress().toFixed(4)});
+  const now=performance.now(),gap=1000/clamp(80/(peers.size+1),10,25);if(!MP.on||(!force&&now-lastBroadcast<gap))return;lastBroadcast=now;
+  const o={t:'s',ts:Date.now(),x:+player.x.toFixed(2),z:+player.z.toFixed(2),y:+player.yaw.toFixed(3),st:+player.steer.toFixed(2),h:+player.y.toFixed(2),tl:+player.tilt.toFixed(2),sp:+player.speed.toFixed(1),pr:+progress().toFixed(4)};
+  if(force||now-(MP.lastInfo||0)>2000){MP.lastInfo=now;o.n=MP.name||'DRIVER';o.c=CAR_COLORS[selCar]}
+  send(o);
+}
+function sampleSnap(p){
+  const b=p.buf;if(!b||!b.length)return;
+  const rt=Date.now()-p.off-p.delay,last=b[b.length-1];
+  let a,c,f=0;
+  if(rt>=last.t){ // ran out of data: dead-reckon a little and widen the buffer
+    const ex=Math.min(rt-last.t,220)/1000;p.delay=Math.min(280,p.delay+1.5);
+    p.rx=last.x+Math.sin(last.yaw)*last.sp*ex;p.rz=last.z+Math.cos(last.yaw)*last.sp*ex;p.ryaw=last.yaw;p.ry=last.h;p.rtl=last.tl;p.steer=last.st;p.spd=last.sp;return;
+  }
+  if(rt<=b[0].t){a=c=b[0]}
+  else{let i=b.length-2;while(i>0&&b[i].t>rt)i--;a=b[i];c=b[i+1];f=(rt-a.t)/Math.max(1,c.t-a.t)}
+  p.delay=Math.max(90,p.delay-.15);
+  p.rx=lerp(a.x,c.x,f);p.rz=lerp(a.z,c.z,f);p.ryaw=a.yaw+angDiff(a.yaw,c.yaw)*f;p.ry=lerp(a.h,c.h,f);p.rtl=lerp(a.tl,c.tl,f);p.steer=lerp(a.st,c.st,f);p.spd=lerp(a.sp,c.sp,f);
 }
 function updatePeers(dt){
   peers.forEach((p,id)=>{
     if(p.x==null)return;
     if(MP.ch&&performance.now()-p.t>6000){dropPeer(p);peers.delete(id);renderPlist();return}
     if(!p.mesh){p.mesh=makeCar(p.color);scene.add(p.mesh.root);p.tag=nameSprite(p.name);scene.add(p.tag)}
-    const k=1-Math.exp(-14*dt);p.rx=lerp(p.rx,p.x+Math.sin(p.yaw)*p.spd*.05,k);p.rz=lerp(p.rz,p.z+Math.cos(p.yaw)*p.spd*.05,k);p.ryaw+=angDiff(p.ryaw,p.yaw)*k;p.ry=lerp(p.ry,p.h||0,k);p.rtl=lerp(p.rtl,p.tl||0,k);
+    sampleSnap(p);
     p.spin=(p.spin||0)+p.spd/.37*dt;
     setCarTransform(p.mesh,p.rx,p.rz,p.ryaw,null,(p.steer||0)*.4,p.spin,p.ry,p.rtl);p.tag.position.set(p.rx,p.ry+3.6,p.rz);
   });
