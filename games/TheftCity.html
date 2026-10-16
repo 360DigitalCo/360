@@ -103,7 +103,7 @@ h2.sec{font-family:'Bebas Neue';font-weight:400;letter-spacing:.14em;font-size:2
     <div style="flex:1"><span class="lbl">ROOM</span><input id="room" maxlength="8" placeholder="NYC1" autocomplete="off" spellcheck="false"></div></div>
     <button class="big pri" id="go">ENTER THE CITY</button>
     <div class="keys"><b>W A S D</b> DRIVE / WALK &nbsp; <b>SPACE</b> HANDBRAKE / JUMP &nbsp; <b>SHIFT</b> SPRINT<br><b>F</b> STEAL / ENTER / EXIT &nbsp; <b>E</b> START MISSION &nbsp; <b>H</b> HORN &nbsp; <b>C</b> CAMERA<br><b>TAB</b> PHONE &nbsp; <b>M</b> MAP &nbsp; <b>T</b> CHAT &nbsp; <b>R</b> RESCUE / RELOAD<br><b>LEFT CLICK</b> FIRE &nbsp; <b>RIGHT CLICK</b> AIM &nbsp; <b>1-5 / WHEEL</b> WEAPON</div>
-    <div class="keys" id="mpstat">Mature audiences: crime, gunfights and police chases. No drugs. Same-room players share your city.</div>
+    <div class="keys" id="mpstat">Mature audiences: crime, gunfights and police chases. No drugs. Same-room players share your city. M toggles music.</div>
   </div>
 </div>
 <div id="wasted"></div>
@@ -793,6 +793,20 @@ function beep(f,d,type,vol){if(!AU.ctx)return;const o=AU.ctx.createOscillator(),
 function horn(){beep(330,.35,'sawtooth',.07);setTimeout(()=>beep(415,.3,'sawtooth',.06),0)}
 function chime(){beep(880,.12,'sine',.1);setTimeout(()=>beep(1320,.2,'sine',.1),110)}
 
+// ---------- sound files (music, siren, explosion)
+const SND={base:'../assets/sounds/games/TheftCity/',on:true,fail:{},sv:0,sT:-9,mv:0};
+function sndMk(n,loop){try{const a=new Audio(SND.base+n);a.loop=loop;a.preload='auto';a.addEventListener('error',()=>{SND.fail[n]=1});return a}catch(e){SND.fail[n]=1;return {play(){return Promise.resolve()},pause(){},cloneNode(){return this},volume:0}}}
+SND.music=sndMk('LMS-FreeRoam.mp3',true);SND.siren=sndMk('Siren.mp3',true);SND.boom=[0,1,2].map(()=>sndMk('Explosion.mp3',false));SND.bi=0;
+function sndStart(){try{SND.music.volume=0;const p=SND.music.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function sndBoom(d){if(!SND.on||SND.fail['Explosion.mp3'])return false;try{const a=SND.boom[SND.bi++%3];a.currentTime=0;a.volume=Math.max(.15,Math.min(1,1-d/140));const p=a.play();if(p&&p.catch)p.catch(()=>{});return true}catch(e){return false}}
+function sndFrame(t,dt){
+  try{const quiet=(typeof CINE!=='undefined'&&CINE.on)||(typeof CMB!=='undefined'&&CMB.wasted>0);const tm=SND.on?(quiet?.12:.38):0;SND.mv+=(tm-SND.mv)*Math.min(1,dt*3);SND.music.volume=Math.max(0,Math.min(1,SND.mv));
+    if(SND.on&&SND.music.paused&&G.started){const p=SND.music.play();if(p&&p.catch)p.catch(()=>{})}
+    const ts=(t-SND.sT<.4&&SND.on)?SND.sTarget:0;SND.sv+=(ts-SND.sv)*Math.min(1,dt*4);SND.siren.volume=Math.max(0,Math.min(1,SND.sv));
+    if(SND.sv>.02&&SND.siren.paused){const p=SND.siren.play();if(p&&p.catch)p.catch(()=>{})}else if(SND.sv<=.02&&!SND.siren.paused)SND.siren.pause()}catch(e){}
+}
+addEventListener('keydown',e=>{if(e.code==='KeyM'&&!e.repeat&&G&&G.started){SND.on=!SND.on;if(typeof toast==='function')toast(SND.on?'MUSIC ON':'MUSIC OFF',900)}});
+
 // ---------- traffic
 const TR={cars:[],max:56,time:0};
 function lightState(n,t){ // 0 NS green, 1 EW green
@@ -1083,7 +1097,7 @@ function updateWanted(dt,t){
   if(W.heli){nearest=Math.min(nearest,Math.hypot(W.heli.x-p.x,W.heli.z-p.z)*.6)}
   // callouts and sirens
   W.talk-=dt;if(W.stars&&nearest<150&&W.talk<=0){W.talk=7+Math.random()*5;bark('cop','chase',[ 'Suspect is still mobile, stay on him!','Don\'t let him get away!','Pull over, now!','Shots fired, shots fired!','I need backup, he\'s heading downtown!'],0,true)}
-  if(W.stars&&nearest<170){W.siren-=dt;if(W.siren<=0){W.siren=.7;beep(Math.floor(t*1.4)%2?760:980,.32,'sine',.035)}}
+  if(W.stars&&nearest<170){if(SND.fail['Siren.mp3']){W.siren-=dt;if(W.siren<=0){W.siren=.7;beep(Math.floor(t*1.4)%2?760:980,.32,'sine',.035)}}else{SND.sT=t;SND.sTarget=.15+.6*Math.min(1,(170-nearest)/140)}}
   $('#stars').classList.toggle('flash',W.stars>0&&nearest<90);
   if(W.stars){
     const sees=nearest<110;
@@ -1190,8 +1204,8 @@ function tracer(a,b,col){
 function spark(x,y,z,n){for(let i=0;i<(n||5);i++){const m=new THREE.Mesh(sparkGeo,sparkMat);m.position.set(x,y,z);scene.add(m);CMB.fx.push({m,t:.3,kind:'spark',vx:(Math.random()-.5)*6,vy:Math.random()*4,vz:(Math.random()-.5)*6})}}
 function explode(x,y,z){
   const m=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshBasicMaterial({color:0xff9a30,transparent:true,opacity:.9,fog:false}));m.position.set(x,y+1,z);scene.add(m);CMB.boom.push({m,t:0});
-  shake=Math.min(1.5,shake+.9);beep(70,.5,'sawtooth',.12);
-  const p=pos();const d=Math.hypot(p.x-x,p.z-z);if(d<9)hurtPlayer(40*(1-d/9)+8,true);
+  shake=Math.min(1.5,shake+.9);
+  const p=pos();const d=Math.hypot(p.x-x,p.z-z);if(!sndBoom(d))beep(70,.5,'sawtooth',.12);if(d<9)hurtPlayer(40*(1-d/9)+8,true);
 }
 function hurtPlayer(d,pure){
   if(CMB.wasted>0||CINE.on)return;if(!pure&&PL.mode==='car'&&PL.veh){carDamage(PL.veh,d*1.4);d*=.35}CMB.hp-=d;CMB.hurtT=0;if(CMB.hp<35&&CMB.hp>0)bark('ace','hurt',['Argh! I\'m hit!','I need to get out of here!','Not like this...'],5);shake=Math.min(1,shake+.15);
@@ -2391,7 +2405,7 @@ function frame(ms){
   readInput(dt);
   if(overlayOpen()||CINE.on){IN.thr=IN.brk=IN.mx=IN.mz=0;IN.steer=0;IN.hb=false;IN.camx=IN.camy=0;CMB.fire=false}
   if(G.lock==null)G.hour=(G.hour+dt*G.timeScale)%24;
-  updateCine(dt);updatePlayer(dt,t);updateWanted(dt,t);updateShops(dt,t);updateCombat(dt,t);
+  sndFrame(t,dt);updateCine(dt);updatePlayer(dt,t);updateWanted(dt,t);updateShops(dt,t);updateCombat(dt,t);
   const others=PL.mode==='car'?[PL.veh]:[];
   updateTraffic(dt,PL,others);updateParked(PL,PL.veh);
   updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);
@@ -2412,7 +2426,7 @@ function boot(){
     G.name=(nm.value.trim().toUpperCase().replace(/[^A-Z0-9 ]/g,'')||'ACE').slice(0,10);CAST.ace.n=G.name;const room=(rm.value.trim().toUpperCase()||'NYC1').slice(0,8);
     store.set('c360_name',G.name);store.set('c360_room',room);
     G.shirt=[0xf2d640,0x5ab0ff,0xff6a5a,0x6fdc95,0xc06bff][hashStr(G.name)%5];
-    audioInit();$('#intro').hidden=true;$('#loading').hidden=false;
+    audioInit();sndStart();$('#intro').hidden=true;$('#loading').hidden=false;
     requestAnimationFrame(()=>setTimeout(()=>{
       try{
         makeTextures();const ctx=buildCity(scene,()=>{});CITY=finishCity(scene,ctx);initSignals(scene);initClouds(scene);
