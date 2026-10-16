@@ -619,18 +619,21 @@ function finishCity(scene,ctx){
   // governors island trees
   for(let i=0;i<60;i++){const a=rnd()*TAU,r=rnd()*70;trees.push([60+Math.cos(a)*r,560+0-(-1)*0+Math.sin(a)*r,rnd()])}
   const tg=new THREE.IcosahedronGeometry(1,0),tr=BX(.35,1,.35);tr.translate(0,.5,0);
-  const keep=trees.filter(t=>landKind(t[0],t[1])>0&&!bridgeAt(t[0],t[1],_br));
-  const crown=new THREE.InstancedMesh(tg,new THREE.MeshLambertMaterial({color:0xffffff}),keep.length),trunk=new THREE.InstancedMesh(tr,new THREE.MeshLambertMaterial({color:0x5b4636}),keep.length);
+  const inBld=(x,z)=>{const cx=Math.floor(x/CS),cz=Math.floor(z/CS);for(let a=-1;a<=1;a++)for(let c=-1;c<=1;c++){const arr=cells.get((cx+a)+','+(cz+c));if(arr)for(const q of arr)if(Math.abs(x-q.x)<q.w/2+2.2&&Math.abs(z-q.z)<q.d/2+2.2)return true}return false};
+  const keep=trees.filter(t=>landKind(t[0],t[1])>0&&!bridgeAt(t[0],t[1],_br)&&!inBld(t[0],t[1]));
+  const chunked=(items,mk)=>{const m=new Map();for(const it of items){const k=Math.floor(it[0]/400)+','+Math.floor(it[1]/400);let a=m.get(k);if(!a)m.set(k,a=[]);a.push(it)}
+    for(const arr of m.values()){let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const it of arr){x0=Math.min(x0,it[0]);x1=Math.max(x1,it[0]);z0=Math.min(z0,it[1]);z1=Math.max(z1,it[1])}
+      const meshes=mk(arr);for(const me of meshes){me.geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,20,(z0+z1)/2),Math.hypot(x1-x0,z1-z0)/2+40);me.frustumCulled=true;group.add(me)}}};
   const lg=[0x4f8a3c,0x5f9e47,0x3f7a3a,0x6aa84e,0x7aa944];
-  keep.forEach((t,i)=>{const s=2.2+t[2]*1.6,th=2.6+t[2]*1.4;
-    trunk.setMatrixAt(i,MX(t[0],0,t[1],0,0,0,1,th,1));crown.setMatrixAt(i,MX(t[0],th+s*.5,t[1],0,0,0,s,s*.9,s));crown.setColorAt(i,_c.set(lg[Math.floor(t[2]*99)%lg.length]))});
-  crown.castShadow=trunk.castShadow=true;crown.frustumCulled=false;trunk.frustumCulled=false;group.add(crown,trunk);city.crown=crown;
+  const cmat=new THREE.MeshLambertMaterial({color:0xffffff}),tmat=new THREE.MeshLambertMaterial({color:0x5b4636});
+  chunked(keep,arr=>{const crown=new THREE.InstancedMesh(tg.clone(),cmat,arr.length),trunk=new THREE.InstancedMesh(tr.clone(),tmat,arr.length);
+    arr.forEach((t,i)=>{const s=2.2+t[2]*1.6,th=2.6+t[2]*1.4;trunk.setMatrixAt(i,MX(t[0],0,t[1],0,0,0,1,th,1));crown.setMatrixAt(i,MX(t[0],th+s*.5,t[1],0,0,0,s,s*.9,s));crown.setColorAt(i,_c.set(lg[Math.floor(t[2]*99)%lg.length]))});
+    crown.castShadow=trunk.castShadow=true;return [crown,trunk]});
   // lamps
   const lampsK=lampsA.filter((l,i)=>i%2===0&&landKind(l[0],l[1])===1);
-  const pole=new THREE.InstancedMesh(BX(.18,6,.18),new THREE.MeshLambertMaterial({color:0x3a3e46}),lampsK.length);pole.frustumCulled=false;
   const lp=new Float32Array(lampsK.length*3);
-  lampsK.forEach((l,i)=>{pole.setMatrixAt(i,MX(l[0],3,l[1]));lp[i*3]=l[0];lp[i*3+1]=6.1;lp[i*3+2]=l[1]});
-  group.add(pole);
+  lampsK.forEach((l,i)=>{lp[i*3]=l[0];lp[i*3+1]=6.1;lp[i*3+2]=l[1]});
+  {const pg=BX(.18,6,.18),pm=new THREE.MeshLambertMaterial({color:0x3a3e46});chunked(lampsK,arr=>{const pole=new THREE.InstancedMesh(pg.clone(),pm,arr.length);arr.forEach((l,i)=>pole.setMatrixAt(i,MX(l[0],3,l[1])));return [pole]})}
   const lgm=new THREE.BufferGeometry();lgm.setAttribute('position',new THREE.BufferAttribute(lp,3));
   const glowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,236,170,1)');gr.addColorStop(.3,'rgba(255,210,120,.5)');gr.addColorStop(1,'rgba(255,200,100,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
   const glow=new THREE.Points(lgm,new THREE.PointsMaterial({map:glowTex,size:9,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0,sizeAttenuation:true}));glow.frustumCulled=false;group.add(glow);city.lampGlow=glow;
@@ -638,7 +641,7 @@ function finishCity(scene,ctx){
   const wt=new THREE.InstancedMesh(new THREE.CylinderGeometry(1.7,1.7,3.2,8),new THREE.MeshLambertMaterial({color:0x6b4b35}),towers.length);
   towers.forEach((t,i)=>wt.setMatrixAt(i,MX(t[0],t[1]+1.8,t[2])));wt.frustumCulled=false;group.add(wt);
   // subway entrances
-  const sw=new THREE.InstancedMesh(BX(3,2.2,2.2),new THREE.MeshLambertMaterial({color:0x2b6a4a}),subways.length);subways.forEach((s,i)=>sw.setMatrixAt(i,MX(s[0],1.2,s[1])));group.add(sw);
+  {const sg=BX(3,2.2,2.2),sm=new THREE.MeshLambertMaterial({color:0x2b6a4a});chunked(subways.filter(s=>!inBld(s[0],s[1])),arr=>{const sw=new THREE.InstancedMesh(sg.clone(),sm,arr.length);arr.forEach((s,i)=>sw.setMatrixAt(i,MX(s[0],1.2,s[1])));return [sw]})}
   // water plane
   const water=new THREE.Mesh(new THREE.PlaneGeometry(20000,20000),new THREE.MeshBasicMaterial({color:0x2a6f95}));water.rotation.x=-Math.PI/2;water.position.set(-200,-.5,-3300);group.add(water);city.water=water;
   buildLandmarks(group,city);buildBridges(group,city);
@@ -923,6 +926,7 @@ function updatePeds(dt,pl,cars,t){
     p.hop=Math.max(0,p.hop-dt);p.ph+=dt*p.sp*5;
     const bob=Math.abs(Math.sin(p.ph))*.06,hy=p.hop>0?Math.sin(p.hop/.5*Math.PI)*.6:0,y=.18+hy+groundY(p.x,p.z);
     const a=p.hd||0;
+    if(!inView(p.x,1,p.z,5)){PED.body.setMatrixAt(i,_mm.makeScale(0,0,0));PED.head.setMatrixAt(i,_mm);PED.legs.setMatrixAt(i,_mm);PED.arms.setMatrixAt(i*2,_mm);PED.arms.setMatrixAt(i*2+1,_mm);continue}
     PED.body.setMatrixAt(i,MX(p.x,y+.8+bob+.45,p.z,0,a,0));PED.head.setMatrixAt(i,MX(p.x,y+1.55+bob+.35,p.z,0,a,0));PED.legs.setMatrixAt(i,MX(p.x,y+.4,p.z,Math.sin(p.ph)*.15,a,0));
     {const rx=-Math.cos(a)*.33,rz=Math.sin(a)*.33,sw=Math.sin(p.ph)*.6;PED.arms.setMatrixAt(i*2,MX(p.x+rx,y+1.48,p.z+rz,sw,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)));PED.arms.setMatrixAt(i*2+1,MX(p.x-rx,y+1.48,p.z-rz,-sw,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)))}
   }
@@ -949,9 +953,21 @@ function enterTarget(){
 function takeVehicle(t){
   const v=t.v;
   if(t.ai){const i=TR.cars.indexOf(v);if(i>=0)TR.cars.splice(i,1);
-    const g=makePerson(CAR_COLS[(Math.random()*CAR_COLS.length)|0]);g.position.set(v.x+Math.cos(v.h)*2,v.y,v.z-Math.sin(v.h)*2);scene.add(g);
-    W.runners.push({g,t:0,a:Math.random()*TAU});toast('CARJACKED!',900);addHeat(1);v.keep=true;PK.cars.push(v);v.vx=v.vz=0;
-    bark('ace','jack',['Out! Now!','Get out of the car!','Keys. Move!'],3);bark('civ','vict',['Take it! Just take it!','Please, don\'t shoot!','Oh god, my car!'],2);
+    const g=makePerson(CAR_COLS[(Math.random()*CAR_COLS.length)|0]);const gx=v.x+Math.cos(v.h)*2,gz=v.z-Math.sin(v.h)*2;g.position.set(gx,v.y,gz);scene.add(g);
+    let ux=gx-PL.x,uz=gz-PL.z;const L=Math.hypot(ux,uz)||1;ux/=L;uz/=L;
+    const armed=SAVE.guns.includes('pistol')&&(SAVE.ammo.pistol||0)>0&&CMB.w==='pistol',r=Math.random();
+    if(armed&&r<.55||r<.3){ // driver is shot or beaten to death at the door
+      CMB.ldx=ux;CMB.ldz=uz;CMB.lforce=armed?5:3;
+      if(armed){beep(150,.08,'square',.09);tracer(new THREE.Vector3(PL.x,PL.y+1.3,PL.z),new THREE.Vector3(gx,v.y+1.6,gz));SAVE.ammo.pistol--}else{beep(95,.07,'square',.09);setTimeout(()=>beep(80,.08,'square',.09),160)}
+      bloodHit(gx,1.3,gz,ux,uz,armed?14:10,armed);makeCorpse(g,armed);dropCash(gx,gz,30+Math.floor(Math.random()*90));violence(4);addHeat(2);
+      toast(armed?'DRIVER SHOT':'DRIVER BEATEN',1000);bark('civ','vict',['No, no, please!','Aaah! My god!','Don\'t!'],1);
+    }else{ // dragged out, knocked bloody to the road, then crawls away
+      CMB.ldx=ux;CMB.ldz=uz;bloodHit(gx,1,gz,ux,uz,6,false);violence(2);beep(100,.06,'square',.08);
+      W.runners.push({g,t:0,a:Math.random()*TAU});toast('CARJACKED!',900);addHeat(1);
+      bark('civ','vict',['Take it! Just take it!','Please, don\'t shoot!','Oh god, my car!'],2);
+    }
+    v.keep=true;PK.cars.push(v);v.vx=v.vz=0;
+    bark('ace','jack',['Out! Now!','Get out of the car!','Keys. Move!'],3);
   }else if(!v.owned&&!v.keep){v.keep=true;if(Math.random()<.75&&witnessNear())addHeat(1);toast('HOT-WIRED',700);bark('ace','steal',['Nice ride.','Mine now.','Easy.','They never lock these.'],4)}
   PL.veh=v;v.mode='player';PL.mode='car';v.vx=v.vz=0;v.st=0;
 }
@@ -995,7 +1011,7 @@ function copStep(v,dt,pl){
   driveStep(v,inp,dt);moveVeh(v,dt);v.sync();
   // officers lean out and fire when they have a line on you
   if(W.stars>=3&&d<48){v.shoot-=dt;if(v.shoot<=0&&rayBlock(v.x,v.y+1.4,v.z,(p.x-v.x)/d,0,(p.z-v.z)/d,d)>=d-1.3){v.shoot=.9+Math.random()*.9;
-    const hit=Math.random()<Math.max(.1,.38-d/150);tracer(new THREE.Vector3(v.x,v.y+1.5,v.z),new THREE.Vector3(p.x+(hit?0:(Math.random()-.5)*4),(p.y||0)+1.1,p.z+(hit?0:(Math.random()-.5)*4)),0xff6a5a);beep(160,.05,'square',.035);if(hit)hurtPlayer(5)}}
+    const hit=Math.random()<Math.max(.02,(.2-d/170)*(1-.7*Math.min(1,PL.speed/14)));tracer(new THREE.Vector3(v.x,v.y+1.5,v.z),new THREE.Vector3(p.x+(hit?0:(Math.random()-.5)*8),(p.y||0)+1.1,p.z+(hit?0:(Math.random()-.5)*8)),0xff6a5a);beep(160,.05,'square',.035);if(hit)hurtPlayer(5)}}
 }
 function copCollide(v,pv){
   const hit=carVsCar(pv,v);if(!hit)return;
@@ -1274,9 +1290,9 @@ function foeUpdate(o,dt,t,range,dmg,speed,col){
     if(!onWater(nx,nz)){o.x=nx;o.z=nz}o.walk=(o.walk||0)+dt*9}
   else o.walk=0;
   o.y=groundY(o.x,o.z);o.g.position.set(o.x,o.y+Math.abs(Math.sin(o.walk||0))*.05,o.z);o.g.rotation.y=Math.atan2(dx,dz);animChar(o.g,o.walk||0,o.walk?.8:0,los&&d<range);
-  if(los&&PL.mode!==undefined&&CMB.wasted<=0){o.cd-=dt;if(o.cd<=0){o.cd=(o.elite?.2:.6)+Math.random()*(o.elite?.2:.6);
+  if(los&&PL.mode!==undefined&&CMB.wasted<=0){o.cd-=dt;if(o.cd<=0){o.cd=(o.elite?.35:.9)+Math.random()*(o.elite?.3:.9);
     const mx=o.x+Math.sin(o.g.rotation.y)*.5,mz=o.z+Math.cos(o.g.rotation.y)*.5;
-    const hit=Math.random()<Math.max(.12,.5-d/110);const ex=PL.x+(hit?0:(Math.random()-.5)*3),ez=PL.z+(hit?0:(Math.random()-.5)*3);
+    const mv=Math.min(1,PL.speed/9),hit=Math.random()<Math.max(.03,(.26-d/150)*(1-.65*mv));const ex=PL.x+(hit?0:(Math.random()-.5)*7),ez=PL.z+(hit?0:(Math.random()-.5)*7);
     tracer(new THREE.Vector3(mx,o.y+1.4,mz),new THREE.Vector3(ex,PL.y+1.2,ez),col);beep(170,.06,'square',.04);if(hit)hurtPlayer(dmg)}}
   return d;
 }
@@ -2018,11 +2034,12 @@ function pos(){return PL.mode==='car'?PL.veh:PL}
 function toggleVehicle(){
   if(overlayOpen())return;
   if(PL.mode==='car'){
-    const v=PL.veh;if(Math.hypot(v.vx,v.vz)>6){toast('SLOW DOWN FIRST',900);return}
+    const v=PL.veh;const sp0=Math.hypot(v.vx,v.vz);
     const rx=-Math.cos(v.h),rz=Math.sin(v.h);
     PL.x=v.x-rx*(v.T.wid*.5+1.3);PL.z=v.z-rz*(v.T.wid*.5+1.3);
     if(pushOut(PL.x,PL.z,.5,_po)){PL.x=_po.x;PL.z=_po.z}
-    PL.y=groundY(PL.x,PL.z);PL.h=v.h;PL.mode='foot';v.mode='parked';v.vx=v.vz=0;PL.veh=null;PL.cam.yaw=v.h;
+    PL.y=groundY(PL.x,PL.z);PL.h=v.h;PL.mode='foot';PL.vx=v.vx*.45;PL.vz=v.vz*.45;v.mode='parked';v.vx=v.vz=0;PL.veh=null;PL.cam.yaw=v.h;
+    if(sp0>8){hurtPlayer(Math.min(30,(sp0-8)*1.3),true);bloodHit(PL.x,.3,PL.z,PL.vx/(sp0||1),PL.vz/(sp0||1),5,false);shake=Math.min(1,shake+.35);toast('BAILED OUT',800)}
   }else{
     const best=enterTarget();if(!best){toast('NO VEHICLE NEARBY',900);return}
     takeVehicle(best);
@@ -2358,8 +2375,8 @@ function updateCamera(dt,t){
   if(CINE.on&&CINE.cam){cineCamera(dt);return}
   const car=PL.mode==='car',p=car?PL.veh:PL;
   if(IN.camx||IN.camy){
-    if(car){PL.cam.off=(PL.cam.off||0)-IN.camx;PL.cam.pOff=clamp((PL.cam.pOff||0)+IN.camy,-.4,.6);PL.cam.idle=0}
-    else{PL.cam.yaw-=IN.camx;PL.cam.pitch=clamp(PL.cam.pitch+IN.camy,-.15,1.1)}
+    if(car){PL.cam.off=(PL.cam.off||0)-IN.camx;PL.cam.pOff=clamp((PL.cam.pOff||0)+IN.camy,-.8,.8);PL.cam.idle=0}
+    else{PL.cam.yaw-=IN.camx;PL.cam.pitch=clamp(PL.cam.pitch+IN.camy,-1.2,1.1)}
     IN.camx=IN.camy=0;
   }
   let yaw,pitch,dist,height;
@@ -2397,6 +2414,14 @@ function updatePrompt(){
 
 // ---------- main loop
 let last=0,fpsAcc=0,fpsN=0;
+const FRU=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sph=new THREE.Sphere();
+function updFrustum(){camera.updateMatrixWorld();_pm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);FRU.setFromProjectionMatrix(_pm)}
+function inView(x,y,z,r){if(Math.abs(x-PL.x)+Math.abs(z-PL.z)<30)return true;_sph.center.set(x,y,z);_sph.radius=r;return FRU.intersectsSphere(_sph)}
+function cullPass(){
+  updFrustum();
+  for(const a of [TR.cars,PK.cars,W.cops,W.blocks])for(const v of a){if(v.mesh)v.mesh.visible=inView(v.x,v.y+1,v.z,9)}
+  for(const a of [CMB.officers,CMB.thugs])for(const o of a)if(o.g)o.g.visible=inView(o.x,1,o.z,4);
+}
 function frame(ms){
   requestAnimationFrame(frame);
   const t=ms/1000;let dt=Math.min(.05,t-last);last=t;if(dt<=0)return;
@@ -2411,7 +2436,7 @@ function frame(ms){
   updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);
   updateMission(dt);updateTokens(dt,t,PL);updatePeers(dt);
   if(t-(G.sigT||0)>.4){G.sigT=t;updateSignals(PL.x,PL.z,t)}
-  updateCamera(dt,t);updateSky();updateHead();updateHud(dt,t);updatePrompt();broadcastState(t);
+  updateCamera(dt,t);cullPass();updateSky();updateHead();updateHud(dt,t);updatePrompt();broadcastState(t);
   if(beacon&&beacon.visible)beacon2.scale.setScalar(1+Math.sin(t*4)*.1);
   if((G.mmF=(G.mmF||0)+1)%3===0)drawMinimap();if(!$('#bigmap').hidden&&G.mmF%2===0)drawBigMap();
   renderer.render(scene,camera);
