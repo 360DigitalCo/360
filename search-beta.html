@@ -1,3 +1,4 @@
+
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -27,7 +28,12 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><script>(function(w,i,g){w[g]=w[g]||[];if(typeof w[g].push=='function')w[g].push(i)})
+(window,'GTM-NZHQGS65','google_tags_first_party');</script><script>(function(w,d,s,l){w[l]=w[l]||[];(function(){w[l].push(arguments);})('set', 'developer_id.dYzg1YT', true);
+		w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+		j=d.createElement(s);j.async=true;j.src='/uw4z/';
+		f.parentNode.insertBefore(j,f);
+		})(window,document,'script','dataLayer');</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="no-referrer" />
@@ -655,26 +661,27 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
     body.dark .results-info { color: var(--mutd); }
 
-    /* ── Classic results view — opt-in alternative to the glass-card
-       layout, closer to a traditional SERP (plain list, blue links, green
-       URL line, tight spacing, no cards/blur/shadow). Pure CSS override
-       driven by body.classic-results — no render-logic changes needed,
-       since the underlying markup (.result-card/.result-title/etc.) is
-       already the same regardless of view mode. ── */
-    body.classic-results .result-card {
-      background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
-      border: none; box-shadow: none; border-radius: 0;
-      padding: 10px 4px; margin-bottom: 2px;
+    /* Classic web results use a plain SERP layout. Other tabs keep their own layouts. */
+    body.classic-results .web-result {
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 10px 4px;
+      margin-bottom: 2px;
     }
-    .result-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.12); }
-    body.classic-results .result-card:hover { transform: none; box-shadow: none; }
-    body.classic-results .result-title { color: #1a73e8; font-size: 18px; font-weight: 400; margin-top: 2px; }
-    body.dark.classic-results .result-title { color: #8ab4f8; }
-    body.classic-results .result-url { color: #202124; opacity: 0.65; }
-    body.dark.classic-results .result-url { color: var(--txtd); }
-    body.classic-results .result-site-name { display: none; } /* URL line already shown below */
-    body.classic-results .result-favicon { width: 14px; height: 14px; }
-    body.classic-results .result-snippet { color: var(--mut); font-size: 13.5px; }
+    body.classic-results .web-result:hover { transform: none; box-shadow: none; }
+    body.classic-results .web-result .result-title { color: #1a73e8; font-size: 18px; font-weight: 400; margin-top: 2px; }
+    body.dark.classic-results .web-result .result-title { color: #8ab4f8; }
+    body.classic-results .web-result .result-url { color: #202124; opacity: 0.65; }
+    body.dark.classic-results .web-result .result-url { color: var(--txtd); }
+    body.classic-results .web-result .result-site-row { display: none; }
+    body.classic-results .web-result .result-site-name { display: none; }
+    body.classic-results .web-result .result-favicon { width: 14px; height: 14px; }
+    body.classic-results .web-result .result-snippet { color: var(--mut); font-size: 13.5px; }
+    body.dark.classic-results .web-result .result-snippet { color: var(--mutd); }
     body.classic-results #custom-results-area { max-width: 650px; }
 
     /* ── Result cards — frosted glass panels ── */
@@ -706,6 +713,25 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     body.dark .result-card:hover {
       border-color: var(--a);
       box-shadow: var(--glass-shadow), var(--glass-inset-dk);
+    }
+
+    body.classic-results .web-result,
+    body.dark.classic-results .web-result {
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 10px 4px;
+      margin-bottom: 2px;
+      animation: none;
+    }
+    body.classic-results .web-result:hover,
+    body.dark.classic-results .web-result:hover {
+      transform: none;
+      border-color: transparent;
+      box-shadow: none;
     }
 
     @keyframes cardIn {
@@ -4230,7 +4256,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        MAPS TAB
        Uses OpenStreetMap's free, CORS-enabled Nominatim geocoder (no API
        key/backend needed) plus its embeddable map — no dedicated maps
-       backend exists in this project. Links out to the full 360 Maps app.
+       backend exists in this project. Links out to the full 360 Maps app. (broken)
     ───────────────────────────────── */
     async function renderMapsResults(q) {
       showLoading();
@@ -4292,7 +4318,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         const delay = i * 0.03;
 
         html += `
-          <div class="result-card" style="animation-delay:${delay}s">
+          <div class="result-card web-result" style="animation-delay:${delay}s">
             <div class="result-card-inner">
               <div class="result-card-text">
                 <div class="result-site-row">
@@ -4568,7 +4594,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         }
       }
 
-      // Can't click directly — use prev/next arrow
+      // Can't click directly — use prev/next arrow (broken)
       const currentBtn = gcseContainer.querySelector('.gsc-cursor-current-page');
       const currentNum = currentBtn ? parseInt(currentBtn.textContent.trim()) : state.page;
       const goForward  = targetPage > currentNum;
@@ -4634,7 +4660,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        query re-renders from memory instantly instead of re-fetching.
        Keyed by tab+query+page; wiped on any new query. Nothing here ever
        touches localStorage/sessionStorage, so it's automatically gone the
-       moment the user leaves the page too.
+       moment the user leaves the page too. Yes, I know I'm a genius :)
     ───────────────────────────────── */
     function cacheKey(tab, query, page) { return `${tab}::${query}::${page || 1}`; }
 
@@ -4720,11 +4746,11 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         const { data: claimId, error } = await sb360.rpc('start_search_reward', { p_query: q });
         if (error || !claimId) return;
         _srClaimId = claimId;
-        // No auto-timer — reward only fires on actual result click
+        // No auto-timer; reward only fires on actual result click
       } catch (_) {}
     }
 
-    // Award on result click — only real outbound link clicks count
+    // Award on result click — only real outbound link clicks count (new: add a toggle to turn this off and open directly on site)
     if (resultsArea) {
       resultsArea.addEventListener('click', e => {
         const link = e.target.closest('a[href]');
@@ -4738,7 +4764,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        BOOT
     ───────────────────────────────── */
 
-    // Seed all persisted preferences from the user's account on load
+    // Seed all persisted preferences from the user's account on load (seprate from full account preferences that are saved from ACTUAL settings)
     Settings360.init(sb360).then(() => {
       // Note: recentSearches are no longer synced to/from the server —
       // only SHA-256 hashes are kept locally, and plaintext is in-memory only.
@@ -4748,6 +4774,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
   })();
   </script>
-<script src="/assets/js/mobile-nav.js" defer></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a41ae5871c5f72a7',t:'MTc5MDUxNjE3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"ff0a2d9a55154fa7bec0287a68d6f56f","r":1,"spa":2}' crossorigin="anonymous"></script>
+<script src="/assets/js/mobile-nav.js" defer></script> <!-- too lazy to write this comment on every file but please know that this script MUST be on every html page -->
 </body>
 </html>
