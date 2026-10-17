@@ -249,13 +249,17 @@ function districtAt(x,z){
 
 // ---------- district height model
 function heightFor(u,x,r){
-  let h;
-  if(u<420)h=30+r()*70+(r()<.12?110+r()*120:0);
-  else if(u<1650)h=14+r()*26+(r()<.05?30:0);
-  else if(u<2300)h=22+r()*40+(r()<.06?60:0);
-  else if(u<3400){const core=1-Math.min(1,Math.abs(x+120)/700);h=40+r()*(60+140*core)+(r()<.1*core?90:0)}
-  else if(u<5450)h=(Math.abs(x+215)>250?34:26)+r()*38;
-  else h=15+r()*24;
+  let h;const hy=x<-600&&u>2150&&u<2750; // Hudson Yards
+  if(u<420)h=r()<.28?150+r()*120:55+r()*70;                                   // Financial District
+  else if(u<900)h=r()<.1?90+r()*60:22+r()*38;                                 // Tribeca / Civic Center
+  else if(u<1650)h=12+r()*16+(r()<.04?20:0);                                  // Village / SoHo / LES walk-ups
+  else if(u<2300)h=r()<.12?60+r()*50:20+r()*30;                               // Chelsea / Flatiron
+  else if(hy)h=r()<.5?160+r()*170:60+r()*60;
+  else if(u<3400){const core=1-Math.min(1,Math.abs(x+120)/650);h=36+r()*(50+120*core)+(r()<.16*core?110+r()*120:0)}  // Midtown
+  else if(u<3760&&x>-330&&x<20&&r()<.45)h=140+r()*230;                         // Billionaires' Row / Central Park South
+  else if(u<5450){const av=Math.abs(x+215)>245;h=av?(r()<.25?60+r()*35:30+r()*30):(18+r()*22)} // UWS/UES: tall avenue buildings, 5-8 story side streets
+  else if(u<7000)h=11+r()*17;                                                  // Harlem brownstones
+  else h=r()<.18?45+r()*25:18+r()*26;                                          // Washington Heights
   return h;
 }
 const PAL_MID=[0x8d5a45,0x9a6a50,0xb08a6b,0xa7a39a,0x8f939b,0x6f757e,0xc9b79c,0x7b6757];
@@ -422,7 +426,25 @@ const LM=[
  {id:'nat',n:'NATURAL HISTORY MUSEUM',x:-470,u:4400,r:36},
  {id:'gug',n:'GUGGENHEIM',x:36,u:5060,r:22},
  {id:'lib',n:'STATUE OF LIBERTY',x:-330,u:-1050,r:70},
- {id:'gov',n:'GOVERNORS ISLAND',x:60,u:-560,r:80}
+ {id:'gov',n:'GOVERNORS ISLAND',x:60,u:-560,r:80} ,
+ {id:'msg',n:'MADISON SQUARE GARDEN',x:-355,u:streetU(32.5),r:42,spec:{kind:'round',w:60,d:60,h:38,c:0xb8a58f}},
+ {id:'hy',n:'HUDSON YARDS',x:-700,u:streetU(33),r:34,spec:{kind:'tower',w:34,d:30,h:387,c:0x9fb8c8,spire:30}},
+ {id:'bofa',n:'BANK OF AMERICA TOWER',x:-150,u:streetU(42),r:22,spec:{kind:'tower',w:28,d:28,h:366,c:0xaeb9c1,spire:55}},
+ {id:'onev',n:'ONE VANDERBILT',x:100,u:streetU(42.5),r:22,spec:{kind:'tower',w:26,d:26,h:427,c:0xb5beca,spire:40}},
+ {id:'nypl',n:'NEW YORK PUBLIC LIBRARY',x:-20,u:streetU(41.5),r:26,spec:{kind:'classic',w:34,d:70,h:24,c:0xe6e0d2}},
+ {id:'stp',n:"ST. PATRICK'S CATHEDRAL",x:-26,u:streetU(51.5),r:28,spec:{kind:'church',w:32,d:56,h:34,c:0xd8d2c4,spire:100}},
+ {id:'p432',n:'432 PARK AVENUE',x:125,u:streetU(56),r:16,spec:{kind:'slim',w:14,d:14,h:426,c:0xcfd2d4}},
+ {id:'cpt',n:'CENTRAL PARK TOWER',x:-330,u:streetU(57),r:18,spec:{kind:'slim',w:18,d:18,h:472,c:0x9fb1bd}},
+ {id:'st57',n:'111 WEST 57TH',x:-205,u:streetU(57.5),r:14,spec:{kind:'slim',w:10,d:10,h:435,c:0xb7a58e}},
+ {id:'plaza',n:'THE PLAZA',x:-10,u:streetU(59),r:22,spec:{kind:'crown',w:36,d:40,h:76,c:0xe9e2d0}},
+ {id:'cit',n:'CITIGROUP CENTER',x:190,u:streetU(53.5),r:20,spec:{kind:'slant',w:28,d:28,h:279,c:0xd4d7da}},
+ {id:'twc',n:'TIME WARNER CENTER',x:-405,u:streetU(60),r:30,spec:{kind:'twin',w:24,d:34,h:229,c:0x9aa7b3}},
+ {id:'wool',n:'WOOLWORTH BUILDING',x:-215,u:430,r:20,spec:{kind:'crown',w:30,d:30,h:241,c:0xdcd6c6}},
+ {id:'nyse',n:'NEW YORK STOCK EXCHANGE',x:60,u:150,r:20,spec:{kind:'classic',w:36,d:30,h:26,c:0xe0ddd4}},
+ {id:'lc',n:'LINCOLN CENTER',x:-385,u:streetU(64.5),r:40,spec:{kind:'classic',w:70,d:44,h:26,c:0xd9d6cc}},
+ {id:'col2',n:'COLUMBIA UNIVERSITY',x:-475,u:streetU(116),r:36,spec:{kind:'dome',w:46,d:46,h:34,c:0xc9b8a0}},
+ {id:'apo',n:'APOLLO THEATER',x:-340,u:streetU(125),r:16,spec:{kind:'classic',w:26,d:34,h:18,c:0xb98a6a}},
+ {id:'cath',n:'CATHEDRAL OF ST. JOHN THE DIVINE',x:-440,u:streetU(111),r:24,spec:{kind:'church',w:34,d:60,h:36,c:0xcbbfa8,spire:60}}
 ];
 function landmarkAt(x,z,rad){
   const u=-z;
@@ -514,6 +536,21 @@ function buildLandmarks(scene,city){
       box(x+2.2,36,z,.8,8,.8,0x62b7a2);box(x+2.2,44.2,z,1.6,1.6,1.6,0xf2d640);
       addCol(x-8,x+8,z-8,z+8,30);
     }
+  }
+  for(const l of LM){if(!l.spec)continue;const q=l.spec,x=l.x,z=-l.u,k=q.kind;
+    const T=(w,d,h,y,c)=>{box(x,y,z,w,h,d,c)};
+    if(k==='tower'||k==='slim'||k==='slant'||k==='twin'||k==='crown'){
+      const th=q.h;
+      if(k==='slim'){T(q.w,q.d,th*.97,0,q.c);T(q.w*.7,q.d*.7,th*.03,th*.97,0xdddddd)}
+      else if(k==='twin'){for(const s of [-1,1]){box(x+s*q.w*.6,0,z,q.w,th,q.d,q.c)}box(x,0,z,q.w*1.2,60,q.d,0x8f9aa5)}
+      else if(k==='slant'){T(q.w,q.d,th*.86,0,q.c);P.push({g:new THREE.CylinderGeometry(.1,q.w*.72,th*.14,4),m:MX(x,th*.86+th*.07,z,0,Math.PI/4,0),c:q.c})}
+      else if(k==='crown'){T(q.w,q.d,th*.7,0,q.c);T(q.w*.8,q.d*.8,th*.2,th*.7,q.c);P.push({g:new THREE.ConeGeometry(q.w*.55,th*.1,4),m:MX(x,th*.9+th*.05,z,0,Math.PI/4,0),c:0x62b7a2})}
+      else{T(q.w,q.d,th*.62,0,q.c);T(q.w*.82,q.d*.82,th*.26,th*.62,q.c);T(q.w*.6,q.d*.6,th*.12,th*.88,q.c);if(q.spire)box(x,th,z,1.2,q.spire,1.2,0xdddddd)}
+      addCol(x-q.w/2,x+q.w/2,z-q.d/2,z+q.d/2,Math.min(th,200));
+    }else if(k==='round'){P.push({g:new THREE.CylinderGeometry(q.w/2,q.w/2*1.05,q.h,28),m:MX(x,q.h/2,z),c:q.c});P.push({g:new THREE.CylinderGeometry(q.w/2*.92,q.w/2*.92,2,28),m:MX(x,q.h+1,z),c:0x6f7075});addCol(x-q.w/2,x+q.w/2,z-q.d/2,z+q.d/2,q.h)}
+    else if(k==='classic'){T(q.w,q.d,q.h,0,q.c);for(let i=-3;i<=3;i++)box(x+i*q.w/7,0,z+q.d/2+.8,1.2,q.h*.7,1.2,0xf0ece2);box(x,q.h*.7,z+q.d/2+.8,q.w,2,2,0xf0ece2);addCol(x-q.w/2,x+q.w/2,z-q.d/2,z+q.d/2,q.h)}
+    else if(k==='church'){T(q.w,q.d,q.h,0,q.c);for(const s of [-1,1]){box(x+s*q.w*.3,0,z+q.d/2-4,6,q.h*1.5,6,q.c);P.push({g:new THREE.ConeGeometry(4.5,q.spire-q.h*1.5,6),m:MX(x+s*q.w*.3,q.h*1.5+(q.spire-q.h*1.5)/2,z+q.d/2-4),c:0x9aa3aa})}addCol(x-q.w/2,x+q.w/2,z-q.d/2,z+q.d/2,q.h)}
+    else if(k==='dome'){T(q.w,q.d,q.h*.7,0,q.c);P.push({g:new THREE.SphereGeometry(q.w*.3,14,8,0,Math.PI*2,0,Math.PI/2),m:MX(x,q.h*.7,z),c:0x6aa59a});addCol(x-q.w/2,x+q.w/2,z-q.d/2,z+q.d/2,q.h)}
   }
   city.lmMesh=new THREE.Mesh(mergeParts(P),lam());scene.add(city.lmMesh);
 }
@@ -2690,6 +2727,34 @@ drawExtraBlips=function(g,mx,mz){_deb2(g,mx,mz);const dot=(x,z,col,r)=>{const [a
   if(DEV.police)for(const f of FUG)dot(f.x,f.z,'#ff3b3b',4)};
 const _hp0=hurtPlayer;hurtPlayer=function(d,pure){if(DEV.god)return;return _hp0(d,pure)};
 function c10dFrame(dt,t){heatDecay(dt);driftUpdate(dt,t);updateDirs(dt);policeUpdate(dt,t)}
+// ---------- c10e: NYC realism pass
+function initNYC(){
+  // traffic mix: yellow cabs dominate, plus buses and delivery vans
+  AI_TYPES.length=0;AI_TYPES.push('taxi','taxi','taxi','taxi','taxi','taxi','sedan','sedan','hatch','van','van','truck','bus','bus','sport');
+  // NYPD livery
+  if(VT.cop){VT.cop.col=0xf2f4f6;VT.cop.roof=0xf2f4f6;VT.cop.stripe=0x1b4fa8}
+  const r=rng32(777),G_=GRIDS.up,signs=[],holes=[];
+  for(const zz of G_.zs)for(const xx of G_.xs){const x=xx.p,z=-zz.p;if(landKind(x,z)!==1)continue;
+    if(r()<.18)signs.push([x+xx.hw+.8,z+zz.hw+.8,xx.name,zz.name]);
+    if(r()<.22)holes.push([x+(r()-.5)*xx.hw,z+(r()-.5)*zz.hw*.6,x])}
+  signs.sort(()=>r()-.5);signs.length=Math.min(signs.length,90);
+  // green street-name blades on poles
+  const mk=t=>{const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');g.fillStyle='#0d6b3c';g.fillRect(0,0,256,64);g.strokeStyle='#fff';g.lineWidth=3;g.strokeRect(3,3,250,58);g.fillStyle='#fff';g.font='bold 26px Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';let s=26,txt=String(t||'').toUpperCase();while(g.measureText(txt).width>236&&s>12){s-=2;g.font='bold '+s+'px Arial,sans-serif'}g.fillText(txt,128,34);const tx=new THREE.CanvasTexture(c);return new THREE.MeshBasicMaterial({map:tx})};
+  const pole=[];for(const s of signs)pole.push({g:BX(.1,3.4,.1),m:MX(s[0],1.7,s[1]),c:0x3a3f46});
+  if(pole.length)scene.add(new THREE.Mesh(mergeParts(pole),lam({})));
+  for(const s of signs){const a=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.42),mk(s[2])),b=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.42),mk(s[3]));
+    a.position.set(s[0],3.55,s[1]);b.position.set(s[0],3.1,s[1]);b.rotation.y=Math.PI/2;for(const m of [a,b]){const d=m.clone();d.rotation.y=m.rotation.y+Math.PI;d.material=m.material;d.position.copy(m.position);scene.add(m,d)}}
+  // manhole covers
+  placeChunked(holes.map(h=>[h[0],h[1],h[2]]),a=>mergedAt(a,it=>[{g:new THREE.CylinderGeometry(.5,.5,.03,12),m:MX(it[0],.06,it[1]),c:0x2a2c30}]));
+  // ambient city audio: far horns and sirens
+  G.nycT=6;
+}
+function nycAmbient(dt){
+  if(!G.started||INT.on)return;G.nycT-=dt;if(G.nycT>0)return;G.nycT=5+Math.random()*9;
+  const k=Math.random();
+  if(k<.6){const n=1+(Math.random()*3|0),f=300+Math.random()*120;for(let i=0;i<n;i++)setTimeout(()=>beep(f,.18+Math.random()*.2,'square',.012),i*260)}
+  else if(k<.85){for(let i=0;i<6;i++)setTimeout(()=>beep(i%2?640:860,.28,'sawtooth',.01),i*300)}
+}
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -3212,7 +3277,7 @@ function frame(ms){
   sndFrame(t,dt);updateCine(dt);updatePlayer(dt,t);updateWanted(dt,t);updateShops(dt,t);updateCombat(dt,t);
   const others=PL.mode==='car'?[PL.veh]:[];
   updateTraffic(dt,PL,others);updateParked(PL,PL.veh);
-  updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);updateDoors(dt,t);roomUpdate(dt,t);subwayUpdate(dt,t);lodPeds(dt,t);gunPickups(dt,t);updateHints(dt);idleLines(dt);c10dFrame(dt,t);updateCityDetail(dt,t);if(INT.on&&W.heli){scene.remove(W.heli.g);W.heli=null}
+  updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);updateDoors(dt,t);roomUpdate(dt,t);subwayUpdate(dt,t);lodPeds(dt,t);gunPickups(dt,t);updateHints(dt);idleLines(dt);c10dFrame(dt,t);nycAmbient(dt);updateCityDetail(dt,t);if(INT.on&&W.heli){scene.remove(W.heli.g);W.heli=null}
   updateMission(dt);updateTokens(dt,t,PL);updatePeers(dt);
   if(t-(G.sigT||0)>.4){G.sigT=t;updateSignals(PL.x,PL.z,t)}
   updateCamera(dt,t);cullPass();updateSky();updateHead();updateHud(dt,t);updatePrompt();broadcastState(t);
@@ -3235,7 +3300,7 @@ function boot(){
       try{
         makeTextures();const ctx=buildCity(scene,()=>{});CITY=finishCity(scene,ctx);initSignals(scene);initClouds(scene);
         initPeds(scene);buildTokens();renderMapCanvas();
-        initCombat();initBlood(scene);initShops();initDoors();initInteriorLights();initSubway();initLodPeds();initCityDetail();initScaffolds();initEntrances();initDrift();if($('#assist')&&$('#assist').checked)SAVE.assist=1;genContracts();$('#rank').textContent='RANK '+rankOf();PL.person=makePerson(G.shirt,{jacket:G.shirt,hat:0x222428,pants:0x20232b});scene.add(PL.person);PL.person.visible=false;
+        initCombat();initBlood(scene);initShops();initDoors();initInteriorLights();initSubway();initLodPeds();initCityDetail();initScaffolds();initNYC();initEntrances();initDrift();if($('#assist')&&$('#assist').checked)SAVE.assist=1;genContracts();$('#rank').textContent='RANK '+rankOf();PL.person=makePerson(G.shirt,{jacket:G.shirt,hat:0x222428,pants:0x20232b});scene.add(PL.person);PL.person.visible=false;
         const v=newVehicleNear('sedan',0,-2404,Math.PI,true);v.mode='player';PL.veh=v;PL.mode='car';
         for(let i=0;i<22;i++){const c=spawnTraffic(0,-2404,true);if(c)TR.cars.push(c)}
         for(let i=0;i<30;i++){const c=spawnParked(0,-2404);if(c)PK.cars.push(c)}
