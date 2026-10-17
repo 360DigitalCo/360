@@ -1395,15 +1395,32 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     .results-layout {
       max-width: 1440px;
       justify-content: flex-start;
+      gap: 32px;
       background: transparent;
     }
 
     body #custom-results-area {
+      order: 1;
       max-width: 860px !important;
       flex: 0 1 860px;
       margin-left: 0;
       margin-right: auto;
       background: transparent;
+    }
+
+    #knowledge-panel.active {
+      order: 2;
+      align-self: flex-start;
+      flex: 0 0 320px;
+      width: 320px;
+      max-width: 320px;
+      margin: 0;
+    }
+
+    .results-layout:has(> #knowledge-panel.active) #custom-results-area {
+      max-width: 760px !important;
+      flex: 0 1 760px;
+      margin-right: 0;
     }
 
     body .web-result,
@@ -1511,27 +1528,50 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     body #custom-results-area .paa-box {
-      margin: 14px 4px 18px;
-      background: transparent !important;
-      border: 0 !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
+      margin: 16px 4px 20px;
+      background: var(--glass-light) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--glass-shadow-sm) !important;
+      backdrop-filter: var(--glass-blur-sm) !important;
+      -webkit-backdrop-filter: var(--glass-blur-sm) !important;
+      overflow: hidden;
+    }
+
+    body.dark #custom-results-area .paa-box {
+      background: var(--glass-dark) !important;
+      border-color: var(--glass-border-dk) !important;
     }
 
     body #custom-results-area .paa-heading {
-      padding: 0 0 8px;
+      padding: 12px 16px 8px;
     }
 
     body #custom-results-area .paa-item {
-      padding: 12px 0;
+      width: 100%;
+      padding: 12px 16px;
       background: transparent !important;
       border-top: 1px solid var(--glass-border);
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      transform: none !important;
+      transition: background-color .12s ease !important;
+    }
+
+    body #custom-results-area .paa-item:hover,
+    body #custom-results-area .paa-item:focus-visible {
+      background: rgba(0, 0, 0, .035) !important;
+      box-shadow: none !important;
+      transform: none !important;
     }
 
     body.dark #custom-results-area .paa-item {
       border-top-color: var(--glass-border-dk);
+    }
+
+    body.dark #custom-results-area .paa-item:hover,
+    body.dark #custom-results-area .paa-item:focus-visible {
+      background: rgba(255, 255, 255, .06) !important;
     }
 
     @media (max-width: 640px) {
@@ -1540,14 +1580,25 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         padding: 8px 12px 0;
       }
 
-      body #custom-results-area {
+      body #custom-results-area,
+      .results-layout:has(> #knowledge-panel.active) #custom-results-area {
         max-width: 100% !important;
         flex: 1 1 auto;
+        margin-right: 0;
         padding: 14px 8px 40px;
       }
 
       body .web-result {
         padding: 12px 4px 14px;
+      }
+
+      body .results-layout > #knowledge-panel.active {
+        order: 0;
+        position: static;
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 auto;
+        margin: 0 0 16px;
       }
     }
   </style>
