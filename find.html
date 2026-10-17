@@ -1,0 +1,518 @@
+<!-- this is pure nostalgia -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-89NN1P6CEV"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-89NN1P6CEV');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>360 — Search</title>
+  <link rel="icon" type="image/png" href="favicon-32x32.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="stylesheet" href="https://360-search.com/assets/css/main.css" />
+  <link rel="stylesheet" href="https://360-search.com/assets/css/responsive.css" />
+  <link rel="stylesheet" href="https://360-search.com/assets/css/cursor.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ── Search results page layout ── */
+    .search-results-page {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding-top: 48px; /* clear the sidebar toggle */
+    }
+
+    /* ── Top search bar strip ── */
+    .search-bar-strip {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--br);
+      padding: 10px 16px 10px 100px; /* left pad clears sidebar toggle + back btn */
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    body.dark .search-bar-strip {
+      background: rgba(5,8,22,0.92);
+    }
+
+    /* 360 logo mark in strip */
+    .strip-logo {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      background: linear-gradient(120deg, var(--a), var(--a2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+
+    /* Search form inside strip */
+    #strip-search-form {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      max-width: 620px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--br);
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #strip-search-form:focus-within {
+      border-color: var(--a);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+    body.dark #strip-search-form {
+      background: rgba(15,23,42,0.6);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    #strip-search-input {
+      flex: 1;
+      padding: 10px 18px;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      color: var(--txt);
+      font-family: inherit;
+      caret-color: var(--a);
+    }
+    body.dark #strip-search-input { color: var(--txtd); }
+    #strip-search-input::placeholder { color: var(--mut); }
+    body.dark #strip-search-input::placeholder { color: var(--mutd); }
+
+    #strip-search-btn {
+      flex-shrink: 0;
+      margin: 5px 6px 5px 0;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(120deg, var(--a), var(--a2));
+      color: #050816;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    #strip-search-btn:hover { opacity: 0.85; }
+
+    /* ── Results iframe ── */
+    #results-frame-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #results-iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      /* Height fills the rest of the viewport below the strip */
+      height: calc(100vh - 96px);
+    }
+
+    /* ── Loading overlay ── */
+    #frame-loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 60px 20px;
+      color: var(--mut);
+      font-size: 14px;
+    }
+    body.dark #frame-loader { color: var(--mutd); }
+    .loader-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--br);
+      border-top-color: var(--a);
+      border-radius: 50%;
+      animation: spin360 0.8s linear infinite;
+    }
+    @keyframes spin360 { to { transform: rotate(360deg); } }
+
+    /* ── No-query state ── */
+    #no-query {
+      display: none;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--mut);
+      font-size: 15px;
+    }
+    body.dark #no-query { color: var(--mutd); }
+    #no-query .big-emoji { font-size: 48px; }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 600px) {
+      .search-bar-strip {
+        padding: 8px 12px 8px 12px;
+        gap: 8px;
+      }
+      .strip-logo { display: none; }
+      #results-iframe { height: calc(100vh - 82px); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cursor-dot"></div>
+  <div class="cursor-trail"></div>
+  <div class="cursor-crosshair"></div>
+  <div class="cursor-blob"></div>
+
+  <button class="back-btn" onclick="window.location.href='./'">← Back</button>
+  <button class="sidebar-toggle" id="sidebarToggle">☰ Menu</button>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="logo-mark"></div><button id="settingsBtn">⚙</button></div>
+    <nav class="nav-list">
+      <div class="nav-item active" data-href="./">Home</div>
+      <div class="nav-item" data-href="ai">AI</div>
+      <div class="nav-item" data-href="weather">Weather</div>
+      <div class="nav-item" data-href="translator">Translator</div>
+      <div class="nav-item" data-href="stocks">Stocks</div>
+      <div class="nav-item" data-href="url-shortener">URL Shortener</div>
+      <div class="nav-item" data-href="chat">Chat</div>
+      <div class="nav-item" data-href="news">News</div>
+      <div class="nav-item" data-href="games">Games</div>
+    </nav>
+    <div class="sidebar-footer">© 2026 360 INC. · V2.0.1</div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <h3>Appearance</h3>
+    <div class="settings-label">Theme</div>
+    <div class="theme-swatches">
+      <div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+      <div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+      <div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+      <div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+      <div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+      <div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
+    </div>
+    <div class="settings-label" style="margin-top:20px;">Mode</div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+      <span style="font-size:14px;">Dark mode</span>
+      <input type="checkbox" id="darkToggle" />
+    </label>
+    <h3 style="margin-top:20px;">Cursor</h3>
+    <div class="settings-label">Style</div>
+    <div class="cursor-options">
+      <div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+      <div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+      <div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+      <div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+      <div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+      <div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
+    </div>
+    <div class="cursor-color-row">
+      <label>Cursor color</label>
+      <input type="color" id="cursorColorPicker" value="#3b82f6" />
+      <button id="cursorColorReset">Reset</button>
+    </div>
+  </div>
+
+  <div id="auth-popup" class="auth-popup hidden">
+    <div class="auth-box">
+      <h2>Account</h2>
+      <input id="auth-email" type="email" placeholder="Email" />
+      <input id="auth-password" type="password" placeholder="Password" />
+      <button id="auth-login-btn">Log In</button>
+      <button id="auth-signup-btn">Sign Up</button>
+      <button id="github-login" class="oauth-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>Sign in with GitHub</span>
+      </button>
+      <button id="google-login" class="oauth-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        <span>Sign in with Google</span>
+      </button>
+      <p id="auth-error" class="auth-error"></p>
+      <button id="auth-close-btn" class="close-btn">Close</button>
+    </div>
+  </div>
+
+  <div class="auth-top-right">
+    <button id="signInBtn" class="auth-btn">Sign In</button>
+    <button id="signUpBtn" class="auth-btn">Sign Up</button>
+    <button id="signOutBtn" class="auth-btn" style="display:none;">Sign Out</button>
+  </div>
+
+  <!-- ══ SEARCH RESULTS PAGE ══ -->
+  <div class="search-results-page">
+
+    <!-- Sticky top search strip -->
+    <div class="search-bar-strip">
+      <a class="strip-logo" href="./">360</a>
+      <form id="strip-search-form" role="search">
+        <input
+          id="strip-search-input"
+          type="text"
+          name="q"
+          placeholder="Search with 360..."
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <button id="strip-search-btn" type="submit">Search</button>
+      </form>
+    </div>
+
+    <!-- Results area -->
+    <div id="results-frame-wrap">
+      <!-- Loading state shown while iframe loads -->
+      <div id="frame-loader">
+        <div class="loader-spinner"></div>
+        <span>Searching...</span>
+      </div>
+
+      <!-- No query state -->
+      <div id="no-query">
+        <div class="big-emoji">🔍</div>
+        <div>Enter a search term above to get started.</div>
+      </div>
+
+      <!--
+        The iframe points to your SearXNG instance.
+        IMPORTANT: Update SEARXNG_BASE_URL below to match wherever
+        your SearXNG instance is hosted (same domain or subdomain).
+        e.g. "https://search.360-search.com" or "/searx"
+        The ?q= param is appended automatically from the URL.
+      -->
+      <iframe
+        id="results-iframe"
+        title="Search Results"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
+        style="display:none;"
+      ></iframe>
+    </div>
+
+  </div>
+
+  <audio id="clickSound" src="click-sound.mp3" preload="auto"></audio>
+  <script src="https://360-search.com/assets/js/main.js"></script>
+  <script src="https://360-search.com/assets/js/cookie.js"></script>
+  <script src="https://360-search.com/assets/js/cursor.js"></script>
+
+  <script>
+  /* ════════════════════════════════════════════════
+     360 SEARCH — SEARXNG RESULTS WRAPPER
+     ════════════════════════════════════════════════
+
+     HOW IT WORKS:
+     1. index.html submits search form → searxng.html?q=your+query
+     2. This page picks up ?q= and builds a SearXNG URL
+     3. Results render in the iframe below the 360 chrome
+
+     CONFIGURATION:
+     Set SEARXNG_BASE_URL to your SearXNG instance.
+     - Same domain:  "/searx"  or  "/search"
+     - Subdomain:    "https://search.360-search.com"
+     - External:     "https://your-searxng-host.com"
+
+     If SearXNG is on a different origin, browsers will block
+     the iframe due to X-Frame-Options. In that case either:
+       a) Configure SearXNG to allow framing (sxng__server__allowframing=true)
+       b) Use the FALLBACK option (see below)
+  ════════════════════════════════════════════════ */
+
+  const SEARXNG_BASE_URL = "https://360-search.com"; // ← So basically this points to this file to render the embedded results in an iFrame... I'm so tired bro.......
+
+  /* ── Grab query from URL ── */
+  const params   = new URLSearchParams(window.location.search);
+  const query    = params.get("q") || "";
+  const iframe   = document.getElementById("results-iframe");
+  const loader   = document.getElementById("frame-loader");
+  const noQuery  = document.getElementById("no-query");
+  const stripInp = document.getElementById("strip-search-input");
+
+  /* ── Populate strip search box ── */
+  if (stripInp) stripInp.value = query;
+
+  /* ── Update page title ── */
+  if (query) document.title = query + " — 360 Search";
+
+  /* ── Strip form submit ── */
+  document.getElementById("strip-search-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const q = stripInp.value.trim();
+    if (q) window.location.href = "find.html?q=" + encodeURIComponent(q);
+  });
+
+  /* ── Load results ── */
+  function loadResults(q) {
+    if (!q) {
+      loader.style.display  = "none";
+      noQuery.style.display = "flex";
+      iframe.style.display  = "none";
+      return;
+    }
+
+    /* Build the SearXNG search URL */
+    const searchURL = SEARXNG_BASE_URL + "/search?q=" + encodeURIComponent(q) + "&format=html";
+
+    loader.style.display  = "flex";
+    noQuery.style.display = "none";
+    iframe.style.display  = "none";
+
+    iframe.onload = () => {
+      loader.style.display = "none";
+      iframe.style.display = "block";
+    };
+
+    iframe.onerror = () => {
+      /* Fallback: open SearXNG directly in new tab if iframe blocked */
+      loader.style.display = "none";
+      iframe.style.display = "none";
+      showFallback(q, searchURL);
+    };
+
+    iframe.src = searchURL;
+
+    /* Safety: if onload never fires (X-Frame-Options block), show fallback after 4s */
+    setTimeout(() => {
+      if (loader.style.display !== "none") {
+        loader.style.display = "none";
+        iframe.style.display = "none";
+        showFallback(q, searchURL);
+      }
+    }, 4000);
+  }
+
+  /* ── Fallback renderer (if iframe is blocked by X-Frame-Options) ─────────
+     Shows 360-styled results by fetching from SearXNG's JSON API.
+     This requires SearXNG to have ?format=json enabled.
+  ── */
+  async function showFallback(q, searchURL) {
+    const wrap = document.getElementById("results-frame-wrap");
+
+    /* Try JSON API */
+    const jsonURL = SEARXNG_BASE_URL + "/search?q=" + encodeURIComponent(q) + "&format=json";
+    let results = null;
+    try {
+      const res  = await fetch(jsonURL);
+      const data = await res.json();
+      results    = data.results || [];
+    } catch(e) {
+      /* JSON API also blocked — just show a link */
+    }
+
+    if (results && results.length > 0) {
+      renderJSONResults(wrap, q, results, searchURL);
+    } else {
+      renderOpenLink(wrap, q, searchURL);
+    }
+  }
+
+  function renderJSONResults(wrap, q, results, searchURL) {
+    const isDark = document.body.classList.contains("dark");
+    let html = `
+      <div style="max-width:720px;margin:0 auto;padding:24px 20px 60px;">
+        <div style="font-size:13px;color:var(--mut);margin-bottom:20px;">
+          About ${results.length} results for <strong style="color:var(--txt)">${escHTML(q)}</strong>
+          &nbsp;·&nbsp;
+          <a href="${searchURL}" target="_blank" style="color:var(--a);text-decoration:none;">
+            Open in SearXNG ↗
+          </a>
+        </div>`;
+
+    results.forEach(r => {
+      const title   = escHTML(r.title || "");
+      const url     = escHTML(r.url || "#");
+      const content = escHTML((r.content || "").slice(0, 240));
+      let domain = "";
+      try { domain = new URL(r.url).hostname.replace("www.",""); } catch {}
+      const favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+
+      html += `
+        <div style="
+          padding:16px;
+          margin-bottom:14px;
+          border-radius:14px;
+          background:rgba(255,255,255,0.6);
+          border:1px solid var(--br);
+          backdrop-filter:blur(10px);
+          transition:.18s;
+        " onmouseover="this.style.borderColor='var(--a)';this.style.transform='translateY(-1px)'"
+           onmouseout="this.style.borderColor='var(--br)';this.style.transform=''">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+            <img src="${favicon}" width="14" height="14" style="border-radius:2px;flex-shrink:0;"
+                 onerror="this.style.display='none'" />
+            <span style="font-size:12px;color:var(--mut);">${domain}</span>
+          </div>
+          <a href="${url}" target="_blank" style="
+            display:block;
+            font-size:18px;
+            font-weight:600;
+            color:var(--a);
+            text-decoration:none;
+            margin-bottom:5px;
+            line-height:1.35;
+          ">${title}</a>
+          ${content ? `<div style="font-size:13px;color:var(--mut);line-height:1.6;">${content}</div>` : ""}
+        </div>`;
+    });
+
+    html += `</div>`;
+    wrap.innerHTML = html;
+  }
+
+  function renderOpenLink(wrap, q, searchURL) {
+    wrap.innerHTML = `
+      <div style="
+        display:flex;flex-direction:column;align-items:center;
+        justify-content:center;gap:16px;padding:60px 20px;text-align:center;
+        color:var(--mut);font-size:14px;
+      ">
+        <div style="font-size:40px;">🔍</div>
+        <div>Results can't be shown inline. Open SearXNG directly:</div>
+        <a href="${searchURL}" target="_blank" style="
+          padding:10px 24px;border-radius:999px;border:none;
+          background:linear-gradient(120deg,var(--a),var(--a2));
+          color:#050816;font-weight:700;font-size:14px;text-decoration:none;
+        ">View results in SearXNG ↗</a>
+        <div style="font-size:12px;opacity:.6;">
+          (To embed results inline, enable <code>allow_url2_exception</code> or set
+          <code>sxng__server__allowframing=true</code> in your SearXNG config.)
+        </div>
+      </div>`;
+  }
+
+  function escHTML(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  /* ── Init ── */
+  loadResults(query);
+  </script>
+</body>
+</html>
