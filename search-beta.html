@@ -1,4 +1,3 @@
-
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -1349,6 +1348,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     .results-tabs {
+      position: relative;
       border-bottom: 1px solid var(--glass-border);
       gap: 24px;
       padding: 8px 20px 0;
@@ -1383,13 +1383,31 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     body .results-tabs .results-tab.active {
       color: var(--txt);
       background: transparent !important;
-      border-bottom-color: var(--txt) !important;
+      border-bottom-color: transparent !important;
       box-shadow: none !important;
     }
 
     body.dark .results-tabs .results-tab.active {
       color: var(--txtd);
-      border-bottom-color: var(--txtd) !important;
+      border-bottom-color: transparent !important;
+    }
+
+    .results-tab-indicator {
+      position: absolute;
+      left: 0;
+      bottom: -1px;
+      height: 2px;
+      width: 0;
+      border-radius: 2px 2px 0 0;
+      background: var(--a);
+      pointer-events: none;
+      transform: translateX(0);
+      transition: width .24s ease, transform .24s cubic-bezier(.22,.68,0,1);
+      z-index: 2;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .results-tab-indicator { transition: none; }
     }
 
     .results-layout {
@@ -1418,9 +1436,50 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     .results-layout:has(> #knowledge-panel.active) #custom-results-area {
-      max-width: 760px !important;
-      flex: 0 1 760px;
+      max-width: 860px !important;
+      flex: 0 1 860px;
+      margin-right: auto;
+    }
+
+    body.classic-results .results-layout > #knowledge-panel.active {
+      order: 2;
+    }
+
+    body.classic-results .results-layout > #custom-results-area {
+      order: 1;
+      margin-right: auto;
+    }
+
+    body:not(.classic-results) .results-layout > #knowledge-panel.active {
+      order: 0;
+    }
+
+    body:not(.classic-results) .results-layout > #custom-results-area {
+      order: 1;
       margin-right: 0;
+    }
+
+    body.ai-results-view .results-layout > #knowledge-panel.active {
+      order: 0;
+      position: static;
+      margin: 0;
+    }
+
+    body.ai-results-view .results-layout {
+      padding-bottom: 12px;
+    }
+
+    .search-results-page > #ai-panel.active {
+      order: 5;
+      width: 100%;
+      max-width: 920px;
+      margin: 22px auto 0;
+      padding: 0 20px 60px;
+    }
+
+    .search-results-page > #ai-panel.active .ai-response-card {
+      width: 100%;
+      box-sizing: border-box;
     }
 
     body .web-result,
@@ -1592,13 +1651,21 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         padding: 12px 4px 14px;
       }
 
-      body .results-layout > #knowledge-panel.active {
+      body .results-layout > #knowledge-panel.active,
+      body.classic-results .results-layout > #knowledge-panel.active,
+      body.ai-results-view .results-layout > #knowledge-panel.active {
         order: 0;
         position: static;
         width: 100%;
         max-width: 100%;
         flex: 0 0 auto;
         margin: 0 0 16px;
+      }
+
+      .search-results-page > #ai-panel.active {
+        max-width: 100%;
+        margin-top: 16px;
+        padding: 0 12px 40px;
       }
     }
   </style>
@@ -1948,6 +2015,10 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     const resultsArea = document.getElementById('custom-results-area');
     const aiPanel     = document.getElementById('ai-panel');
     const tabsEl      = document.getElementById('results-tabs');
+    const tabIndicator = document.createElement('span');
+    tabIndicator.className = 'results-tab-indicator';
+    tabIndicator.setAttribute('aria-hidden', 'true');
+    tabsEl.appendChild(tabIndicator);
     const knowledgePanel = document.getElementById('knowledge-panel');
     let kpToken = 0; // increments per knowledge-panel request; guards against a slow, stale response overwriting a newer one
 
@@ -2000,6 +2071,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     function showResultsArea(show) {
       resultsArea.style.display = show ? '' : 'none';
       aiPanel.classList.toggle('active', !show);
+      document.body.classList.toggle('ai-results-view', !show);
     }
 
     /* ─────────────────────────────────
@@ -3441,11 +3513,23 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       if (!relevant) bar.classList.remove('open');
     }
 
+    function updateTabIndicator() {
+      const active = tabsEl.querySelector('.results-tab.active');
+      if (!active || !tabIndicator) return;
+      tabIndicator.style.width = `${active.offsetWidth}px`;
+      tabIndicator.style.transform = `translateX(${active.offsetLeft}px)`;
+    }
+
     function setActiveTab(t) {
       tabsEl.querySelectorAll('.results-tab').forEach(el => {
         el.classList.toggle('active', el.getAttribute('data-tab') === t);
       });
+      requestAnimationFrame(updateTabIndicator);
     }
+
+    window.addEventListener('resize', updateTabIndicator);
+    tabsEl.addEventListener('scroll', updateTabIndicator, { passive: true });
+    requestAnimationFrame(updateTabIndicator);
 
     /* ─────────────────────────────────
        LIGHTBOX
