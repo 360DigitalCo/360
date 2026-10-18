@@ -2569,6 +2569,78 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       align-self: center !important;
     }
   </style>
+
+  <style id="beta-no-kp-centering-and-related-search-fallback-v13">
+    /* Center the main results column in the viewport when no panel is actually rendered. */
+    .search-results-page > .results-layout.no-kp-layout {
+      display: grid !important;
+      position: relative !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      margin-left: calc(50% - 50vw) !important;
+      margin-right: calc(50% - 50vw) !important;
+      padding-left: max(12px, calc((100vw - 860px) / 2)) !important;
+      padding-right: max(12px, calc((100vw - 860px) / 2)) !important;
+      grid-template-columns: minmax(0, 860px) !important;
+      justify-content: center !important;
+      align-items: start !important;
+      gap: 0 !important;
+      box-sizing: border-box !important;
+    }
+    .search-results-page > .results-layout.no-kp-layout > #custom-results-area {
+      display: block !important;
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      justify-self: center !important;
+      width: 100% !important;
+      max-width: 860px !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      flex: none !important;
+      box-sizing: border-box !important;
+    }
+    body.ai-results-view .search-results-page > .results-layout.no-kp-layout {
+      grid-template-columns: minmax(0, 680px) !important;
+    }
+    body.ai-results-view .search-results-page > .results-layout.no-kp-layout > #custom-results-area {
+      display: none !important;
+    }
+    body.ai-results-view .search-results-page > .results-layout.no-kp-layout > #ai-panel.active {
+      display: flex !important;
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      justify-self: center !important;
+      align-self: start !important;
+      width: 100% !important;
+      max-width: 680px !important;
+      min-width: 0 !important;
+      margin: 0 auto !important;
+      padding: 0 0 40px !important;
+      box-sizing: border-box !important;
+    }
+    .related-empty {
+      padding: 10px 0 4px;
+      color: var(--mut);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    body.dark .related-empty { color: var(--mutd); }
+    @media (max-width: 900px) {
+      .search-results-page > .results-layout.no-kp-layout {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      body.ai-results-view .search-results-page > .results-layout.no-kp-layout {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <div class="cursor-dot"></div>
@@ -2925,6 +2997,16 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     tabsEl.appendChild(tabIndicator);
     const knowledgePanel = document.getElementById('knowledge-panel');
     const resultsLayout = document.querySelector('.results-layout');
+    function syncKnowledgePanelLayout() {
+      if (!resultsLayout || !knowledgePanel) return;
+      const hasPanelContent = knowledgePanel.classList.contains('active') && knowledgePanel.childElementCount > 0;
+      resultsLayout.classList.toggle('no-kp-layout', !hasPanelContent);
+    }
+    if (resultsLayout && knowledgePanel && typeof MutationObserver !== 'undefined') {
+      const kpLayoutObserver = new MutationObserver(syncKnowledgePanelLayout);
+      kpLayoutObserver.observe(knowledgePanel, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+    }
+    syncKnowledgePanelLayout();
     if (resultsLayout && aiPanel && aiPanel.parentElement !== resultsLayout) {
       resultsLayout.appendChild(aiPanel);
     }
@@ -6231,7 +6313,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       resultsArea.querySelectorAll('.page-btn[data-page]').forEach(btn => {
         btn.addEventListener('click', () => goToPage(parseInt(btn.getAttribute('data-page'))));
       });
-      try { if (state.query) loadRelatedSearches(state.query); } catch (e) { console.error('loadRelatedSearches failed:', e); }
+      try { if (state.query) loadRelatedSearches(state.query, visible); } catch (e) { console.error('loadRelatedSearches failed:', e); }
     }
     // elapsedSuffix() is used inside render*Results — guarded here too since
     // it's a small cosmetic addition and shouldn't ever be able to blank
@@ -6451,31 +6533,127 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     /* ─────────────────────────────────
-       RELATED SEARCHES — reuses the same autocomplete edge function that
-       backs the live suggestions dropdown, called with the full query.
+       RELATED SEARCHES — show result-derived suggestions immediately, then
+       merge in autocomplete and related-query suggestions when available.
     ───────────────────────────────── */
-    function loadRelatedSearches(q) {
-      fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/autocomplete?q=${encodeURIComponent(q)}`, {
-        headers: SUPABASE_FN_HEADERS,
-      })
-        .then(r => r.json())
-        .then(data => {
-          const box = document.getElementById('related-searches-box');
-          if (!box) return; // user navigated away before this resolved
-          const items = (data?.suggestions || [])
-            .map(s => s.text || s)
-            .filter(s => s.toLowerCase() !== q.toLowerCase())
-            .slice(0, 8);
-          if (!items.length) { box.remove(); return; }
-          box.innerHTML = `<div class="related-heading">Related searches</div>
-            <div class="related-chips">
-              ${items.map(s => `<button class="related-chip" data-q="${escHtml(s)}">${escHtml(s)}</button>`).join('')}
-            </div>`;
-          box.querySelectorAll('.related-chip').forEach(btn => {
-            btn.addEventListener('click', () => doSearch(btn.dataset.q));
+    function relatedValue(item) {
+      if (typeof item === 'string') return item;
+      if (!item || typeof item !== 'object') return '';
+      return item.text || item.query || item.suggestion || item.title || item.value || item.term || item.name || '';
+    }
+
+    function relatedValuesFrom(data) {
+      const roots = [
+        data?.suggestions, data?.queries, data?.relatedSearches, data?.related_searches,
+        data?.relatedQueries, data?.related_queries, data?.related, data?.searches,
+        data?.data?.suggestions, data?.data?.queries, data?.data?.relatedSearches,
+        data?.data?.related_searches, data?.data?.relatedQueries, data?.data?.related_queries,
+        data?.data?.items, data?.results?.relatedSearches, data?.results?.related_searches
+      ];
+      for (const root of roots) {
+        if (Array.isArray(root) && root.length) return root.map(relatedValue).filter(Boolean);
+        if (Array.isArray(root?.items) && root.items.length) return root.items.map(relatedValue).filter(Boolean);
+      }
+      const resultItems = edgeSearchItems(data);
+      return resultItems.map(item => item?.query || item?.title || item?.name || '').filter(Boolean);
+    }
+
+    function normalizeRelatedCandidate(value, q) {
+      let text = cleanPreviewText(value)
+        .replace(/\s+[|·•]\s+[^|·•]{2,50}$/u, '')
+        .replace(/\s+-\s+(?:official website|official site|home page|homepage)$/i, '')
+        .trim();
+      if (text.length > 82) {
+        const cut = text.slice(0, 79).lastIndexOf(' ');
+        text = text.slice(0, cut > 38 ? cut : 79).trimEnd() + '…';
+      }
+      if (text.length < 4 || text.toLowerCase() === q.toLowerCase()) return '';
+      if (/^(home|sign in|log in|search results|page not found|access denied)$/i.test(text)) return '';
+      return text;
+    }
+
+    function buildRelatedSearchCandidates(q, rawItems) {
+      const seen = new Set();
+      const items = [];
+      (Array.isArray(rawItems) ? rawItems : []).forEach(raw => {
+        const item = normalizeRelatedCandidate(relatedValue(raw), q);
+        const key = item.toLowerCase().replace(/[?!.]+$/, '').trim();
+        if (!item || !key || seen.has(key)) return;
+        seen.add(key);
+        items.push(item);
+      });
+      return items.slice(0, 8);
+    }
+
+    function relatedFromResultTitles(q, sourceResults) {
+      const titles = (Array.isArray(sourceResults) ? sourceResults : [])
+        .map(item => item?.title || item?.name || item?.query || '')
+        .filter(Boolean);
+      return buildRelatedSearchCandidates(q, titles);
+    }
+
+    function renderRelatedSearches(box, q, items, loading = false) {
+      if (!box?.isConnected || box.dataset.relatedFor !== q) return;
+      if (items.length) {
+        box.innerHTML = `<div class="related-heading">Related searches</div>
+          <div class="related-chips">
+            ${items.map(item => `<button class="related-chip" type="button" data-q="${escHtml(item)}">${escHtml(item)}</button>`).join('')}
+          </div>`;
+        box.querySelectorAll('.related-chip').forEach(btn => {
+          btn.addEventListener('click', () => doSearch(btn.dataset.q));
+        });
+      } else {
+        box.innerHTML = `<div class="related-heading">Related searches</div><div class="related-empty">${loading ? 'Finding related searches…' : 'Try a more specific query to discover related searches.'}</div>`;
+      }
+    }
+
+    async function loadRelatedSearches(q, sourceResults = []) {
+      const box = resultsArea.querySelector('#related-searches-box');
+      if (!box || !q || state.tab !== 'web') return;
+      box.dataset.relatedFor = q;
+
+      const fromResults = relatedFromResultTitles(q, sourceResults);
+      renderRelatedSearches(box, q, fromResults, true);
+
+      let autoItems = [];
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        try {
+          const response = await fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/autocomplete?q=${encodeURIComponent(q)}`, {
+            headers: SUPABASE_FN_HEADERS,
+            signal: controller.signal
           });
-        })
-        .catch(() => { const box = document.getElementById('related-searches-box'); if (box) box.remove(); });
+          if (response.ok) autoItems = relatedValuesFrom(await response.json());
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (e) {
+        autoItems = [];
+      }
+      if (!box.isConnected || box.dataset.relatedFor !== q || state.query !== q || state.tab !== 'web') return;
+
+      let merged = buildRelatedSearchCandidates(q, [...autoItems, ...fromResults]);
+      if (autoItems.length < 4) {
+        try {
+          const relatedData = await fetchEdgeSearchData(`${q} related topics`).catch(() => null);
+          if (box.isConnected && box.dataset.relatedFor === q && state.query === q && state.tab === 'web') {
+            const edgeItems = relatedValuesFrom(relatedData);
+            merged = buildRelatedSearchCandidates(q, [...autoItems, ...edgeItems, ...fromResults]);
+          }
+        } catch (e) {}
+      }
+
+      if (!merged.length) {
+        const fallback = [
+          `${q} guide`,
+          `${q} examples`,
+          `${q} tips`,
+          `${q} alternatives`
+        ].filter(item => item.toLowerCase() !== q.toLowerCase());
+        merged = buildRelatedSearchCandidates(q, fallback);
+      }
+      renderRelatedSearches(box, q, merged, false);
     }
 
     function renderImageResults(imgs, countText, currentPage, totalPages) {
