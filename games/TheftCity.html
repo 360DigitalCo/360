@@ -1021,15 +1021,15 @@ function pickNode(px,pz,rmin,rmax){
 }
 function spawnTraffic(px,pz,first){
   const n=pickNode(px,pz,first?60:260,first?420:520);if(!n)return null;
-  const e=n.e[(Math.random()*n.e.length)|0];
+  const ow=n.e.filter(q=>oneWayOK(n,q.to));if(!ow.length)return null;const e=ow[(Math.random()*ow.length)|0];
   const type=AI_TYPES[(Math.random()*AI_TYPES.length)|0];
   const v=new Veh(type,type==='taxi'?null:CAR_COLS[(Math.random()*CAR_COLS.length)|0],'ai');
-  v.from=n;v.to=e.to;v.s=Math.random()*Math.max(1,Math.hypot(v.to.x-n.x,v.to.z-n.z)-30);v.off=3.3;v.target=7+Math.random()*7;v.spd=0;v.wait=0;
+  v.from=n;v.to=e.to;v.s=Math.random()*Math.max(1,Math.hypot(v.to.x-n.x,v.to.z-n.z)-30);v.off=3.3;v.target=8.4+Math.random()*3.2;v.spd=0;v.wait=0;
   const dx=v.to.x-n.x,dz=v.to.z-n.z,L=Math.hypot(dx,dz);v.dx=dx/L;v.dz=dz/L;v.len=L;
   v.x=n.x+v.dx*v.s-v.dz*v.off;v.z=n.z+v.dz*v.s+v.dx*v.off;v.h=Math.atan2(v.dx,v.dz);v.sync();return v;
 }
 function aiNext(v){
-  const cur=v.to,opts=cur.e.filter(e=>e.to!==v.from);let pick=opts.length?opts[(Math.random()*opts.length)|0]:cur.e[0];
+  const cur=v.to;let opts=cur.e.filter(e=>e.to!==v.from&&oneWayOK(cur,e.to));if(!opts.length)opts=cur.e.filter(e=>e.to!==v.from);let pick=opts.length?opts[(Math.random()*opts.length)|0]:cur.e[0];
   if(opts.length>1){const st=opts.find(e=>{const dx=e.to.x-cur.x,dz=e.to.z-cur.z,L=Math.hypot(dx,dz);return (dx/L)*v.dx+(dz/L)*v.dz>.9});if(st&&Math.random()<.55)pick=st}
   const dx=pick.to.x-cur.x,dz=pick.to.z-cur.z,L=Math.hypot(dx,dz);
   v.from=cur;v.to=pick.to;v.dx=dx/L;v.dz=dz/L;v.len=L;
@@ -2454,6 +2454,7 @@ function initInteriorLights(){for(let i=0;i<2;i++){const L=new THREE.PointLight(
 function extraPrompt(){
   if(G.riding)return '';
   if(DEV.police&&!INT.on){const ap=policePrompt();if(ap)return ap}
+  const bp=busPrompt();if(bp)return bp;
   if(INT.on){const r=INT.cur;
     if(onPlatform()&&Math.hypot(r.ox-PL.x,r.oz-r.d/2+6.5-PL.z)<30&&PL.z<r.oz+r.d/2-1.2&&PL.z>r.oz-r.d/2+6)return 'F · BOARD TRAIN';
     if(atExit())return r.key==='station'?'F · STAIRS UP   E · ELEVATOR':'F · LEAVE';
@@ -2465,6 +2466,7 @@ function extraPrompt(){
 }
 function extraF(){
   if(G.riding)return true;
+  if(!INT.on&&busF())return true;
   if(INT.on){const r=INT.cur;
     if(onPlatform()&&PL.z<r.oz+r.d/2-1.2&&PL.z>r.oz-r.d/2+6){openSubMenu();return true}
     if(atExit()&&INT.exitT<=0){if(r.key==='station')via('stairs',leaveRoom);else leaveRoom();return true}return true}
@@ -2795,6 +2797,146 @@ function nycAmbient(dt){
   if(k<.6){const n=1+(Math.random()*3|0),f=300+Math.random()*120;for(let i=0;i<n;i++)setTimeout(()=>beep(f,.18+Math.random()*.2,'square',.012),i*260)}
   else if(k<.85){for(let i=0;i<6;i++)setTimeout(()=>beep(i%2?640:860,.28,'sawtooth',.01),i*300)}
 }
+// ---------- c10f: MTA subway (real stations, lines, live arrivals), bus routes, one-way traffic
+const MTA_ST=[["112","168 St-Washington Hts",-476,7216],["125","59 St-Columbus Circle",349,-1482],["A27","42 St-Port Authority Bus Terminal",365,-2859],["127","Times Sq-42 St",638,-2962],["132","14 St",646,-5170],["D19","14 St",918,-4967],["222","149 St-Grand Concourse",1705,5630],["414","161 St-Yankee Stadium",1254,6591],["B08","Lexington Av/63 St",1708,-1181],["629","59 St",1685,-1460],["630","51 St",1686,-2146],["631","Grand Central-42 St",1611,-2863],["635","14 St-Union Sq",1570,-5053],["637","Bleecker St",1696,-6092],["D16","42 St-Bryant Pk",911,-2945],["724","5 Av",1125,-2876],["A12","145 St",74,5525],["A31","14 St",371,-4935],["A32","W 4 St-Wash Sq",920,-5712],["D17","34 St-Herald Sq",915,-3513],["113","157 St",-475,6391],["114","145 St",-473,5443],["115","137 St-City College",-472,4869],["116","125 St",-471,4055],["117","116 St-Columbia University",-469,3061],["118","Cathedral Pkwy (110 St)",-468,2586],["119","103 St",-337,2086],["120","96 St",-329,1391],["121","86 St",-331,721],["122","79 St",-349,114],["123","72 St",-205,-499],["124","66 St-Lincoln Center",48,-993],["126","50 St",559,-2191],["128","34 St-Penn Station",642,-3583],["129","28 St",642,-3983],["130","23 St",642,-4379],["131","18 St",644,-4764],["133","Christopher St-Sheridan Sq",684,-5706],["220","Jackson Av",3200,6222],["221","3 Av-149 St",2489,5776],["224","135 St",897,4648],["225","125 St",899,3829],["226","116 St",900,3113],["227","Central Park North (110 St)",901,2731],["301","Harlem-148 St",693,5757],["302","145 St",896,5432],["412","170 St",1194,8088],["413","167 St",1173,7502],["416","138 St-Grand Concourse",1755,5001],["618","Brook Av",2841,4891],["619","3 Av-138 St",2176,4888],["621","125 St",1675,3805],["622","116 St",1676,3108],["623","110 St",1677,2651],["624","103 St",1678,2092],["625","96 St",1680,1469],["626","86 St",1680,686],["627","77 St",1682,-57],["628","68 St-Hunter College",1683,-750],["632","33 St",1534,-3628],["633","28 St",1535,-4009],["634","23 St",1536,-4414],["636","Astor Pl",1737,-5545],["726","34 St-Hudson Yards",-454,-3498],["A07","175 St",-814,7893],["A10","163 St-Amsterdam Av",-214,6787],["A11","155 St",-36,6190],["A14","135 St",193,4719],["A15","125 St",214,3871],["A16","116 St",352,3186],["A17","Cathedral Pkwy (110 St)",352,2618],["A18","103 St",353,2047],["A19","96 St",355,1484],["A20","86 St",356,754],["A21","81 St-Museum of Natural History",358,193],["A22","72 St",359,-546],["A25","50 St",363,-2208],["A28","34 St-Penn Station",367,-3494],["A30","23 St",369,-4301],["B06","Roosevelt Island",2949,-1182],["B10","57 St",909,-1711],["D09","170 St",1558,8194],["D10","167 St",1486,7453],["D12","155 St",227,6289],["D14","7 Av",661,-1990],["D15","47-50 Sts-Rockefeller Ctr",910,-2383],["D18","23 St",916,-4379],["F12","5 Av/53 St",1278,-1987],["F14","2 Av",2179,-6140],["L05","3 Av",1950,-5072],["L06","1 Av",2383,-5070],["Q03","72 St",2049,-463],["Q04","86 St",2047,688],["Q05","96 St",2041,1499],["R13","5 Av/59 St",1166,-1461],["R14","57 St-7 Av",636,-1776],["R15","49 St",637,-2379],["R18","28 St",1079,-3957],["R19","23 St",1257,-4388],["R21","8 St-NYU",1607,-5582]];
+const MTA_URL='https://xcseqgpbwexfqbssfszq.supabase.co/functions/v1/mta-subway',MTA_KEY='sb_publishable_C585ftZaW9iiIvrahjY3Ow_8jgDTXbt';
+const LINES={'1':['1','#EE352E'],'2':['2 3','#EE352E'],'3':['3','#EE352E'],'4':['4 5','#00933C'],'5':['5','#00933C'],'6':['6','#00933C'],'7':['7','#B933AD'],
+ A:['A C E','#0039A6'],E:['E','#0039A6'],D:['B D','#FF6319'],B:['B','#FF6319'],F:['F','#FF6319'],M:['M','#FF6319'],R:['N Q R W','#FCCC0A'],N:['N','#FCCC0A'],Q:['Q','#FCCC0A'],
+ L:['L','#A7A9AC'],G:['G','#6CBE45'],J:['J Z','#996633'],S:['S','#808183'],H:['H','#808183']};
+const famOf=id=>id[0];
+function buildMTAStations(){
+  const SG=REAL_ST_R.map((_,i)=>streetU(14+i)),cl=[];
+  for(const [id,name,xr,ur] of MTA_ST){
+    if(!LINES[famOf(id)])continue;
+    let c=cl.find(q=>Math.hypot(q.xr-xr,q.ur-ur)<230);
+    if(!c){c={xr,ur,n:name,ids:[],fams:[]};cl.push(c)}
+    c.ids.push(id);if(!c.fams.includes(famOf(id)))c.fams.push(famOf(id));
+    if(name.length>c.n.length&&c.ids.length<3&&false)c.n=name;
+  }
+  STN.length=0;
+  for(const c of cl){
+    const x=realPW(c.xr,REAL_AX_R,REAL_AX_G),u=realPW(c.ur,REAL_ST_R,SG),z=-u;
+    if(landKind(x,z)!==1||u<-100)continue;
+    STN.push({i:STN.length,n:c.n.toUpperCase(),x,z,ids:c.ids,fams:c.fams,arr:null,arrT:0,live:false});
+  }
+}
+const _initSubway=initSubway;
+initSubway=function(){
+  buildMTAStations();_initSubway();
+  for(const st of STN){const n=nearestNode(st.x,st.z);if(!n)continue;
+    for(const [ox,oz] of [[-11,9],[12,-10],[-12,-11]]){const x=n.x+ox,z=n.z+oz;if(landKind(x,z)!==1)continue;pushOut(x,z,.8,_po);if(_po.hit)continue;SUB.entr.push({x,z,st})}}
+};
+// line bullets + live board on the platform sign
+function bullet(g,x,y,r,key){const [l,c]=LINES[key];const parts=l.split(' ');let px=x;for(const p of parts){g.fillStyle=c;g.beginPath();g.arc(px,y,r,0,TAU);g.fill();g.fillStyle=(key==='R'||key==='N'||key==='Q')?'#000':'#fff';g.font='bold '+(r*1.25)+'px Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(p,px,y+1);px+=r*2.3}return px}
+function boardText(st){
+  const now=Date.now()/1000;let up=null,dn=null;
+  if(st.arr&&st.live){for(const id of st.ids){for(const a of (st.arr[id]||[])){const e=a.t-(now-st.arrT);if(a.d==='N'&&(!up||e<up.t))up={r:a.r,t:e};if(a.d==='S'&&(!dn||e<dn.t))dn={r:a.r,t:e}}}}
+  if(!up&&!dn){ // timetable fallback
+    const f=st.fams[0],h=300,o=(st.i*97)%h,lab=LINES[f][0].split(' ')[0];up={r:lab,t:h-((now+o)%h)};dn={r:lab,t:h-((now+o+150)%h)};st.sched=true}
+  const m=t=>t<30?'NOW':Math.max(1,Math.round(t/60))+' MIN';
+  return {up:up&&(up.r+' '+m(up.t)),dn:dn&&(dn.r+' '+m(dn.t)),nextMin:Math.min(up?up.t:999,dn?dn.t:999),src:st.live&&!st.sched?'LIVE MTA':'TIMETABLE'};
+}
+drawStationName=function(st){
+  if(!SUB.cvs)return;const g=SUB.cvs.cv.getContext('2d');g.fillStyle='#14202b';g.fillRect(0,0,512,96);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';
+  let sz=34;g.font='bold '+sz+'px Arial,sans-serif';while(g.measureText(st.n).width>480&&sz>14){sz-=2;g.font='bold '+sz+'px Arial,sans-serif'}g.fillText(st.n,256,24);
+  let px=26;for(const f of st.fams)px=bullet(g,px,64,13,f)+8;
+  const b=boardText(st);g.textAlign='left';g.font='bold 16px Arial,sans-serif';g.fillStyle='#ffd24a';g.fillText('▲ UPTOWN '+(b.up||'—'),210,56);g.fillText('▼ DOWNTOWN '+(b.dn||'—'),210,78);
+  g.textAlign='right';g.font='11px Arial,sans-serif';g.fillStyle=b.src==='LIVE MTA'?'#35ff8a':'#8b909a';g.fillText(b.src,504,90);SUB.cvs.tx.needsUpdate=true;
+}
+async function mtaFetch(st){
+  if(Date.now()/1000-st.arrT<20)return;st.arrT=Date.now()/1000;
+  try{const r=await fetch(MTA_URL+'?stops='+st.ids.join(','),{headers:{apikey:MTA_KEY}});if(!r.ok)throw 0;const d=await r.json();
+    if(d&&d.arr&&Object.keys(d.arr).length){st.arr=d.arr;st.live=true;st.sched=false;st.arrT=d.ts||st.arrT}}catch(e){}
+}
+const _enterStation=enterStation;
+enterStation=function(st,ret){
+  _enterStation(st,ret);
+  const col=LINES[st.fams[0]][1].replace('#','0x')|0;SUB.train&&SUB.train.traverse(o=>{if(o.material&&o.material.color&&o.material.color.getHex()===0x1a5fb4)o.material.color.setHex(parseInt(LINES[(SUB.line||st.fams[0])][1].slice(1),16))});
+  mtaFetch(st).then(()=>{drawStationName(st);if(INT.on&&SUB.st===st&&SUB.phase==='away'){const b=boardText(st);SUB.t=Math.max(6,Math.min(45,b.nextMin))}});
+};
+function lineStations(f){const a=STN.filter(s=>s.fams.includes(f));let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const s of a){x0=Math.min(x0,s.x);x1=Math.max(x1,s.x);z0=Math.min(z0,s.z);z1=Math.max(z1,s.z)}
+  return (x1-x0>(z1-z0)*1.2?a.sort((p,q)=>p.x-q.x):a.sort((p,q)=>p.z-q.z))}
+openSubMenu=function(){
+  const l=document.getElementById('sublist');l.innerHTML='';l.style.display='block';
+  for(const f of SUB.st.fams){
+    const h=document.createElement('div');h.style.cssText='margin:10px 0 6px;display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.1em';
+    h.innerHTML='<span style="display:inline-block;background:'+LINES[f][1]+';color:'+(['R','N','Q'].includes(f)?'#000':'#fff')+';border-radius:14px;padding:3px 10px;font-weight:700">'+LINES[f][0]+'</span> LINE';l.appendChild(h);
+    const g=document.createElement('div');g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px';
+    for(const s of lineStations(f)){const b=document.createElement('button');b.textContent=s.n;const cur=s===SUB.st;
+      b.style.cssText='background:'+(cur?'#1f3a2c':'#16202a')+';color:#e6e8ea;border:1px solid '+(cur?'#35ff8a':'#2a3a48')+';border-radius:8px;padding:8px;font-size:12px;cursor:pointer;text-align:left';
+      if(cur)b.disabled=true;else b.onclick=()=>{SUB.menu.hidden=true;SUB.line=f;startRide(s)};g.appendChild(b)}
+    l.appendChild(g)}
+  SUB.menu.hidden=false;
+};
+startRide=function(to){
+  const f=SUB.line||SUB.st.fams[0],ls=lineStations(f),i=ls.indexOf(SUB.st),j=ls.indexOf(to);let d=0;
+  if(i>=0&&j>=0){for(let k=Math.min(i,j);k<Math.max(i,j);k++)d+=Math.hypot(ls[k+1].x-ls[k].x,ls[k+1].z-ls[k].z)}else d=Math.hypot(to.x-SUB.st.x,to.z-SUB.st.z);
+  const stops=i>=0&&j>=0?Math.abs(i-j):1;
+  SUB.ride=clamp(d/600+stops*.35,4,12);SUB.rideT=0;SUB.rideTo=to;SUB.rd.hidden=false;say('sub_board',true);
+  SUB.rd.innerHTML='<div style="font-size:12px;color:#35ff8a">NOW BOARDING</div><div style="margin:12px 0"><span style="background:'+LINES[f][1]+';color:'+(['R','N','Q'].includes(f)?'#000':'#fff')+';border-radius:20px;padding:6px 16px;font-weight:700;font-size:22px">'+LINES[f][0]+'</span></div><div style="font-size:26px;margin:10px 0">'+to.n+'</div><div id="subpg" style="font-size:12px;color:#8b909a">'+stops+' STOPS · DOORS CLOSING…</div>';G.riding=true;beep(660,.25,'sine',.08);
+};
+// ---------- one-way streets (NYC rules) + speed limit
+const AVE_DIR={'FIRST AVE':1,'SECOND AVE':-1,'THIRD AVE':1,'LEXINGTON AVE':-1,'MADISON AVE':1,'FIFTH AVE':-1,'SIXTH AVE':1,'SEVENTH AVE':-1,'EIGHTH AVE':1,'NINTH AVE':-1,'TENTH AVE':1,'ELEVENTH AVE':1};
+const TWO_WAY=new Set([14,23,34,42,57,59,72,79,86,96,106,110,116,125]);
+function oneWayOK(a,b){
+  if(a.grid!=='up'||b.grid!=='up')return true;const dx=b.x-a.x,dz=b.z-a.z;
+  if(Math.abs(dz)>Math.abs(dx)){const r=AVE_DIR[GRIDS.up.xs[a.i]&&GRIDS.up.xs[a.i].name];if(!r)return true;return r>0?dz<0:dz>0}
+  const z=GRIDS.up.zs[a.j];if(!z||z.s==null||TWO_WAY.has(z.s))return true;return z.s%2===0?dx>0:dx<0;
+}
+// ---------- MTA buses
+const BUS={list:[],routes:[],t:0,stops:[],on:null};
+function busRoutes(){
+  const U=GRIDS.up,byIJ=new Map();for(const n of NODES.up)byIJ.set(n.i+','+n.j,n);
+  const mk=(id,name,nodes)=>{let best=[],cur=[];for(let k=0;k<nodes.length;k++){const n=nodes[k];if(!n){if(cur.length>best.length)best=cur;cur=[];continue}
+      if(cur.length&&!cur[cur.length-1].e.some(e=>e.to===n)){if(cur.length>best.length)best=cur;cur=[]}cur.push(n)}
+    if(cur.length>best.length)best=cur;if(best.length>5)BUS.routes.push({id,name,path:best})};
+  const ave=(id,an,dir)=>{const i=U.xs.findIndex(x=>x.name===an);if(i<0)return;const a=[];for(let j=0;j<U.zs.length;j++)a.push(byIJ.get(i+','+j));mk(id,an,dir>0?a:a.reverse())};
+  const st=(id,s,dir)=>{const j=U.zs.findIndex(z=>z.s===s);if(j<0)return;const a=[];for(let i=0;i<U.xs.length;i++)a.push(byIJ.get(i+','+j));mk(id,s+' ST',dir>0?a:a.reverse())};
+  ave('M15 SBS','FIRST AVE',1);ave('M15 SBS','SECOND AVE',-1);ave('M101','THIRD AVE',1);ave('M101','LEXINGTON AVE',-1);ave('M1','MADISON AVE',1);ave('M1','FIFTH AVE',-1);
+  ave('M7','SIXTH AVE',1);ave('M7','SEVENTH AVE',-1);ave('M10','EIGHTH AVE',1);ave('M11','TENTH AVE',1);ave('M11','NINTH AVE',-1);
+  for(const s of [14,23,34,42,57,66,79,86,96,116,125]){st('M'+s,s,1);st('M'+s,s,-1)}
+  // stop poles + shelters every third block
+  const items=[];for(const r of BUS.routes){r.stopIdx=[];for(let k=2;k<r.path.length-1;k+=3){r.stopIdx.push(k);const a=r.path[k-1],b=r.path[k],dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1,ux=dx/L,uz=dz/L,hw=Math.abs(uz)<.5?7:11;
+      items.push([b.x-ux*16-uz*(hw+1.6)*-1*-1+(-uz)*0,b.z-uz*16+ux*(hw+1.6),ux,uz,r.id])}}
+  const P=[];for(const it of items){const [x,z,ux,uz]=it;P.push({g:BX(.12,3.1,.12),m:MX(x,1.55,z),c:0x5a6068});P.push({g:BX(.1,.6,.9),m:MX(x,2.7,z),c:0x1b4fa8});P.push({g:BX(.9,.05,.9),m:MX(x,3.1,z),c:0x1b4fa8});
+    P.push({g:BX(2.6,.1,1.3),m:MX(x+uz*2.2,2.4,z-ux*2.2,0,Math.atan2(ux,uz),0),c:0x2a2e36});P.push({g:BX(2.6,2.2,.06),m:MX(x+uz*2.2+ux*.6,1.2,z-ux*2.2+uz*.6,0,Math.atan2(ux,uz),0),c:0x9fc8d8})}
+  if(P.length)placeChunked(items,a=>mergedAt(a,it=>[{g:BX(.12,3.1,.12),m:MX(it[0],1.55,it[1]),c:0x5a6068},{g:BX(.1,.6,.9),m:MX(it[0],2.7,it[1]),c:0x1b4fa8},{g:BX(2.6,.1,1.3),m:MX(it[0]+it[3]*2.2,2.4,it[1]-it[2]*2.2,0,Math.atan2(it[2],it[3]),0),c:0x2a2e36},{g:BX(2.6,2.2,.06),m:MX(it[0]+it[3]*2.2+it[2]*.6,1.2,it[1]-it[2]*2.2+it[3]*.6,0,Math.atan2(it[2],it[3]),0),c:0x9fc8d8}]));
+}
+function spawnBus(){
+  if(!BUS.routes.length)return;const p=pos();
+  for(let tries=0;tries<20;tries++){const r=BUS.routes[(Math.random()*BUS.routes.length)|0];const k=1+((Math.random()*(r.path.length-2))|0),a=r.path[k-1],b=r.path[k];
+    const d=Math.hypot(b.x-p.x,b.z-p.z);if(d<120||d>480)continue;
+    if(BUS.list.some(q=>Math.hypot(q.v.x-b.x,q.v.z-b.z)<60))continue;
+    const v=new Veh('bus',null,'ai');const dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz);v.dx=dx/L;v.dz=dz/L;v.len=L;v.from=a;v.to=b;v.s=Math.random()*Math.max(1,L-30);v.off=3.3;
+    v.x=a.x+v.dx*v.s-v.dz*v.off;v.z=a.z+v.dz*v.s+v.dx*v.off;v.h=Math.atan2(v.dx,v.dz);v.spd=0;v.sync();
+    const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,256,64);g.fillStyle='#ffb000';g.font='bold 30px monospace';g.textAlign='center';g.textBaseline='middle';g.fillText(r.id+' '+r.name.replace(' AVE','').replace(' ST',''),128,34);
+    const sg=new THREE.Mesh(new THREE.PlaneGeometry(2.4,.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)}));sg.position.set(0,2.9,v.T.len/2+.05);v.mesh.add(sg);
+    BUS.list.push({v,r,k,dwell:0,stopped:false});return}
+}
+function busUpdate(dt){
+  if(!BUS.routes.length)return;BUS.t+=dt;const p=pos();
+  if(BUS.list.length<9&&Math.random()<dt*.4)spawnBus();
+  for(let i=BUS.list.length-1;i>=0;i--){const b=BUS.list[i],v=b.v;
+    if(Math.hypot(v.x-p.x,v.z-p.z)>650&&BUS.on!==b){v.dispose();BUS.list.splice(i,1);continue}
+    let tgt=9.5;const dEnd=v.len-v.s,isStop=b.r.stopIdx.includes(b.k);
+    if(b.dwell>0){b.dwell-=dt;tgt=0;if(b.dwell<=0)b.leave=true}
+    else if(isStop&&!b.leave&&dEnd<26){tgt=Math.max(0,(dEnd-14)*.6);if(dEnd<15&&v.spd<.4){b.dwell=8;if(BUS.on===b)toast(b.r.id+' · '+b.r.name+' · DOORS OPEN · F TO EXIT',2200);beep(660,.1,'sine',.05)}}
+    else if(dEnd<22&&dEnd>3&&!lightGreen(v.to,v.dx,v.dz,TR.time))tgt=0;
+    const chk=o=>{if(o===v)return;const rx=o.x-v.x,rz=o.z-v.z,ah=rx*v.dx+rz*v.dz;if(ah>0&&ah<v.T.len*.5+o.T.len*.5+10){const lat=Math.abs(rx*(-v.dz)+rz*v.dx);if(lat<2.8)tgt=Math.min(tgt,Math.max(0,(ah-v.T.len*.5-o.T.len*.5-3)*.8))}};
+    for(const o of TR.cars)chk(o);if(PL.veh)chk(PL.veh);
+    v.spd=approach(v.spd,tgt,(tgt<v.spd?14:3)*dt);v.s+=v.spd*dt;
+    if(v.s>=v.len){b.k++;b.leave=false;if(b.k>=b.r.path.length){if(BUS.on===b){exitBus()}v.dispose();BUS.list.splice(i,1);continue}
+      const a=b.r.path[b.k-1],c=b.r.path[b.k],dx=c.x-a.x,dz=c.z-a.z,L=Math.hypot(dx,dz);v.from=a;v.to=c;v.dx=dx/L;v.dz=dz/L;v.len=L;v.s=Math.max(0,v.s-v.len+0);v.s=0;v.off=damp(v.off,3.3,5,dt)}
+    v.x=v.from.x+v.dx*v.s-v.dz*v.off;v.z=v.from.z+v.dz*v.s+v.dx*v.off;v.h+=angDiff(v.h,Math.atan2(v.dx,v.dz))*Math.min(1,dt*4);v.y=groundY(v.x,v.z);v.sync();v.vx=Math.sin(v.h)*v.spd;v.vz=Math.cos(v.h)*v.spd}
+  if(BUS.on){const b=BUS.on;IN.mx=IN.mz=0;IN.jump=false;PL.x=b.v.x;PL.z=b.v.z;PL.y=b.v.y+2.5;PL.vx=PL.vz=0;if(PL.person)PL.person.visible=false}
+}
+function nearBus(){if(PL.mode!=='foot'||INT.on||BUS.on)return null;let best=null,bd=9;for(const b of BUS.list){if(b.dwell<=0)continue;const d=Math.hypot(b.v.x-PL.x,b.v.z-PL.z);if(d<bd){bd=d;best=b}}return best}
+function boardBus(b){if(W.stars>0){toast('DRIVER WON\'T LET YOU ON · WANTED',1400);return true}if(SAVE.cash<2.9){toast('FARE IS $2.90',1200);return true}setCash(-2.9);BUS.on=b;b.dwell=Math.max(b.dwell,4);toast('BOARDED '+b.r.id+' · '+b.r.name+' · RIDE TO ANY STOP',2200);chime();return true}
+function exitBus(){const b=BUS.on;if(!b)return;BUS.on=null;const v=b.v,rx=-v.dz,rz=v.dx;PL.x=v.x+rx*5;PL.z=v.z+rz*5;PL.y=groundY(PL.x,PL.z);if(PL.person)PL.person.visible=true;toast('GOT OFF THE BUS',1000)}
+// hooks used by extraPrompt / extraF
+function busPrompt(){if(BUS.on)return BUS.on.dwell>0?'F · GET OFF':'RIDING '+BUS.on.r.id+' · '+BUS.on.r.name+' · WAIT FOR THE NEXT STOP';const b=nearBus();return b?'F · BOARD '+b.r.id+' ($2.90)':null}
+function busF(){if(BUS.on){if(BUS.on.dwell>0)exitBus();else toast('WAIT FOR THE NEXT STOP',900);return true}const b=nearBus();if(b)return boardBus(b);return false}
+function initMTA(){try{busRoutes()}catch(e){console.error('bus routes',e)}}
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -3317,7 +3459,7 @@ function frame(ms){
   sndFrame(t,dt);updateCine(dt);updatePlayer(dt,t);updateWanted(dt,t);updateShops(dt,t);updateCombat(dt,t);
   const others=PL.mode==='car'?[PL.veh]:[];
   updateTraffic(dt,PL,others);updateParked(PL,PL.veh);
-  updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);updateDoors(dt,t);roomUpdate(dt,t);subwayUpdate(dt,t);lodPeds(dt,t);gunPickups(dt,t);updateHints(dt);idleLines(dt);c10dFrame(dt,t);nycAmbient(dt);updateCityDetail(dt,t);if(INT.on&&W.heli){scene.remove(W.heli.g);W.heli=null}
+  updatePeds(dt,PL,[...TR.cars,...W.cops,...(PL.veh?[PL.veh]:[])],t);updateDoors(dt,t);roomUpdate(dt,t);subwayUpdate(dt,t);lodPeds(dt,t);gunPickups(dt,t);updateHints(dt);idleLines(dt);c10dFrame(dt,t);busUpdate(dt);nycAmbient(dt);updateCityDetail(dt,t);if(INT.on&&W.heli){scene.remove(W.heli.g);W.heli=null}
   updateMission(dt);updateTokens(dt,t,PL);updatePeers(dt);
   if(t-(G.sigT||0)>.4){G.sigT=t;updateSignals(PL.x,PL.z,t)}
   updateCamera(dt,t);cullPass();updateSky();updateHead();updateHud(dt,t);updatePrompt();broadcastState(t);
@@ -3340,14 +3482,14 @@ function boot(){
       try{
         makeTextures();realInit();const ctx=buildCity(scene,()=>{});CITY=finishCity(scene,ctx);initSignals(scene);initClouds(scene);
         initPeds(scene);buildTokens();renderMapCanvas();
-        initCombat();initBlood(scene);initShops();initDoors();initInteriorLights();initSubway();initLodPeds();initCityDetail();initScaffolds();initNYC();initEntrances();initDrift();if($('#assist')&&$('#assist').checked)SAVE.assist=1;genContracts();$('#rank').textContent='RANK '+rankOf();PL.person=makePerson(G.shirt,{jacket:G.shirt,hat:0x222428,pants:0x20232b});scene.add(PL.person);PL.person.visible=false;
+        initCombat();initBlood(scene);initShops();initDoors();initInteriorLights();initSubway();initLodPeds();initCityDetail();initScaffolds();initNYC();initEntrances();initDrift();initMTA();if($('#assist')&&$('#assist').checked)SAVE.assist=1;genContracts();$('#rank').textContent='RANK '+rankOf();PL.person=makePerson(G.shirt,{jacket:G.shirt,hat:0x222428,pants:0x20232b});scene.add(PL.person);PL.person.visible=false;
         const v=newVehicleNear('sedan',0,-2404,Math.PI,true);v.mode='player';PL.veh=v;PL.mode='car';
         for(let i=0;i<22;i++){const c=spawnTraffic(0,-2404,true);if(c)TR.cars.push(c)}
         for(let i=0;i<30;i++){const c=spawnParked(0,-2404);if(c)PK.cars.push(c)}
         G.started=true;$('#loading').hidden=true;$('#hud').hidden=false;
         joinRoom(room);devStart();
         toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on)startChapter(0)},3000);
-        window.__real=REAL;window.__city={DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
+        window.__real=REAL;window.__city={spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
       }catch(err){$('#loading').textContent='ERROR: '+err.message;console.error(err)}
     },30));
   });
