@@ -2516,6 +2516,59 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     .paa-answer-text { overflow-wrap: anywhere; }
     .paa-answer .paa-full-link { margin-top: 8px; }
   </style>
+  <style id="beta-centered-no-kp-and-stable-paa-v12">
+    /* If the knowledge panel is absent, center the results independently of older grid overrides. */
+    body:not(.ai-results-view) .results-layout:not(:has(> #knowledge-panel.active)) {
+      display: flex !important;
+      width: 100% !important;
+      max-width: 1560px !important;
+      justify-content: center !important;
+      align-items: flex-start !important;
+      gap: 0 !important;
+      box-sizing: border-box !important;
+    }
+    body:not(.ai-results-view) .results-layout:not(:has(> #knowledge-panel.active)) > #custom-results-area {
+      display: block !important;
+      flex: 0 1 860px !important;
+      width: min(860px, 100%) !important;
+      max-width: 860px !important;
+      min-width: 0 !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      align-self: flex-start !important;
+      justify-self: auto !important;
+      grid-column: auto !important;
+      grid-row: auto !important;
+      box-sizing: border-box !important;
+    }
+    .paa-empty-state {
+      padding: 12px 16px 15px;
+      color: var(--mut);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    body.dark .paa-empty-state { color: var(--mutd); }
+    @media (max-width: 1120px) {
+      body:not(.ai-results-view) .results-layout:not(:has(> #knowledge-panel.active)) {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      body:not(.ai-results-view) .results-layout:not(:has(> #knowledge-panel.active)) > #custom-results-area {
+        flex-basis: 860px !important;
+        width: 100% !important;
+        max-width: 860px !important;
+      }
+    }
+    @media (max-width: 640px) {
+      body:not(.ai-results-view) .results-layout:not(:has(> #knowledge-panel.active)) { padding-left: 12px !important; padding-right: 12px !important; }
+    }
+    body.ai-results-view .search-results-page:not(:has(.results-layout > #knowledge-panel.active)) > #ai-panel.active {
+      width: min(680px, calc(100vw - 40px)) !important;
+      max-width: 680px !important;
+      margin: 18px auto 48px !important;
+      align-self: center !important;
+    }
+  </style>
 </head>
 <body>
   <div class="cursor-dot"></div>
@@ -6255,13 +6308,39 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     async function fetchEdgeSearchData(query) {
-      const res = await fetch(EDGE_SEARCH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-        body: JSON.stringify({ q: query, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
-      });
-      if (!res.ok) return null;
-      return res.json();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6500);
+      try {
+        const res = await fetch(EDGE_SEARCH, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+          body: JSON.stringify({ q: query, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' }),
+          signal: controller.signal
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    async function fetchPaaAutocomplete(query) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6500);
+      try {
+        const res = await fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/autocomplete?q=${encodeURIComponent(query)}`, {
+          headers: SUPABASE_FN_HEADERS,
+          signal: controller.signal
+        });
+        return res.ok ? await res.json() : null;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function showPaaStatus(box, message) {
+      if (!box?.isConnected) return;
+      box.innerHTML = `<div class="paa-heading">People also ask</div><div class="paa-empty-state">${escHtml(message)}</div>`;
     }
 
     async function loadPeopleAlsoAsk(query) {
@@ -6271,8 +6350,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       try {
         const [relatedData, autocompleteData] = await Promise.all([
           fetchEdgeSearchData(`${query} related questions answers`).catch(() => null),
-          fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/autocomplete?q=${encodeURIComponent(query)}`, { headers: SUPABASE_FN_HEADERS })
-            .then(res => res.ok ? res.json() : null).catch(() => null)
+          fetchPaaAutocomplete(query).catch(() => null)
         ]);
         if (state.tab !== 'web' || state.query !== query || !box.isConnected) return;
 
@@ -6300,11 +6378,14 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         };
         if (relatedData) collectQuestionObjects(relatedData);
 
-        const suggestionRoot = autocompleteData?.suggestions || autocompleteData?.queries || autocompleteData?.items || autocompleteData?.data?.suggestions || [];
-        const suggestions = (Array.isArray(suggestionRoot) ? suggestionRoot : [])
-          .map(item => typeof item === 'string' ? item : item?.text || item?.query || item?.suggestion || item?.title || '')
+        const suggestionRoot = autocompleteData?.suggestions || autocompleteData?.queries || autocompleteData?.items ||
+          autocompleteData?.data?.suggestions || autocompleteData?.data?.queries || autocompleteData?.data?.items || autocompleteData?.results || [];
+        const suggestionValues = (Array.isArray(suggestionRoot) ? suggestionRoot : [])
+          .map(item => typeof item === 'string' ? item : item?.text || item?.query || item?.suggestion || item?.title || '');
+        const resultTitles = edgeSearchItems(relatedData).map(item => item?.title || item?.name || '').filter(Boolean);
+        const suggestions = [...suggestionValues, ...resultTitles]
           .map(item => cleanPreviewText(item))
-          .filter(item => item && item.toLowerCase() !== query.toLowerCase());
+          .filter((item, index, all) => item && item.toLowerCase() !== query.toLowerCase() && all.findIndex(other => other.toLowerCase() === item.toLowerCase()) === index);
 
         if (candidates.length < 4 && suggestions.length) {
           const questionQueries = [];
@@ -6339,7 +6420,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
         const finalItems = candidates.slice(0, 5);
         if (!finalItems.length) {
-          box.remove();
+          showPaaStatus(box, 'No related questions with reliable answers were found for this search.');
           return;
         }
         box.innerHTML = `<div class="paa-heading">People also ask</div>${finalItems.map((item, index) => `
@@ -6355,7 +6436,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         box.querySelectorAll('.paa-item').forEach(btn => btn.addEventListener('click', () => togglePaaRow(btn.closest('.paa-row'))));
         box.querySelectorAll('.paa-full-link').forEach(btn => btn.addEventListener('click', () => doSearch(btn.dataset.q)));
       } catch (e) {
-        if (box.isConnected) box.remove();
+        showPaaStatus(box, 'Related answers are temporarily unavailable. Try again with another search.');
       }
     }
 
