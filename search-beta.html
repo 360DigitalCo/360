@@ -1,4 +1,4 @@
-<!-- BETA SEARCH (please remove this comment on search.html )-->
+<!-- BETA (please delete this entire line in search.html) -->
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -2827,47 +2827,32 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       const socialResults = document.getElementById('kp-social-results-section');
       const classic = document.body.classList.contains('classic-results');
       const webTab = state.tab === 'web';
-      const sections = [gallery, socialResults].filter(Boolean);
 
       if (!extra) {
         classicPersonExtras.classList.remove('visible');
         return;
       }
 
-      if (!webTab) {
-        sections.forEach(section => {
-          if (section.parentNode === classicPersonExtras) extra.appendChild(section);
-          section.hidden = true;
-        });
-        classicPersonExtras.classList.remove('visible');
-        return;
+      if (gallery) {
+        if (gallery.parentNode !== extra) {
+          extra.insertBefore(gallery, extra.querySelector('#kp-social-section') || extra.firstChild);
+        }
+        gallery.hidden = !webTab;
       }
 
-      sections.forEach(section => {
-        section.hidden = false;
-        if (section.style.display === 'none') {
-          if (section.parentNode === classicPersonExtras) extra.appendChild(section);
-          return;
+      if (socialResults) {
+        socialResults.hidden = !webTab;
+        if (webTab && classic) {
+          if (socialResults.parentNode !== classicPersonExtras) classicPersonExtras.appendChild(socialResults);
+        } else if (socialResults.parentNode !== extra) {
+          extra.insertBefore(socialResults, extra.querySelector('#kp-stories-section') || null);
         }
-
-        if (classic) {
-          classicPersonExtras.appendChild(section);
-        } else if (section.parentNode !== extra) {
-          const before = section.id === 'kp-gallery-section'
-            ? extra.querySelector('#kp-social-section') || extra.firstChild
-            : extra.querySelector('#kp-stories-section');
-          extra.insertBefore(section, before || null);
-        }
-      });
-
-      if (classic) {
-        const hasVisibleSections = [...classicPersonExtras.children].some(section =>
-          !section.hidden && section.style.display !== 'none'
-        );
-        classicPersonExtras.classList.toggle('visible', hasVisibleSections);
-      } else {
-        classicPersonExtras.classList.remove('visible');
       }
+
+      const hasVisibleSections = [...classicPersonExtras.children].some(section =>
+        !section.hidden && section.style.display !== 'none'
+      );
+      classicPersonExtras.classList.toggle('visible', Boolean(classic && webTab && hasVisibleSections));
     }
 
     let kpToken = 0; // increments per knowledge-panel request; guards against a slow, stale response overwriting a newer one
@@ -5493,8 +5478,52 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     /* ─────────────────────────────────
        NEWS + SHOPPING via 360 edge function
     ───────────────────────────────── */
+    async function fetchRedditNewsFromIndex(q) {
+      try {
+        const res = await fetch(EDGE_SEARCH, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+          body: JSON.stringify({ q: `${q} site:reddit.com`, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (Array.isArray(data.web) ? data.web : []).map(item => {
+          const url = item.url || item.href || item.link || '';
+          let parsed;
+          try { parsed = new URL(url); } catch (e) { return null; }
+          const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+          if (!(host === 'reddit.com' || host.endsWith('.reddit.com') || host === 'redd.it' || host.endsWith('.redd.it'))) return null;
+          const subreddit = parsed.pathname.match(/\/r\/([^/]+)/i);
+          const age = item.age || item.publishedAt || item.published_at || item.publishedDate || item.published || item.date || '';
+          return {
+            title: item.title || item.name || `Reddit discussion about ${q}`,
+            url,
+            desc: cleanPreviewText(item.snippet || item.description || item.desc || ''),
+            source: subreddit ? `Reddit · r/${subreddit[1]}` : 'Reddit',
+            favicon: `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent('https://www.reddit.com')}`,
+            age: String(age || ''),
+            thumb: item.thumb || item.thumbnail || item.image || ''
+          };
+        }).filter(Boolean).slice(0, 6);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function newsUrlKey(url) {
+      try {
+        const parsed = new URL(url);
+        parsed.hash = '';
+        parsed.search = '';
+        return `${parsed.hostname.toLowerCase()}${parsed.pathname.replace(/\/+$/, '')}`;
+      } catch (e) {
+        return String(url || '').trim().toLowerCase();
+      }
+    }
+
     async function run360Search(q, tab) {
       showLoading();
+      const redditPromise = tab === 'news' ? fetchRedditNewsFromIndex(q) : Promise.resolve([]);
       try {
         const res = await fetch(EDGE_SEARCH, {
           method: 'POST',
@@ -5508,18 +5537,25 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         }
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-        // Guard against stale responses: if the user switched tabs while
-        // this request was in flight (e.g. News takes longer than a
-        // follow-up Shopping request), the older response must not
-        // overwrite whatever the newer, currently-active tab is showing.
-        // This was the cause of "shopping switches to news after a few
-        // seconds" — a late-arriving News response with no staleness
-        // check at all would blindly render over the Shopping results.
-        if (state.tab !== tab) return;
-        if (tab === 'news') cacheRender('news', state.query, 1, renderNewsResults, [data.news || []]);
-        else if (tab === 'shopping') cacheRender('shopping', state.query, 1, renderShoppingResults, [data.shopping || []]);
+        if (state.tab !== tab || state.query !== q) return;
+        if (tab === 'news') {
+          const articles = Array.isArray(data.news) ? data.news : [];
+          cacheRender('news', state.query, 1, renderNewsResults, [articles]);
+          const redditArticles = await redditPromise;
+          if (state.tab !== tab || state.query !== q || !redditArticles.length) return;
+          const seen = new Set(articles.map(article => newsUrlKey(article.url || article.link || '')).filter(Boolean));
+          const merged = articles.concat(redditArticles.filter(article => {
+            const key = newsUrlKey(article.url);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }));
+          cacheRender('news', state.query, 1, renderNewsResults, [merged]);
+        } else if (tab === 'shopping') {
+          cacheRender('shopping', state.query, 1, renderShoppingResults, [data.shopping || []]);
+        }
       } catch(e) {
-        if (state.tab !== tab) return;
+        if (state.tab !== tab || state.query !== q) return;
         resultsArea.innerHTML = `<div class="state-box"><div class="big-icon"><span data-octicon="alert"></span></div><h3>Failed to load ${tab}</h3><p>${escHtml(String(e.message || e))}</p></div>`;
       }
     }
