@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dominator 3 in Three.js</title>
+<style>
+  *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#202224}
+  canvas{display:block;width:100%;height:100%;outline:none;touch-action:none}
+  #load-error{display:none;position:fixed;z-index:10;left:16px;right:16px;bottom:16px;max-width:780px;margin:auto;padding:13px 16px;border:1px solid #835b58;border-radius:8px;background:#17191cf2;color:#f4e8e5;font:13px/1.45 system-ui,sans-serif;white-space:pre-wrap}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.165.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.165.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="load-error" role="alert"></div>
+<script>
+  // Surface module/runtime failures instead of leaving an annoying blank canvas.
+  const errorBox = document.getElementById('load-error');
+  function showLoadError(message) {
+    errorBox.textContent = 'The 3D model could not start. ' + message + '\n\nCheck that you are online so the Three.js library can load, then refresh.';
+    errorBox.style.display = 'block';
+  }
+  window.addEventListener('error', event => {
+    if (event.message) showLoadError(event.message);
+    else showLoadError('A script or library failed to load.');
+  });
+  window.addEventListener('unhandledrejection', event => {
+    showLoadError(String(event.reason || 'A module failed to load.'));
+  });
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Detailed, reference-led reconstruction. It is not the original Sketchfab mesh that @Dan asked for but it'a fine as it is.
+// Coordinate system: x = width, y = height, z = length; the nose points toward -z. Apply to vrvr.html
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#202224');
+const camera = new THREE.PerspectiveCamera(33, innerWidth/innerHeight, .05, 100);
+camera.position.set(5.2, 2.65, -6.1);
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.17;
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,.98,-.03); controls.enableDamping=true; controls.dampingFactor=.055; controls.minDistance=3.8; controls.maxDistance=11.5; controls.maxPolarAngle=Math.PI*.49;
+
+scene.add(new THREE.HemisphereLight(0xe7e9eb,0x262321,1.8));
+const key=new THREE.DirectionalLight(0xfff0d9,3.1); key.position.set(-4.5,7,-5.2); scene.add(key);
+const fill=new THREE.DirectionalLight(0x9caebd,1.6); fill.position.set(5,4,3); scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffffff,1.3); rim.position.set(-1,5,6); scene.add(rim);
+const noseFill=new THREE.DirectionalLight(0xd8dce0,.75); noseFill.position.set(0,2,-7); scene.add(noseFill);
+
+function material(color,roughness=.72,metalness=.2,extra={}){return new THREE.MeshStandardMaterial({color,roughness,metalness,flatShading:false,side:THREE.DoubleSide,...extra});}
+const paint=material('#24272a',.68,.28);
+const paint2=material('#303337',.72,.25);
+const paint3=material('#202326',.74,.24);
+const edgePaint=material('#111315',.76,.24);
+const panelGrey=material('#3b3d3e',.78,.24);
+const warmPanel=material('#343332',.76,.20);
+const seamMat=material('#090b0d',.79,.12);
+const rivetMat=material('#686b6b',.46,.68);
+const darkRivet=material('#202224',.6,.45);
+const rubber=material('#111213',.93,.02);
+const rubberSide=material('#1c1d1d',.91,.01);
+const chrome=material('#a0a3a2',.3,.78);
+const glass=material('#29343b',.2,.48,{transparent:true,opacity:.96,clearcoat:.9,clearcoatRoughness:.16});
+const glassShade=material('#1b252c',.24,.36,{transparent:true,opacity:.98,clearcoat:.9});
+const glassGlint=material('#d0d9dc',.2,.15,{transparent:true,opacity:.20,depthWrite:false});
+// Reused for windshield framing; keep this defined before geometry is built.
+const windowEdge=material('#111416',.5,.28);
+const headLens=material('#c5c9be',.22,.4,{emissive:'#68736f',emissiveIntensity:.26});
+const amber=material('#e5a33b',.28,.15,{emissive:'#7b3707',emissiveIntensity:.27});
+const redLamp=material('#d94b47',.28,.12,{emissive:'#871715',emissiveIntensity:.65});
+const redPaint=material('#ed525d',.38,.18,{emissive:'#3a080d',emissiveIntensity:.12});
+const whitePaint=material('#d1cec3',.55,.12);
+
+const car=new THREE.Group(); scene.add(car);
+function addMesh(g,m,pos=[0,0,0],rot=[0,0,0],parent=car){const o=new THREE.Mesh(g,m);o.position.set(...pos);o.rotation.set(...rot);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
+function box(pos,size,m,rot=[0,0,0]){return addMesh(new THREE.BoxGeometry(...size),m,pos,rot);}
+function cylinderBetween(a,b,r1,r2,m,segments=10){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);const o=addMesh(new THREE.CylinderGeometry(r1,r2,d.length(),segments,1),m);o.position.copy(A).add(B).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return o;}
+function line(a,b,r,m,segments=7){return cylinderBetween(a,b,r,r,m,segments);}
+function sphere(pos,r,m,detail=8){return addMesh(new THREE.SphereGeometry(r,detail,Math.max(4,Math.floor(detail*.65))),m,pos);}
+function poly(points,m){const verts=[];for(let i=1;i<points.length-1;i++){for(const p of [points[0],points[i],points[i+1]])verts.push(...p);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();return addMesh(g,m);}
+function quad(a,b,c,d,m){return poly([a,b,c,d],m);}
+function chamferBox(pos,size,m,bevel=.03){const g=new THREE.BoxGeometry(...size,1,1,1);return addMesh(g,m,pos);}
+
+// Wedge-shaped armored monocoque. Station dimensions were interpreted from the model references.
+const profile=[
+ {z:-2.28,by:.16,bx:.79,ty:.57,tx:.88},
+ {z:-2.04,by:.14,bx:.91,ty:.72,tx:.97},
+ {z:-1.72,by:.13,bx:1.00,ty:.82,tx:1.00},
+ {z:-1.43,by:.13,bx:1.025,ty:.92,tx:.98},
+ {z:-1.08,by:.13,bx:1.02,ty:1.09,tx:.96},
+ {z:-.74,by:.13,bx:1.00,ty:1.40,tx:.88},
+ {z:-.37,by:.14,bx:.98,ty:1.72,tx:.83},
+ {z:.95,by:.14,bx:.98,ty:1.72,tx:.84},
+ {z:1.34,by:.15,bx:.98,ty:1.65,tx:.89},
+ {z:1.68,by:.16,bx:.94,ty:1.27,tx:.94},
+ {z:2.12,by:.18,bx:.79,ty:.49,tx:.82}
+];
+function station(z){if(z<=profile[0].z)return profile[0];if(z>=profile.at(-1).z)return profile.at(-1);let i=0;while(profile[i+1].z<z)i++;const a=profile[i],b=profile[i+1],t=(z-a.z)/(b.z-a.z);const p={z};for(const k of ['by','bx','ty','tx'])p[k]=a[k]+(b[k]-a[k])*t;return p;}
+function xAt(side,z,y,extra=0){const p=station(z),t=THREE.MathUtils.clamp((y-p.by)/(p.ty-p.by),0,1);return side*(p.bx+(p.tx-p.bx)*t+extra);}
+function roofY(z){return station(z).ty;}
+function sidePoly(side,coords,m,off=.02){return poly(coords.map(([z,y])=>[xAt(side,z,y,off),y,z]),m);}
+function sideLine(side,a,b,r,m,off=.035){return line([xAt(side,a[0],a[1],off),a[1],a[0]],[xAt(side,b[0],b[1],off),b[1],b[0]],r,m);}
+function roofPoly(coords,m,off=.014){return poly(coords.map(([x,z])=>[x,roofY(z)+off,z]),m);}
+function roofLine(a,b,r,m,off=.023){return line([a[0],roofY(a[1])+off,a[1]],[b[0],roofY(b[1])+off,b[1]],r,m);}
+
+// Continuous hull with hard changes in facet shading where each armor panel changes angle.
+for(let i=0;i<profile.length-1;i++){
+ const a=profile[i],b=profile[i+1],m=[paint2,paint,paint2,paint3,paint2,paint,paint2,paint,panelGrey,paint2][i];
+ quad([-a.bx,a.by,a.z],[-b.bx,b.by,b.z],[-b.tx,b.ty,b.z],[-a.tx,a.ty,a.z],m);
+ quad([a.bx,a.by,a.z],[a.tx,a.ty,a.z],[b.tx,b.ty,b.z],[b.bx,b.by,b.z],i>=4&&i<=7?paint2:m);
+ quad([-a.tx,a.ty,a.z],[-b.tx,b.ty,b.z],[b.tx,b.ty,b.z],[a.tx,a.ty,a.z],i>=3&&i<=6?paint3:paint);
+ quad([-a.bx,a.by,a.z],[a.bx,a.by,a.z],[b.bx,b.by,b.z],[-b.bx,b.by,b.z],edgePaint);
+}
+const f=profile[0],r=profile.at(-1);
+quad([-f.bx,f.by,f.z],[-f.tx,f.ty,f.z],[f.tx,f.ty,f.z],[f.bx,f.by,f.z],edgePaint);
+quad([-r.bx,r.by,r.z],[r.bx,r.by,r.z],[r.tx,r.ty,r.z],[-r.tx,r.ty,r.z],paint3);
+
+// Lower chassis, armored belly and hidden heavy-duty tires. The exterior skirts mask the wheels from the side.
+box([0,.145,-.02],[1.64,.12,3.35],seamMat);
+for(const side of [-1,1]){
+ for(const z of [-1.02,.52]){
+  // wheels sit behind armor, only visible from a low underside inspection angle
+  const wh=addMesh(new THREE.CylinderGeometry(.34,.34,.22,18,1),rubber,[side*.78,.385,z],[0,0,Math.PI/2]);
+  addMesh(new THREE.TorusGeometry(.285,.035,6,18),rubberSide,[side*.895,.385,z],[0,Math.PI/2,0]);
+  addMesh(new THREE.CylinderGeometry(.15,.15,.236,12,1),edgePaint,[side*.90,.385,z],[0,0,Math.PI/2]);
+  addMesh(new THREE.CylinderGeometry(.105,.105,.244,12,1),panelGrey,[side*.916,.385,z],[0,0,Math.PI/2]);
+  for(let n=0;n<18;n++){
+   const a=n*Math.PI*2/18;const x=side*.80, y=.385+Math.sin(a)*.295, zz=z+Math.cos(a)*.295;
+   box([x,y,zz],[.18,.045,.055],rubber,[a,0,0]);
+  }
+ }
+ // continuous armored skirt panels form the low, wheel-concealing lower edge
+ sidePoly(side,[[-1.72,.16],[-1.18,.14],[-1.12,.47],[-1.53,.59]],paint3,.035);
+ sidePoly(side,[[-1.17,.145],[-.52,.14],[-.48,.50],[-1.10,.49]],paint2,.037);
+ sidePoly(side,[[-.49,.14],[.22,.14],[.24,.51],[-.45,.51]],paint3,.04);
+ sidePoly(side,[[.25,.14],[.94,.15],[.99,.50],[.27,.51]],paint2,.04);
+ sidePoly(side,[[.96,.15],[1.56,.16],[1.65,.52],[1.02,.50]],paint3,.04);
+ sidePoly(side,[[1.58,.16],[1.89,.19],[1.96,.43],[1.67,.52]],paint2,.035);
+}
+
+// Nose plates: multi-faceted sloped hood rather than a smooth generic bonnet.
+roofPoly([[-.90,-2.04],[-.45,-1.96],[-.40,-1.46],[-.91,-1.50]],paint2,.024);
+roofPoly([[.45,-1.96],[.90,-2.04],[.91,-1.50],[.40,-1.46]],panelGrey,.024);
+roofPoly([[-.42,-1.98],[.42,-1.98],[.38,-1.46],[-.38,-1.46]],paint,.029);
+roofPoly([[-.88,-1.50],[-.38,-1.44],[0,-1.34],[.38,-1.44],[.88,-1.50],[.68,-1.10],[-.68,-1.10]],paint3,.026);
+roofPoly([[-.69,-1.39],[-.28,-1.35],[0,-1.29],[.28,-1.35],[.69,-1.39],[.57,-1.15],[-.57,-1.15]],paint2,.03);
+// Raised hood ridges and signature twin red stripes.
+roofLine([-.03,-1.87],[-.62,-1.30],.012,redPaint,.045);
+roofLine([.03,-1.87],[.46,-1.26],.012,redPaint,.045);
+roofLine([-.62,-1.30],[-.75,-1.18],.006,whitePaint,.043);
+roofLine([.83,-1.50],[.67,-1.14],.012,seamMat,.041);
+roofLine([-.83,-1.50],[-.67,-1.14],.012,seamMat,.041);
+// fine hood seams / fasteners
+for(const side of [-1,1]){
+ roofLine([side*.43,-1.91],[side*.43,-1.51],.006,seamMat,.04);
+ for(const z of [-1.82,-1.63,-1.43]) sphere([side*.80,roofY(z)+.042,z],.012,rivetMat,6);
+}
+
+// Front armor face and chin bumper.
+quad([-.91,.56,-2.205],[-.66,.42,-2.225],[.66,.42,-2.225],[.91,.56,-2.205],paint3);
+quad([-.66,.42,-2.225],[-.74,.235,-2.245],[.74,.235,-2.245],[.66,.42,-2.225],edgePaint);
+box([0,.225,-2.255],[1.62,.105,.10],paint2);
+box([0,.292,-2.312],[1.46,.047,.045],edgePaint);
+// recessed central grille with separate ribs and a little inset lip
+quad([-.31,.47,-2.242],[-.25,.40,-2.25],[.25,.40,-2.25],[.31,.47,-2.242],seamMat);
+for(let i=0;i<9;i++)box([-.235+i*.058,.438,-2.259],[.014,.062,.014],panelGrey);
+for(const s of [-1,1]){
+ // stepped polygonal headlight pockets, separated lens cells, and outer guards
+ quad([s*.54,.69,-2.21],[s*.82,.68,-2.202],[s*.86,.42,-2.22],[s*.56,.405,-2.23],edgePaint);
+ quad([s*.575,.655,-2.229],[s*.785,.645,-2.225],[s*.80,.455,-2.238],[s*.585,.445,-2.242],panelGrey);
+ for(let j=0;j<3;j++){
+  const y=.60-j*.058;
+  box([s*.69,y,-2.252],[.166,.035,.012],headLens,[0,0,s*.04]);
+  box([s*.69,y-.019,-2.261],[.145,.006,.008],chrome,[0,0,s*.04]);
+ }
+ box([s*.91,.39,-2.222],[.10,.08,.05],paint2);
+ // amber corner lamps and protective black rims
+ box([s*.87,.74,-2.195],[.09,.035,.03],amber,[0,0,s*.08]);
+}
+// Front lower faceted armor blocks and tow points.
+for(const s of [-1,1]){
+ quad([s*.97,.29,-2.18],[s*.78,.24,-2.24],[s*.80,.40,-2.228],[s*.94,.51,-2.20],paint2);
+ cylinderBetween([s*.55,.24,-2.29],[s*.55,.31,-2.29],.035,.035,rivetMat,8);
+}
+
+// Windshield, with a thick angular surround, split reflective panes and wiper blades.
+const wOuter=[[-.80,1.335,-.795],[.80,1.335,-.795],[.735,1.667,-.403],[-.735,1.667,-.403]];
+const wInner=[[-.748,1.365,-.759],[.748,1.365,-.759],[.683,1.629,-.435],[-.683,1.629,-.435]];
+poly(wOuter,edgePaint); poly(wInner,glass);
+// subtle different glazing panels from the real divided windshield reflections
+quad(wInner[0],[-.035,1.365,-.759],[-.035,1.629,-.435],wInner[3],glassShade);
+quad([.015,1.365,-.759],wInner[1],wInner[2],[.015,1.629,-.435],glass);
+for(let i=0;i<4;i++)line(wOuter[i],wOuter[(i+1)%4],.027,edgePaint);
+line([-.009,1.369,-.757],[-.009,1.625,-.44],.009,windowEdge);
+// long faint sky reflections rather than opaque white strips
+poly([[-.57,1.405,-.723],[-.40,1.405,-.723],[-.49,1.595,-.477],[-.60,1.595,-.477]],glassGlint);
+poly([[.14,1.405,-.723],[.29,1.405,-.723],[.50,1.59,-.477],[.39,1.59,-.477]],glassGlint);
+line([-.48,1.378,-.748],[.06,1.378,-.748],.009,edgePaint);
+line([-.47,1.386,-.75],[.06,1.386,-.75],.004,chrome);
+// brow plate / sun visor, tiny bolts and red status LEDs
+quad([-.84,1.67,-.46],[.84,1.67,-.46],[.77,1.755,-.23],[-.77,1.755,-.23],edgePaint);
+quad([-.71,1.681,-.444],[.71,1.681,-.444],[.66,1.721,-.34],[-.66,1.721,-.34],paint2);
+for(const x of [-.53,-.28,0,.28,.53]) sphere([x,1.713,-.356],.012,rivetMat,6);
+for(const x of [-.37,-.12,.12,.37]) sphere([x,1.706,-.395],.011,redLamp,6);
+
+// Roof armor. Broad, nearly flat central shell with layered plates, twin longitudinal rails and rear hatch.
+roofPoly([[-.72,-.30],[0,-.30],[0,1.18],[-.72,1.18]],paint2,.03);
+roofPoly([[0,-.30],[.72,-.30],[.72,1.18],[0,1.18]],paint,.03);
+roofPoly([[-.57,-.17],[-.055,-.17],[-.055,1.08],[-.57,1.08]],paint3,.043);
+roofPoly([[.055,-.17],[.57,-.17],[.57,1.08],[.055,1.08]],paint2,.043);
+roofLine([-.045,-.25],[-.045,1.13],.013,edgePaint,.048); roofLine([.045,-.25],[.045,1.13],.013,edgePaint,.048);
+roofLine([-.69,-.15],[-.69,1.12],.012,seamMat,.044); roofLine([.69,-.15],[.69,1.12],.012,seamMat,.044);
+// heavy twin reinforcing rails across the roof and rear armored glass apertures
+roofPoly([[-.28,.14],[-.10,.14],[-.10,.96],[-.28,.96]],panelGrey,.06);
+roofPoly([[.10,.14],[.28,.14],[.28,.96],[.10,.96]],panelGrey,.06);
+for(const z of [.22,.48,.74,.99]){
+ roofLine([-.60,z],[.60,z],.006,seamMat,.05);
+ for(const s of [-1,1]) sphere([s*.62,roofY(z)+.052,z],.012,rivetMat,6);
+}
+// Back roof deck from overhead reference: armor panels, recessed observation slots and center hardware.
+roofPoly([[-.60,1.05],[-.11,1.05],[-.12,1.53],[-.57,1.53]],edgePaint,.05);
+roofPoly([[.11,1.05],[.60,1.05],[.57,1.53],[.12,1.53]],edgePaint,.05);
+roofPoly([[-.54,1.12],[-.18,1.12],[-.19,1.44],[-.51,1.44]],glassShade,.057);
+roofPoly([[.18,1.12],[.54,1.12],[.51,1.44],[.19,1.44]],glassShade,.057);
+roofPoly([[-.09,1.05],[.09,1.05],[.13,1.63],[-.13,1.63]],paint2,.062);
+roofLine([-.09,.99],[-.13,1.62],.023,edgePaint,.07);roofLine([.09,.99],[.13,1.62],.023,edgePaint,.07);
+// low-profile roof sensor pod/hatch, based on the small raised center element seen from above
+roofPoly([[-.26,.82],[.26,.82],[.22,1.10],[-.22,1.10]],edgePaint,.07);
+roofPoly([[-.17,.86],[.17,.86],[.15,1.06],[-.15,1.06]],paint2,.083);
+for(const x of [-.10,-.03,.03,.10]) roofLine([x,.87],[x,1.04],.008,seamMat,.09);
+for(const x of [-.40,-.15,.15,.40]) sphere([x,roofY(-.20)+.05,-.2],.012,redLamp,6);
+
+// Side door armor and windows; side coordinates are z,height and follow the tapered hull.
+const logoCanvas=document.createElement('canvas');logoCanvas.width=1024;logoCanvas.height=256;
+const lc=logoCanvas.getContext('2d');lc.clearRect(0,0,1024,256);lc.textAlign='center';lc.textBaseline='middle';
+lc.font='900 142px Impact, "Arial Narrow", sans-serif';lc.lineJoin='round';lc.lineWidth=21;lc.strokeStyle='#101214';lc.strokeText('DOMINATOR 3',512,128);lc.lineWidth=9;lc.strokeStyle='#f3c9c1';lc.strokeText('DOMINATOR 3',512,128);lc.fillStyle='#f06a65';lc.fillText('DOMINATOR 3',512,128);
+const logoTex=new THREE.CanvasTexture(logoCanvas);logoTex.colorSpace=THREE.SRGBColorSpace;logoTex.anisotropy=8;
+const logoMat=new THREE.MeshBasicMaterial({map:logoTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+const stormCanvas=document.createElement('canvas');stormCanvas.width=512;stormCanvas.height=512;const sc=stormCanvas.getContext('2d');
+sc.clearRect(0,0,512,512);sc.fillStyle='#e94d4e';sc.beginPath();sc.moveTo(230,28);sc.lineTo(290,146);sc.lineTo(256,127);sc.lineTo(307,221);sc.lineTo(252,196);sc.lineTo(222,264);sc.lineTo(197,210);sc.lineTo(155,231);sc.lineTo(183,158);sc.lineTo(150,169);sc.closePath();sc.fill();sc.fillStyle='#f1eee7';sc.textAlign='center';sc.font='bold 41px Arial';sc.fillText('PRACTICAL',256,322);sc.fillText('STORM',256,369);sc.fillText('CHASERS',256,416);
+const stormTex=new THREE.CanvasTexture(stormCanvas);stormTex.colorSpace=THREE.SRGBColorSpace;
+const stormMat=new THREE.MeshBasicMaterial({map:stormTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+function sideDecal(side,z0,z1,y0,y1,mat){let pts,uv;if(side===1){pts=[[z1,y0],[z0,y0],[z0,y1],[z1,y1]];uv=[[0,0],[1,0],[1,1],[0,1]];}else{pts=[[z0,y0],[z1,y0],[z1,y1],[z0,y1]];uv=[[0,0],[1,0],[1,1],[0,1]];}const vertices=[],uvs=[];for(let i=1;i<pts.length-1;i++){for(const j of [0,i,i+1]){vertices.push(...[xAt(side,pts[j][0],pts[j][1],.06),pts[j][1],pts[j][0]]);uvs.push(...uv[j]);}}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.computeVertexNormals();return addMesh(g,mat);}
+for(const side of [-1,1]){
+ // main front and rear side armor plates; bevel seams intentionally remain visible
+ sidePoly(side,[[-.28,.61],[.68,.61],[.68,1.42],[-.20,1.43]],paint2,.035);
+ sidePoly(side,[[.70,.60],[1.31,.59],[1.38,1.31],[.73,1.41]],warmPanel,.035);
+ sidePoly(side,[[1.34,.60],[1.65,.56],[1.72,1.16],[1.40,1.31]],paint3,.034);
+ // cabin side glazing, separated into driver window and rear quarter pane with thick mullions
+ sidePoly(side,[[-.27,1.45],[.31,1.45],[.28,1.655],[-.14,1.655]],edgePaint,.045);
+ sidePoly(side,[[-.225,1.48],[.265,1.48],[.225,1.625],[-.105,1.625]],glass,.055);
+ sidePoly(side,[[.41,1.445],[.98,1.43],[1.26,1.29],[1.08,1.60],[.49,1.63]],edgePaint,.045);
+ sidePoly(side,[[.47,1.475],[.93,1.46],[1.18,1.315],[1.04,1.565],[.53,1.60]],glassShade,.056);
+ // side-window reflections and rubber seals
+ sidePoly(side,[[-.17,1.49],[-.075,1.49],[-.005,1.615],[-.10,1.615]],glassGlint,.061);
+ sidePoly(side,[[.56,1.49],[.66,1.485],[.83,1.56],[.76,1.57]],glassGlint,.061);
+ sideLine(side,[-.32,1.43],[-.22,1.66],.022,edgePaint,.061);
+ sideLine(side,[.34,1.43],[.40,1.65],.024,edgePaint,.061);
+ sideLine(side,[1.29,1.29],[1.13,1.61],.024,edgePaint,.062);
+ // robust external window lip / pillars
+ sideLine(side,[-.30,1.44],[-.17,1.66],.013,panelGrey,.067);
+ sideLine(side,[.36,1.44],[.42,1.65],.013,panelGrey,.067);
+ // Door latch, hinge plates and inset handles
+ sidePoly(side,[[.44,1.23],[.59,1.23],[.60,1.285],[.45,1.285]],edgePaint,.062);
+ sidePoly(side,[[.465,1.245],[.56,1.245],[.56,1.263],[.465,1.263]],chrome,.07);
+ for(const z of [-.12,.59]) for(const y of [.77,1.14]){
+  sidePoly(side,[[z-.035,y-.08],[z+.015,y-.08],[z+.015,y+.08],[z-.035,y+.08]],edgePaint,.058);
+  sphere([xAt(side,z,y,.067),y,z],.013,chrome,6);
+ }
+ // armor sheet edges and oblique reinforcement ribs
+ sideLine(side,[-.27,.62],[-.20,1.405],.009,seamMat,.055);
+ sideLine(side,[.69,.60],[.72,1.40],.015,edgePaint,.057);
+ sideLine(side,[1.32,.59],[1.38,1.30],.012,seamMat,.052);
+ sideLine(side,[-.18,.62],[.68,.62],.009,seamMat,.055);
+ sideLine(side,[.73,.60],[1.31,.59],.009,seamMat,.055);
+ // thin overlapping external plates
+ sidePoly(side,[[-1.68,.34],[-1.45,.32],[-1.35,.78],[-1.52,.88]],paint3,.048);
+ sidePoly(side,[[-1.46,.32],[-1.12,.27],[-1.08,.65],[-1.35,.78]],paint2,.048);
+ sidePoly(side,[[-1.10,.24],[-.63,.20],[-.60,.55],[-1.06,.65]],panelGrey,.046);
+ sidePoly(side,[[-.61,.20],[-.12,.19],[-.08,.54],[-.58,.55]],paint3,.047);
+ sidePoly(side,[[.24,.17],[.69,.16],[.76,.48],[.27,.51]],paint3,.05);
+ sidePoly(side,[[.72,.16],[1.18,.17],[1.24,.48],[.77,.48]],paint2,.05);
+ sidePoly(side,[[1.22,.17],[1.66,.18],[1.72,.48],[1.27,.48]],paint3,.047);
+ // four black vent mouths with chamfered rims on side skirts
+ for(const z of [-.96,-.19,.62,1.38]){
+  sidePoly(side,[[z-.15,.31],[z+.12,.31],[z+.17,.46],[z-.10,.47]],panelGrey,.055);
+  sidePoly(side,[[z-.115,.326],[z+.095,.326],[z+.12,.437],[z-.08,.439]],seamMat,.064);
+  // recessed slats in each vent
+  for(let j=0;j<2;j++) sideLine(side,[z-.075,.35+j*.035],[z+.065,.35+j*.035],.005,paint2,.07);
+ }
+ // door branding, storm-chaser emblem and smaller front sponsor badge
+ sideDecal(side,-.13,.70,.91,1.20,logoMat);
+ sideDecal(side,1.39,1.72,.53,.96,stormMat);
+ // amber side repeater
+ sidePoly(side,[[-1.02,.89],[-.88,.89],[-.88,.97],[-1.02,.97]],edgePaint,.052);
+ sidePoly(side,[[-1.00,.91],[-.90,.91],[-.90,.95],[-1.00,.95]],amber,.061);
+ // rivet rows follow door and armor-panel borders
+ for(const z of [-.18,.08,.36,.62,.91,1.19,1.40,1.58]) for(const y of [.68,1.32]){
+  const rad=(z>1.3?.010:.012);sphere([xAt(side,z,y,.062),y,z],rad,rivetMat,6);
+ }
+ for(const z of [-1.62,-1.42,-1.20,-.98,-.73])for(const y of [.28,.49])sphere([xAt(side,z,y,.058),y,z],.009,darkRivet,6);
+ // fastener/plate details on skirt edges
+ sideLine(side,[-1.70,.19],[1.83,.20],.008,edgePaint,.055);
+}
+
+// Side mirrors on thick articulated arms; rectangular alloy shells with dark reflective glass.
+for(const side of [-1,1]){
+ line([side*.81,1.50,-.77],[side*1.05,1.57,-.72],.035,edgePaint);
+ line([side*1.03,1.57,-.72],[side*1.10,1.61,-.69],.027,chrome);
+ box([side*1.13,1.62,-.69],[.19,.22,.28],edgePaint,[0,side*.12,side*.05]);
+ box([side*1.232,1.625,-.695],[.012,.158,.202],chrome,[0,side*.12,side*.05]);
+ box([side*1.241,1.62,-.696],[.008,.116,.156],glassShade,[0,side*.12,side*.05]);
+ box([side*1.238,1.56,-.696],[.008,.018,.18],amber);
+ line([side*.90,1.56,-.67],[side*1.12,1.56,-.67],.014,edgePaint);
+}
+// Thin whip antenna and foot plate on front corner, visible in the reference render.
+sidePoly(-1,[[-1.16,1.12],[-1.03,1.12],[-1.02,1.20],[-1.14,1.20]],edgePaint,.045);
+line([-.86,1.22,-1.10],[-.94,2.13,-1.14],.008,edgePaint,7);
+line([-.94,2.12,-1.14],[-.92,2.16,-1.14],.011,chrome,7);
+
+// Rear armor face with independent plates, vents, tail lamps and small reflectors.
+quad([-r.tx,r.ty,r.z],[r.tx,r.ty,r.z],[r.bx,r.by,r.z],[-r.bx,r.by,r.z],paint3);
+quad([-.79,.49,2.13],[.79,.49,2.13],[.70,.25,2.15],[-.70,.25,2.15],paint2);
+for(const side of [-1,1]){
+ box([side*.57,.45,2.16],[.22,.09,.045],redLamp);
+ box([side*.57,.32,2.162],[.19,.055,.04],headLens);
+ box([side*.84,.56,2.10],[.09,.11,.04],redLamp);
+ box([side*.84,.39,2.12],[.07,.05,.035],amber);
+ box([side*.32,.60,2.10],[.10,.045,.035],edgePaint);
+ // rear corner armor seam and marker bolts
+ line([side*.78,.56,2.115],[side*.69,.28,2.15],.012,edgePaint);
+ for(const y of [.26,.39,.52])sphere([side*.72,y,2.175],.012,rivetMat,6);
+}
+box([0,.34,2.17],[.48,.12,.045],edgePaint);
+for(let i=0;i<5;i++)box([-.15+i*.075,.34,2.197],[.022,.075,.012],panelGrey);
+// rear lower plate joins and red/white markings
+quad([-.56,.24,2.15],[0,.22,2.155],[0,.48,2.15],[-.58,.48,2.15],paint);
+quad([0,.22,2.155],[.56,.24,2.15],[.58,.48,2.15],[0,.48,2.15],paint2);
+
+// Realistic exposed seams, bolts and hinge fasteners along the roof and hood edges.
+for(const side of [-1,1]){
+ for(const z of [-.25,.04,.33,.62,.91,1.10]){
+  const x=side*(station(z).tx+.045), y=roofY(z)+.046;sphere([x,y,z],.012,rivetMat,6);
+ }
+ for(const z of [-1.05,-.86,-.66,-.46]){
+  const y=roofY(z)+.03,x=side*(station(z).tx+.01);sphere([x,y,z],.010,rivetMat,6);
+ }
+}
+// Tiny front sponsor crest and text, printed as texture on the nose instead of floating objects.
+const badgeCanvas=document.createElement('canvas');badgeCanvas.width=512;badgeCanvas.height=128;const bc=badgeCanvas.getContext('2d');
+bc.clearRect(0,0,512,128);bc.textBaseline='middle';bc.font='bold 42px Arial';bc.lineWidth=6;bc.strokeStyle='#111';bc.strokeText('® Restrorex',260,67);bc.fillStyle='#f2f1eb';bc.fillText('® Restrorex',260,67);bc.strokeStyle='#ec4d5b';bc.lineWidth=5;bc.beginPath();bc.arc(72,65,34,0,Math.PI*2);bc.stroke();bc.fillStyle='#ef505c';bc.font='bold 34px Arial';bc.fillText('R',60,67);
+const badgeTex=new THREE.CanvasTexture(badgeCanvas);badgeTex.colorSpace=THREE.SRGBColorSpace;
+const badgeMat=new THREE.MeshBasicMaterial({map:badgeTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+// front decal lies on the slightly rear-raked face, just above the bumper
+const badgePts=[[-.47,.335,-2.285],[-.03,.335,-2.285],[-.03,.425,-2.278],[-.47,.425,-2.278]];
+const badgeGeo=new THREE.BufferGeometry();badgeGeo.setAttribute('position',new THREE.Float32BufferAttribute(badgePts.flat(),3));badgeGeo.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,1],2));badgeGeo.setIndex([0,1,2,0,2,3]);badgeGeo.computeVertexNormals();addMesh(badgeGeo,badgeMat);
+
+// Tiny hardware catches and perforations at the very front and side transitions.
+for(const side of [-1,1]){
+ for(const z of [-1.96,-1.78]){
+  const x=side*.955,y=station(z).ty+.035;
+  sphere([x,y,z],.013,rivetMat,6);
+ }
+ // fender-edge seam follows angled nose transition
+ sideLine(side,[-1.62,.42],[-1.43,.91],.012,edgePaint,.045);
+ sideLine(side,[-1.38,.85],[-1.18,1.03],.012,panelGrey,.043);
+}
+
+// Present only the vehicle: no floor, stand, scenery, or UI overlay.
+let firstFrame = true;
+function render(){requestAnimationFrame(render);controls.update();renderer.render(scene,camera);if(firstFrame){firstFrame=false;document.getElementById('load-error').style.display='none';}}render();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
