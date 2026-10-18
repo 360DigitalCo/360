@@ -1,3 +1,4 @@
+
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -1340,7 +1341,11 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
   <script src="assets/js/octicons.js"></script>
 <link rel="stylesheet" href="/assets/css/mobile-nav.css">
   <style id="beta-standard-serp">
-    #view-mode-toggle { display: none !important; }
+    #view-mode-toggle {
+      display: flex !important;
+      visibility: visible !important;
+      flex-shrink: 0;
+    }
 
     .results-tabs,
     .tools-bar {
@@ -1411,7 +1416,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     .results-layout {
-      max-width: 1440px;
+      max-width: 1560px;
+      width: 100%;
       justify-content: flex-start;
       gap: 32px;
       background: transparent;
@@ -1420,14 +1426,16 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     body #custom-results-area {
       order: 1;
       max-width: 860px !important;
-      flex: 0 1 860px;
-      margin-left: 0;
-      margin-right: auto;
+      flex: 1 1 860px;
+      min-width: 0;
+      margin: 0;
       background: transparent;
     }
 
     #knowledge-panel.active {
-      order: 2;
+      display: block !important;
+      visibility: visible;
+      opacity: 1;
       align-self: flex-start;
       flex: 0 0 320px;
       width: 320px;
@@ -1437,21 +1445,24 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     .results-layout:has(> #knowledge-panel.active) #custom-results-area {
       max-width: 860px !important;
-      flex: 0 1 860px;
-      margin-right: auto;
+      flex: 1 1 860px;
+      min-width: 0;
+      margin: 0;
     }
 
     body.classic-results .results-layout > #knowledge-panel.active {
       order: 2;
+      margin-left: auto;
     }
 
     body.classic-results .results-layout > #custom-results-area {
       order: 1;
-      margin-right: auto;
+      margin-right: 0;
     }
 
     body:not(.classic-results) .results-layout > #knowledge-panel.active {
       order: 0;
+      margin-left: 0;
     }
 
     body:not(.classic-results) .results-layout > #custom-results-area {
@@ -1668,6 +1679,308 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         padding: 0 12px 40px;
       }
     }
+  
+
+    /* Mode-specific layout: classic has a plain web list and a far-right panel;
+       normal keeps the glass cards and places the panel before the results. */
+    .results-layout {
+      display: grid !important;
+      grid-template-columns: minmax(0, 860px);
+      justify-content: center;
+      align-items: start;
+      gap: 32px;
+      width: 100%;
+      max-width: 1560px;
+      background: transparent;
+    }
+
+    body #custom-results-area {
+      grid-column: 1;
+      grid-row: 1;
+      width: 100%;
+      max-width: 860px !important;
+      min-width: 0;
+      margin: 0;
+      flex: initial;
+      background: transparent;
+    }
+
+    #knowledge-panel.active {
+      display: block !important;
+      position: relative !important;
+      top: auto !important;
+      grid-row: 1;
+      align-self: start;
+      width: 320px;
+      max-width: 320px;
+      min-width: 0;
+      max-height: none;
+      overflow: visible;
+      margin: 0;
+      flex: initial;
+      visibility: visible;
+      opacity: 1;
+    }
+
+    body:not(.classic-results) .results-layout:has(> #knowledge-panel.active) {
+      grid-template-columns: 320px minmax(0, 860px);
+      justify-content: center;
+    }
+
+    body:not(.classic-results) .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: start;
+    }
+
+    body:not(.classic-results) .results-layout:has(> #knowledge-panel.active) > #custom-results-area {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    body.classic-results .results-layout:has(> #knowledge-panel.active) {
+      grid-template-columns: minmax(0, 860px) 320px;
+      justify-content: space-between;
+    }
+
+    body.classic-results .results-layout:has(> #knowledge-panel.active) > #custom-results-area {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    body.classic-results .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+      margin-left: 0;
+    }
+
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+      grid-template-columns: 320px minmax(0, 860px);
+      justify-content: center;
+    }
+
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: start;
+    }
+
+    body.ai-results-view .results-layout > #custom-results-area {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    /* Classic mode alone removes the web cards. Normal mode restores the original card treatment. */
+    body.classic-results .web-result,
+    body.dark.classic-results .web-result {
+      display: block !important;
+      width: 100%;
+      padding: 12px 4px 16px !important;
+      margin: 0 !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      animation: none !important;
+      transform: none !important;
+    }
+
+    body.classic-results .web-result:hover,
+    body.dark.classic-results .web-result:hover {
+      background: transparent !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    body.classic-results .web-result .result-card-inner { display: block !important; }
+    body.classic-results .web-result .result-card-text { width: 100%; }
+    body.classic-results .web-result .result-site-row { display: flex !important; align-items: center; gap: 8px; }
+    body.classic-results .web-result .result-site-name { display: inline !important; color: var(--txt) !important; }
+    body.dark.classic-results .web-result .result-site-name { color: var(--txtd) !important; }
+    body.classic-results .web-result .result-favicon { display: block !important; width: 18px; height: 18px; }
+    body.classic-results .web-result .result-url { color: var(--mut) !important; font-size: 13px !important; opacity: 1 !important; }
+    body.dark.classic-results .web-result .result-url { color: var(--mutd) !important; }
+    body.classic-results .web-result .result-title { color: #1a73e8 !important; font-size: 20px !important; font-weight: 400 !important; }
+    body.dark.classic-results .web-result .result-title { color: #8ab4f8 !important; }
+    body.classic-results .web-result .result-snippet { color: var(--mut) !important; font-size: 15px !important; }
+    body.dark.classic-results .web-result .result-snippet { color: var(--mutd) !important; }
+    body.classic-results .web-result .result-thumbnail { display: none !important; }
+    body.classic-results #custom-results-area { max-width: 860px !important; }
+
+    body:not(.classic-results) .web-result,
+    body.dark:not(.classic-results) .web-result {
+      display: flex !important;
+      flex-direction: column;
+      gap: 4px;
+      padding: 16px 20px !important;
+      margin-bottom: 10px !important;
+      background: var(--glass-light-mid) !important;
+      backdrop-filter: var(--glass-blur) !important;
+      -webkit-backdrop-filter: var(--glass-blur) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 18px !important;
+      box-shadow: var(--glass-shadow-sm), var(--glass-inset) !important;
+      animation: cardIn .22s ease both !important;
+      transform: none !important;
+    }
+
+    body.dark:not(.classic-results) .web-result {
+      background: var(--glass-dark-mid) !important;
+      border-color: var(--glass-border-dk) !important;
+      box-shadow: var(--glass-shadow-sm), var(--glass-inset-dk) !important;
+    }
+
+    body:not(.classic-results) .web-result:hover {
+      border-color: var(--a) !important;
+      box-shadow: var(--glass-shadow), var(--glass-inset) !important;
+      transform: translateY(-2px) !important;
+    }
+
+    body.dark:not(.classic-results) .web-result:hover {
+      box-shadow: var(--glass-shadow), var(--glass-inset-dk) !important;
+    }
+
+    body:not(.classic-results) .web-result .result-card-inner { display: flex !important; }
+    body:not(.classic-results) .web-result .result-site-row { display: flex !important; }
+    body:not(.classic-results) .web-result .result-site-name { color: var(--txt) !important; }
+    body.dark:not(.classic-results) .web-result .result-site-name { color: var(--txtd) !important; }
+    body:not(.classic-results) .web-result .result-title { color: var(--a) !important; font-size: 17px !important; font-weight: 700 !important; }
+    body:not(.classic-results) .web-result .result-snippet { color: var(--mut) !important; font-size: 14px !important; }
+    body.dark:not(.classic-results) .web-result .result-snippet { color: var(--mutd) !important; }
+    body:not(.classic-results) .web-result .result-thumbnail { display: block !important; }
+
+    /* Keep tab labels readable over user backgrounds in both light and dark mode. */
+    body:not(.dark) .results-tabs .results-tab:hover { color: var(--txt) !important; background: rgba(0, 0, 0, .055) !important; }
+    body.dark .results-tabs .results-tab:hover { color: var(--txtd) !important; background: rgba(255, 255, 255, .09) !important; }
+    body:not(.dark) .results-tabs .results-tab.active,
+    body:not(.dark) .results-tabs .results-tab.active:hover { color: var(--txt) !important; background: transparent !important; }
+    body.dark .results-tabs .results-tab.active,
+    body.dark .results-tabs .results-tab.active:hover { color: var(--txtd) !important; background: transparent !important; }
+
+    /* Entity profile enrichment: smooth image tiles and scannable story cards. */
+    .kp-person-extra { margin-top: 8px; }
+    .kp-person-section { margin-top: 4px; }
+    .kp-gallery {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .kp-gallery-item {
+      display: block;
+      aspect-ratio: 4 / 3;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--glass-light);
+      border: 1px solid var(--glass-border);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .kp-gallery-item img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform .3s cubic-bezier(.2,.75,.25,1), filter .2s ease;
+    }
+    .kp-gallery-item:hover,
+    .kp-gallery-item:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--a);
+      box-shadow: 0 8px 20px rgba(0,0,0,.16);
+      outline: none;
+    }
+    .kp-gallery-item:hover img,
+    .kp-gallery-item:focus-visible img { transform: scale(1.055); }
+    body.dark .kp-gallery-item { background: var(--glass-dark); border-color: var(--glass-border-dk); }
+    .kp-social-links { display: flex; flex-wrap: wrap; gap: 7px; }
+    .kp-social-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-light);
+      color: var(--txt) !important;
+      font-size: 12px;
+      line-height: 1.2;
+      text-decoration: none;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .kp-social-link:hover { transform: translateY(-2px); background: var(--glass-light-mid); border-color: var(--a); }
+    body.dark .kp-social-link { background: var(--glass-dark); color: var(--txtd) !important; border-color: var(--glass-border-dk); }
+    body.dark .kp-social-link:hover { background: var(--glass-dark-mid); }
+    .kp-stories { display: flex; flex-direction: column; gap: 8px; }
+    .kp-story {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 9px;
+      border-radius: 10px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-light);
+      text-decoration: none;
+      color: inherit;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+    .kp-story:hover,
+    .kp-story:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--a);
+      background: var(--glass-light-mid);
+      box-shadow: 0 6px 16px rgba(0,0,0,.1);
+      outline: none;
+    }
+    body.dark .kp-story { background: var(--glass-dark); border-color: var(--glass-border-dk); }
+    body.dark .kp-story:hover,
+    body.dark .kp-story:focus-visible { background: var(--glass-dark-mid); }
+    .kp-story-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .kp-story-title { display: block; color: var(--txt); font-size: 12.5px; font-weight: 650; line-height: 1.4; }
+    body.dark .kp-story-title { color: var(--txtd); }
+    .kp-story-meta { display: block; color: var(--mut); font-size: 10.5px; line-height: 1.35; }
+    body.dark .kp-story-meta { color: var(--mutd); }
+    .kp-story-desc { display: block; color: var(--mut); font-size: 11.5px; line-height: 1.45; }
+    body.dark .kp-story-desc { color: var(--mutd); }
+    .kp-story-thumb { width: 64px; height: 54px; flex: 0 0 64px; object-fit: cover; border-radius: 7px; }
+    .kp-story-loading { color: var(--mut); font-size: 12px; padding: 8px 0; }
+    body.dark .kp-story-loading { color: var(--mutd); }
+
+    @media (max-width: 1120px) {
+      .results-layout,
+      body:not(.classic-results) .results-layout:has(> #knowledge-panel.active),
+      body.classic-results .results-layout:has(> #knowledge-panel.active),
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        justify-content: stretch !important;
+        gap: 18px;
+      }
+      body:not(.classic-results) .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active,
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+        grid-column: 1;
+        grid-row: 1;
+        width: 100%;
+        max-width: 100%;
+      }
+      body:not(.classic-results) .results-layout:has(> #knowledge-panel.active) > #custom-results-area,
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #custom-results-area {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      body.classic-results .results-layout:has(> #knowledge-panel.active) > #custom-results-area { grid-column: 1; grid-row: 1; }
+      body.classic-results .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active { grid-column: 1; grid-row: 2; width: 100%; max-width: 100%; }
+    }
+
+    @media (max-width: 640px) {
+      .results-layout { padding: 12px 12px 40px; }
+      body .results-layout > #knowledge-panel.active,
+      body.classic-results .results-layout > #knowledge-panel.active,
+      body.ai-results-view .results-layout > #knowledge-panel.active { width: 100%; max-width: 100%; }
+      body:not(.classic-results) .web-result { padding: 14px !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -1835,7 +2148,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         </button>
         <button id="view-mode-toggle" class="safe-search-toggle" style="margin-left:0;" title="Switch results layout">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          <span id="view-mode-label">Card view</span>
+          <span id="view-mode-label">Normal view</span>
         </button>
         <button id="ai-summary-toggle" class="safe-search-toggle" style="margin-left:0;" title="Toggle AI summary">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 1 0 5 5"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -2395,7 +2708,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         for (const [pid, label] of Object.entries(WIKIDATA_PROPS)) {
           const dv = entity.claims[pid]?.[0]?.mainsnak?.datavalue;
           if (dv) rawFacts.push({ pid, label, dv });
-          if (rawFacts.length >= 10) break; // cap — a panel, not a spreadsheet
+          if (rawFacts.length >= 14) break; // keep the useful facts without overwhelming the panel
         }
         if (!rawFacts.length) return [];
 
@@ -2441,6 +2754,135 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
         return facts;
       } catch (e) { return []; }
+    }
+
+
+    async function fetchWikidataSocialProfiles(title, token) {
+      const profiles = [
+        { pid: 'P2002', label: 'X', url: value => `https://x.com/${encodeURIComponent(value.replace(/^@/, ''))}` },
+        { pid: 'P2003', label: 'Instagram', url: value => `https://www.instagram.com/${encodeURIComponent(value.replace(/^@/, ''))}/` },
+        { pid: 'P2013', label: 'Facebook', url: value => `https://www.facebook.com/${encodeURIComponent(value)}` },
+        { pid: 'P6634', label: 'LinkedIn', url: value => `https://www.linkedin.com/in/${encodeURIComponent(value)}` },
+        { pid: 'P2397', label: 'YouTube', url: value => `https://www.youtube.com/channel/${encodeURIComponent(value)}` }
+      ];
+      try {
+        const res = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&sites=enwiki&titles=${encodeURIComponent(title)}&props=claims&format=json&origin=*`);
+        if (!res.ok || token !== kpToken) return [];
+        const data = await res.json();
+        const entity = Object.values(data.entities || {})[0];
+        if (!entity || !entity.claims) return [];
+        return profiles.flatMap(profile => {
+          const claim = (entity.claims[profile.pid] || []).find(item => item.rank !== 'deprecated');
+          const value = claim?.mainsnak?.datavalue?.value;
+          if (typeof value !== 'string' || !value.trim()) return [];
+          return [{ label: profile.label, url: profile.url(value.trim()) }];
+        });
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchCommonsPersonPhotos(title, token) {
+      try {
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(title)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=360&format=json&origin=*`;
+        const res = await fetch(url);
+        if (!res.ok || token !== kpToken) return [];
+        const data = await res.json();
+        return Object.values(data.query?.pages || {})
+          .map(page => ({
+            title: page.title || '',
+            url: page.imageinfo?.[0]?.thumburl || page.imageinfo?.[0]?.url || ''
+          }))
+          .filter(photo => /^https?:\/\//i.test(photo.url) && photo.title)
+          .slice(0, 4);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchPersonLatestStories(title, token) {
+      try {
+        const res = await fetch(EDGE_SEARCH, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+          body: JSON.stringify({ q: `${title} latest news`, tab: 'news' })
+        });
+        if (!res.ok || token !== kpToken) return [];
+        const data = await res.json();
+        return (data.news || []).filter(item => item && /^https?:\/\//i.test(item.url || '') && item.title).slice(0, 4);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchPersonSocialResults(title, token) {
+      try {
+        const res = await fetch(EDGE_SEARCH, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+          body: JSON.stringify({ q: `${title} latest social posts`, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+        });
+        if (!res.ok || token !== kpToken) return [];
+        const data = await res.json();
+        const socialHost = /(^|\.)(x\.com|twitter\.com|instagram\.com|threads\.net|facebook\.com|tiktok\.com|linkedin\.com|youtube\.com)$/i;
+        return (data.web || []).filter(item => {
+          try { return /^https?:$/i.test(new URL(item.url).protocol) && socialHost.test(new URL(item.url).hostname.replace(/^www\./i, '')); }
+          catch (e) { return false; }
+        }).slice(0, 3);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function loadPersonPanelExtras(title, token) {
+      const panel = knowledgePanel;
+      if (!panel.querySelector('#kp-person-extra')) return;
+      const [profiles, photos, stories, socialResults] = await Promise.all([
+        fetchWikidataSocialProfiles(title, token),
+        fetchCommonsPersonPhotos(title, token),
+        fetchPersonLatestStories(title, token),
+        fetchPersonSocialResults(title, token)
+      ]);
+      if (token !== kpToken || !panel.classList.contains('active')) return;
+
+      const socialSection = panel.querySelector('#kp-social-section');
+      const socialList = panel.querySelector('#kp-social-links');
+      if (socialSection && socialList) {
+        if (profiles.length) {
+          socialList.innerHTML = profiles.map(profile => `<a class="kp-social-link" href="${escHtml(profile.url)}" target="_blank" rel="noopener noreferrer">${escHtml(profile.label)}<span aria-hidden="true">↗</span></a>`).join('');
+          socialSection.style.display = '';
+        } else socialSection.style.display = 'none';
+      }
+
+      const gallerySection = panel.querySelector('#kp-gallery-section');
+      const gallery = panel.querySelector('#kp-person-gallery');
+      if (gallerySection && gallery) {
+        if (photos.length) {
+          gallery.innerHTML = photos.map(photo => {
+            const pageUrl = `https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.title).replace(/%20/g, '_').replace(/%3A/gi, ':')}`;
+            return `<a class="kp-gallery-item" href="${escHtml(pageUrl)}" target="_blank" rel="noopener noreferrer" title="Open image source"><img src="${escHtml(photo.url)}" alt="${escHtml(photo.title.replace(/^File:/, '').replace(/_/g, ' '))}" loading="lazy" onerror="this.closest('.kp-gallery-item')?.remove()"></a>`;
+          }).join('');
+          gallerySection.style.display = '';
+        } else gallerySection.style.display = 'none';
+      }
+
+      const socialResultsSection = panel.querySelector('#kp-social-results-section');
+      const socialResultsList = panel.querySelector('#kp-social-results');
+      if (socialResultsSection && socialResultsList) {
+        if (socialResults.length) {
+          socialResultsList.innerHTML = socialResults.map(item => `<a class="kp-story" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer"><span class="kp-story-title">${escHtml(item.title || 'Social result')}</span><span class="kp-story-meta">${escHtml(item.source || item.site || (() => { try { return new URL(item.url).hostname.replace(/^www\./, ''); } catch (e) { return 'Social'; } })())}</span>${item.snippet || item.description ? `<span class="kp-story-desc">${escHtml((item.snippet || item.description).slice(0, 150))}</span>` : ''}</a>`).join('');
+          socialResultsSection.style.display = '';
+        } else socialResultsSection.style.display = 'none';
+      }
+
+      const storiesSection = panel.querySelector('#kp-stories-section');
+      const storiesList = panel.querySelector('#kp-top-stories');
+      if (storiesSection && storiesList) {
+        if (stories.length) {
+          storiesList.innerHTML = stories.map(item => `<a class="kp-story" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${item.thumb ? `<img class="kp-story-thumb" src="${escHtml(item.thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="kp-story-main"><span class="kp-story-title">${escHtml(item.title)}</span><span class="kp-story-meta">${escHtml([item.source, item.age].filter(Boolean).join(' · '))}</span>${item.desc ? `<span class="kp-story-desc">${escHtml(item.desc.slice(0, 160))}</span>` : ''}</span></a>`).join('');
+          storiesSection.style.display = '';
+        } else storiesSection.style.display = 'none';
+      }
     }
 
 
@@ -2620,6 +3062,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           .map(x => x.Text || x.Topics?.[0]?.Text)
           .filter(Boolean)
           .slice(0, 5);
+        const personFactLabels = new Set(['Born', 'Died', 'Born in', 'Citizenship', 'Occupation', 'Spouse', 'Employer', 'Education', 'Awards', 'Age']);
+        const isPerson = facts.some(f => personFactLabels.has(f.label));
 
         // Genuinely nothing to show — hide rather than render a panel with
         // the raw query as a fake title and an empty body.
@@ -2659,11 +3103,19 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
             <div class="kp-pills">
               ${related.map(f => `<button class="kp-pill" data-q="${escHtml(f)}">${escHtml(f.length > 38 ? f.slice(0, 36) + '…' : f)}</button>`).join('')}
             </div>` : ''}
+          ${isPerson ? `
+            <div class="kp-person-extra" id="kp-person-extra">
+              <section class="kp-person-section" id="kp-gallery-section" style="display:none"><div class="kp-related-label">Photo gallery</div><div class="kp-gallery" id="kp-person-gallery"></div></section>
+              <section class="kp-person-section" id="kp-social-section" style="display:none"><div class="kp-related-label">Social profiles</div><div class="kp-social-links" id="kp-social-links"></div></section>
+              <section class="kp-person-section" id="kp-social-results-section" style="display:none"><div class="kp-related-label">Recent social results</div><div class="kp-stories" id="kp-social-results"></div></section>
+              <section class="kp-person-section" id="kp-stories-section"><div class="kp-related-label">Top stories</div><div class="kp-stories" id="kp-top-stories"><div class="kp-story-loading">Looking for recent coverage…</div></div></section>
+            </div>` : ''}
         `;
 
         knowledgePanel.querySelectorAll('.kp-pill').forEach(btn => {
           btn.addEventListener('click', () => { hideSuggestions(); doSearch(btn.dataset.q); });
         });
+        if (isPerson && bestTitle) loadPersonPanelExtras(bestTitle, myToken);
       } catch (e) {
         if (myToken !== kpToken) return;
         knowledgePanel.classList.remove('active');
@@ -3916,8 +4368,11 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
       function render() {
         document.body.classList.toggle('classic-results', classicMode);
-        label.textContent = classicMode ? 'Card view' : 'Classic view';
-        btn.classList.toggle('off', classicMode);
+        label.textContent = classicMode ? 'Normal view' : 'Classic view';
+        btn.classList.remove('off');
+        btn.title = classicMode ? 'Switch to normal card view' : 'Switch to classic web results';
+        btn.setAttribute('aria-label', btn.title);
+        btn.setAttribute('aria-pressed', String(classicMode));
       }
       render();
 
