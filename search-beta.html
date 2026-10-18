@@ -1,4 +1,4 @@
-<!-- beta (please delete this line in search.html) -->
+
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -2486,6 +2486,35 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       body.classic-results #custom-results-area .forum-result .result-title { font-size: 18px !important; }
       .ai-key-answer { padding: 10px 12px 10px 14px; font-size: 15px; }
     }
+  </style>
+  <style id="beta-center-results-without-kp">
+    .results-layout:not(:has(> #knowledge-panel.active)) {
+      grid-template-columns: minmax(0, 860px) !important;
+      justify-content: center !important;
+    }
+    .results-layout:not(:has(> #knowledge-panel.active)) > #custom-results-area {
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      justify-self: center !important;
+      width: 100% !important;
+      max-width: 860px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    .results-layout:not(:has(> #knowledge-panel.active)) > #ai-panel.active {
+      grid-column: 1 !important;
+      justify-self: center !important;
+      width: 100% !important;
+      max-width: 680px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    .paa-loading-state { padding: 10px 16px 14px; color: var(--mut); font-size: 12px; }
+    body.dark .paa-loading-state { color: var(--mutd); }
+    .paa-row { overflow: hidden; }
+    .paa-row .paa-item span:first-child { min-width: 0; }
+    .paa-answer-text { overflow-wrap: anywhere; }
+    .paa-answer .paa-full-link { margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -5647,8 +5676,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
       const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
       const catalogHit = FORUM_PROVIDER_CATALOG.find(provider => provider.domains.some(domain => hostMatchesDomain(host, domain)));
-      const isDiscussionPath = /\/(?:r\/|forums?\/|community\b|discussions?\/|questions?\/|answers?\/|threads?\/|topics?\/|boards?\/|board\/|showthread\.php|viewtopic\.php|hotline\/|thorntree\/)/i.test(parsed.pathname)
-        || /news\.ycombinator\.com\/item\?id=/i.test(`${host}${parsed.pathname}${parsed.search}`);
+      const isDiscussionPath = /\/(?:r\/|forums?(?:\/|$)|community(?:\/|$)|communities(?:\/|$)|discussions?(?:\/|$)|questions?(?:\/|$)|answers?(?:\/|$)|threads?(?:\/|$)|topics?(?:\/|$)|boards?(?:\/|$)|board\/|t\/|posts?\/|q\/|showthread\.php|viewtopic\.php|hotline\/|thorntree\/)/i.test(parsed.pathname)
+        || /news\.ycombinator\.com\/item\?id=/i.test(`${host}${parsed.pathname}${parsed.search}`)
+        || /^forum\./i.test(host);
 
       if (host === 'github.com' && !/\/(?:[^/]+\/[^/]+\/(?:discussions|issues))\//i.test(parsed.pathname)) return null;
       if (catalogHit) {
@@ -5697,6 +5727,20 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       };
     }
 
+    function edgeSearchItems(data) {
+      const lists = [
+        data?.web, data?.results, data?.items, data?.organic, data?.organic_results,
+        data?.searchResults, data?.forums, data?.data?.web, data?.data?.results,
+        data?.data?.items, data?.data?.organic, data?.search?.web, data?.search?.results
+      ];
+      for (const list of lists) {
+        if (Array.isArray(list)) return list;
+        if (Array.isArray(list?.results)) return list.results;
+        if (Array.isArray(list?.items)) return list.items;
+      }
+      return Array.isArray(data) ? data : [];
+    }
+
     async function fetchForumQuery(query, allowedDomains) {
       try {
         const res = await fetch(EDGE_SEARCH, {
@@ -5706,8 +5750,91 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         });
         if (!res.ok) return [];
         const data = await res.json();
-        const items = Array.isArray(data.web) ? data.web : Array.isArray(data.results) ? data.results : [];
-        return items.map(item => forumCandidateFromItem(item, allowedDomains)).filter(Boolean).slice(0, 8);
+        return edgeSearchItems(data).map(item => forumCandidateFromItem(item, allowedDomains)).filter(Boolean).slice(0, 12);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchRedditForumResults(query) {
+      try {
+        const url = `https://www.reddit.com/search.json?raw_json=1&sort=relevance&t=year&limit=10&q=${encodeURIComponent(query)}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const children = data?.data?.children;
+        if (!Array.isArray(children)) return [];
+        return children.map(entry => {
+          const post = entry?.data || {};
+          if (!post.title || !post.permalink) return null;
+          const permalink = `https://www.reddit.com${post.permalink}`;
+          return {
+            title: cleanPreviewText(post.title),
+            url: permalink,
+            desc: cleanPreviewText(post.selftext || `${Number(post.score || 0).toLocaleString()} points · ${Number(post.num_comments || 0).toLocaleString()} comments`),
+            source: post.subreddit ? `Reddit · r/${post.subreddit}` : 'Reddit',
+            favicon: 'https://www.google.com/s2/favicons?sz=32&domain_url=https%3A%2F%2Fwww.reddit.com',
+            age: post.created_utc ? new Date(post.created_utc * 1000).toLocaleDateString() : '',
+            thumb: post.thumbnail && /^https?:/i.test(post.thumbnail) ? post.thumbnail : ''
+          };
+        }).filter(item => item && item.title && item.url);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchHackerNewsForumResults(query) {
+      try {
+        const url = `https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=8&query=${encodeURIComponent(query)}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const hits = Array.isArray(data?.hits) ? data.hits : [];
+        return hits.map(hit => {
+          const title = cleanPreviewText(hit.title || hit.story_title || '');
+          const id = hit.objectID || hit.story_id;
+          if (!title || !id) return null;
+          const points = Number(hit.points || 0);
+          const comments = Number(hit.num_comments || 0);
+          return {
+            title,
+            url: `https://news.ycombinator.com/item?id=${encodeURIComponent(id)}`,
+            desc: `${points.toLocaleString()} points · ${comments.toLocaleString()} comments on Hacker News`,
+            source: 'Hacker News',
+            favicon: 'https://www.google.com/s2/favicons?sz=32&domain_url=https%3A%2F%2Fnews.ycombinator.com',
+            age: hit.created_at ? new Date(hit.created_at).toLocaleDateString() : '',
+            thumb: ''
+          };
+        }).filter(Boolean);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchStackExchangeForumResults(query, site = 'stackoverflow') {
+      try {
+        const url = `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&site=${encodeURIComponent(site)}&pagesize=8&filter=default&q=${encodeURIComponent(query)}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const siteLabels = { stackoverflow: 'Stack Overflow', superuser: 'Super User', askubuntu: 'Ask Ubuntu', unix: 'Unix & Linux', gaming: 'Arqade', math: 'Mathematics · Stack Exchange', physics: 'Physics · Stack Exchange', english: 'English Language & Usage', cooking: 'Seasoned Advice', travel: 'Travel · Stack Exchange' };
+        return items.map(item => {
+          const title = cleanPreviewText(item.title || '');
+          if (!title || !item.link) return null;
+          const tags = Array.isArray(item.tags) ? item.tags.slice(0, 4).join(', ') : '';
+          const answers = Number(item.answer_count || 0);
+          const meta = `${item.is_answered ? 'Answered' : answers ? `${answers} answers` : 'Community question'}${tags ? ` · ${tags}` : ''}`;
+          return {
+            title,
+            url: item.link,
+            desc: meta,
+            source: siteLabels[site] || 'Stack Exchange',
+            favicon: `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(new URL(item.link).origin)}`,
+            age: item.creation_date ? new Date(item.creation_date * 1000).toLocaleDateString() : '',
+            thumb: ''
+          };
+        }).filter(Boolean);
       } catch (e) {
         return [];
       }
@@ -5716,26 +5843,43 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     async function runForumsSearch(query) {
       showLoading();
       const topic = detectForumTopic(query);
-      const tasks = FORUM_BASE_PROVIDERS.map(provider =>
-        fetchForumQuery(`${query} site:${provider.domain}`, provider.domains)
-      );
+      const providerTargets = [...FORUM_BASE_PROVIDERS,
+        { label: 'Stack Overflow', domain: 'stackoverflow.com', domains: ['stackoverflow.com'] },
+        { label: 'Hacker News', domain: 'news.ycombinator.com', domains: ['news.ycombinator.com'] }
+      ];
+      const tasks = [
+        fetchForumQuery(query, null),
+        fetchForumQuery(`${query} forum discussion community questions answers`, null),
+        fetchForumQuery(`${query} online discussions`, null),
+        ...providerTargets.map(provider => fetchForumQuery(`${query} ${provider.label} discussion`, provider.domains))
+      ];
 
-      if (topic && topic.domains.length) {
-        const scopes = [...new Set(topic.domains)];
-        const scopeQuery = scopes.map(domain => `site:${domain}`).join(' OR ');
-        tasks.push(fetchForumQuery(`${query} (${scopeQuery})`, scopes));
-        if (topic.name === 'technology and development' || topic.name === 'business and marketing') {
-          tasks.push(fetchForumQuery(`${query} site:news.ycombinator.com`, ['news.ycombinator.com']));
-        }
+      if (topic) {
+        const topicDomains = [...new Set(topic.domains || [])];
+        tasks.push(fetchForumQuery(`${query} ${topic.name} forum discussion`, topicDomains.length ? topicDomains : null));
       }
 
-      tasks.push(fetchForumQuery(`${query} forum discussion community questions answers`, null));
+      const topicIsTech = topic && ['technology and development', 'business and marketing'].includes(topic.name);
+      const stackSiteByTopic = {
+        'school and homework': 'math',
+        'science and research': 'physics',
+        'gaming': 'gaming',
+        'cooking and food': 'cooking',
+        'travel': 'travel',
+        'audio and hi-fi': 'stackoverflow',
+        'technology and development': 'stackoverflow'
+      };
+      tasks.push(fetchRedditForumResults(query));
+      if (topicIsTech || !topic) tasks.push(fetchHackerNewsForumResults(query));
+      tasks.push(fetchStackExchangeForumResults(query, stackSiteByTopic[topic?.name] || 'stackoverflow'));
+
       const batches = await Promise.all(tasks);
       if (state.tab !== 'forums' || state.query !== query) return;
 
       const seen = new Set();
       const merged = [];
       for (const item of batches.flat()) {
+        if (!item?.url || !item?.title) continue;
         const key = newsUrlKey(item.url);
         if (!key || seen.has(key)) continue;
         seen.add(key);
@@ -5746,7 +5890,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     function renderForumResults(items, topicName) {
       if (!items.length) {
-        resultsArea.innerHTML = `<div class="state-box"><div class="big-icon"><span data-octicon="search"></span></div><h3>No forum discussions found</h3><p>Try a broader phrase. Forums searches check Reddit, Quora, Brainly, Stack Exchange, and relevant specialist communities.</p></div>`;
+        resultsArea.innerHTML = `<div class="state-box"><div class="big-icon"><span data-octicon="search"></span></div><h3>No forum discussions found</h3><p>Try a broader phrase. Forums checks indexed community pages plus public Reddit, Hacker News, and Stack Exchange search where available.</p></div>`;
         return;
       }
 
@@ -6030,11 +6174,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       try { if (totalPages > 1) html += buildPagination(currentPage, totalPages); } catch (e) { console.error('buildPagination failed:', e); }
       html += `<div id="related-searches-box"></div>`;
       resultsArea.innerHTML = html;
+      if (resultsArea.querySelector('.paa-box')) loadPeopleAlsoAsk(state.query);
       resultsArea.querySelectorAll('.page-btn[data-page]').forEach(btn => {
         btn.addEventListener('click', () => goToPage(parseInt(btn.getAttribute('data-page'))));
-      });
-      resultsArea.querySelectorAll('.paa-item').forEach(btn => {
-        btn.addEventListener('click', () => togglePaaRow(btn.closest('.paa-row')));
       });
       try { if (state.query) loadRelatedSearches(state.query); } catch (e) { console.error('loadRelatedSearches failed:', e); }
     }
@@ -6044,62 +6186,187 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     function safeElapsedSuffix() { try { return elapsedSuffix(); } catch (e) { return ''; } }
 
     /* ─────────────────────────────────
-       PEOPLE ALSO ASK — template-generated (not scraped from Google; their
-       real "People also ask" data isn't reachable through a GCSE widget).
-       Behaves like Google's version now: clicking expands an inline answer
-       in place rather than firing a whole new search. The answer itself
-       comes from the same ddg-instant proxy the knowledge panel uses —
-       best-effort, with a "See full results" link for anything it can't
-       answer directly.
+       PEOPLE ALSO ASK — built from related query suggestions and answer-bearing search results.
+       Rows are only rendered when a useful answer snippet is available.
     ───────────────────────────────── */
     function looksLikeQuestion(q) {
-      return /^(who|what|when|where|why|how|is|are|can|does|do|did|will|should|which)\b/i.test(q.trim());
+      return /^(who|what|when|where|why|how|is|are|can|does|do|did|will|should|which|could|would|has|have)\b/i.test(String(q || '').trim());
     }
+
     function renderPeopleAlsoAsk(q) {
       if (!q || looksLikeQuestion(q)) return '';
-      const questions = [
-        `What is ${q}?`,
-        `How does ${q} work?`,
-        `Why is ${q} important?`,
-        `Is ${q} worth it?`,
-      ];
-      return `<div class="paa-box">
+      return `<div class="paa-box" data-paa-for="${escHtml(q)}" aria-live="polite">
         <div class="paa-heading">People also ask</div>
-        ${questions.map((qq, i) => `
-          <div class="paa-row" data-idx="${i}">
-            <button class="paa-item" data-q="${escHtml(qq)}">
-              <span>${escHtml(qq)}</span>
-              <span class="paa-arrow">+</span>
-            </button>
-            <div class="paa-answer"></div>
-          </div>`).join('')}
+        <div class="paa-loading-state">Finding related questions…</div>
       </div>`;
     }
 
-    async function togglePaaRow(row) {
-      const wasOpen = row.classList.contains('open');
-      row.classList.toggle('open', !wasOpen);
-      if (wasOpen) return; // collapsing needs nothing further
+    function paaItemsFrom(data) {
+      const explicit = [data?.peopleAlsoAsk, data?.people_also_ask, data?.relatedQuestions, data?.related_questions, data?.paa, data?.questions,
+        data?.data?.peopleAlsoAsk, data?.data?.relatedQuestions, data?.data?.related_questions];
+      for (const entry of explicit) if (Array.isArray(entry) && entry.length) return entry;
+      return edgeSearchItems(data);
+    }
 
-      const answerEl = row.querySelector('.paa-answer');
-      const q = row.querySelector('.paa-item').dataset.q;
-      if (answerEl.dataset.loaded) return; // already fetched once
-      answerEl.dataset.loaded = '1';
-      answerEl.innerHTML = `<div class="paa-loading">Loading…</div>`;
+    function paaQuestionFromSuggestion(value, mainQuery, index = 0) {
+      let text = cleanPreviewText(typeof value === 'string' ? value : value?.text || value?.query || value?.suggestion || value?.title || '');
+      if (!text || text.length < 3 || text.toLowerCase() === mainQuery.toLowerCase()) return '';
+      if (text.length > 115) text = text.slice(0, 112).trimEnd() + '…';
+      if (looksLikeQuestion(text)) return text.endsWith('?') ? text : `${text}?`;
+      if (/\bvs?\.?\b/i.test(text) || /\bdifference between\b/i.test(text)) return `What is the difference between ${text.replace(/[?!.]+$/, '')}?`;
+      if (/^how to\s+/i.test(text)) return `How can you ${text.replace(/^how to\s+/i, '').replace(/[?!.]+$/, '')}?`;
+      if (/^(best|top)\s+/i.test(text)) return `What are the ${text.replace(/[?!.]+$/, '')}?`;
+      if (/\b(price|pricing|cost|cheap|expensive)\b/i.test(text)) return `How much does ${text.replace(/[?!.]+$/, '')} cost?`;
+      if (/\b(alternatives?|replacements?)\b/i.test(text)) {
+        const subject = text.replace(/^(?:best\s+)?(?:alternatives?|replacements?)\s+(?:to\s+)?/i, '').replace(/\s+(?:alternatives?|replacements?)$/i, '').replace(/[?!.]+$/, '').trim();
+        return `What are good alternatives to ${subject || mainQuery}?`;
+      }
+      const startsWithMain = text.toLowerCase().startsWith(mainQuery.toLowerCase());
+      const questionForms = [
+        () => `How does ${text.replace(/[?!.]+$/, '')} work?`,
+        () => `What should you know about ${text.replace(/[?!.]+$/, '')}?`,
+        () => `When is ${text.replace(/[?!.]+$/, '')} useful?`,
+        () => `Why do people use ${text.replace(/[?!.]+$/, '')}?`
+      ];
+      if (startsWithMain) {
+        const detail = text.slice(mainQuery.length).trim().replace(/^[-:–—,]+/, '').replace(/[?!.]+$/, '');
+        if (/^vs\b/i.test(detail)) return `What is the difference between ${mainQuery} and ${detail.replace(/^vs\s*/i, '')}?`;
+        if (/^(price|pricing|cost)\b/i.test(detail)) return `How much does ${mainQuery} cost?`;
+      }
+      return questionForms[index % questionForms.length]();
+    }
+
+    function paaAnswerFrom(item) {
+      const value = item?.answerText ?? item?.answer_text ?? item?.answer ?? item?.accepted_answer ?? item?.snippet ?? item?.description ?? item?.desc ?? item?.summary ?? item?.content ?? item?.text ?? '';
+      const answer = cleanPreviewText(value);
+      if (answer.length < 42) return '';
+      if (/^(no results|no answer|read more|click here|sign in|log in)\b/i.test(answer)) return '';
+      return answer.length > 460 ? `${answer.slice(0, 457).trimEnd()}…` : answer;
+    }
+
+    function paaTitleFrom(item) {
+      return cleanPreviewText(item?.question ?? item?.title ?? item?.name ?? item?.query ?? item?.text ?? '');
+    }
+
+    function paaLooksRelevant(question, mainQuery) {
+      const normalized = question.toLowerCase();
+      const words = mainQuery.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+      return words.length === 0 || words.some(word => normalized.includes(word));
+    }
+
+    async function fetchEdgeSearchData(query) {
+      const res = await fetch(EDGE_SEARCH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+        body: JSON.stringify({ q: query, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+      });
+      if (!res.ok) return null;
+      return res.json();
+    }
+
+    async function loadPeopleAlsoAsk(query) {
+      const box = [...resultsArea.querySelectorAll('.paa-box')].find(el => el.dataset.paaFor === query);
+      if (!box || state.tab !== 'web' || state.query !== query) return;
 
       try {
-        const res = await fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/ddg-instant?q=${encodeURIComponent(q)}`, {
-          headers: SUPABASE_FN_HEADERS,
-        });
-        const data = await res.json();
-        const text = data?.AbstractText || data?.Answer || '';
-        answerEl.innerHTML = `
-          ${text ? `<div class="paa-answer-text">${escHtml(text)}</div>` : `<div class="paa-answer-text">No quick answer available for this one.</div>`}
-          <button class="paa-full-link" data-q="${escHtml(q)}">See full results →</button>`;
+        const [relatedData, autocompleteData] = await Promise.all([
+          fetchEdgeSearchData(`${query} related questions answers`).catch(() => null),
+          fetch(`https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/autocomplete?q=${encodeURIComponent(query)}`, { headers: SUPABASE_FN_HEADERS })
+            .then(res => res.ok ? res.json() : null).catch(() => null)
+        ]);
+        if (state.tab !== 'web' || state.query !== query || !box.isConnected) return;
+
+        const candidates = [];
+        const seenQuestions = new Set();
+        const addCandidate = (question, answer, url = '') => {
+          question = cleanPreviewText(question);
+          answer = cleanPreviewText(answer);
+          if (!question || !answer || answer.length < 42 || (!question.endsWith('?') && !looksLikeQuestion(question))) return;
+          if (!paaLooksRelevant(question, query)) return;
+          const key = question.toLowerCase().replace(/[?!.]+$/, '').trim();
+          if (!key || seenQuestions.has(key)) return;
+          seenQuestions.add(key);
+          candidates.push({ question: question.endsWith('?') ? question : `${question}?`, answer: answer.length > 460 ? `${answer.slice(0, 457).trimEnd()}…` : answer, url });
+        };
+
+        const collectQuestionObjects = data => {
+          const arr = paaItemsFrom(data);
+          arr.forEach(item => {
+            const question = paaTitleFrom(item);
+            const answer = paaAnswerFrom(item);
+            const url = item?.url || item?.link || item?.href || item?.sourceUrl || '';
+            if (question && (question.endsWith('?') || looksLikeQuestion(question))) addCandidate(question, answer, url);
+          });
+        };
+        if (relatedData) collectQuestionObjects(relatedData);
+
+        const suggestionRoot = autocompleteData?.suggestions || autocompleteData?.queries || autocompleteData?.items || autocompleteData?.data?.suggestions || [];
+        const suggestions = (Array.isArray(suggestionRoot) ? suggestionRoot : [])
+          .map(item => typeof item === 'string' ? item : item?.text || item?.query || item?.suggestion || item?.title || '')
+          .map(item => cleanPreviewText(item))
+          .filter(item => item && item.toLowerCase() !== query.toLowerCase());
+
+        if (candidates.length < 4 && suggestions.length) {
+          const questionQueries = [];
+          for (const suggestion of suggestions) {
+            const question = paaQuestionFromSuggestion(suggestion, query, questionQueries.length);
+            const key = question.toLowerCase().replace(/[?!.]+$/, '').trim();
+            if (!question || seenQuestions.has(key) || questionQueries.some(item => item.key === key)) continue;
+            questionQueries.push({ question, key, searchQuery: question });
+            if (questionQueries.length >= 6) break;
+          }
+
+          const answers = await Promise.all(questionQueries.map(async candidate => {
+            try {
+              const data = await fetchEdgeSearchData(candidate.searchQuery);
+              const items = edgeSearchItems(data);
+              const directAnswer = data?.answer || data?.answerText || data?.answer_text || data?.summary || '';
+              if (cleanPreviewText(directAnswer).length >= 42) {
+                return { ...candidate, answer: cleanPreviewText(directAnswer), url: data?.url || '' };
+              }
+              const best = items.find(item => paaAnswerFrom(item));
+              if (!best) return null;
+              return { ...candidate, answer: paaAnswerFrom(best), url: best.url || best.href || best.link || '' };
+            } catch (e) {
+              return null;
+            }
+          }));
+          answers.forEach(item => {
+            if (item) addCandidate(item.question, item.answer, item.url);
+            if (candidates.length >= 5) return;
+          });
+        }
+
+        const finalItems = candidates.slice(0, 5);
+        if (!finalItems.length) {
+          box.remove();
+          return;
+        }
+        box.innerHTML = `<div class="paa-heading">People also ask</div>${finalItems.map((item, index) => `
+          <div class="paa-row" data-idx="${index}">
+            <button class="paa-item" type="button" aria-expanded="false" data-q="${escHtml(item.question)}">
+              <span>${escHtml(item.question)}</span><span class="paa-arrow">+</span>
+            </button>
+            <div class="paa-answer" aria-hidden="true">
+              <div class="paa-answer-text">${escHtml(item.answer)}</div>
+              <button class="paa-full-link" type="button" data-q="${escHtml(item.question)}">See full results →</button>
+            </div>
+          </div>`).join('')}`;
+        box.querySelectorAll('.paa-item').forEach(btn => btn.addEventListener('click', () => togglePaaRow(btn.closest('.paa-row'))));
+        box.querySelectorAll('.paa-full-link').forEach(btn => btn.addEventListener('click', () => doSearch(btn.dataset.q)));
       } catch (e) {
-        answerEl.innerHTML = `<button class="paa-full-link" data-q="${escHtml(q)}">See full results →</button>`;
+        if (box.isConnected) box.remove();
       }
-      answerEl.querySelector('.paa-full-link')?.addEventListener('click', () => doSearch(q));
+    }
+
+    function togglePaaRow(row) {
+      if (!row) return;
+      const wasOpen = row.classList.contains('open');
+      row.classList.toggle('open', !wasOpen);
+      const button = row.querySelector('.paa-item');
+      const answer = row.querySelector('.paa-answer');
+      button?.setAttribute('aria-expanded', String(!wasOpen));
+      answer?.setAttribute('aria-hidden', String(wasOpen));
     }
 
     /* ─────────────────────────────────
