@@ -2937,6 +2937,181 @@ function exitBus(){const b=BUS.on;if(!b)return;BUS.on=null;const v=b.v,rx=-v.dz,
 function busPrompt(){if(BUS.on)return BUS.on.dwell>0?'F · GET OFF':'RIDING '+BUS.on.r.id+' · '+BUS.on.r.name+' · WAIT FOR THE NEXT STOP';const b=nearBus();return b?'F · BOARD '+b.r.id+' ($2.90)':null}
 function busF(){if(BUS.on){if(BUS.on.dwell>0)exitBus();else toast('WAIT FOR THE NEXT STOP',900);return true}const b=nearBus();if(b)return boardBus(b);return false}
 function initMTA(){try{busRoutes()}catch(e){console.error('bus routes',e)}}
+// ---------- c10g: walkable subway tunnels, live transit panel (Y), quick travel, elevator outages, live traffic
+const RCOL={1:'#EE352E',2:'#EE352E',3:'#EE352E',4:'#00933C',5:'#00933C',6:'#00933C',7:'#B933AD',A:'#0039A6',C:'#0039A6',E:'#0039A6',B:'#FF6319',D:'#FF6319',F:'#FF6319',M:'#FF6319',N:'#FCCC0A',Q:'#FCCC0A',R:'#FCCC0A',W:'#FCCC0A',L:'#A7A9AC',G:'#6CBE45',J:'#996633',Z:'#996633',S:'#808183',H:'#808183',SI:'#0078C6'};
+const rtxtCol=r=>'NQRW'.includes(r)?'#000':'#fff';
+const rbulH=r=>'<span style="display:inline-block;min-width:20px;text-align:center;background:'+(RCOL[r]||'#808183')+';color:'+rtxtCol(r)+';border-radius:11px;padding:1px 6px;font-weight:700;font-size:12px;margin-right:4px">'+r+'</span>';
+const MXC={};
+async function mx(a,p,ttl){ttl=ttl||15000;const k=a+JSON.stringify(p||{});const c=MXC[k];if(c&&Date.now()-c.t<ttl)return c.v;
+  const u=MTA_URL+'?a='+a+Object.entries(p||{}).map(([x,y])=>'&'+x+'='+encodeURIComponent(y)).join('');
+  const r=await fetch(u,{headers:{apikey:MTA_KEY}});const v=await r.json();if(!r.ok||v.error)throw new Error(v.error||r.status);MXC[k]={t:Date.now(),v};return v}
+const stRoutes=st=>st.routes&&st.routes.length?st.routes:st.fams.flatMap(f=>LINES[f][0].split(' '));
+mtaFetch=async function(st){
+  if(Date.now()/1000-(st.fT||0)<18)return;st.fT=Date.now()/1000;
+  try{const d=await mx('arrivals',{stops:st.ids.join(',')},12000);
+    if(d&&d.arr&&Object.keys(d.arr).length){st.arr=d.arr;st.names=Object.assign(st.names||{},d.names||{});st.recvT=Date.now()/1000;st.live=true;st.sched=false;
+      const rs=new Set();for(const k in d.arr)for(const a of d.arr[k])rs.add(a.r);st.routes=[...rs].filter(r=>RCOL[r])}}catch(e){}
+};
+const nmOf=(st,id)=>(st.names&&st.names[id])||id;
+function arrivalsOf(st){ // flat list with live countdown
+  const el=Date.now()/1000-(st.recvT||0),o=[];
+  if(st.live&&st.arr){for(const id of st.ids)for(const a of (st.arr[id]||[])){const t=a.t-el;if(t>-20)o.push({r:a.r,d:a.d,t,at:a.at,st:a.st,dest:a.dest})}}
+  return o.sort((a,b)=>a.t-b.t)}
+boardText=function(st){
+  const L=arrivalsOf(st);let up=L.find(a=>a.d==='N'),dn=L.find(a=>a.d==='S'),live=true;
+  if(!up&&!dn){live=false;const f=st.fams[0],h=300,o=(st.i*97)%h,lab=LINES[f][0].split(' ')[0],now=Date.now()/1000;up={r:lab,d:'N',t:h-((now+o)%h)};dn={r:lab,d:'S',t:h-((now+o+150)%h)}}
+  const m=t=>t<30?'NOW':Math.max(1,Math.round(t/60))+' MIN';
+  const nx=[up,dn].filter(Boolean).sort((a,b)=>a.t-b.t)[0];
+  return {up:up&&(up.r+' '+m(up.t)),dn:dn&&(dn.r+' '+m(dn.t)),nextMin:nx?nx.t:999,nx,src:live?'LIVE MTA':'TIMETABLE',live}
+};
+drawStationName=function(st){
+  if(!SUB.cvs)return;const g=SUB.cvs.cv.getContext('2d');g.fillStyle='#14202b';g.fillRect(0,0,512,96);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';
+  let sz=32;g.font='bold '+sz+'px Arial,sans-serif';while(g.measureText(st.n).width>490&&sz>14){sz-=2;g.font='bold '+sz+'px Arial,sans-serif'}g.fillText(st.n,256,20);
+  let px=18;for(const r of stRoutes(st).slice(0,7)){g.fillStyle=RCOL[r]||'#808183';g.beginPath();g.arc(px,56,11,0,TAU);g.fill();g.fillStyle=rtxtCol(r);g.font='bold 14px Arial,sans-serif';g.fillText(r,px,57);px+=26}
+  const b=boardText(st);g.textAlign='left';g.font='bold 15px Arial,sans-serif';g.fillStyle='#ffd24a';g.fillText('▲ UPTOWN '+(b.up||'—'),200,48);g.fillText('▼ DOWNTOWN '+(b.dn||'—'),200,66);
+  if(b.live&&b.nx){g.font='12px Arial,sans-serif';g.fillStyle='#cfd6dd';g.fillText('NEXT '+b.nx.r+': '+(b.nx.st==='stopped'?'STOPPED AT ':'NOW NEAR ')+nmOf(st,b.nx.at).toUpperCase().slice(0,26),12,88)}
+  g.textAlign='right';g.font='11px Arial,sans-serif';g.fillStyle=b.live?'#35ff8a':'#8b909a';g.fillText(b.src,504,88);SUB.cvs.tx.needsUpdate=true
+};
+// ---- station room: platform + walkable tunnel both ways
+const TUN=150;
+ROOMDEF.station.b=function(g,ox,oz){
+  const w=TUN*2,d=16,h=4.8;roomShell(g,ox,oz,w,d,h,{f1:'#c9cdd2',f2:'#aeb3ba',wall:'#e2e6e8',trim:0x1f6a4a,lamp:0xf4fbff});
+  const tz=oz-d/2+3.6;
+  ibox(g,ox,.02,tz,w-.6,.05,5.4,0x0e0f12);
+  for(const s of [-.9,.9])ibox(g,ox,.12,tz+s,w-.6,.1,.12,0x777b82);
+  ibox(g,ox,.1,tz+2.1,w-.6,.07,.22,0x2b2b2b);ibox(g,ox,.17,tz+2.1,w-.6,.04,.1,0xf2c200); // third rail (live!)
+  ibox(g,ox,.1,oz-d/2+6.45,52,.1,.25,0xf2d640);
+  const ties=new THREE.InstancedMesh(BX(.35,.08,3.4),imat(0x2a2218),Math.floor(w/1.6));for(let i=0;i<ties.count;i++)ties.setMatrixAt(i,MX(ox-w/2+i*1.6+.8,.06,tz));g.add(ties);
+  for(const s of [-1,1]){const cx=ox+s*(26+(TUN-26)/2),len=TUN-26,cz=oz-d/2+6.9+(d-6.9)/2;ibox(g,cx,h/2,cz,len,h,d-6.9,0x3a3d42);icol(cx,cz,len,d-6.9,h)}
+  for(let x=-130;x<=130;x+=26)if(Math.abs(x)>26)iglow(g,ox+x,h-.2,tz-2.3,1.4,.12,.3,Math.abs(x)%52?0xff3030:0x35ff8a);
+  for(let x=-18;x<=18;x+=6){ibox(g,ox+x,h/2,oz-d/2+6.9,.5,h,.5,0x2a7a58);icol(ox+x,oz-d/2+6.9,.5,.5,h)}
+  for(const x of [-14,-4,6,15]){ibox(g,ox+x,.45,oz+d/2-3,2.4,.12,.6,0x8a5a2b);ibox(g,ox+x,.2,oz+d/2-3,.2,.4,.5,0x333)}
+  const cv=document.createElement('canvas');cv.width=512;cv.height=96;const tx=new THREE.CanvasTexture(cv);SUB.cvs={cv,tx};
+  for(const x of [-12,12]){const m=new THREE.Mesh(new THREE.PlaneGeometry(7,1.3),new THREE.MeshBasicMaterial({map:tx}));m.position.set(ox+x,3.4,oz-d/2+6.62);g.add(m)}
+  const tg=new THREE.Group(),cm=new THREE.MeshLambertMaterial({color:0xc4c8cf}),dk=new THREE.MeshBasicMaterial({color:0xffe9a8});
+  for(let c=0;c<4;c++){const cx=(c-1.5)*14.2,b=new THREE.Mesh(BX(14,3.2,2.9),cm);b.position.set(cx,2.1,0);tg.add(b);
+    const s=new THREE.Mesh(BX(14.02,.35,2.92),new THREE.MeshLambertMaterial({color:0x1a5fb4}));s.position.set(cx,1.0,0);tg.add(s);
+    for(let k=0;k<4;k++){const wn=new THREE.Mesh(BX(2.2,1.0,.05),dk);wn.position.set(cx-5.2+k*3.5,2.5,1.46);tg.add(wn);const w2=wn.clone();w2.position.z=-1.46;tg.add(w2)}
+    const dr=new THREE.Mesh(BX(1.5,2.3,.06),new THREE.MeshLambertMaterial({color:0x8a8f98}));dr.position.set(cx,1.6,1.47);tg.add(dr)}
+  const hl=new THREE.MeshBasicMaterial({color:0xffffff});for(const zz of [-.9,.9]){const l=new THREE.Mesh(BX(.1,.35,.5),hl);l.position.set(-28.6,1.5,zz);tg.add(l)}
+  tg.position.set(ox+400,0,tz);g.add(tg);SUB.train=tg;SUB.tz=tz;
+  return {w,d,h,acts:[],npcs:[{role:'wander',x:ox-6,z:oz+d/2-3},{role:'wander',x:ox+8,z:oz+d/2-4},{role:'sit',x:ox-14,z:oz+d/2-3.2},{role:'wander',x:ox+15,z:oz+d/2-3},{role:'sit',x:ox+6,z:oz+d/2-3.1}]};
+};
+function stationRet(st){const n=nearestNode(st.x,st.z);return {kind:'pos',x:n?n.x+8:st.x,z:n?n.z+8:st.z,h:0,yaw:0}}
+function lineNeighbor(st,dir){const ls=lineStations(SUB.line&&st.fams.includes(SUB.line)?SUB.line:st.fams[0]);const i=ls.indexOf(st);return i<0?null:ls[i+dir]||null}
+let _tunLock=0,_boardT=0,_zapT=0;
+subwayUpdate=function(dt,t){
+  if(G.riding){SUB.rideT+=dt;const k=SUB.rideT/SUB.ride;const pg=document.getElementById('subpg');if(pg)pg.textContent=k<.85?'IN TRANSIT · '+Math.max(1,Math.ceil(SUB.ride-SUB.rideT))+'s':'APPROACHING '+SUB.rideTo.n;
+    if(Math.floor(SUB.rideT*3)!==Math.floor((SUB.rideT-dt)*3))beep(70+Math.random()*20,.08,'sawtooth',.035);
+    if(SUB.rideT>=SUB.ride){G.riding=false;SUB.rd.hidden=true;SUB.st=SUB.rideTo;const r=INT.cur;INT.ret=stationRet(SUB.st);if(SUB.line&&!SUB.st.fams.includes(SUB.line))SUB.line=SUB.st.fams[0];
+      PL.x=r.ox-8;PL.z=r.oz+r.d/2-3;SUB.phase='dwell';SUB.t=14;SUB.train.position.x=r.ox;mtaFetch(SUB.st).then(()=>drawStationName(SUB.st));drawStationName(SUB.st);toast('ARRIVED · '+SUB.st.n,1800);say('sub_arrive',true);if(W.stars>0&&Math.random()<.5)W.stars=Math.max(0,W.stars-1)}
+    return}
+  if(!INT.on||!INT.cur||INT.cur.key!=='station')return;
+  const r=INT.cur,tr=SUB.train;SUB.t-=dt;_boardT-=dt;_tunLock-=dt;
+  if(_boardT<=0){_boardT=2;mtaFetch(SUB.st).then(()=>{if(INT.on&&INT.cur===r)drawStationName(SUB.st)})}
+  const ARR=8,DEP=8,tz=SUB.tz;
+  if(SUB.phase==='away'){tr.position.x=r.ox+400;if(SUB.t<=0){SUB.phase='arrive';SUB.t=ARR;beep(120,.5,'sawtooth',.05)}
+    else if(SUB.t>40&&SUB.live!==false){const b=boardText(SUB.st);if(b.live&&b.nextMin-ARR<SUB.t-2)SUB.t=Math.max(1,b.nextMin-ARR)}}
+  else if(SUB.phase==='arrive'){const k=clamp(1-SUB.t/ARR,0,1);tr.position.x=r.ox+TUN*(1-smooth(0,1,k));if(SUB.t<=0){SUB.phase='dwell';SUB.t=16;tr.position.x=r.ox;beep(520,.3,'sine',.07)}}
+  else if(SUB.phase==='dwell'){if(SUB.t<=0){SUB.phase='depart';SUB.t=DEP}}
+  else if(SUB.phase==='depart'){const k=clamp(1-SUB.t/DEP,0,1);tr.position.x=r.ox-TUN*smooth(0,1,k);if(SUB.t<=0){SUB.phase='away';const b=boardText(SUB.st);SUB.t=Math.max(6,Math.min(90,b.nextMin-ARR));tr.position.x=r.ox+400}}
+  // hazards when you are down on the tracks
+  const onTrack=PL.z<tz+2.7&&PL.z>tz-2.7&&PL.z<r.oz-r.d/2+6.4;
+  if(onTrack&&PL.mode==='foot'){
+    if((SUB.phase==='arrive'||SUB.phase==='depart')&&Math.abs(PL.x-tr.position.x)<29){hurtPlayer(160,true);toast('HIT BY A TRAIN',1500);shake=1;tr.position.x+=0;if(CMB.hp>0){PL.x+=(PL.x>tr.position.x?1:-1)*31}}
+    else if(Math.abs(PL.z-(tz+2.1))<.45){_zapT-=dt;if(_zapT<=0){_zapT=.5;hurtPlayer(35,true);toast('THIRD RAIL · ELECTROCUTED',900);beep(90,.2,'sawtooth',.08)}}
+    else if(SUB.phase==='arrive'&&tr.position.x-PL.x<90&&tr.position.x>PL.x&&_zapT<=0&&Math.random()<dt*2){_zapT=1;toast('TRAIN APPROACHING!',900);beep(900,.15,'square',.06)}
+  }
+  // walk the tunnel to the next station
+  if(_tunLock<=0&&onTrack){const e=PL.x-r.ox;if(Math.abs(e)>TUN-3){const dir=e>0?1:-1,nx=lineNeighbor(SUB.st,dir);
+    if(!nx){PL.x=r.ox+dir*(TUN-3.2);if(_tunLock<=-1){toast('TUNNEL ENDS · NO MORE STATIONS',1200);_tunLock=1}}
+    else{_tunLock=2;const south=nx.z>SUB.st.z;toast('WALKED THE TUNNEL '+(south?'DOWNTOWN':'UPTOWN')+' → '+nx.n,2200);enterStation(nx,stationRet(nx));const r2=INT.cur;PL.x=r2.ox-dir*(TUN-6);PL.z=SUB.tz;PL.h=dir>0?-Math.PI/2:Math.PI/2;PL.cam.yaw=dir>0?-Math.PI/2:Math.PI/2}}}
+};
+// elevator outages from MTA ENE feed
+const ELEV={out:[],t:-999,live:false};
+const nz=s=>(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function elevOut(st){if(!ELEV.live)return null;const a=nz(st.n);return ELEV.out.find(o=>o.t==='EL'&&(nz(o.s).includes(a)||a.includes(nz(o.s)))&&nz(o.s).length>3)||null}
+const _eU=elevatorUp,_eD=elevatorDown;
+elevatorUp=function(){if(INT.on&&INT.cur&&INT.cur.key==='station'&&atExit()&&INT.exitT<=0){const o=elevOut(SUB.st);if(o){toast('ELEVATOR OUT OF SERVICE · '+(o.why||'MTA outage')+' · USE THE STAIRS (F)',2400);return true}}return _eU()};
+elevatorDown=function(){if(!INT.on&&PL.mode==='foot'){const e=nearEntrance();if(e){const o=elevOut(e.st);if(o){toast('ELEVATOR OUT OF SERVICE · '+(o.why||'MTA outage')+' · USE THE STAIRS (F)',2400);return true}}}return _eD()};
+// ---- quick travel
+function travelTo(st){
+  if(G.riding)return;closePanel();if(INT.on){INT.ret=stationRet(st);leaveRoom()}
+  const e=SUB.entr.find(q=>q.st===st),x=e?e.x+2.5:st.x,z=e?e.z+2.5:st.z;
+  if(PL.mode==='car'&&PL.veh){PL.veh.place(x+6,z,0);PL.x=PL.veh.x;PL.z=PL.veh.z}else{PL.x=x;PL.z=z;PL.y=groundY(x,z);PL.vx=PL.vz=0}
+  toast('QUICK TRAVEL · '+st.n,1600);beep(520,.2,'sine',.07)}
+// ---- live traffic (NYC DOT speeds) + time of day
+const TRAF={mph:null,f:.85,dens:1,base:0,last:0,t:-99,tt:0,src:'TYPICAL',slow:[],asOf:''};
+async function trafficPoll(){try{const d=await mx('traffic',{},55000);TRAF.mph=d.avg;TRAF.slow=d.slow||[];TRAF.asOf=d.asOf||'';TRAF.src='LIVE NYC DOT';TRAF.f=clamp(.5+d.avg/30,.6,1.1)}catch(e){TRAF.src='TYPICAL'}}
+function trafficApply(){
+  const h=G.hour||12,rush=(h>=7&&h<10)||(h>=16&&h<19)?1.25:(h>=0&&h<5?.6:1);TRAF.dens=rush*(TRAF.mph&&TRAF.mph<9?1.15:1);
+  if(TR.max!==TRAF.last){TRAF.base=TR.max}TR.max=TRAF.last=Math.max(6,Math.round(TRAF.base*TRAF.dens));
+  for(const v of TR.cars){if(v._b==null)v._b=v.target;v.target=v._b*TRAF.f}}
+// ---- ENE / alerts / ticker
+const ALR={list:[],t:-999,i:0,tk:0,el:null};
+async function pollMeta(){try{const d=await mx('ene',{},100000);ELEV.out=d.out||[];ELEV.live=true}catch(e){}
+  try{const d=await mx('alerts',{kind:'subway'},80000);ALR.list=(d.alerts||[]).filter(a=>a.h)}catch(e){}}
+const _bu=busUpdate;
+busUpdate=function(dt){_bu(dt);TRAF.tt-=dt;ELEV.t-=dt;ALR.tk-=dt;
+  if(TRAF.tt<=0){TRAF.tt=60;trafficPoll()}
+  if(!TRAF.ap||TRAF.ap<=0){TRAF.ap=3;trafficApply()}else TRAF.ap-=dt;
+  if(ELEV.t<=0){ELEV.t=120;pollMeta()}
+  if(ALR.tk<=0&&ALR.el){ALR.tk=9;const a=ALR.list.length?ALR.list[ALR.i++%ALR.list.length]:null;ALR.el.style.opacity=a&&!INT.on?'1':'0';if(a)ALR.el.innerHTML=(a.r.slice(0,3).map(rbulH).join(''))+a.h.replace(/\[[^\]]*\]/g,'').slice(0,150)}
+};
+// ---- Transit panel
+const TP={el:null,tab:'near',body:null,t:0};
+function closePanel(){if(TP.el)TP.el.hidden=true}
+function initPanel(){
+  const st=document.createElement('style');st.textContent='#tp[hidden]{display:none!important}#tp button.tb{background:#16202a;color:#cfd6dd;border:1px solid #2a3a48;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer}#tp button.tb.on{background:#1f3a2c;border-color:#35ff8a;color:#fff}#tp .row{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #1d2832;font-size:13px}#tp .dim{color:#8b909a;font-size:12px}#tp #tick{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);max-width:70vw;font:12px system-ui;background:rgba(10,14,18,.8);color:#ffd24a;padding:6px 12px;border-radius:14px;opacity:0;transition:opacity .5s;pointer-events:none}';document.head.appendChild(st);
+  const el=document.createElement('div');el.id='tp';el.hidden=true;el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:42;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif';
+  el.innerHTML='<div style="background:#101419;border:1px solid #2a7a58;border-radius:12px;padding:16px;width:min(620px,94vw);height:min(560px,86vh);display:flex;flex-direction:column;color:#e6e8ea"><div style="display:flex;justify-content:space-between;align-items:center"><div style="letter-spacing:.2em;font-size:12px;color:#35ff8a">TRANSIT · LIVE MTA</div><div class="dim">Y or ESC to close</div></div><div id="tptabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0"></div><div id="tpbody" style="flex:1;overflow:auto"></div></div>';
+  document.body.appendChild(el);TP.el=el;TP.body=el.querySelector('#tpbody');
+  const tk=document.createElement('div');tk.id='tick';el.parentNode.appendChild(tk);ALR.el=tk;tk.style.cssText='position:fixed;left:50%;bottom:78px;transform:translateX(-50%);max-width:70vw;font:12px system-ui;background:rgba(10,14,18,.8);color:#ffd24a;padding:6px 12px;border-radius:14px;opacity:0;transition:opacity .5s;pointer-events:none;z-index:30';
+  const tabs=[['near','NEARBY'],['lines','LINES'],['alerts','ALERTS'],['bus','BUSES'],['elev','ELEVATORS'],['city','CITY'],['go','QUICK TRAVEL']],tb=el.querySelector('#tptabs');
+  for(const [k,n] of tabs){const b=document.createElement('button');b.className='tb';b.textContent=n;b.dataset.k=k;b.onclick=()=>{TP.tab=k;TP.arg=null;renderPanel()};tb.appendChild(b)}
+  addEventListener('keydown',e=>{const typing=document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if(e.code==='Escape'&&!el.hidden){el.hidden=true;return}
+    if(e.code==='KeyY'&&!typing&&G.started&&!G.riding){e.preventDefault();el.hidden=!el.hidden;if(!el.hidden){for(const k in K)K[k]=false;renderPanel()}}});
+  setInterval(()=>{if(!el.hidden&&TP.tab!=='go')renderPanel(true)},15000);
+  setTimeout(()=>{try{toast('Y · TRANSIT (LIVE MTA TRAINS, ALERTS, QUICK TRAVEL)',3200)}catch(e){}},9000);
+}
+const here=()=>INT.on&&SUB.st?SUB.st:nearestStation(PL.x,PL.z);
+async function renderPanel(soft){
+  for(const b of TP.el.querySelectorAll('.tb'))b.classList.toggle('on',b.dataset.k===TP.tab);
+  const B=TP.body,tab=TP.tab;if(!soft)B.innerHTML='<div class="dim">Loading…</div>';const out=h=>{if(TP.tab===tab)B.innerHTML=h};
+  try{
+  if(tab==='near'){const st=here();await mtaFetch(st);const L=arrivalsOf(st);let h='<div style="font-size:15px;margin-bottom:4px">'+st.n+' '+stRoutes(st).map(rbulH).join('')+'</div><div class="dim">'+(st.live?'Live arrivals from the MTA GTFS-realtime feeds':'Live feed unreachable · showing timetable')+'</div>';
+    if(!L.length){const b=boardText(st);h+='<div class="row">▲ '+b.up+'</div><div class="row">▼ '+b.dn+'</div>'}
+    for(const a of L.slice(0,12))h+='<div class="row">'+rbulH(a.r)+'<b>'+(a.d==='N'?'▲ UPTOWN':'▼ DOWNTOWN')+'</b> to '+nmOf(st,a.dest)+'<span style="margin-left:auto;color:#ffd24a;font-weight:700">'+(a.t<30?'NOW':Math.round(a.t/60)+' min')+'</span></div><div class="dim" style="padding:0 0 4px 30px">train is '+(a.st==='stopped'?'stopped at ':'near ')+nmOf(st,a.at)+'</div>';
+    const o=elevOut(st);if(o)h+='<div class="row" style="color:#ff8a5c">♿ Elevator out of service here · '+(o.why||'')+'</div>';out(h)}
+  else if(tab==='lines'){const rs=TP.arg||null;let h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+['1','2','3','4','5','6','7','A','C','E','B','D','F','M','N','Q','R','W','L','G','J','Z','S'].map(r=>'<span data-r="'+r+'" style="cursor:pointer;'+(rs===r?'outline:2px solid #35ff8a;border-radius:12px':'')+'">'+rbulH(r)+'</span>').join('')+'</div>';
+    if(!rs)h+='<div class="dim">Pick a line to see where its trains are right now.</div>';
+    else{const d=await mx('trains',{route:rs});h+='<div class="dim">'+d.trains.length+' trains tracked on the '+rs+' line</div>';for(const t of d.trains.slice(0,24))h+='<div class="row">'+rbulH(rs)+(t.d==='N'?'▲':'▼')+' to '+t.dest+'<span style="margin-left:auto" class="dim">'+(t.st==='stopped'?'stopped at ':'near ')+t.n+'</span></div>'}
+    out(h);if(TP.tab===tab)B.querySelectorAll('[data-r]').forEach(s=>s.onclick=()=>{TP.arg=s.dataset.r;renderPanel()})}
+  else if(tab==='alerts'){const d=await mx('alerts',{kind:'all'},30000);let h='<div class="dim">'+d.n+' active service alerts (subway + bus)</div>';for(const a of d.alerts.slice(0,30))h+='<div class="row" style="align-items:flex-start"><div style="min-width:70px">'+a.r.slice(0,4).map(rbulH).join('')+'</div><div>'+a.h.replace(/\[[^\]]*\]/g,'')+'</div></div>';out(h)}
+  else if(tab==='bus'){let h='';const p=pos(),near=[];
+    for(const r of BUS.routes)for(const k of (r.stopIdx||[])){const n=r.path[k],d=Math.hypot(n.x-p.x,n.z-p.z);if(d<320)near.push({r,k,d,n})}
+    near.sort((a,b)=>a.d-b.d);const stp=near[0];
+    if(!stp)h+='<div class="dim">No bus stops within a few blocks.</div>';
+    else{h+='<div style="font-size:15px;margin-bottom:4px">NEAREST STOP · '+Math.round(stp.d)+' m</div><div class="dim">Simulated buses on this road graph (MTA Bus Time needs an API key)</div>';
+      for(const q of near.filter(q=>Math.hypot(q.n.x-stp.n.x,q.n.z-stp.n.z)<60).slice(0,4)){const bs=BUS.list.filter(b=>b.r===q.r&&b.k<=q.k).map(b=>{let d=Math.max(0,b.v.len-b.v.s);for(let j=b.k+1;j<=q.k;j++)d+=Math.hypot(q.r.path[j].x-q.r.path[j-1].x,q.r.path[j].z-q.r.path[j-1].z);return {d,b}}).sort((a,b)=>a.d-b.d)[0];
+        h+='<div class="row"><span style="background:#1b4fa8;border-radius:6px;padding:2px 8px;font-weight:700">'+q.r.id+'</span>'+q.r.name+'<span style="margin-left:auto;color:#ffd24a;font-weight:700">'+(bs?Math.max(1,Math.round(bs.d/7.5/60))+' min · '+Math.round(bs.d)+' m away':'no bus nearby')+'</span></div>'}}
+    try{const d=await mx('bus',{line:'M15'},30000);if(d.needsKey)h+='<div class="dim" style="margin-top:10px">Live MTA buses: '+d.note+'</div>';else{h+='<div class="dim" style="margin-top:10px">LIVE · M15 vehicles</div>';for(const b of d.buses.slice(0,8))h+='<div class="row">'+b.r+' → '+b.dest+'<span style="margin-left:auto" class="dim">'+(b.away||'')+' · '+(b.next||'')+'</span></div>'}}catch(e){}
+    out(h)}
+  else if(tab==='elev'){await pollMeta();const L=ELEV.out.filter(o=>o.t==='EL');let h='<div class="dim">'+(ELEV.live?L.length+' elevators out of service (MTA equipment feed). Elevator entrances at those stations are locked in-game.':'Elevator feed unreachable')+'</div>';
+    const mine=STN.filter(s=>elevOut(s));if(mine.length)h+='<div style="margin:8px 0;color:#ff8a5c">Stations in your city with an outage: '+mine.map(s=>s.n).join(' · ')+'</div>';
+    for(const o of L.slice(0,40))h+='<div class="row"><b>'+o.s+'</b><span class="dim" style="margin-left:auto">'+(o.sv||'')+(o.ret?' · back '+o.ret:'')+'</span></div>';out(h)}
+  else if(tab==='city'){let h='<div style="font-size:15px">STREET TRAFFIC · '+TRAF.src+'</div>';
+    h+='<div class="row">Manhattan average speed: <b>'+(TRAF.mph!=null?TRAF.mph+' mph':'n/a')+'</b><span class="dim" style="margin-left:auto">'+(TRAF.asOf||'')+'</span></div><div class="row">Game traffic speed ×'+TRAF.f.toFixed(2)+' · density ×'+TRAF.dens.toFixed(2)+'</div>';
+    for(const s of TRAF.slow)h+='<div class="row"><span style="color:#ff8a5c;font-weight:700;min-width:46px">'+s.s+' mph</span>'+s.n+'</div>';
+    try{const d=await mx('rail',{},30000);h+='<div style="font-size:15px;margin-top:12px">COMMUTER RAIL</div><div class="row">LIRR · '+(d.lirr?d.lirr.trips+' trains tracked · '+d.lirr.late+' late (max '+d.lirr.maxMin+' min)':'n/a')+'</div><div class="row">Metro-North · '+(d.mnr?d.mnr.trips+' trains tracked · '+d.mnr.late+' late (max '+d.mnr.maxMin+' min)':'n/a')+'</div>'}catch(e){}
+    out(h)}
+  else if(tab==='go'){if(!soft||!TP.q){B.innerHTML='<input id="tpq" placeholder="Search stations…" style="width:100%;box-sizing:border-box;background:#16202a;color:#e6e8ea;border:1px solid #2a3a48;border-radius:6px;padding:8px;margin-bottom:8px"><div id="tpl"></div>';const q=B.querySelector('#tpq');TP.q=q;q.addEventListener('keydown',e=>e.stopPropagation());q.addEventListener('keyup',e=>e.stopPropagation());q.oninput=fill;q.focus()}fill()}
+  }catch(e){out('<div class="dim">Could not load live data ('+(e.message||e)+'). The MTA proxy may be unreachable from here.</div>')}
+}
+function fill(){const q=nz(TP.q.value),l=document.getElementById('tpl');l.innerHTML='';const p=pos();
+  for(const s of STN.filter(s=>!q||nz(s.n).includes(q)).sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))){const d=document.createElement('div');d.className='row';d.style.cursor='pointer';d.innerHTML='<b>'+s.n+'</b>'+stRoutes(s).map(rbulH).join('')+'<span class="dim" style="margin-left:auto">'+Math.round(Math.hypot(s.x-p.x,s.z-p.z)/10)*10+' m</span>';d.onclick=()=>travelTo(s);l.appendChild(d)}}
+const _im=initMTA;initMTA=function(){_im();initPanel();pollMeta();trafficPoll()};
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -3489,7 +3664,7 @@ function boot(){
         G.started=true;$('#loading').hidden=true;$('#hud').hidden=false;
         joinRoom(room);devStart();
         toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on)startChapter(0)},3000);
-        window.__real=REAL;window.__city={spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
+        window.__real=REAL;window.__city={enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
       }catch(err){$('#loading').textContent='ERROR: '+err.message;console.error(err)}
     },30));
   });
