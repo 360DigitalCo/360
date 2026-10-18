@@ -1,4 +1,4 @@
-<!-- BETA !-->
+<!-- BETA SEARCH (please remove this comment on search.html )-->
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -2257,6 +2257,207 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
   </style>
 
+
+  <style id="beta-classic-social-news-ai-fix">
+    /* AI and its knowledge panel share one grid, so their widths cannot overlap. */
+    .results-layout > #ai-panel { display: none; }
+    body.ai-results-view .results-layout {
+      grid-template-columns: minmax(0, 680px) !important;
+      justify-content: center !important;
+      align-items: start !important;
+      gap: 24px !important;
+    }
+    body.ai-results-view .results-layout > #custom-results-area { display: none !important; }
+    body.ai-results-view .results-layout > #ai-panel.active {
+      display: flex !important;
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      width: 100% !important;
+      max-width: 680px !important;
+      min-width: 0 !important;
+      margin: 0 auto !important;
+      padding: 0 0 48px !important;
+      box-sizing: border-box !important;
+      align-self: start !important;
+      overflow: visible;
+    }
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+      grid-template-columns: minmax(250px, 320px) minmax(0, 640px) !important;
+      justify-content: center !important;
+      gap: 24px !important;
+    }
+    body.ai-results-view .results-layout > #knowledge-panel.active {
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      width: 100% !important;
+      max-width: 320px !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      position: relative !important;
+      align-self: start !important;
+    }
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #ai-panel.active {
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+      width: 100% !important;
+      max-width: 640px !important;
+      margin: 0 !important;
+    }
+    body.ai-results-view .results-layout > #ai-panel.active .ai-response-card,
+    body.ai-results-view .results-layout > #ai-panel.active .ai-response-card > * {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: anywhere;
+    }
+    body.ai-results-view .results-layout > #ai-panel.active pre,
+    body.ai-results-view .results-layout > #ai-panel.active table {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    /* Classic news uses the same unboxed SERP treatment as classic web results. */
+    body.classic-results #custom-results-area .news-result {
+      display: block !important;
+      width: 100%;
+      margin: 0 !important;
+      padding: 14px 4px 18px !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--glass-border) !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      animation: none !important;
+      transform: none !important;
+    }
+    body.dark.classic-results #custom-results-area .news-result {
+      border-bottom-color: var(--glass-border-dk) !important;
+    }
+    body.classic-results #custom-results-area .news-result:hover,
+    body.dark.classic-results #custom-results-area .news-result:hover {
+      background: transparent !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+    body.classic-results #custom-results-area .news-result .result-card-inner {
+      display: flex !important;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    body.classic-results #custom-results-area .news-result .result-card-text {
+      flex: 1;
+      min-width: 0;
+    }
+    body.classic-results #custom-results-area .news-result .result-title {
+      display: block;
+      margin-top: 4px;
+      color: #1a73e8 !important;
+      font-size: 20px !important;
+      font-weight: 400 !important;
+      line-height: 1.35;
+    }
+    body.dark.classic-results #custom-results-area .news-result .result-title { color: #8ab4f8 !important; }
+    body.classic-results #custom-results-area .news-result .result-site-row { display: flex !important; align-items: center; gap: 7px; }
+    body.classic-results #custom-results-area .news-result .result-site-name { color: var(--txt) !important; }
+    body.dark.classic-results #custom-results-area .news-result .result-site-name { color: var(--txtd) !important; }
+    body.classic-results #custom-results-area .news-result .result-snippet {
+      color: var(--mut) !important;
+      font-size: 14px !important;
+      line-height: 1.55;
+      margin-top: 5px;
+    }
+    body.dark.classic-results #custom-results-area .news-result .result-snippet { color: var(--mutd) !important; }
+    body.classic-results #custom-results-area .news-result .result-thumbnail {
+      display: block !important;
+      width: 112px !important;
+      height: 76px !important;
+      flex: 0 0 112px;
+      border-radius: 7px !important;
+      object-fit: cover;
+    }
+    @media (max-width: 1120px) {
+      body.ai-results-view .results-layout,
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        justify-content: stretch !important;
+        gap: 16px !important;
+      }
+      body.ai-results-view .results-layout > #knowledge-panel.active {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      body.ai-results-view .results-layout > #ai-panel.active,
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #ai-panel.active {
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+        width: 100% !important;
+        max-width: 760px !important;
+        margin: 0 auto !important;
+        padding: 0 0 36px !important;
+      }
+    }
+    @media (max-width: 640px) {
+      body.classic-results #custom-results-area .news-result .result-thumbnail {
+        width: 84px !important;
+        height: 64px !important;
+        flex-basis: 84px;
+      }
+      body.classic-results #custom-results-area .news-result .result-title { font-size: 18px !important; }
+    }
+
+    /* The moved photo and social sections exist only while Web is selected. */
+    #classic-person-extras .kp-person-section { min-width: 0; }
+    #classic-person-extras #kp-gallery-section .kp-related-label::after {
+      content: ' '; display: block; height: 1px; margin-top: 9px;
+      background: linear-gradient(90deg, var(--a), transparent 75%); opacity: .55;
+    }
+    #classic-person-extras .kp-gallery-item {
+      overflow: hidden;
+      background: var(--glass-light);
+      transform: translateY(0);
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+    body.dark #classic-person-extras .kp-gallery-item { background: var(--glass-dark); }
+    #classic-person-extras .kp-gallery-item {
+      background: linear-gradient(100deg, rgba(128,128,128,.08) 25%, rgba(128,128,128,.18) 45%, rgba(128,128,128,.08) 65%);
+      background-size: 220% 100%;
+      animation: kpSkeletonSweep 1.5s ease-in-out infinite;
+    }
+    #classic-person-extras .kp-gallery-item.loaded { animation: none; background: var(--glass-light); }
+    body.dark #classic-person-extras .kp-gallery-item.loaded { background: var(--glass-dark); }
+    #classic-person-extras .kp-gallery-item img { opacity: 0; animation: none !important; transition: opacity .28s ease, transform .28s cubic-bezier(.2,.75,.25,1); }
+    #classic-person-extras .kp-gallery-item.loaded img { opacity: 1; }
+    #classic-person-extras .kp-gallery-item:hover img { transform: scale(1.045); }
+    #classic-person-extras #kp-social-results { align-items: stretch; }
+    #classic-person-extras .kp-social-post {
+      min-height: 100px;
+      opacity: 0;
+      animation: kpSocialPostIn .34s cubic-bezier(.2,.75,.25,1) forwards;
+    }
+    #classic-person-extras .kp-social-post:nth-child(2) { animation-delay: .05s; }
+    #classic-person-extras .kp-social-post:nth-child(3) { animation-delay: .1s; }
+    #classic-person-extras .kp-social-post-first { border-color: color-mix(in srgb, var(--a) 42%, var(--glass-border)); }
+    .kp-story-platform {
+      display: block;
+      color: var(--a);
+      font-size: 10px;
+      line-height: 1.3;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    @keyframes kpSocialPostIn {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    #classic-person-extras .kp-person-section[hidden],
+    #knowledge-panel .kp-person-section[hidden] { display: none !important; }
+  </style>
+
 </head>
 <body>
   <div class="cursor-dot"></div>
@@ -2609,6 +2810,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     tabsEl.appendChild(tabIndicator);
     const knowledgePanel = document.getElementById('knowledge-panel');
     const resultsLayout = document.querySelector('.results-layout');
+    if (resultsLayout && aiPanel && aiPanel.parentElement !== resultsLayout) {
+      resultsLayout.appendChild(aiPanel);
+    }
     const classicPersonExtras = document.createElement('div');
     classicPersonExtras.id = 'classic-person-extras';
     classicPersonExtras.setAttribute('aria-live', 'polite');
@@ -2622,29 +2826,48 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       const gallery = document.getElementById('kp-gallery-section');
       const socialResults = document.getElementById('kp-social-results-section');
       const classic = document.body.classList.contains('classic-results');
+      const webTab = state.tab === 'web';
+      const sections = [gallery, socialResults].filter(Boolean);
 
-      if (classic && extra) {
-        for (const section of [gallery, socialResults]) {
-          if (!section) continue;
-          if (section.style.display === 'none') {
-            if (section.parentNode === classicPersonExtras) extra.appendChild(section);
-          } else {
-            classicPersonExtras.appendChild(section);
-          }
-        }
-        const hasVisibleSections = [...classicPersonExtras.children].some(section => section.style.display !== 'none');
-        classicPersonExtras.classList.toggle('visible', hasVisibleSections);
+      if (!extra) {
+        classicPersonExtras.classList.remove('visible');
         return;
       }
 
-      if (extra) {
-        const socialProfiles = extra.querySelector('#kp-social-section');
-        const topStories = extra.querySelector('#kp-stories-section');
-        if (gallery) extra.insertBefore(gallery, socialProfiles || extra.firstChild);
-        if (socialResults) extra.insertBefore(socialResults, topStories || null);
+      if (!webTab) {
+        sections.forEach(section => {
+          if (section.parentNode === classicPersonExtras) extra.appendChild(section);
+          section.hidden = true;
+        });
+        classicPersonExtras.classList.remove('visible');
+        return;
       }
-      classicPersonExtras.replaceChildren();
-      classicPersonExtras.classList.remove('visible');
+
+      sections.forEach(section => {
+        section.hidden = false;
+        if (section.style.display === 'none') {
+          if (section.parentNode === classicPersonExtras) extra.appendChild(section);
+          return;
+        }
+
+        if (classic) {
+          classicPersonExtras.appendChild(section);
+        } else if (section.parentNode !== extra) {
+          const before = section.id === 'kp-gallery-section'
+            ? extra.querySelector('#kp-social-section') || extra.firstChild
+            : extra.querySelector('#kp-stories-section');
+          extra.insertBefore(section, before || null);
+        }
+      });
+
+      if (classic) {
+        const hasVisibleSections = [...classicPersonExtras.children].some(section =>
+          !section.hidden && section.style.display !== 'none'
+        );
+        classicPersonExtras.classList.toggle('visible', hasVisibleSections);
+      } else {
+        classicPersonExtras.classList.remove('visible');
+      }
     }
 
     let kpToken = 0; // increments per knowledge-panel request; guards against a slow, stale response overwriting a newer one
@@ -3141,10 +3364,29 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         if (!res.ok || token !== kpToken) return [];
         const data = await res.json();
         const socialHost = /(^|\.)(x\.com|twitter\.com|instagram\.com|threads\.net|facebook\.com|tiktok\.com|linkedin\.com|youtube\.com)$/i;
-        return (data.web || []).filter(item => {
-          try { return /^https?:$/i.test(new URL(item.url).protocol) && socialHost.test(new URL(item.url).hostname.replace(/^www\./i, '')); }
+        const items = (data.web || []).filter(item => {
+          try { return item && /^https?:$/i.test(new URL(item.url).protocol) && socialHost.test(new URL(item.url).hostname.replace(/^www\./i, '')); }
           catch (e) { return false; }
-        }).slice(0, 3);
+        });
+        const publishedAt = item => {
+          const raw = item.publishedAt || item.published_at || item.publishedDate || item.published || item.datePublished || item.date || item.timestamp || item.age || '';
+          if (typeof raw === 'number' && Number.isFinite(raw)) return raw < 1e12 ? raw * 1000 : raw;
+          const parsed = Date.parse(String(raw));
+          if (Number.isFinite(parsed)) return parsed;
+          const relative = String(raw).match(/(\d+)\s+(minute|hour|day|week|month|year)s?\s+ago/i);
+          if (relative) {
+            const amount = Number(relative[1]);
+            const unit = relative[2].toLowerCase();
+            const ms = { minute: 60000, hour: 3600000, day: 86400000, week: 604800000, month: 2592000000, year: 31536000000 }[unit];
+            return Date.now() - amount * ms;
+          }
+          if (/just now|moments ago/i.test(String(raw))) return Date.now();
+          return null;
+        };
+        return items.map((item, index) => ({ item, index, time: publishedAt(item) }))
+          .sort((a, b) => a.time == null && b.time == null ? a.index - b.index : a.time == null ? 1 : b.time == null ? -1 : b.time - a.time)
+          .slice(0, 3)
+          .map(entry => entry.item);
       } catch (e) {
         return [];
       }
@@ -3175,7 +3417,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         if (photos.length) {
           gallery.innerHTML = photos.map(photo => {
             const pageUrl = `https://commons.wikimedia.org/wiki/${encodeURIComponent(photo.title).replace(/%20/g, '_').replace(/%3A/gi, ':')}`;
-            return `<a class="kp-gallery-item" href="${escHtml(pageUrl)}" target="_blank" rel="noopener noreferrer" title="Open image source"><img src="${escHtml(photo.url)}" alt="${escHtml(photo.title.replace(/^File:/, '').replace(/_/g, ' '))}" loading="lazy" onerror="this.closest('.kp-gallery-item')?.remove()"></a>`;
+            return `<a class="kp-gallery-item" href="${escHtml(pageUrl)}" target="_blank" rel="noopener noreferrer" title="Open image source"><img src="${escHtml(photo.url)}" alt="${escHtml(photo.title.replace(/^File:/, '').replace(/_/g, ' '))}" loading="lazy" onload="this.closest('.kp-gallery-item')?.classList.add('loaded')" onerror="this.closest('.kp-gallery-item')?.remove()"></a>`;
           }).join('');
           gallerySection.style.display = '';
         } else gallerySection.style.display = 'none';
@@ -3188,10 +3430,13 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         const socialResultsList = section('kp-social-results');
         if (!socialResultsSection || !socialResultsList) return;
         if (items.length) {
-          socialResultsList.innerHTML = items.map(item => {
+          socialResultsList.innerHTML = items.map((item, index) => {
             let host = item.source || item.site || 'Social';
             try { host = item.source || item.site || new URL(item.url).hostname.replace(/^www\./, ''); } catch (e) {}
-            return `<a class="kp-story" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer"><span class="kp-story-main"><span class="kp-story-title">${escHtml(item.title || 'Social result')}</span><span class="kp-story-meta">${escHtml(host)}</span>${item.snippet || item.description ? `<span class="kp-story-desc">${escHtml((item.snippet || item.description).slice(0, 150))}</span>` : ''}</span></a>`;
+            const preview = cleanPreviewText(item.snippet || item.description || item.desc || '').slice(0, 190);
+            const age = item.age || item.publishedAt || item.publishedDate || item.published || item.date || '';
+            const thumb = item.thumb || item.thumbnail || item.image || '';
+            return `<a class="kp-story kp-social-post${index === 0 ? ' kp-social-post-first' : ''}" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${/^https?:\/\//i.test(thumb) ? `<img class="kp-story-thumb" src="${escHtml(thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="kp-story-main"><span class="kp-story-platform">${escHtml(host)}</span><span class="kp-story-title">${escHtml(cleanPreviewText(item.title || 'Social result'))}</span>${age ? `<span class="kp-story-meta">${escHtml(String(age))}</span>` : ''}${preview ? `<span class="kp-story-desc">${escHtml(preview)}</span>` : ''}</span></a>`;
           }).join('');
           socialResultsSection.style.display = '';
         } else socialResultsSection.style.display = 'none';
@@ -3204,7 +3449,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         const storiesList = panel.querySelector('#kp-top-stories');
         if (!storiesSection || !storiesList) return;
         if (stories.length) {
-          storiesList.innerHTML = stories.map(item => `<a class="kp-story" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${item.thumb ? `<img class="kp-story-thumb" src="${escHtml(item.thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="kp-story-main"><span class="kp-story-title">${escHtml(item.title)}</span><span class="kp-story-meta">${escHtml([item.source, item.age].filter(Boolean).join(' · '))}</span>${item.desc ? `<span class="kp-story-desc">${escHtml(item.desc.slice(0, 160))}</span>` : ''}</span></a>`).join('');
+          storiesList.innerHTML = stories.map(item => `<a class="kp-story" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${item.thumb ? `<img class="kp-story-thumb" src="${escHtml(item.thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="kp-story-main"><span class="kp-story-title">${escHtml(item.title)}</span><span class="kp-story-meta">${escHtml([item.source, item.age].filter(Boolean).join(' · '))}</span>${cleanPreviewText(item.desc) ? `<span class="kp-story-desc">${escHtml(cleanPreviewText(item.desc).slice(0, 160))}</span>` : ''}</span></a>`).join('');
           storiesSection.style.display = '';
         } else storiesSection.style.display = 'none';
       };
@@ -3446,7 +3691,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
             knowledgePanel.insertAdjacentHTML('beforeend', `<div class="kp-person-extra" id="kp-person-extra">
               <section class="kp-person-section" id="kp-gallery-section"><div class="kp-related-label">Photo gallery</div><div class="kp-gallery" id="kp-person-gallery"><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div></div></section>
               <section class="kp-person-section" id="kp-social-section" style="display:none"><div class="kp-related-label">Social profiles</div><div class="kp-social-links" id="kp-social-links"></div></section>
-              <section class="kp-person-section" id="kp-social-results-section"><div class="kp-related-label">Recent social results</div><div class="kp-stories" id="kp-social-results"><div class="kp-story-skeleton"></div><div class="kp-story-skeleton"></div><div class="kp-story-skeleton"></div></div></section>
+              <section class="kp-person-section" id="kp-social-results-section"><div class="kp-related-label">Latest social posts</div><div class="kp-stories" id="kp-social-results"><div class="kp-story-skeleton"></div><div class="kp-story-skeleton"></div><div class="kp-story-skeleton"></div></div></section>
               <section class="kp-person-section" id="kp-stories-section"><div class="kp-related-label">Top stories</div><div class="kp-stories" id="kp-top-stories"><div class="kp-story-loading">Looking for recent coverage…</div></div></section>
             </div>`);
             syncClassicPersonSections();
@@ -3856,7 +4101,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           title: titleAnchor.textContent.trim(),
           href,
           hostname,
-          snippet: snippetEl ? snippetEl.innerHTML : '',
+          snippet: snippetEl ? cleanPreviewText(snippetEl.innerHTML) : '',
           thumb: ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : (thumbEl ? (thumbEl.src || thumbEl.getAttribute('data-src') || '') : ''),
           ytId,
         });
@@ -3868,7 +4113,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         title: v.title,
         href: `/apps/360vids.html?v=${v.id}`,
         hostname: '360vids',
-        snippet: v.description ? escHtml(v.description).slice(0, 160) : '',
+        snippet: cleanPreviewText(v.description).slice(0, 160),
         thumb: v.thumbnail_url || '',
         ytId: null,
         isNative: true,
@@ -5284,7 +5529,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       let html = `<div class="results-info">${escHtml(articles.length + ' news articles')}${elapsedSuffix()}</div>`;
       articles.forEach((a, i) => {
         const delay = i * 0.03;
-        html += `<div class="result-card" style="animation-delay:${delay}s">
+        const description = cleanPreviewText(a.desc);
+        html += `<div class="result-card news-result" style="animation-delay:${delay}s">
           <div class="result-card-inner">
             ${a.thumb ? `<img class="result-thumbnail" src="${escHtml(a.thumb)}" alt="" loading="lazy" onerror="this.remove()" style="width:90px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : ''}
             <div class="result-card-text">
@@ -5294,7 +5540,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
                 ${a.age ? `<span style="color:var(--mut);font-size:11px;margin-left:auto">${escHtml(a.age)}</span>` : ''}
               </div>
               <a class="result-title" href="${escHtml(a.url)}" target="_blank" rel="noopener noreferrer">${escHtml(a.title)}</a>
-              ${a.desc ? `<div class="result-snippet">${a.desc}</div>` : ''}
+              ${description ? `<div class="result-snippet">${escHtml(description)}</div>` : ''}
             </div>
           </div>
         </div>`;
@@ -5321,7 +5567,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         ${p.price ? `<div style="font-size:15px;font-weight:700;color:var(--a)">${escHtml(p.price)}</div>` : ''}
         ${p.source ? `<div style="font-size:11px;color:var(--mut)">${escHtml(p.source)}</div>` : ''}
         ${(p.rating !== null && p.rating !== undefined) ? `<div style="font-size:11px;color:var(--mut)">⭐ ${p.rating}${p.reviews ? ` (${p.reviews})` : ''}</div>` : ''}
-        ${p.desc ? `<div style="font-size:12px;color:var(--mut);line-height:1.4">${escHtml(p.desc.slice(0,100))}</div>` : ''}
+        ${cleanPreviewText(p.desc) ? `<div style="font-size:12px;color:var(--mut);line-height:1.4">${escHtml(cleanPreviewText(p.desc).slice(0,100))}</div>` : ''}
         <a href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--a);text-decoration:none;font-weight:600;margin-top:auto">View →</a>
       </div>`;
     }
@@ -5471,6 +5717,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         try { hostname = new URL(r.href).hostname.replace('www.', ''); } catch(e) {}
         const faviconUrl = `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(r.href)}`;
         const delay = i * 0.03;
+        const snippet = cleanPreviewText(r.snippet);
 
         html += `
           <div class="result-card web-result" style="animation-delay:${delay}s">
@@ -5482,7 +5729,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
                 </div>
                 <div class="result-url">${escHtml(r.displayUrl || r.href)}</div>
                 <a class="result-title" href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${escHtml(r.title)}</a>
-                ${r.snippet ? `<div class="result-snippet">${r.snippet}</div>` : ''}
+                ${snippet ? `<div class="result-snippet">${escHtml(snippet)}</div>` : ''}
                 <div class="result-anon-row">
                   <button class="result-anon-link" data-anon-url="${escHtml(r.href)}">View anonymously</button>
                 </div>
@@ -5654,7 +5901,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
             <div class="video-result-text">
               <a class="result-title" href="${escHtml(v.href)}" target="_blank" rel="noopener noreferrer">${escHtml(v.title)}</a>
               <div class="result-site-row"><span class="result-site-name">${escHtml(v.hostname)}</span></div>
-              ${v.snippet ? `<div class="result-snippet">${v.snippet}</div>` : ''}
+              ${v.snippet ? `<div class="result-snippet">${escHtml(cleanPreviewText(v.snippet))}</div>` : ''}
             </div>
           </div>`;
       });
@@ -5849,6 +6096,26 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function cleanPreviewText(value) {
+      if (value == null) return '';
+      const decoder = document.createElement('textarea');
+      decoder.innerHTML = String(value);
+      const decoded = decoder.value;
+      const parseText = source => {
+        const spaced = String(source)
+          .replace(/<\s*br\b[^>]*>/gi, ' ')
+          .replace(/<\/\s*(?:p|div|li|ul|ol|blockquote|article|section|h[1-6])\s*>/gi, ' ');
+        const doc = new DOMParser().parseFromString(spaced, 'text/html');
+        doc.querySelectorAll('script,style,iframe,object,template,noscript').forEach(node => node.remove());
+        return doc.body.textContent || '';
+      };
+      let text = parseText(decoded);
+      if (/<\/?(?:p|div|span|br|li|ul|ol|strong|em|b|i|blockquote|article|section)\b/i.test(text)) {
+        text = parseText(text);
+      }
+      return text.replace(/[\u00a0\u200b]/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
     /* ─────────────────────────────────
