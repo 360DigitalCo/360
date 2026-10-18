@@ -1,4 +1,4 @@
-<!-- BETA (please delete this entire line in search.html) -->
+<!-- beta (please delete this line in search.html) -->
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -2458,6 +2458,35 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     #knowledge-panel .kp-person-section[hidden] { display: none !important; }
   </style>
 
+  <style id="beta-forums-and-ai-highlight">
+    .results-tab[data-tab="forums"] { white-space: nowrap; }
+    .forum-provider-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+    .forum-provider-pill { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--glass-border); color: var(--mut); font-size: 11px; line-height: 1.3; background: color-mix(in srgb, var(--a) 5%, transparent); }
+    body.dark .forum-provider-pill { border-color: var(--glass-border-dk); color: var(--mutd); }
+    .forum-result .result-card-inner { align-items: flex-start; gap: 14px; }
+    .forum-result .result-card-text { min-width: 0; flex: 1; }
+    .forum-result-age { color: var(--mut); font-size: 11px; margin-left: auto; }
+    body.dark .forum-result-age { color: var(--mutd); }
+    body.classic-results #custom-results-area .forum-result { display: block !important; width: 100%; margin: 0 !important; padding: 14px 4px 18px !important; background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border: 0 !important; border-bottom: 1px solid var(--glass-border) !important; border-radius: 0 !important; box-shadow: none !important; animation: none !important; transform: none !important; }
+    body.dark.classic-results #custom-results-area .forum-result { border-bottom-color: var(--glass-border-dk) !important; }
+    body.classic-results #custom-results-area .forum-result:hover, body.dark.classic-results #custom-results-area .forum-result:hover { background: transparent !important; box-shadow: none !important; transform: none !important; }
+    body.classic-results #custom-results-area .forum-result .result-title { color: #1a73e8 !important; font-size: 20px !important; font-weight: 400 !important; line-height: 1.35; }
+    body.dark.classic-results #custom-results-area .forum-result .result-title { color: #8ab4f8 !important; }
+    body.classic-results #custom-results-area .forum-result .result-snippet { color: var(--mut) !important; font-size: 14px !important; line-height: 1.55; margin-top: 5px; }
+    body.dark.classic-results #custom-results-area .forum-result .result-snippet { color: var(--mutd) !important; }
+    .ai-key-answer { position: relative; margin: 2px 0 16px; padding: 12px 16px 12px 18px; border-left: 3px solid var(--a); border-radius: 0 12px 12px 0; background: color-mix(in srgb, var(--a) 9%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--a) 12%, transparent); font-size: 16px; font-weight: 550; line-height: 1.7; animation: aiKeyAnswerIn .32s ease both; }
+    .ai-key-answer p { margin: 0 !important; line-height: 1.7 !important; }
+    .ai-key-answer strong { color: var(--a); font-weight: 750; }
+    .ai-summary-remainder { min-width: 0; overflow-wrap: anywhere; }
+    .ai-summary-remainder p { margin-bottom: 8px !important; }
+    @keyframes aiKeyAnswerIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 640px) {
+      .forum-provider-list { gap: 5px; }
+      .forum-provider-pill { font-size: 10px; padding: 4px 7px; }
+      body.classic-results #custom-results-area .forum-result .result-title { font-size: 18px !important; }
+      .ai-key-answer { padding: 10px 12px 10px 14px; font-size: 15px; }
+    }
+  </style>
 </head>
 <body>
   <div class="cursor-dot"></div>
@@ -2596,6 +2625,10 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       <div class="results-tab" data-tab="news">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg>
         News
+      </div>
+      <div class="results-tab" data-tab="forums" aria-label="Search forums and online communities">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.9 7.3L3 20l1.2-4.1A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 11h8M8 14h5"/></svg>
+        Forums
       </div>
       <div class="results-tab" data-tab="videos">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
@@ -2884,6 +2917,10 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         } else if (t === 'news') {
           showResultsArea(true);
           run360Search(q, 'news');
+        } else if (t === 'forums') {
+          showResultsArea(true);
+          loadKnowledgePanel(q);
+          runForumsSearch(q);
         } else if (t === 'shopping') {
           showResultsArea(true);
           run360Search(q, 'shopping');
@@ -4508,6 +4545,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           scrapeImageResults(document.getElementById('idx-container'));
         } else if (t === 'news') {
           run360Search(state.query, 'news');
+        } else if (t === 'forums') {
+          runForumsSearch(state.query);
         } else if (t === 'shopping') {
           run360Search(state.query, 'shopping');
         } else if (t === 'videos') {
@@ -5152,6 +5191,40 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       return html;
     }
 
+    function renderAiAnswerWithHighlight(text) {
+      const normalized = String(text || '').replace(/\\n/g, '\n').replace(/\r\n?/g, '\n').trim();
+      if (!normalized) return '';
+      const lines = normalized.split('\n');
+      let offset = 0;
+      let start = -1;
+      let firstParagraph = '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || /^#{1,6}\s/.test(trimmed) || /^```/.test(trimmed) || /^\|/.test(trimmed) || /^(?:[-*]\s|\d+\.\s)/.test(trimmed)) {
+          offset += line.length + 1;
+          continue;
+        }
+        start = offset;
+        break;
+      }
+      if (start < 0) return renderMarkdown(normalized);
+
+      const remaining = normalized.slice(start);
+      const paragraphEnd = remaining.search(/\n\s*\n/);
+      firstParagraph = (paragraphEnd >= 0 ? remaining.slice(0, paragraphEnd) : remaining).trim();
+      if (!firstParagraph || /^#{1,6}\s|^```|^\|/.test(firstParagraph)) return renderMarkdown(normalized);
+
+      const sentenceMatch = firstParagraph.match(/^([\s\S]*?[.!?][*_`"'”’)]*)(?=\s+[A-Z0-9“”"'‘’(\[]|$)/);
+      let keySentence = sentenceMatch ? sentenceMatch[1].trim() : '';
+      if (!keySentence && firstParagraph.length <= 260 && !/^(?:[-*]\s|\d+\.\s)/.test(firstParagraph)) keySentence = firstParagraph;
+      if (!keySentence || keySentence.length > 360) return renderMarkdown(normalized);
+
+      const before = normalized.slice(0, start);
+      const rest = normalized.slice(start + keySentence.length).trim();
+      return `${before ? renderMarkdown(before) : ''}<div class="ai-key-answer">${renderMarkdown(keySentence)}</div>${rest ? `<div class="ai-summary-remainder">${renderMarkdown(rest)}</div>` : ''}`;
+    }
+
     function inlineFormat(text) {
       // Preserve literal <br> and <br/> before escaping, restore after
       const PLACEHOLDER = '\x00BR\x00';
@@ -5211,7 +5284,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           const b64 = btoa(unescape(encodeURIComponent(text)));
           handoffUrl = `ai.html?q=${encodeURIComponent(q)}&a=${encodeURIComponent(b64)}`;
         } catch(e) {}
-        card.innerHTML = `<div class="ai-response-label">${AI_ICON} AI Answer</div><div class="ai-response-text">${renderMarkdown(text)}</div>
+        card.innerHTML = `<div class="ai-response-label">${AI_ICON} AI Answer</div><div class="ai-response-text">${renderAiAnswerWithHighlight(text)}</div>
           ${handoffUrl ? `<a href="${escHtml(handoffUrl)}" style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:9px 16px;border-radius:10px;background:var(--a);color:#fff;text-decoration:none;font-size:13px;font-weight:600;">Continue this conversation →</a>` : ''}`;
       }
 
@@ -5296,6 +5369,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           scrapeImageResults(document.getElementById('idx-container'));
         } else if (state.tab === 'news') {
           run360Search(q, 'news');
+        } else if (state.tab === 'forums') {
+          runForumsSearch(q);
         } else if (state.tab === 'shopping') {
           run360Search(q, 'shopping');
         } else if (state.tab === 'videos') {
@@ -5476,38 +5551,226 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     /* ─────────────────────────────────
-       NEWS + SHOPPING via 360 edge function
+       NEWS, SHOPPING, AND FORUMS via 360 edge search
     ───────────────────────────────── */
-    async function fetchRedditNewsFromIndex(q) {
+    const FORUM_BASE_PROVIDERS = [
+      { label: 'Reddit', domain: 'reddit.com', domains: ['reddit.com', 'redd.it'] },
+      { label: 'Quora', domain: 'quora.com', domains: ['quora.com'] },
+      { label: 'Brainly', domain: 'brainly.com', domains: ['brainly.com'] },
+      { label: 'Stack Exchange', domain: 'stackexchange.com', domains: ['stackexchange.com'] }
+    ];
+
+    const FORUM_PROVIDER_CATALOG = [
+      { label: 'Reddit', domains: ['reddit.com', 'redd.it'] },
+      { label: 'Quora', domains: ['quora.com'] },
+      { label: 'Brainly', domains: ['brainly.com'] },
+      { label: 'Stack Overflow', domains: ['stackoverflow.com'] },
+      { label: 'Stack Exchange', domains: ['stackexchange.com'] },
+      { label: 'Hacker News', domains: ['news.ycombinator.com'] },
+      { label: 'Super User', domains: ['superuser.com'] },
+      { label: 'Server Fault', domains: ['serverfault.com'] },
+      { label: 'Ask Ubuntu', domains: ['askubuntu.com'] },
+      { label: 'XDA Forums', domains: ['xda-developers.com'] },
+      { label: 'BleepingComputer', domains: ['bleepingcomputer.com'] },
+      { label: 'Neowin Forums', domains: ['neowin.net'] },
+      { label: "Tom's Hardware", domains: ['tomshardware.com'] },
+      { label: 'Spiceworks Community', domains: ['spiceworks.com'] },
+      { label: 'Steam Discussions', domains: ['steamcommunity.com'] },
+      { label: 'GameFAQs', domains: ['gamefaqs.gamespot.com'] },
+      { label: 'ResetEra', domains: ['resetera.com'] },
+      { label: 'EA Forums', domains: ['forums.ea.com'] },
+      { label: 'Head-Fi', domains: ['head-fi.org'] },
+      { label: 'Audio Science Review', domains: ['audiosciencereview.com'] },
+      { label: 'AudioKarma', domains: ['audiokarma.org'] },
+      { label: 'AVS Forum', domains: ['avsforum.com'] },
+      { label: "What's Best Forum", domains: ['whatsbestforum.com'] },
+      { label: 'Indie Hackers', domains: ['indiehackers.com'] },
+      { label: 'Warrior Forum', domains: ['warriorforum.com'] },
+      { label: 'BlackHatWorld', domains: ['blackhatworld.com'] },
+      { label: 'Moz Community', domains: ['moz.com'] },
+      { label: 'Tripadvisor Forums', domains: ['tripadvisor.com'] },
+      { label: 'FlyerTalk', domains: ['flyertalk.com'] },
+      { label: 'Bimmerpost', domains: ['bimmerpost.com'] },
+      { label: 'Bob Is The Oil Guy', domains: ['bobistheoilguy.com'] },
+      { label: 'VWVortex', domains: ['vwvortex.com'] },
+      { label: 'CivicX Forums', domains: ['civicx.com'] },
+      { label: 'DPReview Forums', domains: ['dpreview.com'] },
+      { label: 'Fred Miranda', domains: ['fredmiranda.com'] },
+      { label: 'Photography-on-the.net', domains: ['photography-on-the.net'] },
+      { label: 'MathOverflow', domains: ['mathoverflow.net'] },
+      { label: 'Physics Forums', domains: ['physicsforums.com'] },
+      { label: 'Answers.com', domains: ['answers.com'] },
+      { label: 'Studocu', domains: ['studocu.com'] },
+      { label: 'Microsoft Answers', domains: ['answers.microsoft.com'] },
+      { label: 'MacRumors Forums', domains: ['macrumors.com'] },
+      { label: 'Android Central Forums', domains: ['androidcentral.com'] },
+      { label: 'Apple Developer Forums', domains: ['developer.apple.com'] },
+      { label: 'GameSpot Forums', domains: ['gamespot.com'] },
+      { label: 'IGN Boards', domains: ['ign.com'] },
+      { label: 'Food52 Hotline', domains: ['food52.com'] },
+      { label: 'Chowhound', domains: ['chowhound.com'] },
+      { label: 'GitHub Discussions', domains: ['github.com'] },
+      { label: 'MetaFilter', domains: ['metafilter.com'] },
+      { label: 'Bodybuilding.com Forums', domains: ['bodybuilding.com'] },
+      { label: 'HealthUnlocked', domains: ['healthunlocked.com'] },
+      { label: 'AVForums', domains: ['avforums.com'] }
+    ];
+
+    const FORUM_TOPIC_RULES = [
+      { name: 'audio and hi-fi', pattern: /\b(headphones?|earbuds?|hifi|hi-fi|audiophile|speakers?|amplifiers?|dac|turntable|vinyl|home theater|home theatre|soundbar|audio gear)\b/i, domains: ['head-fi.org', 'audiosciencereview.com', 'audiokarma.org', 'avsforum.com', 'whatsbestforum.com', 'avforums.com'] },
+      { name: 'gaming', pattern: /\b(game|games|gaming|gamer|steam|xbox|playstation|ps5|ps4|nintendo|switch|fortnite|minecraft|roblox|valorant|league of legends|esports)\b/i, domains: ['steamcommunity.com', 'gamefaqs.gamespot.com', 'resetera.com', 'gaming.stackexchange.com', 'forums.ea.com', 'gamespot.com', 'ign.com'] },
+      { name: 'school and homework', pattern: /\b(homework|school|student|students|study|studying|essay|class|teacher|teachers|worksheet|brainly|algebra|geometry|calculus|math|mathematics|physics|chemistry|biology|statistics|history assignment)\b/i, domains: ['math.stackexchange.com', 'physics.stackexchange.com', 'academia.stackexchange.com', 'answers.com', 'studocu.com', 'biology.stackexchange.com', 'stats.stackexchange.com'] },
+      { name: 'technology and development', pattern: /\b(tech|technology|programming|programmer|developer|coding|code|javascript|typescript|html|css|python|java|rust|react|node\.?js|api|github|open.?source|linux|windows|macos|computer|pc build|gpu|cpu|hardware|server|database|postgres|supabase|ai model|llm|chatgpt|artificial intelligence|cybersecurity|hacker news|software|browser|web app|website)\b/i, domains: ['stackoverflow.com', 'superuser.com', 'serverfault.com', 'askubuntu.com', 'xda-developers.com', 'bleepingcomputer.com', 'neowin.net', 'tomshardware.com', 'spiceworks.com', 'github.com'] },
+      { name: 'business and marketing', pattern: /\b(startup|business|entrepreneur|saas|marketing|seo|search engine optimization|advertising|founder|growth|ecommerce|e-commerce|affiliate|digital marketing|sales funnel|indie hacker|blackhat|warrior forum)\b/i, domains: ['indiehackers.com', 'warriorforum.com', 'blackhatworld.com', 'moz.com', 'news.ycombinator.com'] },
+      { name: 'mobile devices', pattern: /\b(iphone|ipad|android|samsung galaxy|pixel phone|mobile phone|smartphone|macbook|mac mini|macos|ios|ipados|apple developer)\b/i, domains: ['xda-developers.com', 'macrumors.com', 'androidcentral.com', 'answers.microsoft.com', 'developer.apple.com'] },
+      { name: 'science and research', pattern: /\b(science|scientific|research|research paper|astronomy|space telescope|climate|physics|chemistry|biology|neuroscience|psychology study|academic|university research)\b/i, domains: ['physics.stackexchange.com', 'biology.stackexchange.com', 'astronomy.stackexchange.com', 'academia.stackexchange.com', 'mathoverflow.net', 'physicsforums.com'] },
+      { name: 'cars and automotive', pattern: /\b(car|cars|automotive|vehicle|truck|motorcycle|engine|transmission|oil change|bmw|bimmer|honda civic|toyota|volkswagen|vwvortex|miata|tires?)\b/i, domains: ['bimmerpost.com', 'bobistheoilguy.com', 'vwvortex.com', 'civicx.com'] },
+      { name: 'travel', pattern: /\b(travel|travelling|traveling|vacation|holiday|hotel|flight|airline|backpack|tourism|tripadvisor|cruise)\b/i, domains: ['tripadvisor.com', 'flyertalk.com', 'travel.stackexchange.com'] },
+      { name: 'cooking and food', pattern: /\b(cook|cooking|recipe|recipes|food|baking|bake|chef|kitchen|ingredient|ingredients|restaurant)\b/i, domains: ['cooking.stackexchange.com', 'food52.com', 'chowhound.com'] },
+      { name: 'photography', pattern: /\b(photo|photography|photographer|camera|lens|lenses|dslr|mirrorless|lightroom|raw photos)\b/i, domains: ['dpreview.com', 'fredmiranda.com', 'photography-on-the.net', 'photo.stackexchange.com'] },
+      { name: 'home and gardening', pattern: /\b(garden|gardening|plants|plant care|lawn|diy|home repair|renovation|plumbing|electrical wiring|woodworking|furniture|interior design)\b/i, domains: ['gardening.stackexchange.com', 'diy.stackexchange.com', 'woodworking.stackexchange.com', 'houzz.com'] },
+      { name: 'health and fitness', pattern: /\b(fitness|workout|bodybuilding|weightlifting|running|nutrition|sleep|health|symptom|symptoms|medical|wellness)\b/i, domains: ['healthunlocked.com', 'bodybuilding.com'] },
+      { name: 'general discussion', pattern: /\b(politics|books?|movies?|films?|television|tv show|music|fashion|relationships|parenting|pets?|dogs?|cats?)\b/i, domains: ['metafilter.com', 'reddit.com', 'quora.com'] }
+    ];
+
+    function detectForumTopic(query) {
+      return FORUM_TOPIC_RULES.find(rule => rule.pattern.test(String(query || ''))) || null;
+    }
+
+    function hostMatchesDomain(host, domain) {
+      return host === domain || host.endsWith(`.${domain}`);
+    }
+
+    function forumSourceForUrl(url) {
+      let parsed;
+      try { parsed = new URL(url); } catch (e) { return null; }
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+      const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+      const catalogHit = FORUM_PROVIDER_CATALOG.find(provider => provider.domains.some(domain => hostMatchesDomain(host, domain)));
+      const isDiscussionPath = /\/(?:r\/|forums?\/|community\b|discussions?\/|questions?\/|answers?\/|threads?\/|topics?\/|boards?\/|board\/|showthread\.php|viewtopic\.php|hotline\/|thorntree\/)/i.test(parsed.pathname)
+        || /news\.ycombinator\.com\/item\?id=/i.test(`${host}${parsed.pathname}${parsed.search}`);
+
+      if (host === 'github.com' && !/\/(?:[^/]+\/[^/]+\/(?:discussions|issues))\//i.test(parsed.pathname)) return null;
+      if (catalogHit) {
+        const alwaysCommunityHosts = ['reddit.com', 'redd.it', 'quora.com', 'brainly.com', 'stackoverflow.com', 'stackexchange.com', 'news.ycombinator.com', 'superuser.com', 'serverfault.com', 'askubuntu.com', 'steamcommunity.com', 'gamefaqs.gamespot.com', 'answers.com', 'studocu.com', 'answers.microsoft.com'];
+        if (!alwaysCommunityHosts.some(domain => hostMatchesDomain(host, domain)) && !isDiscussionPath) return null;
+        if (hostMatchesDomain(host, 'stackexchange.com')) {
+          const site = host.split('.')[0];
+          const special = { math: 'Mathematics', physics: 'Physics', biology: 'Biology', stats: 'Cross Validated', astronomy: 'Astronomy', academia: 'Academia', cooking: 'Seasoned Advice', travel: 'Travel', gaming: 'Arqade', photo: 'Photography', diy: 'Home Improvement', gardening: 'Gardening', unix: 'Unix & Linux', apple: 'Ask Different', writers: 'Writing', money: 'Personal Finance', workplace: 'The Workplace', security: 'Information Security', serverfault: 'Server Fault', superuser: 'Super User' };
+          if (host !== 'stackexchange.com') return { label: `${special[site] || site.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} · Stack Exchange`, domain: 'stackexchange.com' };
+        }
+        if (hostMatchesDomain(host, 'reddit.com')) {
+          const subreddit = parsed.pathname.match(/\/r\/([^/]+)/i);
+          return { label: subreddit ? `Reddit · r/${subreddit[1]}` : 'Reddit', domain: 'reddit.com' };
+        }
+        if (host === 'github.com') return { label: 'GitHub Discussions', domain: 'github.com' };
+        return { label: catalogHit.label, domain: catalogHit.domains[0] };
+      }
+
+      if (isDiscussionPath) {
+        const parts = host.split('.');
+        const root = parts.length > 2 ? parts.slice(-2).join('.') : host;
+        const rootLabel = root.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        return { label: `${rootLabel} Community`, domain: root };
+      }
+      return null;
+    }
+
+    function forumCandidateFromItem(item, allowedDomains) {
+      const url = item.url || item.href || item.link || '';
+      const provider = forumSourceForUrl(url);
+      if (!provider) return null;
+      let parsed;
+      try { parsed = new URL(url); } catch (e) { return null; }
+      if (allowedDomains && !allowedDomains.some(domain => hostMatchesDomain(parsed.hostname.toLowerCase().replace(/^www\./, ''), domain))) return null;
+      const age = item.age || item.publishedAt || item.published_at || item.publishedDate || item.published || item.date || '';
+      const title = cleanPreviewText(item.title || item.name || '');
+      if (!title) return null;
+      return {
+        title,
+        url,
+        desc: cleanPreviewText(item.snippet || item.description || item.desc || ''),
+        source: provider.label,
+        favicon: `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(parsed.origin)}`,
+        age: String(age || ''),
+        thumb: item.thumb || item.thumbnail || item.image || ''
+      };
+    }
+
+    async function fetchForumQuery(query, allowedDomains) {
       try {
         const res = await fetch(EDGE_SEARCH, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-          body: JSON.stringify({ q: `${q} site:reddit.com`, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+          body: JSON.stringify({ q: query, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
         });
         if (!res.ok) return [];
         const data = await res.json();
-        return (Array.isArray(data.web) ? data.web : []).map(item => {
-          const url = item.url || item.href || item.link || '';
-          let parsed;
-          try { parsed = new URL(url); } catch (e) { return null; }
-          const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-          if (!(host === 'reddit.com' || host.endsWith('.reddit.com') || host === 'redd.it' || host.endsWith('.redd.it'))) return null;
-          const subreddit = parsed.pathname.match(/\/r\/([^/]+)/i);
-          const age = item.age || item.publishedAt || item.published_at || item.publishedDate || item.published || item.date || '';
-          return {
-            title: item.title || item.name || `Reddit discussion about ${q}`,
-            url,
-            desc: cleanPreviewText(item.snippet || item.description || item.desc || ''),
-            source: subreddit ? `Reddit · r/${subreddit[1]}` : 'Reddit',
-            favicon: `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent('https://www.reddit.com')}`,
-            age: String(age || ''),
-            thumb: item.thumb || item.thumbnail || item.image || ''
-          };
-        }).filter(Boolean).slice(0, 6);
+        const items = Array.isArray(data.web) ? data.web : Array.isArray(data.results) ? data.results : [];
+        return items.map(item => forumCandidateFromItem(item, allowedDomains)).filter(Boolean).slice(0, 8);
       } catch (e) {
         return [];
       }
+    }
+
+    async function runForumsSearch(query) {
+      showLoading();
+      const topic = detectForumTopic(query);
+      const tasks = FORUM_BASE_PROVIDERS.map(provider =>
+        fetchForumQuery(`${query} site:${provider.domain}`, provider.domains)
+      );
+
+      if (topic && topic.domains.length) {
+        const scopes = [...new Set(topic.domains)];
+        const scopeQuery = scopes.map(domain => `site:${domain}`).join(' OR ');
+        tasks.push(fetchForumQuery(`${query} (${scopeQuery})`, scopes));
+        if (topic.name === 'technology and development' || topic.name === 'business and marketing') {
+          tasks.push(fetchForumQuery(`${query} site:news.ycombinator.com`, ['news.ycombinator.com']));
+        }
+      }
+
+      tasks.push(fetchForumQuery(`${query} forum discussion community questions answers`, null));
+      const batches = await Promise.all(tasks);
+      if (state.tab !== 'forums' || state.query !== query) return;
+
+      const seen = new Set();
+      const merged = [];
+      for (const item of batches.flat()) {
+        const key = newsUrlKey(item.url);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(item);
+      }
+      cacheRender('forums', query, 1, renderForumResults, [merged, topic ? topic.name : 'community']);
+    }
+
+    function renderForumResults(items, topicName) {
+      if (!items.length) {
+        resultsArea.innerHTML = `<div class="state-box"><div class="big-icon"><span data-octicon="search"></span></div><h3>No forum discussions found</h3><p>Try a broader phrase. Forums searches check Reddit, Quora, Brainly, Stack Exchange, and relevant specialist communities.</p></div>`;
+        return;
+      }
+
+      const sources = [...new Set(items.map(item => item.source))];
+      let html = `<div class="results-info">${items.length} community results${topicName ? ` · ${escHtml(topicName)}` : ''}${elapsedSuffix()}</div>`;
+      html += `<div class="forum-provider-list" aria-label="Communities searched">${sources.slice(0, 9).map(source => `<span class="forum-provider-pill">${escHtml(source)}</span>`).join('')}</div>`;
+      items.slice(0, 36).forEach((item, index) => {
+        const description = cleanPreviewText(item.desc);
+        html += `<article class="result-card forum-result" style="animation-delay:${Math.min(index, 12) * 0.025}s">
+          <div class="result-card-inner">
+            ${item.thumb ? `<img class="result-thumbnail" src="${escHtml(item.thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+            <div class="result-card-text">
+              <div class="result-site-row">
+                <img class="result-favicon" src="${escHtml(item.favicon || '')}" alt="" loading="lazy" onerror="this.style.display='none'">
+                <span class="result-site-name">${escHtml(item.source)}</span>
+                ${item.age ? `<span class="forum-result-age">${escHtml(item.age)}</span>` : ''}
+              </div>
+              <a class="result-title" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.title)}</a>
+              ${description ? `<div class="result-snippet">${escHtml(description)}</div>` : ''}
+            </div>
+          </div>
+        </article>`;
+      });
+      resultsArea.innerHTML = html;
     }
 
     function newsUrlKey(url) {
@@ -5523,7 +5786,6 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     async function run360Search(q, tab) {
       showLoading();
-      const redditPromise = tab === 'news' ? fetchRedditNewsFromIndex(q) : Promise.resolve([]);
       try {
         const res = await fetch(EDGE_SEARCH, {
           method: 'POST',
@@ -5541,16 +5803,6 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         if (tab === 'news') {
           const articles = Array.isArray(data.news) ? data.news : [];
           cacheRender('news', state.query, 1, renderNewsResults, [articles]);
-          const redditArticles = await redditPromise;
-          if (state.tab !== tab || state.query !== q || !redditArticles.length) return;
-          const seen = new Set(articles.map(article => newsUrlKey(article.url || article.link || '')).filter(Boolean));
-          const merged = articles.concat(redditArticles.filter(article => {
-            const key = newsUrlKey(article.url);
-            if (!key || seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          }));
-          cacheRender('news', state.query, 1, renderNewsResults, [merged]);
         } else if (tab === 'shopping') {
           cacheRender('shopping', state.query, 1, renderShoppingResults, [data.shopping || []]);
         }
