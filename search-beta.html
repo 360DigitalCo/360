@@ -1,4 +1,4 @@
-<!-- THIS IS BETA (remove this comment in search.html) -->
+<!-- THIS IS BETA SEARCH (remove this comment in search.html please)!-->
 <!-- ===============================
   SEARCH.HTML V.3.6.0 CUSTOM SEARCH
 ================================ -->
@@ -1982,6 +1982,102 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
   </style>
+
+  <style id="beta-ai-person-layout-fix">
+    #classic-person-extras {
+      display: none;
+      width: min(860px, calc(100% - 40px));
+      margin: 12px 0 0 max(20px, calc(max(0px, (100vw - 1560px) / 2) + 20px));
+      padding: 0;
+      box-sizing: border-box;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-self: flex-start;
+    }
+    body.classic-results #classic-person-extras.visible { display: grid; }
+    #classic-person-extras .kp-person-section {
+      min-width: 0;
+      margin: 0;
+      padding: 14px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: var(--glass-light-mid);
+      box-shadow: var(--glass-shadow-sm), var(--glass-inset);
+      box-sizing: border-box;
+    }
+    body.dark #classic-person-extras .kp-person-section {
+      border-color: var(--glass-border-dk);
+      background: var(--glass-dark-mid);
+      box-shadow: var(--glass-shadow-sm), var(--glass-inset-dk);
+    }
+    #classic-person-extras .kp-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #classic-person-extras .kp-story { min-width: 0; }
+
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+      grid-template-columns: 320px minmax(0, 1fr) !important;
+      justify-content: start !important;
+      gap: 32px !important;
+    }
+    body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      justify-self: start !important;
+      margin: 0 !important;
+    }
+    body.ai-results-view .results-layout > #custom-results-area {
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+    }
+    .search-results-page > #ai-panel.active {
+      width: min(680px, calc(100vw - 400px));
+      max-width: 680px !important;
+      box-sizing: border-box;
+      margin: 18px 20px 48px calc(max(0px, (100vw - 1560px) / 2) + 372px) !important;
+      padding: 0 0 48px !important;
+      align-self: flex-start;
+      min-width: 0;
+    }
+    .search-results-page > #ai-panel.active .ai-response-card {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 1120px) {
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        justify-content: stretch !important;
+      }
+      body.ai-results-view .results-layout:has(> #knowledge-panel.active) > #knowledge-panel.active {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        width: 100%;
+        max-width: 100%;
+      }
+      body.ai-results-view .results-layout > #custom-results-area {
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+      }
+      #classic-person-extras {
+        width: calc(100% - 24px);
+        margin: 8px 12px 0;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      #classic-person-extras .kp-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .search-results-page > #ai-panel.active {
+        width: calc(100% - 24px);
+        max-width: 760px !important;
+        margin: 18px auto 48px !important;
+        padding: 0 0 40px !important;
+        align-self: center;
+      }
+    }
+    @media (max-width: 640px) {
+      #classic-person-extras .kp-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #classic-person-extras .kp-person-section { padding: 10px; }
+    }
+  </style>
+
 </head>
 <body>
   <div class="cursor-dot"></div>
@@ -2333,6 +2429,38 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     tabIndicator.setAttribute('aria-hidden', 'true');
     tabsEl.appendChild(tabIndicator);
     const knowledgePanel = document.getElementById('knowledge-panel');
+    const resultsLayout = document.querySelector('.results-layout');
+    const classicPersonExtras = document.createElement('div');
+    classicPersonExtras.id = 'classic-person-extras';
+    classicPersonExtras.setAttribute('aria-live', 'polite');
+    if (resultsLayout && resultsLayout.parentNode) {
+      resultsLayout.parentNode.insertBefore(classicPersonExtras, resultsLayout);
+    }
+
+    function syncClassicPersonSections() {
+      if (!classicPersonExtras || !knowledgePanel) return;
+      const extra = knowledgePanel.querySelector('#kp-person-extra');
+      const gallery = document.getElementById('kp-gallery-section');
+      const socialResults = document.getElementById('kp-social-results-section');
+      const classic = document.body.classList.contains('classic-results');
+
+      if (classic && extra) {
+        if (gallery && gallery.style.display !== 'none') classicPersonExtras.appendChild(gallery);
+        if (socialResults && socialResults.style.display !== 'none') classicPersonExtras.appendChild(socialResults);
+        classicPersonExtras.classList.toggle('visible', classicPersonExtras.children.length > 0);
+        return;
+      }
+
+      if (extra) {
+        const socialProfiles = extra.querySelector('#kp-social-section');
+        const topStories = extra.querySelector('#kp-stories-section');
+        if (gallery) extra.insertBefore(gallery, socialProfiles || extra.firstChild);
+        if (socialResults) extra.insertBefore(socialResults, topStories || null);
+      }
+      classicPersonExtras.replaceChildren();
+      classicPersonExtras.classList.remove('visible');
+    }
+
     let kpToken = 0; // increments per knowledge-panel request; guards against a slow, stale response overwriting a newer one
 
     /* ─────────────────────────────────
@@ -2352,6 +2480,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         updateToolsVisibility(t);
         if (t === 'ai') {
           showResultsArea(false);
+          loadKnowledgePanel(q);
           runAiSearch(q);
         } else if (t === 'images') {
           showResultsArea(true);
@@ -2385,6 +2514,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       resultsArea.style.display = show ? '' : 'none';
       aiPanel.classList.toggle('active', !show);
       document.body.classList.toggle('ai-results-view', !show);
+      syncClassicPersonSections();
     }
 
     /* ─────────────────────────────────
@@ -2883,6 +3013,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           storiesSection.style.display = '';
         } else storiesSection.style.display = 'none';
       }
+      syncClassicPersonSections();
     }
 
 
@@ -2934,6 +3065,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     async function loadKnowledgePanel(q) {
       const myToken = ++kpToken; // guards against a slow earlier request clobbering a newer one
+      classicPersonExtras.replaceChildren();
+      classicPersonExtras.classList.remove('visible');
       if (!q?.trim()) { knowledgePanel.classList.remove('active'); knowledgePanel.innerHTML = ''; return; }
 
       // "speed test" / "internet speed test" — real, no fake numbers.
@@ -4364,7 +4497,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     (function setupViewModeToggle() {
       const btn = document.getElementById('view-mode-toggle');
       const label = document.getElementById('view-mode-label');
-      let classicMode = localStorage.getItem('360_view_mode') !== 'standard';
+      const initialView = new URL(location.href).searchParams.get('view');
+      const explicitView = initialView === 'classic' || initialView === 'normal';
+      let classicMode = explicitView ? initialView === 'classic' : localStorage.getItem('360_view_mode') !== 'standard';
 
       function render() {
         document.body.classList.toggle('classic-results', classicMode);
@@ -4373,6 +4508,10 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
         btn.title = classicMode ? 'Switch to normal card view' : 'Switch to classic web results';
         btn.setAttribute('aria-label', btn.title);
         btn.setAttribute('aria-pressed', String(classicMode));
+        const url = new URL(location.href);
+        url.searchParams.set('view', classicMode ? 'classic' : 'normal');
+        history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+        syncClassicPersonSections();
       }
       render();
 
@@ -4385,7 +4524,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
       Settings360.init(sb360).then(() => {
         const remote = Settings360.get('viewMode');
-        if (remote && remote !== (classicMode ? 'classic' : 'standard')) {
+        if (!explicitView && remote && remote !== (classicMode ? 'classic' : 'standard')) {
           classicMode = remote === 'classic';
           localStorage.setItem('360_view_mode', remote);
           render();
@@ -4707,6 +4846,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       try {
         if (state.tab === 'ai') {
           showResultsArea(false);
+          loadKnowledgePanel(q);
           runAiSearch(q);
           return;
         }
@@ -4745,12 +4885,17 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
        URL MANAGEMENT — uses %20 not + for spaces
     ───────────────────────────────── */
     function updateUrl(q, tab) {
-      const base = location.pathname;
+      const url = new URL(location.href);
       if (q) {
-        history.replaceState(null, '', `${base}?q=${encodeURIComponent(q)}&tab=${encodeURIComponent(tab)}`);
+        url.searchParams.set('q', q);
+        url.searchParams.set('tab', tab);
       } else {
-        history.replaceState(null, '', base);
+        url.searchParams.delete('q');
+        url.searchParams.delete('tab');
       }
+      url.searchParams.set('view', document.body.classList.contains('classic-results') ? 'classic' : 'normal');
+      url.hash = '';
+      history.replaceState(null, '', `${url.pathname}${url.search}`);
     }
 
     function syncGcsQuery() {
@@ -4782,8 +4927,13 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
       // Only update if it differs from what we already have
       if (gscQuery !== curQ) {
-        window.history.replaceState(null, '',
-          `${base}?q=${encodeURIComponent(gscQuery)}&tab=${encodeURIComponent(tab)}`);
+        const url = new URL(window.location.href);
+        url.pathname = base;
+        url.searchParams.set('q', gscQuery);
+        url.searchParams.set('tab', tab);
+        url.searchParams.set('view', document.body.classList.contains('classic-results') ? 'classic' : 'normal');
+        url.hash = '';
+        window.history.replaceState(null, '', `${url.pathname}${url.search}`);
       } else {
         // Same query — just strip the hash fragment
         const url = new URL(window.location.href);
