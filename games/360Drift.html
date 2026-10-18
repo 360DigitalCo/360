@@ -2059,4 +2059,142 @@ function cleanDef(d){
   };
   loadSaved();requestAnimationFrame(loop);
 })();
+
+// ===== DEV PANEL: type d, e, v to toggle =====
+(function(){
+const st=document.createElement('style');st.textContent=`
+#dev{position:fixed;top:calc(190px + env(safe-area-inset-top,0px));right:14px;width:236px;max-height:calc(100% - 210px);overflow-y:auto;z-index:100;
+  background:rgba(9,10,12,.92);border:1px solid var(--accent);padding:10px 12px;font-size:11px;letter-spacing:.08em;color:var(--fg);touch-action:pan-y;pointer-events:auto}
+#dev[hidden]{display:none!important}
+#dev h4{font-family:var(--title);font-weight:400;font-size:22px;letter-spacing:.08em;color:var(--accent);display:flex;justify-content:space-between;align-items:center}
+#dev h4 button{font-size:14px;color:var(--dim)}
+#dev .sec{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+#dev .sec>span{display:block;font-size:9px;letter-spacing:.26em;color:var(--dim);margin-bottom:5px}
+#dvstats{line-height:1.65;font-variant-numeric:tabular-nums;color:var(--dim)}
+#dvstats b{color:var(--fg);font-weight:500}
+#dev .row{display:flex;flex-wrap:wrap;gap:5px}
+#dev .row button,#dev select{font-size:10px;letter-spacing:.12em;padding:5px 7px;border:1px solid var(--line);background:none;color:var(--fg)}
+#dev .row button:hover{border-color:var(--fg)}
+#dev .row button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+#dev select option{background:#111}
+#dev label{display:flex;align-items:center;gap:8px;margin-top:6px;color:var(--dim)}
+#dev input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+`;document.head.appendChild(st);
+const panel=document.createElement('div');panel.id='dev';panel.hidden=true;panel.innerHTML=`
+  <h4>DEV <button id="dvx" title="Close (or type d e v)">×</button></h4>
+  <div id="dvstats"></div>
+  <div class="sec"><span>CAR</span>
+    <div class="row">
+      <button id="dvboost">BOOST</button>
+      <button id="dvinf">INF BOOST</button>
+      <button id="dvstop">STOP</button>
+      <button id="dvflip">FLIP UPRIGHT</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <select id="dvitem"><option value="nitro">NITRO</option><option value="oil">OIL</option><option value="seeker">SEEKER</option><option value="od">OVERDRIVE</option></select>
+      <button id="dvgive">GIVE ITEM</button>
+    </div>
+  </div>
+  <div class="sec"><span>RACE</span>
+    <div class="row">
+      <button id="dvwarp">WARP TO NEXT GATE</button>
+      <button id="dvlap">SKIP LAP</button>
+      <button id="dvfreeze">FREEZE RIVALS</button>
+      <button id="dvwipe">WIPE BESTS</button>
+    </div>
+  </div>
+  <div class="sec"><span>RENDER</span>
+    <div class="row">
+      <button id="dvwire">WIREFRAME</button>
+      <button id="dvfog">FOG OFF</button>
+      <button id="dvshad">SHADOWS</button>
+    </div>
+    <label>RES <input type="range" id="dvpr" min="0.5" max="2" step="0.25"><span id="dvprv"></span></label>
+  </div>
+  <div class="sec" style="color:var(--faint);font-size:9px;line-height:1.6">Any warp, skip or boost use marks the run as not saved.</div>
+`;document.body.appendChild(panel);
+
+const $d=s=>document.querySelector(s), dev=panel;
+let open=false,infBoost=false,wire=false,fogOff=false,frozen=false,fps=0,fN=0,fT=performance.now(),fogSave=null;
+
+// secret sequence: d, e, v (resets after 1.5 s of silence)
+const SEQ=['KeyD','KeyE','KeyV'];let buf=[],lastKey=0;
+addEventListener('keydown',e=>{
+  if(e.repeat||(e.target&&e.target.tagName==='INPUT'))return;
+  const now=performance.now();if(now-lastKey>1500)buf=[];lastKey=now;
+  buf.push(e.code);if(buf.length>SEQ.length)buf.shift();
+  if(buf.length===SEQ.length&&SEQ.every((k,i)=>k===buf[i])){buf=[];toggle()}
+},true);
+
+function toggle(){
+  open=!open;dev.hidden=!open;
+  if(open){syncUI();tick()}
+  else{infBoost=false;frozen=false;setWire(false);setFog(false);sync('#dvinf',false);sync('#dvfreeze',false)}
+  toast(open?'DEV ON':'DEV OFF','#f2d640',900);
+}
+const sync=(id,v)=>$d(id).classList.toggle('on',!!v);
+const dirty=()=>{race.clean=false};
+
+// live readout + per-frame hooks
+function tick(){
+  if(!open)return;requestAnimationFrame(tick);
+  fN++;const n=performance.now();if(n-fT>500){fps=fN*1000/(n-fT);fN=0;fT=n}
+  if(infBoost&&race.state==='go'){player.boost=Math.max(player.boost,.6);dirty()}
+  if(!tick.t||n-tick.t>150){tick.t=n;stats()}
+}
+function stats(){
+  const i=renderer.info,p=player;
+  const rows=[
+    ['FPS',fps.toFixed(0)],['MODE',mode+' / '+race.state],['TRACK',trackDef.name||trackDef.key],
+    ['LENGTH',(track.len/1000).toFixed(2)+' km · '+track.N+' pts'],
+    ['SPEED',(p.speed*3.6).toFixed(0)+' km/h · G'+p.gear],
+    ['IDX / LAT',p.idx+' / '+p.d.toFixed(1)],['HEIGHT',p.y.toFixed(1)+(p.air?' (air)':'')+(p.lp?' (loop)':'')],
+    ['SLIP',(p.beta*57.3).toFixed(0)+'°'+(p.drift?' drift':'')],
+    ['BOOST',Math.max(0,p.boost).toFixed(1)+'s · tier '+p.tier],['ITEM',p.item||'-'],
+    ['GATE',race.nextGate+' · laps '+race.done+'/'+race.laps],['DRAW',i.render.calls+' calls · '+(i.render.triangles/1000).toFixed(0)+'k tris'],
+    ['BOTS',rival.bots.length+(frozen?' (frozen)':'')],['MP',MP.on?'room '+MP.room+' · '+peers.size+' peers':'off']
+  ];
+  $d('#dvstats').innerHTML=rows.map(r=>r[0]+' <b>'+r[1]+'</b>').join('<br>');
+}
+function syncUI(){
+  $d('#dvpr').value=quality.pr;$d('#dvprv').textContent=quality.pr+'x';
+  sync('#dvshad',quality.shadows);sync('#dvinf',infBoost);sync('#dvfreeze',frozen);sync('#dvwire',wire);sync('#dvfog',fogOff);
+}
+
+// freeze rivals by wrapping their physics step
+const origStep=rival.step;rival.step=function(dt){if(frozen)return;return origStep.call(this,dt)};
+
+// render toggles
+function setWire(v){wire=v;scene.traverse(o=>{if(o.material&&!o.isPoints&&!o.isSprite)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if('wireframe'in m)m.wireframe=v})});sync('#dvwire',v)}
+function setFog(v){fogOff=v;if(v){fogSave=scene.fog;scene.fog=null}else if(fogSave){scene.fog=fogSave;fogSave=null}sync('#dvfog',v)}
+
+// buttons
+$d('#dvx').onclick=toggle;
+$d('#dvboost').onclick=()=>{player.boost=Math.max(player.boost,2);player.boostEvt=5;dirty()};
+$d('#dvinf').onclick=()=>{infBoost=!infBoost;sync('#dvinf',infBoost)};
+$d('#dvstop').onclick=()=>{player.vx=player.vz=player.yr=0};
+$d('#dvflip').onclick=()=>{player.roll=player.pitch=player.rollV=player.pitchV=0;player.spinT=0;player.inv=0};
+$d('#dvgive').onclick=()=>{player.item=$d('#dvitem').value;dirty();if(!rival.on)toast('ITEMS NEED RIVAL RACE MODE','#ff9a8f',1400)};
+$d('#dvwarp').onclick=()=>{
+  if(race.state!=='go'){toast('START A RACE FIRST','#ff9a8f',1200);return}
+  const N=track.N,g=track.gates[race.nextGate],to=(g-4+N)%N;
+  let fwd=(to-player.idx+N)%N;if(fwd>N/2)fwd-=N;
+  player.pd+=fwd;placeCar(player,to,0);player.idx=to;player.vx=Math.sin(player.yaw)*30;player.vz=Math.cos(player.yaw)*30;
+  race.lastGateIdx=player.idx;dirty();skid.last=[null,null];
+};
+$d('#dvlap').onclick=()=>{
+  if(race.state!=='go'||race.crossings<1){toast('START A RACE FIRST','#ff9a8f',1200);return}
+  dirty();race.nextGate=0;onGate(0);
+};
+$d('#dvfreeze').onclick=()=>{frozen=!frozen;sync('#dvfreeze',frozen)};
+$d('#dvwipe').onclick=()=>{
+  if(!confirm('Delete all saved best times and ghosts?'))return;
+  try{Object.keys(localStorage).filter(k=>/^d360\.(best3|bt3)\|/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  race.best=null;race.bestTotal=null;toast('BESTS WIPED','#ff9a8f',1200);
+};
+$d('#dvwire').onclick=()=>setWire(!wire);
+$d('#dvfog').onclick=()=>setFog(!fogOff);
+$d('#dvshad').onclick=()=>{quality.shadows=!quality.shadows;applyQuality();syncUI();if(wire)setWire(true)};
+$d('#dvpr').oninput=e=>{quality.pr=+e.target.value;applyQuality();$d('#dvprv').textContent=quality.pr+'x'};
+})();
 </script></body></html>
