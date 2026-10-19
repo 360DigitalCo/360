@@ -1690,7 +1690,7 @@ function addRoofProps(city,group){
 const SIG={mesh:null,pole:null,cap:260,t:0,lx:1e9,lz:1e9};
 function initSignals(scene){
   SIG.mesh=new THREE.InstancedMesh(BX(.5,1.3,.5),new THREE.MeshBasicMaterial({color:0xffffff,fog:true}),SIG.cap*2);
-  SIG.pole=new THREE.InstancedMesh(BX(.2,5.6,.2),new THREE.MeshLambertMaterial({color:0x2a2d33}),SIG.cap*2);
+  SIG.pole=new THREE.InstancedMesh(BX(.2,5.6,.2),new THREE.MeshLambertMaterial({color:0x5a5f68}),SIG.cap*2);
   SIG.mesh.setColorAt(0,new THREE.Color(0x2fe07a));
   for(const m of [SIG.mesh,SIG.pole]){m.frustumCulled=false;m.count=0;scene.add(m)}
 }
@@ -3134,7 +3134,7 @@ const _im=initMTA;initMTA=function(){_im();initPanel();pollMeta();trafficPoll()}
 // SV-Core InstaCulling: analytic view-cone test (FOV + safety margin) against bounding spheres, far limit from a hardware profile, adaptive scale from frame time
 const DET={glow:null};
 const SVC={on:true,statics:[],scale:1,ms:16.7,kind:null,far:1600,vis:0,tot:0,hudT:0,regT:0,el:null,fwd:new THREE.Vector3(),rt:new THREE.Vector3(),up:new THREE.Vector3(),UP:new THREE.Vector3(0,1,0)};
-(function(){const ram=+navigator.deviceMemory||4,c=Math.max(1,+navigator.hardwareConcurrency||2);SVC.kind=ram<=2||c<=2?{n:'ENTRY',far:750}:ram<=4||c<=4?{n:'LOW',far:1000}:ram<=8||c<=8?{n:'MID',far:1350}:{n:'HIGH',far:1800}})();
+(function(){const ram=+navigator.deviceMemory||4,c=Math.max(1,+navigator.hardwareConcurrency||2);SVC.kind=ram<=2||c<=2?{n:'ENTRY',far:1500}:ram<=4||c<=4?{n:'LOW',far:2000}:ram<=8||c<=8?{n:'MID',far:2600}:{n:'HIGH',far:3200}})();
 function svRegister(){SVC.statics.length=0;
   scene.traverse(o=>{if(!o.isMesh||!o.geometry||o.userData.noSV||!(o.isInstancedMesh||o.userData.sv)||!o.visible)return;const bs=o.geometry.boundingSphere;if(!bs||!(bs.radius>0)||bs.radius>2500)return;
     const c=bs.center.clone().applyMatrix4(o.matrixWorld);SVC.statics.push({o,x:c.x,y:c.y,z:c.z,r:bs.radius*Math.max(o.scale.x,o.scale.y,o.scale.z)})})}
@@ -3143,18 +3143,20 @@ function svSeen(x,y,z,R,cp,tanH,tanV,near,far){
   if(depth+R<near||depth-R>far)return false;
   const pd=Math.max(0,depth),side=dx*Rt.x+dy*Rt.y+dz*Rt.z,vert=dx*Up.x+dy*Up.y+dz*Up.z;
   return !(Math.abs(side)>pd*tanH+R*1.5||Math.abs(vert)>pd*tanV+R*1.5)}
-function svFrame(dt){
-  if(!SVC.on)return;SVC.ms=SVC.ms*.9+dt*100;if(SVC.ms>30)SVC.scale=Math.max(.64,SVC.scale-.025);else if(SVC.ms<14)SVC.scale=Math.min(1,SVC.scale+.01);
-  SVC.far=SVC.kind.far*SVC.scale;SVC.regT-=dt;if(SVC.regT<=0){SVC.regT=20;svRegister()}
-  if(INT.on)return;
+function svCull(){
+  if(!SVC.on||INT.on)return;camera.updateMatrixWorld(true);
   camera.getWorldDirection(SVC.fwd);SVC.rt.crossVectors(SVC.fwd,SVC.UP).normalize();SVC.up.crossVectors(SVC.rt,SVC.fwd);
-  const half=camera.fov*Math.PI/360,safe=.75*Math.PI/180,tanV=Math.tan(half+safe),tanH=Math.tan(Math.atan(Math.tan(half)*camera.aspect)+safe),cp=camera.position,near=camera.near;let vis=0,tot=0;
+  const half=camera.fov*Math.PI/360,safe=.3*Math.PI/180*0+3*Math.PI/180,tanV=Math.tan(half+safe),tanH=Math.tan(Math.atan(Math.tan(half)*camera.aspect)+safe),cp=camera.position,near=camera.near;let vis=0,tot=0;
   for(const s of SVC.statics){tot++;const ok=svSeen(s.x,s.y,s.z,s.r,cp,tanH,tanV,near,SVC.far);s.o.visible=ok;if(ok)vis++}
   const veh=v=>{if(!v||!v.mesh)return;tot++;const d=Math.hypot(v.x-cp.x,v.z-cp.z);const ok=d<60||svSeen(v.x,v.y+1,v.z,(v.T?v.T.len:5)*.7,cp,tanH,tanV,near,Math.min(SVC.far,900));v.mesh.visible=ok;if(ok)vis++};
   for(const v of TR.cars)veh(v);for(const b of BUS.list)veh(b.v);if(typeof PK!=='undefined')for(const v of PK.cars)if(v!==PL.veh)veh(v);
-  SVC.vis=vis;SVC.tot=tot;
+  SVC.vis=vis;SVC.tot=tot}
+function svFrame(dt){
+  svHook();
+  if(!SVC.on)return;SVC.ms=SVC.ms*.9+dt*100;if(SVC.ms>30)SVC.scale=Math.max(.64,SVC.scale-.025);else if(SVC.ms<14)SVC.scale=Math.min(1,SVC.scale+.01);
+  SVC.far=SVC.kind.far*SVC.scale;SVC.regT-=dt;if(SVC.regT<=0){SVC.regT=20;svRegister()}
   SVC.hudT-=dt;if(SVC.hudT<=0){SVC.hudT=.5;if(!SVC.el){const e=document.createElement('div');e.style.cssText='position:fixed;right:10px;bottom:6px;font:10px monospace;color:#7fe8ff;opacity:.55;z-index:5;pointer-events:none;letter-spacing:.05em';document.body.appendChild(e);SVC.el=e}
-    SVC.el.textContent='SV-CORE '+SVC.kind.n+' · VISIBLE '+vis+'/'+tot+' · FAR '+Math.round(SVC.far)+'m · ×'+SVC.scale.toFixed(2)}}
+    SVC.el.textContent='SV-CORE '+SVC.kind.n+' · VISIBLE '+SVC.vis+'/'+SVC.tot+' · FAR '+Math.round(SVC.far)+'m · ×'+SVC.scale.toFixed(2)}}
 // ---------- Cybertruck
 VT.cyber={n:'CYBERTRUCK',col:0xb4b9bf,len:5.7,wid:2.03,hgt:1.9,max:54,acc:27,brake:38,grip:6.8,steer:.5,price:0};
 function makeCyber(){
@@ -3285,6 +3287,9 @@ function detailLandmarks(){
 
 const _im2=initMTA;initMTA=function(){_im2();try{detailLandmarks()}catch(e){console.error('landmark detail',e)}svRegister()};
 const _bu2=busUpdate;busUpdate=function(dt){_bu2(dt);svFrame(dt);if(DET.glow)DET.glow.opacity=.15+.85*(G.night||0)};
+
+// cull against the camera pose actually used for this frame (avoids stale-frame pop-in while turning)
+let _svHook=false;function svHook(){if(_svHook)return;_svHook=true;const r=renderer,o=r.render.bind(r);r.render=function(sc,cam){try{svCull()}catch(e){}return o(sc,cam)}}
 // ---------- c10i: NYC-accurate station (tiled walls, steel columns, tactile edge, sunken tracks, stainless train). Few draw calls.
 const PLAT=34;
 function cTex(w,h,draw,rx,ry){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx||1,ry||1);t.anisotropy=4;return t}
@@ -3368,6 +3373,24 @@ drawStationName=function(st){_dsn(st);
   if(SUB.cvs2){const g=SUB.cvs2.cv.getContext('2d');g.fillStyle='#153a73';g.fillRect(0,0,512,112);g.strokeStyle='#e8ecf2';g.lineWidth=6;g.strokeRect(8,8,496,96);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';let sz=54;g.font='bold '+sz+'px Arial,sans-serif';while(g.measureText(st.n).width>460&&sz>20){sz-=3;g.font='bold '+sz+'px Arial,sans-serif'}g.fillText(st.n,256,58);SUB.cvs2.tx.needsUpdate=true}
   if(SUB.cvs3){const g=SUB.cvs3.cv.getContext('2d');g.fillStyle='#0d0d0f';g.fillRect(0,0,256,190);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';const nm=st.n.charAt(0)+st.n.slice(1).toLowerCase();let sz=40;g.font='bold '+sz+'px Arial,sans-serif';while(g.measureText(nm).width>236&&sz>14){sz-=2;g.font='bold '+sz+'px Arial,sans-serif'}g.fillText(nm,128,60);
     let px=30;for(const r of stRoutes(st).slice(0,8)){g.fillStyle=RCOL[r]||'#808183';g.beginPath();g.arc(px,128,17,0,6.3);g.fill();g.fillStyle=rtxtCol(r);g.font='bold 20px Arial,sans-serif';g.fillText(r,px,130);px+=30}SUB.cvs3.tx.needsUpdate=true}};
+// ---------- c10j: performance. Split the giant city-wide merged meshes into spatial tiles so the GPU only draws what is near/in view
+function tileSplit(mesh,cell){
+  const g=mesh.geometry,pos=g.attributes.position,idx=g.index,n=idx?idx.count:pos.count,tc=(n/3)|0,names=Object.keys(g.attributes),B=new Map();
+  const vi=(t,k)=>idx?idx.getX(t*3+k):t*3+k;
+  for(let t=0;t<tc;t++){const a=vi(t,0),b=vi(t,1),c=vi(t,2),cx=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3,cz=(pos.getZ(a)+pos.getZ(b)+pos.getZ(c))/3,k=Math.floor(cx/cell)+','+Math.floor(cz/cell);let l=B.get(k);if(!l)B.set(k,l=[]);l.push(t)}
+  const out=[];
+  for(const tris of B.values()){const ng=new THREE.BufferGeometry();
+    for(const nm of names){const at=g.attributes[nm],sz=at.itemSize,arr=new at.array.constructor(tris.length*3*sz);let o=0;
+      for(const t of tris)for(let k=0;k<3;k++){const v=vi(t,k)*sz;for(let q=0;q<sz;q++)arr[o++]=at.array[v+q]}
+      ng.setAttribute(nm,new THREE.BufferAttribute(arr,sz,at.normalized))}
+    ng.computeBoundingSphere();const m=new THREE.Mesh(ng,mesh.material);m.position.copy(mesh.position);m.rotation.copy(mesh.rotation);m.scale.copy(mesh.scale);m.castShadow=mesh.castShadow;m.receiveShadow=mesh.receiveShadow;m.renderOrder=mesh.renderOrder;m.userData=Object.assign({},mesh.userData,{sv:1});out.push(m)}
+  return out}
+function perfSplit(){
+  const big=[];scene.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||!o.geometry||o.userData.noSV||Array.isArray(o.material))return;const g=o.geometry,n=g.index?g.index.count:g.attributes.position.count;if(n/3>8000&&!g.boundingSphere)g.computeBoundingSphere();if(n/3>8000&&g.boundingSphere&&g.boundingSphere.radius>700&&!(g.groups&&g.groups.length))big.push(o)});
+  let before=0,after=0;for(const o of big){const g=o.geometry;before+=(g.index?g.index.count:g.attributes.position.count)/3;const parts=tileSplit(o,320);const par=o.parent;par.remove(o);g.dispose();for(const m of parts){par.add(m);after++}}
+  return {big:big.length,tris:before|0,tiles:after}}
+const PERF={};
+const _im3=initMTA;initMTA=function(){_im3();try{PERF.split=perfSplit()}catch(e){console.error('split',e)}scene.updateMatrixWorld(true);svRegister()};
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -3920,7 +3943,7 @@ function boot(){
         G.started=true;$('#loading').hidden=true;$('#hud').hidden=false;
         joinRoom(room);devStart();
         toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on)startChapter(0)},3000);
-        window.__real=REAL;window.__city={devStart,SVC,svFrame,DET,makeCyber,pickTrain,arrivalsOf,enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
+        window.__real=REAL;window.__city={PERF,devStart,SVC,svFrame,DET,makeCyber,pickTrain,arrivalsOf,enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
       }catch(err){$('#loading').textContent='ERROR: '+err.message;console.error(err)}
     },30));
   });
