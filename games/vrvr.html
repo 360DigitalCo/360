@@ -207,6 +207,8 @@
   <div class="row"><span class="label">CONVOY</span><span class="val" id="hudConvoy">0/4 (single)</span></div>
   <div class="row" style="margin-top:6px;"><span class="label">WEATHER</span><span class="val" id="hudWeather">Clear</span></div>
   <div class="row"><span class="label">TOOLS</span><span class="val" id="hudTools" style="font-size:12px;">â€”</span></div>
+  <div class="row"><span class="label">GRAPPLE</span><span class="val" id="hudGrapple">OFF</span></div>
+  <div class="row"><span class="label">AIR HEIGHT</span><span class="val" id="hudAirHeight">0 cm</span></div>
 </div>
 
 <div id="anchorBadge">ANCHORS UP</div>
@@ -214,7 +216,7 @@
 <div id="allyPrompt"></div>
 <div id="alertBanner"></div>
 <div id="controlsHint">
-  WASD / ARROWS â€” drive&nbsp;&nbsp;|&nbsp;&nbsp;LMB â€” grapple (click the ground)&nbsp;&nbsp;|&nbsp;&nbsp;SPACE â€” anchor&nbsp;&nbsp;|&nbsp;&nbsp;V â€” camera&nbsp;&nbsp;|&nbsp;&nbsp;G â€” garage (in town)&nbsp;&nbsp;|&nbsp;&nbsp;M / click radar â€” expand map&nbsp;&nbsp;|&nbsp;&nbsp;C â€” free cam<br>
+  WASD / ARROWS â€” drive&nbsp;&nbsp;|&nbsp;&nbsp;LMB â€” grapple (click the ground)&nbsp;&nbsp;|&nbsp;&nbsp;SPACE â€” anchor / charge / launch&nbsp;&nbsp;|&nbsp;&nbsp;V â€” camera&nbsp;&nbsp;|&nbsp;&nbsp;G â€” garage (in town)&nbsp;&nbsp;|&nbsp;&nbsp;M / click radar â€” expand map&nbsp;&nbsp;|&nbsp;&nbsp;C â€” free cam<br>
   1 â€” single-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;2 â€” two-file convoy&nbsp;&nbsp;|&nbsp;&nbsp;F â€” ally with nearby crew&nbsp;&nbsp;|&nbsp;&nbsp;P â€” infinite fuel<br>
   3 â€” deploy Dorothy Probe&nbsp;&nbsp;|&nbsp;&nbsp;4 â€” deploy StickNet&nbsp;&nbsp;|&nbsp;&nbsp;5 â€” fireworks&nbsp;&nbsp;|&nbsp;&nbsp;6 â€” smoke flare
 </div>
@@ -575,15 +577,26 @@ const car = {
   anchored: false,
   dataGB: 0,
   inTown: null,
-  ripFlashTimer: 0
+  ripFlashTimer: 0,
+  ragdollLift: 0, ragdollLiftV: 0,
+  ragdollPitch: 0, ragdollRoll: 0, ragdollYaw: 0,
+  ragdollPitchV: 0, ragdollRollV: 0, ragdollYawV: 0,
+  catapultLaunch: false
 };
 
 const grapple = {
   active: false, x: 0, y: 0, ropeLength: 0,
-  pullStrength: 720, maxPullSpeed: 1260, springStrength: 8.5, tangentialAssist: 205,
-  releaseBoost: 1.14, arriveDistance: 46,
-  swingMomentum: 0, previousDistance: 0, chain: 0, lastReleaseAt: 0
+  pullStrength: 860, maxPullSpeed: 1480, springStrength: 10.5, tangentialAssist: 250,
+  releaseBoost: 1.22, arriveDistance: 46,
+  swingMomentum: 0, previousDistance: 0, chain: 0, lastReleaseAt: 0,
+  chargeSeconds: 0, chargeTravelX: 0, chargeTravelY: 0
 };
+
+// Charge has deliberately no cap. A long idle while anchored to a grapple becomes
+// an absurd catapult launch rather than quietly resetting or hitting a speed ceiling.
+function grappleLaunchSpeed(seconds = grapple.chargeSeconds){
+  return 1400 + seconds*115 + seconds*seconds*0.28 + grapple.swingMomentum*210;
+}
 
 /* ======================================================================
    WEATHER STATE
@@ -1353,12 +1366,19 @@ function updateCar(dt){
     }
     if (!outOfFuel) goodByeFuelWarned = false;
 
-    const fric = isPrecipitating() ? 0.965 : 0.975;
-    car.vx *= Math.pow(fric, dt*60);
-    car.vy *= Math.pow(fric, dt*60);
+    if (car.catapultLaunch){
+      // Tiny air drag only. The launch speed is intentionally uncapped.
+      const drag = Math.exp(-0.00025*dt);
+      car.vx *= drag;
+      car.vy *= drag;
+    } else {
+      const fric = isPrecipitating() ? 0.965 : 0.975;
+      car.vx *= Math.pow(fric, dt*60);
+      car.vy *= Math.pow(fric, dt*60);
+    }
 
     const spd = Math.hypot(car.vx, car.vy);
-    if (spd > maxSpd*1.05 && spd > 0){
+    if (!car.catapultLaunch && spd > maxSpd*1.05 && spd > 0){
       const overshoot = Math.min(1, (spd-maxSpd*1.05)*dt*2);
       car.vx -= (car.vx/spd)*overshoot*spd*0.3;
       car.vy -= (car.vy/spd)*overshoot*spd*0.3;
@@ -1371,17 +1391,253 @@ function updateCar(dt){
 
   const finalSpd = Math.hypot(car.vx, car.vy);
   const HARD_CAP = 1400;
-  if (finalSpd > HARD_CAP){
+  if (!car.catapultLaunch && finalSpd > HARD_CAP){
     car.vx = car.vx/finalSpd*HARD_CAP;
     car.vy = car.vy/finalSpd*HARD_CAP;
   }
 
-  car.x += car.vx*dt;
-  car.y += car.vy*dt;
-  car.x = Math.max(WORLD_MIN, Math.min(WORLD_MAX, car.x));
-  car.y = Math.max(WORLD_MIN, Math.min(WORLD_MAX, car.y));
+  moveCarWithCollisions(dt);
+  updateVehicleRagdoll(dt);
 
   if (car.ripFlashTimer > 0) car.ripFlashTimer -= dt;
+}
+
+function getVehicleCollisionRadius(key=state.currentVehicleKey){
+  if (key === "dominator3" || key === "dominator4") return 28;
+  const v = VEHICLES[key];
+  if (!v) return 20;
+  const scale = 0.9 + Math.min(4.6, v.mass)*0.1;
+  const dims = v.category === "chase" ? [15,30] : v.category === "support" ? [17,38] : [19,35];
+  return Math.max(17, Math.hypot(dims[0]*scale*0.5, dims[1]*scale*0.5)*0.86);
+}
+
+let lastVehicleRagdollImpact = 0;
+function kickVehicleRagdoll(impact){
+  if (impact < 125) return;
+  const now = performance.now();
+  const power = Math.min(1, impact/850);
+  car.ragdollLiftV = Math.max(car.ragdollLiftV, 42 + impact*0.22);
+  car.ragdollPitchV += (Math.random()-0.5) * (7 + power*34);
+  car.ragdollRollV += (Math.random()-0.5) * (11 + power*42);
+  car.ragdollYawV += (Math.random()-0.5) * (6 + power*26);
+  car.ripFlashTimer = Math.max(car.ripFlashTimer, Math.min(0.75, 0.18 + impact/1250));
+  if (now - lastVehicleRagdollImpact > 90){
+    shake = Math.max(shake, Math.min(8, impact/90));
+    lastVehicleRagdollImpact = now;
+  }
+}
+
+function updateVehicleRagdoll(dt){
+  const gravity = 330;
+  if (car.ragdollLift > 0 || car.ragdollLiftV > 0){
+    car.ragdollLiftV -= gravity*dt;
+    car.ragdollLift += car.ragdollLiftV*dt;
+    if (car.ragdollLift <= 0){
+      car.ragdollLift = 0;
+      if (car.ragdollLiftV < -42){
+        car.ragdollLiftV = -car.ragdollLiftV*0.54;
+        car.ragdollPitchV += (Math.random()-0.5)*4.2;
+        car.ragdollRollV += (Math.random()-0.5)*5.0;
+      } else {
+        car.ragdollLiftV = 0;
+      }
+    }
+  }
+  const airborne = car.ragdollLift > 1;
+  const angularDamp = Math.exp(-dt*(airborne ? 0.16 : 2.8));
+  car.ragdollPitch += car.ragdollPitchV*dt;
+  car.ragdollRoll += car.ragdollRollV*dt;
+  car.ragdollYaw += car.ragdollYawV*dt;
+  car.ragdollPitchV *= angularDamp;
+  car.ragdollRollV *= angularDamp;
+  car.ragdollYawV *= angularDamp;
+  if (!airborne && car.ragdollLiftV === 0){
+    const settle = Math.min(1, dt*3.2);
+    car.ragdollPitch *= 1-settle;
+    car.ragdollRoll *= 1-settle;
+    car.ragdollYaw *= 1-settle;
+    if (Math.abs(car.ragdollPitch)<0.008) car.ragdollPitch=0;
+    if (Math.abs(car.ragdollRoll)<0.008) car.ragdollRoll=0;
+    if (Math.abs(car.ragdollYaw)<0.008) car.ragdollYaw=0;
+  }
+}
+
+function collideCarWithObstacle(obstacle, radius){
+  const dx = car.x-obstacle.x, dz = car.y-obstacle.z;
+  let nx=0, nz=0, penetration=0;
+
+  if (obstacle.kind === "circle") {
+    const minDist = radius+obstacle.radius;
+    if (Math.abs(dx)>minDist || Math.abs(dz)>minDist) return false;
+    const distSq = dx*dx+dz*dz;
+    if (distSq >= minDist*minDist) return false;
+    const dist = Math.sqrt(distSq);
+    if (dist > 0.001){ nx=dx/dist; nz=dz/dist; }
+    else {
+      const speed = Math.hypot(car.vx,car.vy);
+      nx = speed>0.01 ? -car.vx/speed : 1;
+      nz = speed>0.01 ? -car.vy/speed : 0;
+    }
+    penetration = minDist-dist;
+  } else {
+    if (Math.abs(dx)>obstacle.boundRadius+radius || Math.abs(dz)>obstacle.boundRadius+radius) return false;
+    const lx = obstacle.cos*dx + obstacle.sin*dz;
+    const lz = -obstacle.sin*dx + obstacle.cos*dz;
+    const qx = Math.max(-obstacle.halfW, Math.min(obstacle.halfW, lx));
+    const qz = Math.max(-obstacle.halfD, Math.min(obstacle.halfD, lz));
+    let ox=lx-qx, oz=lz-qz;
+    const distSq=ox*ox+oz*oz;
+    if (distSq >= radius*radius) return false;
+    const dist=Math.sqrt(distSq);
+    if (dist > 0.001){
+      ox/=dist; oz/=dist; penetration=radius-dist;
+    } else {
+      const edgeX=obstacle.halfW-Math.abs(lx);
+      const edgeZ=obstacle.halfD-Math.abs(lz);
+      if (edgeX < edgeZ){ ox=lx>=0 ? 1 : -1; oz=0; penetration=radius+edgeX; }
+      else { ox=0; oz=lz>=0 ? 1 : -1; penetration=radius+edgeZ; }
+    }
+    nx=obstacle.cos*ox-obstacle.sin*oz;
+    nz=obstacle.sin*ox+obstacle.cos*oz;
+  }
+
+  car.x += nx*(penetration+0.35);
+  car.y += nz*(penetration+0.35);
+  const into = car.vx*nx+car.vy*nz;
+  if (into < 0){
+    const impact=-into;
+    const tangentX=car.vx-into*nx, tangentZ=car.vy-into*nz;
+    const tangentGrip=impact>260 ? 0.72 : 0.92;
+    const bounce=Math.min(1.08, 0.75+impact/1800);
+    car.vx=tangentX*tangentGrip-nx*into*bounce;
+    car.vy=tangentZ*tangentGrip-nz*into*bounce;
+    kickVehicleRagdoll(impact);
+  }
+  return true;
+}
+
+function sweepCarIntoObstacles(fromX,fromY,toX,toY,radius){
+  if (typeof SOLID_OBSTACLES === "undefined") return null;
+  const dx=toX-fromX, dz=toY-fromY, a=dx*dx+dz*dz;
+  if (a < 0.000001) return null;
+  let best=null;
+  for (let i=0;i<SOLID_OBSTACLES.length;i++){
+    const o=SOLID_OBSTACLES[i];
+    const fx=fromX-o.x, fz=fromY-o.z;
+    if (Math.min(fromX,toX)-radius > o.x+o.boundRadius || Math.max(fromX,toX)+radius < o.x-o.boundRadius ||
+        Math.min(fromY,toY)-radius > o.z+o.boundRadius || Math.max(fromY,toY)+radius < o.z-o.boundRadius) continue;
+
+    let t=Infinity, nx=0, nz=0;
+    if (o.kind === "circle"){
+      const r=radius+o.radius;
+      const c=fx*fx+fz*fz-r*r;
+      if (c <= 0) continue; // already overlapping; point collision resolution handles it
+      const b=2*(fx*dx+fz*dz);
+      const disc=b*b-4*a*c;
+      if (disc < 0) continue;
+      t=(-b-Math.sqrt(disc))/(2*a);
+      if (t<0 || t>1) continue;
+      const hx=fromX+dx*t-o.x, hz=fromY+dz*t-o.z;
+      const len=Math.hypot(hx,hz)||1;
+      nx=hx/len; nz=hz/len;
+    } else {
+      const lx=o.cos*fx+o.sin*fz;
+      const lz=-o.sin*fx+o.cos*fz;
+      const ldx=o.cos*dx+o.sin*dz;
+      const ldz=-o.sin*dx+o.cos*dz;
+      const minX=-o.halfW-radius, maxX=o.halfW+radius;
+      const minZ=-o.halfD-radius, maxZ=o.halfD+radius;
+      if (lx>minX && lx<maxX && lz>minZ && lz<maxZ) continue;
+      let lo=0, hi=1, localNX=0, localNZ=0, rejected=false;
+      if (Math.abs(ldx)<1e-9){ if(lx<minX || lx>maxX) rejected=true; }
+      else {
+        let t1=(minX-lx)/ldx, t2=(maxX-lx)/ldx;
+        let nearN=ldx>0 ? -1 : 1;
+        if(t1>t2){ const tmp=t1;t1=t2;t2=tmp; }
+        if(t1>lo){lo=t1;localNX=nearN;localNZ=0;}
+        hi=Math.min(hi,t2);
+      }
+      if (Math.abs(ldz)<1e-9){ if(lz<minZ || lz>maxZ) rejected=true; }
+      else {
+        let t1=(minZ-lz)/ldz, t2=(maxZ-lz)/ldz;
+        let nearN=ldz>0 ? -1 : 1;
+        if(t1>t2){ const tmp=t1;t1=t2;t2=tmp; }
+        if(t1>lo){lo=t1;localNX=0;localNZ=nearN;}
+        hi=Math.min(hi,t2);
+      }
+      if(rejected || lo>hi || lo<0 || lo>1) continue;
+      t=lo;
+      nx=o.cos*localNX-o.sin*localNZ;
+      nz=o.sin*localNX+o.cos*localNZ;
+      const nlen=Math.hypot(nx,nz)||1; nx/=nlen; nz/=nlen;
+    }
+    if (t < (best ? best.t : Infinity)) best={t,nx,nz};
+  }
+  return best;
+}
+
+function moveCarWithCollisions(dt){
+  const radius=getVehicleCollisionRadius();
+  const speed=Math.hypot(car.vx,car.vy);
+  const steps=Math.min(car.catapultLaunch ? 64 : 16,Math.max(1,Math.ceil(speed*dt/(car.catapultLaunch ? 7 : 9))));
+  const stepDt=dt/steps;
+  for(let step=0;step<steps;step++){
+    let sweptHit=false;
+    const fromX=car.x, fromY=car.y;
+    const toX=fromX+car.vx*stepDt, toY=fromY+car.vy*stepDt;
+    if (car.catapultLaunch && typeof SOLID_OBSTACLES !== "undefined"){
+      const hit=sweepCarIntoObstacles(fromX,fromY,toX,toY,radius);
+      if(hit){
+        sweptHit=true;
+        car.x=fromX+(toX-fromX)*hit.t-hit.nx*0.45;
+        car.y=fromY+(toY-fromY)*hit.t-hit.nz*0.45;
+        const into=car.vx*hit.nx+car.vy*hit.nz;
+        if(into<0){
+          const impact=-into;
+          const tx=car.vx-into*hit.nx, tz=car.vy-into*hit.nz;
+          const tangentGrip=impact>260 ? 0.72 : 0.92;
+          const bounce=Math.min(1.08,0.75+impact/1800);
+          car.vx=tx*tangentGrip-hit.nx*into*bounce;
+          car.vy=tz*tangentGrip-hit.nz*into*bounce;
+          kickVehicleRagdoll(impact);
+        }
+      } else {
+        car.x=toX; car.y=toY;
+      }
+    } else {
+      car.x=toX; car.y=toY;
+    }
+
+    if (!car.catapultLaunch){
+      const edge=WORLD_MAX-radius;
+      if(car.x < WORLD_MIN+radius){
+        car.x=WORLD_MIN+radius;
+        if(car.vx<0){const hit=-car.vx;car.vx=Math.abs(car.vx)*0.82;kickVehicleRagdoll(hit);}
+      }else if(car.x > edge){
+        car.x=edge;
+        if(car.vx>0){const hit=car.vx;car.vx=-Math.abs(car.vx)*0.82;kickVehicleRagdoll(hit);}
+      }
+      if(car.y < WORLD_MIN+radius){
+        car.y=WORLD_MIN+radius;
+        if(car.vy<0){const hit=-car.vy;car.vy=Math.abs(car.vy)*0.82;kickVehicleRagdoll(hit);}
+      }else if(car.y > edge){
+        car.y=edge;
+        if(car.vy>0){const hit=car.vy;car.vy=-Math.abs(car.vy)*0.82;kickVehicleRagdoll(hit);}
+      }
+    }
+
+    if(!sweptHit && typeof SOLID_OBSTACLES !== "undefined") {
+      for(let pass=0;pass<2;pass++){
+        let touched=false;
+        for(let i=0;i<SOLID_OBSTACLES.length;i++){
+          if(collideCarWithObstacle(SOLID_OBSTACLES[i],radius)) touched=true;
+        }
+        if(!touched) break;
+      }
+    }
+  }
+  const afterSpeed=Math.hypot(car.vx,car.vy);
+  if(!car.catapultLaunch && afterSpeed>1450){car.vx*=1450/afterSpeed;car.vy*=1450/afterSpeed;}
 }
 
 function applyWind(dt, stats){
@@ -1428,6 +1684,18 @@ function applyWind(dt, stats){
     const spin = 340 * falloff * intensity / (stats.mass*1.1);
     car.vx += tx*spin*dt;
     car.vy += ty*spin*dt;
+
+    // The vortex has real vertical pull as well as horizontal wind. Stronger
+    // storms and closer passes throw the vehicle higher and spin it harder.
+    const liftRange = tornado.radius*2.8;
+    if (dist < liftRange){
+      const liftT = Math.max(0, 1-dist/liftRange);
+      const liftForce = (240 + tornado.category*46) * liftT*liftT;
+      car.ragdollLiftV += liftForce*dt;
+      car.ragdollPitchV += Math.sin(tornado.rotPhase*4.3)*liftT*1.5*dt;
+      car.ragdollRollV += Math.cos(tornado.rotPhase*3.7)*liftT*2.0*dt;
+      car.ragdollYawV += (Math.random()-0.5)*liftT*2.2*dt;
+    }
 
     if (dist < tornado.radius){
       car.health -= (6 + tornado.category*2.2) * dt;
@@ -1796,8 +2064,28 @@ window.addEventListener("keydown", e=>{
 });
 
 window.addEventListener("keydown", e=>{
-  if (e.code === "Space" && state.running && !state.paused){
-    car.anchored = !car.anchored;
+  if (e.code === "Space" && state.running && !state.paused && !e.repeat){
+    const grounded = car.ragdollLift <= 0.8 && car.ragdollLiftV <= 0;
+    if (car.anchored && grapple.active && grounded){
+      launchChargedGrapple();
+    } else {
+      const wasAnchored = car.anchored;
+      if (!wasAnchored && grapple.active && grounded){
+        const speed = Math.hypot(car.vx, car.vy);
+        if (speed > 8){
+          grapple.chargeTravelX = car.vx/speed;
+          grapple.chargeTravelY = car.vy/speed;
+        } else {
+          grapple.chargeTravelX = Math.sin(car.angle);
+          grapple.chargeTravelY = -Math.cos(car.angle);
+        }
+        grapple.chargeSeconds = 0;
+      }
+      car.anchored = !car.anchored;
+      if (car.anchored && grapple.active && grounded){
+        showAlert("GRAPPLE LOADED · SPACE AGAIN TO LAUNCH", 1.8);
+      }
+    }
   }
   if (e.code === "KeyG" && state.running){
     if (!state.paused && car.inTown) openGarage();
@@ -2023,6 +2311,17 @@ function updateAtmosphere(dt){
   sun.intensity = wxCur.sun + lightningFlash*0.8;
 }
 
+/* World collision shapes. Trunks, buildings, garages, landmarks, turbine towers
+   and registered props are solid; broad tree crowns are visual only. */
+const SOLID_OBSTACLES = [];
+function addSolidBox(x,z,w,d,rot=0,kind="building"){
+  const halfW=w*0.5, halfD=d*0.5;
+  SOLID_OBSTACLES.push({kind:"box",x,z,halfW,halfD,rot,cos:Math.cos(rot),sin:Math.sin(rot),boundRadius:Math.hypot(halfW,halfD),type:kind});
+}
+function addSolidCircle(x,z,radius,kind="prop"){
+  SOLID_OBSTACLES.push({kind:"circle",x,z,radius,boundRadius:radius,type:kind});
+}
+
 /* ---- ground & roads ---- */
 (function buildTerrain(){
   const rnd = mulberry32(7);
@@ -2108,6 +2407,7 @@ let turbineBlades = null;
     const beacon = new THREE.Mesh(beaconGeo, beaconMat); beacon.position.set(t.x, 160, t.y); scene3.add(beacon);
     const garage = new THREE.Mesh(new THREE.BoxGeometry(110, 40, 80), new THREE.MeshLambertMaterial({ color:0x2c3a2c }));
     garage.position.set(t.x, 20, t.y); scene3.add(garage);
+    addSolidBox(t.x,t.y,110,80,0,"garage");
     const roof = new THREE.Mesh(new THREE.BoxGeometry(114, 3, 84), new THREE.MeshBasicMaterial({ color:0x39ff14 }));
     roof.position.set(t.x, 41, t.y); scene3.add(roof);
     const n = 14;
@@ -2137,6 +2437,7 @@ let turbineBlades = null;
   bldgs.forEach((b,i)=>{
     dummy.position.set(b.x, 0, b.z); dummy.rotation.set(0, b.rot, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
     bMesh.setMatrixAt(i, dummy.matrix); bMesh.setColorAt(i, _tc.set(b.color));
+    addSolidBox(b.x,b.z,b.w,b.d,b.rot,"building");
   });
   bMesh.frustumCulled = false;
   scene3.add(bMesh);
@@ -2149,6 +2450,7 @@ let turbineBlades = null;
   MAP_LANDMARKS.forEach(l=>{
     const o = new THREE.Mesh(obGeo, obMat); o.position.set(l.x, 0, l.y); scene3.add(o);
     const r = new THREE.Mesh(obRing, obRingMat); r.position.set(l.x, 0.9, l.y); scene3.add(r);
+    addSolidCircle(l.x,l.y,30,"landmark");
   });
 
   function freeSpot(x, z, townPad, cityPad){
@@ -2174,6 +2476,7 @@ let turbineBlades = null;
     const x = c[0]+Math.cos(a)*d, z = c[1]+Math.sin(a)*d;
     if (Math.abs(x) > WORLD_MAX || Math.abs(z) > WORLD_MAX || !freeSpot(x, z, 420, 420)) continue;
     const s = (0.8 + rnd()*1.1) * 1.7;
+    addSolidCircle(x,z,1.7*s,"tree");
     dummy.position.set(x, 0, z); dummy.rotation.set(0, rnd()*6, 0); dummy.scale.set(s, s*(0.9+rnd()*0.4), s); dummy.updateMatrix();
     crowns.setMatrixAt(ti, dummy.matrix); trunks.setMatrixAt(ti, dummy.matrix);
     crowns.setColorAt(ti, _tc.setHSL(0.27+rnd()*0.07, 0.45, 0.2+rnd()*0.1));
@@ -2194,7 +2497,7 @@ let turbineBlades = null;
   }
   const towerGeo = new THREE.CylinderGeometry(4, 7, 500, 8).translate(0, 250, 0);
   const towers = new THREE.InstancedMesh(towerGeo, new THREE.MeshLambertMaterial({ color:0xe8eaec }), turbines.length);
-  turbines.forEach((t,i)=>{ dummy.position.set(t.x,0,t.z); dummy.rotation.set(0,0,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); towers.setMatrixAt(i, dummy.matrix); });
+  turbines.forEach((t,i)=>{ dummy.position.set(t.x,0,t.z); dummy.rotation.set(0,0,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); towers.setMatrixAt(i, dummy.matrix); addSolidCircle(t.x,t.z,7,"turbine"); });
   towers.frustumCulled = false; scene3.add(towers);
   const bladeGeo = new THREE.BoxGeometry(9, 270, 3).translate(0, 135, 0);
   turbineBlades = new THREE.InstancedMesh(bladeGeo, new THREE.MeshLambertMaterial({ color:0xf4f4f4 }), turbines.length*3);
@@ -2295,6 +2598,335 @@ function adminExtras(g, k, color, W, H, L, s, by, top, wr){
   }
 }
 
+/* Detailed armored Dominator model imported from assets/models/dominator3.html.
+   Geometry is built in a private scope so its helpers/materials do not collide with game code. */
+function createDetailedDominatorModel(modelName){
+  function material(color,roughness=.72,metalness=.2,extra={}){return new THREE.MeshStandardMaterial({color,roughness,metalness,flatShading:false,side:THREE.DoubleSide,...extra});}
+  const paint=material('#24272a',.68,.28);
+  const paint2=material('#303337',.72,.25);
+  const paint3=material('#202326',.74,.24);
+  const edgePaint=material('#111315',.76,.24);
+  const panelGrey=material('#3b3d3e',.78,.24);
+  const warmPanel=material('#343332',.76,.20);
+  const seamMat=material('#090b0d',.79,.12);
+  const rivetMat=material('#686b6b',.46,.68);
+  const darkRivet=material('#202224',.6,.45);
+  const rubber=material('#111213',.93,.02);
+  const rubberSide=material('#1c1d1d',.91,.01);
+  const chrome=material('#a0a3a2',.3,.78);
+  const glass=material('#29343b',.2,.48,{transparent:true,opacity:.96,clearcoat:.9,clearcoatRoughness:.16});
+  const glassShade=material('#1b252c',.24,.36,{transparent:true,opacity:.98,clearcoat:.9});
+  const glassGlint=material('#d0d9dc',.2,.15,{transparent:true,opacity:.20,depthWrite:false});
+  // Reused for windshield framing; keep this defined before geometry is built.
+  const windowEdge=material('#111416',.5,.28);
+  const headLens=material('#c5c9be',.22,.4,{emissive:'#68736f',emissiveIntensity:.26});
+  const amber=material('#e5a33b',.28,.15,{emissive:'#7b3707',emissiveIntensity:.27});
+  const redLamp=material('#d94b47',.28,.12,{emissive:'#871715',emissiveIntensity:.65});
+  const redPaint=material('#ed525d',.38,.18,{emissive:'#3a080d',emissiveIntensity:.12});
+  const whitePaint=material('#d1cec3',.55,.12);
+
+  const car=new THREE.Group(); car.userData.wheels=[]; car.userData.frontWheels=[];
+  function addMesh(g,m,pos=[0,0,0],rot=[0,0,0],parent=car){const o=new THREE.Mesh(g,m);o.position.set(...pos);o.rotation.set(...rot);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
+  function box(pos,size,m,rot=[0,0,0]){return addMesh(new THREE.BoxGeometry(...size),m,pos,rot);}
+  function cylinderBetween(a,b,r1,r2,m,segments=10){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);const o=addMesh(new THREE.CylinderGeometry(r1,r2,d.length(),segments,1),m);o.position.copy(A).add(B).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return o;}
+  function line(a,b,r,m,segments=7){return cylinderBetween(a,b,r,r,m,segments);}
+  function sphere(pos,r,m,detail=8){return addMesh(new THREE.SphereGeometry(r,detail,Math.max(4,Math.floor(detail*.65))),m,pos);}
+  function poly(points,m){const verts=[];for(let i=1;i<points.length-1;i++){for(const p of [points[0],points[i],points[i+1]])verts.push(...p);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();return addMesh(g,m);}
+  function quad(a,b,c,d,m){return poly([a,b,c,d],m);}
+  function chamferBox(pos,size,m,bevel=.03){const g=new THREE.BoxGeometry(...size,1,1,1);return addMesh(g,m,pos);}
+
+  // Wedge-shaped armored monocoque. Station dimensions were interpreted from the model references.
+  const profile=[
+   {z:-2.28,by:.16,bx:.79,ty:.57,tx:.88},
+   {z:-2.04,by:.14,bx:.91,ty:.72,tx:.97},
+   {z:-1.72,by:.13,bx:1.00,ty:.82,tx:1.00},
+   {z:-1.43,by:.13,bx:1.025,ty:.92,tx:.98},
+   {z:-1.08,by:.13,bx:1.02,ty:1.09,tx:.96},
+   {z:-.74,by:.13,bx:1.00,ty:1.40,tx:.88},
+   {z:-.37,by:.14,bx:.98,ty:1.72,tx:.83},
+   {z:.95,by:.14,bx:.98,ty:1.72,tx:.84},
+   {z:1.34,by:.15,bx:.98,ty:1.65,tx:.89},
+   {z:1.68,by:.16,bx:.94,ty:1.27,tx:.94},
+   {z:2.12,by:.18,bx:.79,ty:.49,tx:.82}
+  ];
+  function station(z){if(z<=profile[0].z)return profile[0];if(z>=profile.at(-1).z)return profile.at(-1);let i=0;while(profile[i+1].z<z)i++;const a=profile[i],b=profile[i+1],t=(z-a.z)/(b.z-a.z);const p={z};for(const k of ['by','bx','ty','tx'])p[k]=a[k]+(b[k]-a[k])*t;return p;}
+  function xAt(side,z,y,extra=0){const p=station(z),t=THREE.MathUtils.clamp((y-p.by)/(p.ty-p.by),0,1);return side*(p.bx+(p.tx-p.bx)*t+extra);}
+  function roofY(z){return station(z).ty;}
+  function sidePoly(side,coords,m,off=.02){return poly(coords.map(([z,y])=>[xAt(side,z,y,off),y,z]),m);}
+  function sideLine(side,a,b,r,m,off=.035){return line([xAt(side,a[0],a[1],off),a[1],a[0]],[xAt(side,b[0],b[1],off),b[1],b[0]],r,m);}
+  function roofPoly(coords,m,off=.014){return poly(coords.map(([x,z])=>[x,roofY(z)+off,z]),m);}
+  function roofLine(a,b,r,m,off=.023){return line([a[0],roofY(a[1])+off,a[1]],[b[0],roofY(b[1])+off,b[1]],r,m);}
+
+  // Continuous hull with hard changes in facet shading where each armor panel changes angle.
+  for(let i=0;i<profile.length-1;i++){
+   const a=profile[i],b=profile[i+1],m=[paint2,paint,paint2,paint3,paint2,paint,paint2,paint,panelGrey,paint2][i];
+   quad([-a.bx,a.by,a.z],[-b.bx,b.by,b.z],[-b.tx,b.ty,b.z],[-a.tx,a.ty,a.z],m);
+   quad([a.bx,a.by,a.z],[a.tx,a.ty,a.z],[b.tx,b.ty,b.z],[b.bx,b.by,b.z],i>=4&&i<=7?paint2:m);
+   quad([-a.tx,a.ty,a.z],[-b.tx,b.ty,b.z],[b.tx,b.ty,b.z],[a.tx,a.ty,a.z],i>=3&&i<=6?paint3:paint);
+   quad([-a.bx,a.by,a.z],[a.bx,a.by,a.z],[b.bx,b.by,b.z],[-b.bx,b.by,b.z],edgePaint);
+  }
+  const f=profile[0],r=profile.at(-1);
+  quad([-f.bx,f.by,f.z],[-f.tx,f.ty,f.z],[f.tx,f.ty,f.z],[f.bx,f.by,f.z],edgePaint);
+  quad([-r.bx,r.by,r.z],[r.bx,r.by,r.z],[r.tx,r.ty,r.z],[-r.tx,r.ty,r.z],paint3);
+
+  // Lower chassis, armored belly and hidden heavy-duty tires. The exterior skirts mask the wheels from the side.
+  box([0,.145,-.02],[1.64,.12,3.35],seamMat);
+  for(const side of [-1,1]){
+   for(const z of [-1.02,.52]){
+    // wheels sit behind armor, only visible from a low underside inspection angle
+    const wheelPivot=new THREE.Group(); wheelPivot.position.set(side*.80,.385,z); car.add(wheelPivot);
+    const wheelParts=[];
+    wheelParts.push(addMesh(new THREE.CylinderGeometry(.34,.34,.22,18,1),rubber,[side*.78,.385,z],[0,0,Math.PI/2]));
+    wheelParts.push(addMesh(new THREE.TorusGeometry(.285,.035,6,18),rubberSide,[side*.895,.385,z],[0,Math.PI/2,0]));
+    wheelParts.push(addMesh(new THREE.CylinderGeometry(.15,.15,.236,12,1),edgePaint,[side*.90,.385,z],[0,0,Math.PI/2]));
+    wheelParts.push(addMesh(new THREE.CylinderGeometry(.105,.105,.244,12,1),panelGrey,[side*.916,.385,z],[0,0,Math.PI/2]));
+    for(let n=0;n<18;n++){
+     const a=n*Math.PI*2/18;const x=side*.80, y=.385+Math.sin(a)*.295, zz=z+Math.cos(a)*.295;
+     wheelParts.push(box([x,y,zz],[.18,.045,.055],rubber,[a,0,0]));
+    }
+    const wheelCenter=wheelPivot.position.clone();
+    for(const part of wheelParts){car.remove(part);part.position.sub(wheelCenter);wheelPivot.add(part);}
+    car.userData.wheels.push(wheelPivot); if(z<0)car.userData.frontWheels.push(wheelPivot);
+   }
+   // continuous armored skirt panels form the low, wheel-concealing lower edge
+   sidePoly(side,[[-1.72,.16],[-1.18,.14],[-1.12,.47],[-1.53,.59]],paint3,.035);
+   sidePoly(side,[[-1.17,.145],[-.52,.14],[-.48,.50],[-1.10,.49]],paint2,.037);
+   sidePoly(side,[[-.49,.14],[.22,.14],[.24,.51],[-.45,.51]],paint3,.04);
+   sidePoly(side,[[.25,.14],[.94,.15],[.99,.50],[.27,.51]],paint2,.04);
+   sidePoly(side,[[.96,.15],[1.56,.16],[1.65,.52],[1.02,.50]],paint3,.04);
+   sidePoly(side,[[1.58,.16],[1.89,.19],[1.96,.43],[1.67,.52]],paint2,.035);
+  }
+
+  // Nose plates: multi-faceted sloped hood rather than a smooth generic bonnet.
+  roofPoly([[-.90,-2.04],[-.45,-1.96],[-.40,-1.46],[-.91,-1.50]],paint2,.024);
+  roofPoly([[.45,-1.96],[.90,-2.04],[.91,-1.50],[.40,-1.46]],panelGrey,.024);
+  roofPoly([[-.42,-1.98],[.42,-1.98],[.38,-1.46],[-.38,-1.46]],paint,.029);
+  roofPoly([[-.88,-1.50],[-.38,-1.44],[0,-1.34],[.38,-1.44],[.88,-1.50],[.68,-1.10],[-.68,-1.10]],paint3,.026);
+  roofPoly([[-.69,-1.39],[-.28,-1.35],[0,-1.29],[.28,-1.35],[.69,-1.39],[.57,-1.15],[-.57,-1.15]],paint2,.03);
+  // Raised hood ridges and signature twin red stripes.
+  roofLine([-.03,-1.87],[-.62,-1.30],.012,redPaint,.045);
+  roofLine([.03,-1.87],[.46,-1.26],.012,redPaint,.045);
+  roofLine([-.62,-1.30],[-.75,-1.18],.006,whitePaint,.043);
+  roofLine([.83,-1.50],[.67,-1.14],.012,seamMat,.041);
+  roofLine([-.83,-1.50],[-.67,-1.14],.012,seamMat,.041);
+  // fine hood seams / fasteners
+  for(const side of [-1,1]){
+   roofLine([side*.43,-1.91],[side*.43,-1.51],.006,seamMat,.04);
+   for(const z of [-1.82,-1.63,-1.43]) sphere([side*.80,roofY(z)+.042,z],.012,rivetMat,6);
+  }
+
+  // Front armor face and chin bumper.
+  quad([-.91,.56,-2.205],[-.66,.42,-2.225],[.66,.42,-2.225],[.91,.56,-2.205],paint3);
+  quad([-.66,.42,-2.225],[-.74,.235,-2.245],[.74,.235,-2.245],[.66,.42,-2.225],edgePaint);
+  box([0,.225,-2.255],[1.62,.105,.10],paint2);
+  box([0,.292,-2.312],[1.46,.047,.045],edgePaint);
+  // recessed central grille with separate ribs and a little inset lip
+  quad([-.31,.47,-2.242],[-.25,.40,-2.25],[.25,.40,-2.25],[.31,.47,-2.242],seamMat);
+  for(let i=0;i<9;i++)box([-.235+i*.058,.438,-2.259],[.014,.062,.014],panelGrey);
+  for(const s of [-1,1]){
+   // stepped polygonal headlight pockets, separated lens cells, and outer guards
+   quad([s*.54,.69,-2.21],[s*.82,.68,-2.202],[s*.86,.42,-2.22],[s*.56,.405,-2.23],edgePaint);
+   quad([s*.575,.655,-2.229],[s*.785,.645,-2.225],[s*.80,.455,-2.238],[s*.585,.445,-2.242],panelGrey);
+   for(let j=0;j<3;j++){
+    const y=.60-j*.058;
+    box([s*.69,y,-2.252],[.166,.035,.012],headLens,[0,0,s*.04]);
+    box([s*.69,y-.019,-2.261],[.145,.006,.008],chrome,[0,0,s*.04]);
+   }
+   box([s*.91,.39,-2.222],[.10,.08,.05],paint2);
+   // amber corner lamps and protective black rims
+   box([s*.87,.74,-2.195],[.09,.035,.03],amber,[0,0,s*.08]);
+  }
+  // Front lower faceted armor blocks and tow points.
+  for(const s of [-1,1]){
+   quad([s*.97,.29,-2.18],[s*.78,.24,-2.24],[s*.80,.40,-2.228],[s*.94,.51,-2.20],paint2);
+   cylinderBetween([s*.55,.24,-2.29],[s*.55,.31,-2.29],.035,.035,rivetMat,8);
+  }
+
+  // Windshield, with a thick angular surround, split reflective panes and wiper blades.
+  const wOuter=[[-.80,1.335,-.795],[.80,1.335,-.795],[.735,1.667,-.403],[-.735,1.667,-.403]];
+  const wInner=[[-.748,1.365,-.759],[.748,1.365,-.759],[.683,1.629,-.435],[-.683,1.629,-.435]];
+  poly(wOuter,edgePaint); poly(wInner,glass);
+  // subtle different glazing panels from the real divided windshield reflections
+  quad(wInner[0],[-.035,1.365,-.759],[-.035,1.629,-.435],wInner[3],glassShade);
+  quad([.015,1.365,-.759],wInner[1],wInner[2],[.015,1.629,-.435],glass);
+  for(let i=0;i<4;i++)line(wOuter[i],wOuter[(i+1)%4],.027,edgePaint);
+  line([-.009,1.369,-.757],[-.009,1.625,-.44],.009,windowEdge);
+  // long faint sky reflections rather than opaque white strips
+  poly([[-.57,1.405,-.723],[-.40,1.405,-.723],[-.49,1.595,-.477],[-.60,1.595,-.477]],glassGlint);
+  poly([[.14,1.405,-.723],[.29,1.405,-.723],[.50,1.59,-.477],[.39,1.59,-.477]],glassGlint);
+  line([-.48,1.378,-.748],[.06,1.378,-.748],.009,edgePaint);
+  line([-.47,1.386,-.75],[.06,1.386,-.75],.004,chrome);
+  // brow plate / sun visor, tiny bolts and red status LEDs
+  quad([-.84,1.67,-.46],[.84,1.67,-.46],[.77,1.755,-.23],[-.77,1.755,-.23],edgePaint);
+  quad([-.71,1.681,-.444],[.71,1.681,-.444],[.66,1.721,-.34],[-.66,1.721,-.34],paint2);
+  for(const x of [-.53,-.28,0,.28,.53]) sphere([x,1.713,-.356],.012,rivetMat,6);
+  for(const x of [-.37,-.12,.12,.37]) sphere([x,1.706,-.395],.011,redLamp,6);
+
+  // Roof armor. Broad, nearly flat central shell with layered plates, twin longitudinal rails and rear hatch.
+  roofPoly([[-.72,-.30],[0,-.30],[0,1.18],[-.72,1.18]],paint2,.03);
+  roofPoly([[0,-.30],[.72,-.30],[.72,1.18],[0,1.18]],paint,.03);
+  roofPoly([[-.57,-.17],[-.055,-.17],[-.055,1.08],[-.57,1.08]],paint3,.043);
+  roofPoly([[.055,-.17],[.57,-.17],[.57,1.08],[.055,1.08]],paint2,.043);
+  roofLine([-.045,-.25],[-.045,1.13],.013,edgePaint,.048); roofLine([.045,-.25],[.045,1.13],.013,edgePaint,.048);
+  roofLine([-.69,-.15],[-.69,1.12],.012,seamMat,.044); roofLine([.69,-.15],[.69,1.12],.012,seamMat,.044);
+  // heavy twin reinforcing rails across the roof and rear armored glass apertures
+  roofPoly([[-.28,.14],[-.10,.14],[-.10,.96],[-.28,.96]],panelGrey,.06);
+  roofPoly([[.10,.14],[.28,.14],[.28,.96],[.10,.96]],panelGrey,.06);
+  for(const z of [.22,.48,.74,.99]){
+   roofLine([-.60,z],[.60,z],.006,seamMat,.05);
+   for(const s of [-1,1]) sphere([s*.62,roofY(z)+.052,z],.012,rivetMat,6);
+  }
+  // Back roof deck from overhead reference: armor panels, recessed observation slots and center hardware.
+  roofPoly([[-.60,1.05],[-.11,1.05],[-.12,1.53],[-.57,1.53]],edgePaint,.05);
+  roofPoly([[.11,1.05],[.60,1.05],[.57,1.53],[.12,1.53]],edgePaint,.05);
+  roofPoly([[-.54,1.12],[-.18,1.12],[-.19,1.44],[-.51,1.44]],glassShade,.057);
+  roofPoly([[.18,1.12],[.54,1.12],[.51,1.44],[.19,1.44]],glassShade,.057);
+  roofPoly([[-.09,1.05],[.09,1.05],[.13,1.63],[-.13,1.63]],paint2,.062);
+  roofLine([-.09,.99],[-.13,1.62],.023,edgePaint,.07);roofLine([.09,.99],[.13,1.62],.023,edgePaint,.07);
+  // low-profile roof sensor pod/hatch, based on the small raised center element seen from above
+  roofPoly([[-.26,.82],[.26,.82],[.22,1.10],[-.22,1.10]],edgePaint,.07);
+  roofPoly([[-.17,.86],[.17,.86],[.15,1.06],[-.15,1.06]],paint2,.083);
+  for(const x of [-.10,-.03,.03,.10]) roofLine([x,.87],[x,1.04],.008,seamMat,.09);
+  for(const x of [-.40,-.15,.15,.40]) sphere([x,roofY(-.20)+.05,-.2],.012,redLamp,6);
+
+  // Side door armor and windows; side coordinates are z,height and follow the tapered hull.
+  const logoCanvas=document.createElement('canvas');logoCanvas.width=1024;logoCanvas.height=256;
+  const lc=logoCanvas.getContext('2d');lc.clearRect(0,0,1024,256);lc.textAlign='center';lc.textBaseline='middle';
+  lc.font='900 142px Impact, "Arial Narrow", sans-serif';lc.lineJoin='round';lc.lineWidth=21;lc.strokeStyle='#101214';lc.strokeText(modelName,512,128);lc.lineWidth=9;lc.strokeStyle='#f3c9c1';lc.strokeText(modelName,512,128);lc.fillStyle='#f06a65';lc.fillText(modelName,512,128);
+  const logoTex=new THREE.CanvasTexture(logoCanvas);logoTex.colorSpace=THREE.SRGBColorSpace;logoTex.anisotropy=8;
+  const logoMat=new THREE.MeshBasicMaterial({map:logoTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+  const stormCanvas=document.createElement('canvas');stormCanvas.width=512;stormCanvas.height=512;const sc=stormCanvas.getContext('2d');
+  sc.clearRect(0,0,512,512);sc.fillStyle='#e94d4e';sc.beginPath();sc.moveTo(230,28);sc.lineTo(290,146);sc.lineTo(256,127);sc.lineTo(307,221);sc.lineTo(252,196);sc.lineTo(222,264);sc.lineTo(197,210);sc.lineTo(155,231);sc.lineTo(183,158);sc.lineTo(150,169);sc.closePath();sc.fill();sc.fillStyle='#f1eee7';sc.textAlign='center';sc.font='bold 41px Arial';sc.fillText('PRACTICAL',256,322);sc.fillText('STORM',256,369);sc.fillText('CHASERS',256,416);
+  const stormTex=new THREE.CanvasTexture(stormCanvas);stormTex.colorSpace=THREE.SRGBColorSpace;
+  const stormMat=new THREE.MeshBasicMaterial({map:stormTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+  function sideDecal(side,z0,z1,y0,y1,mat){let pts,uv;if(side===1){pts=[[z1,y0],[z0,y0],[z0,y1],[z1,y1]];uv=[[0,0],[1,0],[1,1],[0,1]];}else{pts=[[z0,y0],[z1,y0],[z1,y1],[z0,y1]];uv=[[0,0],[1,0],[1,1],[0,1]];}const vertices=[],uvs=[];for(let i=1;i<pts.length-1;i++){for(const j of [0,i,i+1]){vertices.push(...[xAt(side,pts[j][0],pts[j][1],.06),pts[j][1],pts[j][0]]);uvs.push(...uv[j]);}}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.computeVertexNormals();return addMesh(g,mat);}
+  for(const side of [-1,1]){
+   // main front and rear side armor plates; bevel seams intentionally remain visible
+   sidePoly(side,[[-.28,.61],[.68,.61],[.68,1.42],[-.20,1.43]],paint2,.035);
+   sidePoly(side,[[.70,.60],[1.31,.59],[1.38,1.31],[.73,1.41]],warmPanel,.035);
+   sidePoly(side,[[1.34,.60],[1.65,.56],[1.72,1.16],[1.40,1.31]],paint3,.034);
+   // cabin side glazing, separated into driver window and rear quarter pane with thick mullions
+   sidePoly(side,[[-.27,1.45],[.31,1.45],[.28,1.655],[-.14,1.655]],edgePaint,.045);
+   sidePoly(side,[[-.225,1.48],[.265,1.48],[.225,1.625],[-.105,1.625]],glass,.055);
+   sidePoly(side,[[.41,1.445],[.98,1.43],[1.26,1.29],[1.08,1.60],[.49,1.63]],edgePaint,.045);
+   sidePoly(side,[[.47,1.475],[.93,1.46],[1.18,1.315],[1.04,1.565],[.53,1.60]],glassShade,.056);
+   // side-window reflections and rubber seals
+   sidePoly(side,[[-.17,1.49],[-.075,1.49],[-.005,1.615],[-.10,1.615]],glassGlint,.061);
+   sidePoly(side,[[.56,1.49],[.66,1.485],[.83,1.56],[.76,1.57]],glassGlint,.061);
+   sideLine(side,[-.32,1.43],[-.22,1.66],.022,edgePaint,.061);
+   sideLine(side,[.34,1.43],[.40,1.65],.024,edgePaint,.061);
+   sideLine(side,[1.29,1.29],[1.13,1.61],.024,edgePaint,.062);
+   // robust external window lip / pillars
+   sideLine(side,[-.30,1.44],[-.17,1.66],.013,panelGrey,.067);
+   sideLine(side,[.36,1.44],[.42,1.65],.013,panelGrey,.067);
+   // Door latch, hinge plates and inset handles
+   sidePoly(side,[[.44,1.23],[.59,1.23],[.60,1.285],[.45,1.285]],edgePaint,.062);
+   sidePoly(side,[[.465,1.245],[.56,1.245],[.56,1.263],[.465,1.263]],chrome,.07);
+   for(const z of [-.12,.59]) for(const y of [.77,1.14]){
+    sidePoly(side,[[z-.035,y-.08],[z+.015,y-.08],[z+.015,y+.08],[z-.035,y+.08]],edgePaint,.058);
+    sphere([xAt(side,z,y,.067),y,z],.013,chrome,6);
+   }
+   // armor sheet edges and oblique reinforcement ribs
+   sideLine(side,[-.27,.62],[-.20,1.405],.009,seamMat,.055);
+   sideLine(side,[.69,.60],[.72,1.40],.015,edgePaint,.057);
+   sideLine(side,[1.32,.59],[1.38,1.30],.012,seamMat,.052);
+   sideLine(side,[-.18,.62],[.68,.62],.009,seamMat,.055);
+   sideLine(side,[.73,.60],[1.31,.59],.009,seamMat,.055);
+   // thin overlapping external plates
+   sidePoly(side,[[-1.68,.34],[-1.45,.32],[-1.35,.78],[-1.52,.88]],paint3,.048);
+   sidePoly(side,[[-1.46,.32],[-1.12,.27],[-1.08,.65],[-1.35,.78]],paint2,.048);
+   sidePoly(side,[[-1.10,.24],[-.63,.20],[-.60,.55],[-1.06,.65]],panelGrey,.046);
+   sidePoly(side,[[-.61,.20],[-.12,.19],[-.08,.54],[-.58,.55]],paint3,.047);
+   sidePoly(side,[[.24,.17],[.69,.16],[.76,.48],[.27,.51]],paint3,.05);
+   sidePoly(side,[[.72,.16],[1.18,.17],[1.24,.48],[.77,.48]],paint2,.05);
+   sidePoly(side,[[1.22,.17],[1.66,.18],[1.72,.48],[1.27,.48]],paint3,.047);
+   // four black vent mouths with chamfered rims on side skirts
+   for(const z of [-.96,-.19,.62,1.38]){
+    sidePoly(side,[[z-.15,.31],[z+.12,.31],[z+.17,.46],[z-.10,.47]],panelGrey,.055);
+    sidePoly(side,[[z-.115,.326],[z+.095,.326],[z+.12,.437],[z-.08,.439]],seamMat,.064);
+    // recessed slats in each vent
+    for(let j=0;j<2;j++) sideLine(side,[z-.075,.35+j*.035],[z+.065,.35+j*.035],.005,paint2,.07);
+   }
+   // door branding, storm-chaser emblem and smaller front sponsor badge
+   sideDecal(side,-.13,.70,.91,1.20,logoMat);
+   sideDecal(side,1.39,1.72,.53,.96,stormMat);
+   // amber side repeater
+   sidePoly(side,[[-1.02,.89],[-.88,.89],[-.88,.97],[-1.02,.97]],edgePaint,.052);
+   sidePoly(side,[[-1.00,.91],[-.90,.91],[-.90,.95],[-1.00,.95]],amber,.061);
+   // rivet rows follow door and armor-panel borders
+   for(const z of [-.18,.08,.36,.62,.91,1.19,1.40,1.58]) for(const y of [.68,1.32]){
+    const rad=(z>1.3?.010:.012);sphere([xAt(side,z,y,.062),y,z],rad,rivetMat,6);
+   }
+   for(const z of [-1.62,-1.42,-1.20,-.98,-.73])for(const y of [.28,.49])sphere([xAt(side,z,y,.058),y,z],.009,darkRivet,6);
+   // fastener/plate details on skirt edges
+   sideLine(side,[-1.70,.19],[1.83,.20],.008,edgePaint,.055);
+  }
+
+  // Side mirrors on thick articulated arms; rectangular alloy shells with dark reflective glass.
+  for(const side of [-1,1]){
+   line([side*.81,1.50,-.77],[side*1.05,1.57,-.72],.035,edgePaint);
+   line([side*1.03,1.57,-.72],[side*1.10,1.61,-.69],.027,chrome);
+   box([side*1.13,1.62,-.69],[.19,.22,.28],edgePaint,[0,side*.12,side*.05]);
+   box([side*1.232,1.625,-.695],[.012,.158,.202],chrome,[0,side*.12,side*.05]);
+   box([side*1.241,1.62,-.696],[.008,.116,.156],glassShade,[0,side*.12,side*.05]);
+   box([side*1.238,1.56,-.696],[.008,.018,.18],amber);
+   line([side*.90,1.56,-.67],[side*1.12,1.56,-.67],.014,edgePaint);
+  }
+  // Thin whip antenna and foot plate on front corner, visible in the reference render.
+  sidePoly(-1,[[-1.16,1.12],[-1.03,1.12],[-1.02,1.20],[-1.14,1.20]],edgePaint,.045);
+  line([-.86,1.22,-1.10],[-.94,2.13,-1.14],.008,edgePaint,7);
+  line([-.94,2.12,-1.14],[-.92,2.16,-1.14],.011,chrome,7);
+
+  // Rear armor face with independent plates, vents, tail lamps and small reflectors.
+  quad([-r.tx,r.ty,r.z],[r.tx,r.ty,r.z],[r.bx,r.by,r.z],[-r.bx,r.by,r.z],paint3);
+  quad([-.79,.49,2.13],[.79,.49,2.13],[.70,.25,2.15],[-.70,.25,2.15],paint2);
+  for(const side of [-1,1]){
+   box([side*.57,.45,2.16],[.22,.09,.045],redLamp);
+   box([side*.57,.32,2.162],[.19,.055,.04],headLens);
+   box([side*.84,.56,2.10],[.09,.11,.04],redLamp);
+   box([side*.84,.39,2.12],[.07,.05,.035],amber);
+   box([side*.32,.60,2.10],[.10,.045,.035],edgePaint);
+   // rear corner armor seam and marker bolts
+   line([side*.78,.56,2.115],[side*.69,.28,2.15],.012,edgePaint);
+   for(const y of [.26,.39,.52])sphere([side*.72,y,2.175],.012,rivetMat,6);
+  }
+  box([0,.34,2.17],[.48,.12,.045],edgePaint);
+  for(let i=0;i<5;i++)box([-.15+i*.075,.34,2.197],[.022,.075,.012],panelGrey);
+  // rear lower plate joins and red/white markings
+  quad([-.56,.24,2.15],[0,.22,2.155],[0,.48,2.15],[-.58,.48,2.15],paint);
+  quad([0,.22,2.155],[.56,.24,2.15],[.58,.48,2.15],[0,.48,2.15],paint2);
+
+  // Realistic exposed seams, bolts and hinge fasteners along the roof and hood edges.
+  for(const side of [-1,1]){
+   for(const z of [-.25,.04,.33,.62,.91,1.10]){
+    const x=side*(station(z).tx+.045), y=roofY(z)+.046;sphere([x,y,z],.012,rivetMat,6);
+   }
+   for(const z of [-1.05,-.86,-.66,-.46]){
+    const y=roofY(z)+.03,x=side*(station(z).tx+.01);sphere([x,y,z],.010,rivetMat,6);
+   }
+  }
+  // Tiny front sponsor crest and text, printed as texture on the nose instead of floating objects.
+  const badgeCanvas=document.createElement('canvas');badgeCanvas.width=512;badgeCanvas.height=128;const bc=badgeCanvas.getContext('2d');
+  bc.clearRect(0,0,512,128);bc.textBaseline='middle';bc.font='bold 42px Arial';bc.lineWidth=6;bc.strokeStyle='#111';bc.strokeText('® Restrorex',260,67);bc.fillStyle='#f2f1eb';bc.fillText('® Restrorex',260,67);bc.strokeStyle='#ec4d5b';bc.lineWidth=5;bc.beginPath();bc.arc(72,65,34,0,Math.PI*2);bc.stroke();bc.fillStyle='#ef505c';bc.font='bold 34px Arial';bc.fillText('R',60,67);
+  const badgeTex=new THREE.CanvasTexture(badgeCanvas);badgeTex.colorSpace=THREE.SRGBColorSpace;
+  const badgeMat=new THREE.MeshBasicMaterial({map:badgeTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,toneMapped:false});
+  // front decal lies on the slightly rear-raked face, just above the bumper
+  const badgePts=[[-.47,.335,-2.285],[-.03,.335,-2.285],[-.03,.425,-2.278],[-.47,.425,-2.278]];
+  const badgeGeo=new THREE.BufferGeometry();badgeGeo.setAttribute('position',new THREE.Float32BufferAttribute(badgePts.flat(),3));badgeGeo.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,1],2));badgeGeo.setIndex([0,1,2,0,2,3]);badgeGeo.computeVertexNormals();addMesh(badgeGeo,badgeMat);
+
+  // Tiny hardware catches and perforations at the very front and side transitions.
+  for(const side of [-1,1]){
+   for(const z of [-1.96,-1.78]){
+    const x=side*.955,y=station(z).ty+.035;
+    sphere([x,y,z],.013,rivetMat,6);
+   }
+   // fender-edge seam follows angled nose transition
+   sideLine(side,[-1.62,.42],[-1.43,.91],.012,edgePaint,.045);
+   sideLine(side,[-1.38,.85],[-1.18,1.03],.012,panelGrey,.043);
+  }
+  return car;
+}
+
 function buildVehicle(key, color, detail){
   const v = key ? VEHICLES[key] : null;
   const cat = v ? v.category : "interceptor";
@@ -2309,6 +2941,37 @@ function buildVehicle(key, color, detail){
   const dark = mat("#1e2429"), glass = mat("#2b3d4a");
   const by = wr + H/2 - 0.5, top = by + H/2;
   const k = key || "";
+
+  // Dominator 3 and the dev-only Dominator 4 use the detailed model from assets/models.
+  if (k === "dominator3" || k === "dominator4"){
+    const detailed = createDetailedDominatorModel(k === "dominator4" ? "DOMINATOR 4" : "DOMINATOR 3");
+    // Give the detailed car more screen presence and keep the anchor pylons clear of its body.
+    const modelScale = 11.5;
+    detailed.scale.setScalar(modelScale);
+    g.add(detailed);
+    g.userData.wheels = detailed.userData.wheels;
+    g.userData.frontWheels = detailed.userData.frontWheels;
+    B(g, shadowMat, Math.max(W*1.5, modelScale*2.5), 0.1, Math.max(L*1.15, modelScale*5.1), 0, 0.55, 0);
+    const ag = new THREE.Group();
+    const ringRadius = modelScale*2.8;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(ringRadius, ringRadius+2.4, 24).rotateX(-Math.PI/2), anchorRingMat);
+    ring.position.y = 1.0; ag.add(ring);
+    if (detail){
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
+        const px = sx*(modelScale*1.025+3.0);
+        const pz = sz*(modelScale*2.3+3.0);
+        // Shorter, slimmer pylons sit beyond the car's corners instead of hiding its detail.
+        C(g, mat("#2b3036"), 1.55, 1.55, 6, 8, px, 7.5, pz);
+        C(g, mat("#14171a"), 1.9, 1.9, 0.75, 8, px, 4.15, pz);
+        (ag.userData.spikes = ag.userData.spikes || []).push(C(ag, mat("#8a949c"), 1.05, 0.4, 6.2, 5, px, 7.5, pz));
+        C(g, mat("#2f353a"), 2.25, 2.25, 0.65, 8, px, 0.45, pz);
+      });
+    }
+    ag.visible = false;
+    g.add(ag);
+    g.userData.anchor = ag;
+    return g;
+  }
 
   // main hull: sloped-side frustum
   F(g, body, W, H, L, 0.88, 0, by, 0);
@@ -2827,8 +3490,9 @@ function render3D(dt){
   const fx = Math.sin(camera.angle), fz = -Math.cos(camera.angle);
   const dist = view.dist + view.speedDist*k;
   const sk = shake*0.35;
-  cam3.position.set(camera.x - fx*dist + (Math.random()-0.5)*sk, view.h + (Math.random()-0.5)*sk, camera.y - fz*dist + (Math.random()-0.5)*sk);
-  cam3.lookAt(camera.x + fx*view.look, view.lookH, camera.y + fz*view.look);
+  const flightHeight = car.ragdollLift;
+  cam3.position.set(camera.x - fx*dist + (Math.random()-0.5)*sk, view.h + flightHeight + (Math.random()-0.5)*sk, camera.y - fz*dist + (Math.random()-0.5)*sk);
+  cam3.lookAt(camera.x + fx*view.look, view.lookH + flightHeight, camera.y + fz*view.look);
   cam3.fov = view.fov + k*14;
   if (freeCam.active) applyFreeCam(dt);
   cam3.updateProjectionMatrix();
@@ -2841,10 +3505,14 @@ function render3D(dt){
   vehStamp++;
   const pm = placeVehicle("__player", state.currentVehicleKey, activeVehicle().color, true, car.x, car.y, car.angle, car.anchored);
   pm.visible = camMode !== 2;
+  pm.position.y += car.ragdollLift;
+  pm.rotation.x += car.ragdollPitch;
+  pm.rotation.y += car.ragdollYaw;
+  pm.rotation.z += car.ragdollRoll;
   if (car.ripFlashTimer > 0){
     const f = car.ripFlashTimer/1.4;
-    pm.position.y = Math.sin((1-f)*Math.PI)*30;
-    pm.rotation.z = Math.sin(time*22)*0.5*f;
+    pm.position.y += Math.sin((1-f)*Math.PI)*30;
+    pm.rotation.z += Math.sin(time*22)*0.5*f;
   }
   if (state.convoyActive){
     convoyNPCs.forEach(n=>{
@@ -2973,6 +3641,43 @@ function launchGrappleAt(screenX, screenY){
   }
 }
 
+function launchChargedGrapple(){
+  if (!grapple.active || !car.anchored) return;
+  const charge = grapple.chargeSeconds;
+  const speed = grappleLaunchSpeed(charge);
+  const dx = grapple.x-car.x, dy = grapple.y-car.y;
+  const dist = Math.hypot(dx,dy) || 1;
+  let dirX = dx/dist, dirY = dy/dist;
+
+  // Keep some of the direction the car had before anchoring, so a charged
+  // swing shoots through and beyond its anchor rather than stopping at it.
+  const driftLen = Math.hypot(grapple.chargeTravelX, grapple.chargeTravelY);
+  if (driftLen > 0.001){
+    dirX = dirX*0.76 + (grapple.chargeTravelX/driftLen)*0.24;
+    dirY = dirY*0.76 + (grapple.chargeTravelY/driftLen)*0.24;
+    const len = Math.hypot(dirX,dirY) || 1;
+    dirX /= len; dirY /= len;
+  }
+
+  car.anchored = false;
+  car.catapultLaunch = true;
+  car.vx = dirX*speed;
+  car.vy = dirY*speed;
+  car.ragdollLift = 0;
+  car.ragdollLiftV = Math.max(car.ragdollLiftV, speed*0.085 + 24 + charge*0.18);
+  car.ragdollPitchV += (Math.random()-0.5)*(8 + Math.log1p(speed)*4);
+  car.ragdollRollV += (Math.random()-0.5)*(12 + Math.log1p(speed)*5);
+  car.ragdollYawV += (Math.random()-0.5)*(6 + Math.log1p(speed)*3);
+
+  grapple.active = false;
+  grapple.lastReleaseAt = performance.now();
+  grapple.swingMomentum = 0;
+  grapple.previousDistance = 0;
+  grapple.chain = 0;
+  grapple.chargeSeconds = 0;
+  showAlert("GRAPPLE CATAPULT · " + Math.round(speed).toLocaleString() + " FT/S", 2.5);
+}
+
 function releaseGrapple(boost=true){
   if (!grapple.active) return;
   const dx = grapple.x-car.x, dy = grapple.y-car.y;
@@ -2982,11 +3687,20 @@ function releaseGrapple(boost=true){
     const tx = -ny, ty = nx;
     const tangential = car.vx*tx + car.vy*ty;
     const outward = car.vx*nx + car.vy*ny;
-    const momentumBoost = 1 + grapple.swingMomentum * 0.22;
+    const momentumBoost = 1.08 + grapple.swingMomentum * 0.46;
     car.vx += tx * tangential * (grapple.releaseBoost*momentumBoost - 1);
     car.vy += ty * tangential * (grapple.releaseBoost*momentumBoost - 1);
     car.vx += nx * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
     car.vy += ny * Math.max(0, outward) * (0.08 + grapple.swingMomentum*0.06);
+
+    // Faster swings convert more horizontal speed into vertical launch speed.
+    const releaseSpeed = Math.hypot(car.vx,car.vy);
+    const liftImpulse = Math.max(0, releaseSpeed*0.085 + grapple.swingMomentum*14 - 20);
+    if (liftImpulse > 0){
+      car.ragdollLiftV += liftImpulse;
+      car.ragdollPitchV += (Math.random()-0.5)*(2 + releaseSpeed*0.0018);
+      car.ragdollRollV += (Math.random()-0.5)*(3 + releaseSpeed*0.0022);
+    }
   }
   grapple.active = false;
   grapple.lastReleaseAt = performance.now();
@@ -3003,7 +3717,12 @@ function updateGrapple(dt){
     }
     return;
   }
-  if (car.anchored) return;
+  if (car.anchored){
+    if (car.ragdollLift <= 0.8 && car.ragdollLiftV <= 0){
+      grapple.chargeSeconds += dt;
+    }
+    return;
+  }
 
   const dx = grapple.x-car.x, dy = grapple.y-car.y;
   const dist = Math.hypot(dx,dy) || 0.001;
@@ -3020,13 +3739,19 @@ function updateGrapple(dt){
   car.vx += tx * assist * sign * dt;
   car.vy += ty * assist * sign * dt;
 
-  const chainSpeed = 360 + grapple.swingMomentum * 820;
-  if (tangentialSpeed !== 0){
-    const tangentialTarget = chainSpeed;
-    const tangentialError = tangentialTarget - Math.abs(tangentialSpeed);
-    const tangentialAccel = Math.max(-380, Math.min(520, tangentialError*0.82));
+  // Build speed around the anchor instead of snapping toward it. Chaining a new line
+  // while fast preserves the swing and rewards releasing at the outside of the arc.
+  const chainSpeed = 500 + grapple.swingMomentum * 760;
+  if (Math.abs(tangentialSpeed) < chainSpeed){
+    const tangentialError = chainSpeed - Math.abs(tangentialSpeed);
+    const tangentialAccel = Math.min(620, tangentialError*1.05);
     car.vx += tx * sign * tangentialAccel * dt;
     car.vy += ty * sign * tangentialAccel * dt;
+  } else {
+    const excessSpeed = Math.abs(tangentialSpeed)-chainSpeed;
+    const gentleDrag = Math.min(105, excessSpeed*0.16);
+    car.vx -= tx * sign * gentleDrag * dt;
+    car.vy -= ty * sign * gentleDrag * dt;
   }
 
   const targetLength = grapple.ropeLength;
@@ -3055,7 +3780,7 @@ function updateGrapple(dt){
   }
 
   const speed = Math.hypot(car.vx, car.vy);
-  const speedLimit = Math.min(grapple.maxPullSpeed, 760 + grapple.swingMomentum*500);
+  const speedLimit = Math.min(grapple.maxPullSpeed, 880 + grapple.swingMomentum*540);
   if (speed > speedLimit){
     const scale = speedLimit/speed;
     car.vx *= scale;
@@ -3316,6 +4041,22 @@ function updateHUD(){
   const toolsEl = document.getElementById("hudTools");
   toolsEl.textContent = TOOL_KEYS.map(tk=>`${TOOLS[tk].icon}${state.tools[tk]||0}`).join("  ");
 
+  const grappleEl = document.getElementById("hudGrapple");
+  if (grapple.active && car.anchored){
+    grappleEl.textContent = `${grapple.chargeSeconds.toFixed(1)}s · ${Math.round(grappleLaunchSpeed()).toLocaleString()} ft/s`;
+    grappleEl.className = "val warn";
+  } else if (car.catapultLaunch){
+    grappleEl.textContent = `${Math.round(Math.hypot(car.vx,car.vy)).toLocaleString()} ft/s`;
+    grappleEl.className = "val danger";
+  } else if (grapple.active){
+    grappleEl.textContent = "SWINGING";
+    grappleEl.className = "val active";
+  } else {
+    grappleEl.textContent = "OFF";
+    grappleEl.className = "val";
+  }
+  document.getElementById("hudAirHeight").textContent = Math.round(Math.max(0,car.ragdollLift)*30.48).toLocaleString() + " cm";
+
   const badge = document.getElementById("anchorBadge");
   badge.textContent = car.anchored ? "âš“ ANCHORED" : "ANCHORS UP";
   badge.className = car.anchored ? "active" : "";
@@ -3338,15 +4079,45 @@ function updateHUD(){
 let lastTime = performance.now();
 let autosaveTimer = 0;
 
+function resolvePlayerVehicleCollisions(){
+  const playerRadius=getVehicleCollisionRadius();
+  const targets=[];
+  if(state.convoyActive) convoyNPCs.forEach(n=>targets.push({x:n.x,z:n.y,vx:n.vx||0,vz:n.vy||0,r:getVehicleCollisionRadius(n.vehicleKey||n.id)}));
+  wildConvoys.forEach(c=>c.members.forEach(n=>{if(!n.allied)targets.push({x:n.x,z:n.y,vx:n.vx||0,vz:n.vy||0,r:getVehicleCollisionRadius(n.vehicleKey)});}));
+  Object.keys(remoteCars).forEach(id=>{
+    const r=remoteCars[id];
+    if(r && Number.isFinite(r.renderX) && Number.isFinite(r.renderY)) targets.push({x:r.renderX,z:r.renderY,vx:r.vx||0,vz:r.vy||0,r:20});
+  });
+  for(const target of targets){
+    const dx=car.x-target.x,dz=car.y-target.z;
+    const minDist=playerRadius+target.r;
+    if(Math.abs(dx)>minDist || Math.abs(dz)>minDist) continue;
+    const d2=dx*dx+dz*dz;
+    if(d2>=minDist*minDist) continue;
+    const d=Math.sqrt(d2);
+    const nx=d>0.001?dx/d:1,nz=d>0.001?dz/d:0;
+    car.x+=nx*(minDist-d+0.4); car.y+=nz*(minDist-d+0.4);
+    const rvx=car.vx-target.vx,rvz=car.vy-target.vz;
+    const into=rvx*nx+rvz*nz;
+    if(into<0){
+      const tx=rvx-into*nx,tz=rvz-into*nz;
+      car.vx=target.vx+tx*0.88-nx*into*0.72;
+      car.vy=target.vz+tz*0.88-nz*into*0.72;
+      kickVehicleRagdoll(-into);
+    }
+  }
+}
+
 function updateGame(dt){
   if (state.paused) return;
   updateCar(dt);
   updateTornado(dt);
   updateWeather(dt);
   updateFx(dt);
-  checkTown();
   updateConvoy(dt);
   updateWildConvoys(dt);
+  resolvePlayerVehicleCollisions();
+  checkTown();
   updateAllyPromptTarget();
   updateAllyPromptUI();
 
@@ -3360,6 +4131,10 @@ function updateGame(dt){
     TOWNS.forEach(t=>{ const d=Math.hypot(t.x-car.x,t.y-car.y); if(d<best){best=d; nearest=t;} });
     car.x = nearest.x; car.y = nearest.y - 60;
     car.vx = 0; car.vy = 0; car.anchored = false;
+    car.catapultLaunch = false;
+    grapple.active = false;
+    grapple.chargeSeconds = 0;
+    car.ragdollLift = 0; car.ragdollLiftV = 0;
     car.dataGB *= 0.3;
     car.health = car.maxHealth;
     if (!state.infiniteFuel) car.fuel = car.maxFuel * 0.4;
