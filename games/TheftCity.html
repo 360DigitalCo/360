@@ -941,9 +941,9 @@ function driveStep(v,inp,dt){
   vf=Math.max(vf,-T.max*.32);
   vf*=Math.exp(-(thr>0?.08:.38)*dt);
   if(inp.hb){vf*=Math.exp(-.9*dt)}
-  const drifting=inp.hb&&Math.abs(vf)>8,psl=!drifting&&Math.abs(inp.steer)>.55&&thr>0&&Math.abs(vf)>22;const grip=drifting?.45:inp.hb?1.3:T.grip*(SAVE.assist&&v===PL.veh?1.45:1)*(psl?.55:1);const wx=fx*vf+rx*vl,wz=fz*vf+rz*vl,keep=drifting?.92:psl?.45:0;vl*=Math.exp(-grip*dt);
-  const stMax=T.steer/(1+Math.abs(vf)*.045);
-  v.st=damp(v.st,inp.steer*stMax,10,dt);
+  const mine=v===PL.veh,drifting=inp.hb&&Math.abs(vf)>8,psl=!drifting&&(mine?(Math.abs(inp.steer)>.36&&Math.abs(vf)>14):(Math.abs(inp.steer)>.55&&Math.abs(vf)>22))&&thr>0;const grip=drifting?.45:inp.hb?1.3:T.grip*(SAVE.assist&&mine?1.2:1)*(psl?.5:1)*(mine&&!psl?.78:1);const wx=fx*vf+rx*vl,wz=fz*vf+rz*vl,keep=drifting?.92:psl?.45:0;vl*=Math.exp(-grip*dt);
+  const stMax=T.steer/(1+Math.abs(vf)*.045)*(v===PL.veh?1.25:1);
+  v.st=damp(v.st,inp.steer*stMax,v===PL.veh?3.6:10,dt); // heavy wheel on the player's car: slow to turn in, then it swings
   const L=T.len*.62;let rate=vf*Math.tan(v.st)/L;
   if(inp.hb&&Math.abs(vf)>6)rate*=1.7;
   v.h-=rate*dt; // positive steer = right = clockwise from above (heading decreases)
@@ -3596,10 +3596,10 @@ updatePeds=function(dt,pl,cars,t){
     const moving=(p.spd||0)>.3,bob=moving?Math.abs(Math.sin(p.ph))*.06:0,y=p.gy+(p.hop>0?Math.sin(p.hop/.5*Math.PI)*.6:0),a=p.hd||0;
     if(p.lodOn||!inView(p.x,1,p.z,5)||Math.abs(p.x-pl.x)+Math.abs(p.z-pl.z)>330){pedHide(i);continue}
     const sw=moving?Math.sin(p.ph):0,ca=Math.cos(a),sa=Math.sin(a),lx=ca*.1,lz=-sa*.1;
-    PED.body.setMatrixAt(i,MX(p.x,y+1.25+bob,p.z,0,a,0));PED.head.setMatrixAt(i,MX(p.x,y+1.9+bob,p.z,0,a,0));
-    PED.legs.setMatrixAt(i,MX(p.x-lx,y+.4,p.z-lz,sw*.55,a,0));PED.legR.setMatrixAt(i,MX(p.x+lx,y+.4,p.z+lz,-sw*.55,a,0));
-    PED.hair.setMatrixAt(i,MX(p.x,y+2.08+bob,p.z,0,a,0));PED.pack.setMatrixAt(i,MX(p.x-sa*.22,y+1.3+bob,p.z-ca*.22,0,a,0));
-    {const rx=-ca*.33,rz=sa*.33,as=moving?-sw*.7:(p.act==='chat'?Math.sin(p.ph*.8+i)*.35:0);PED.arms.setMatrixAt(i*2,MX(p.x+rx,y+1.48,p.z+rz,as,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)));PED.arms.setMatrixAt(i*2+1,MX(p.x-rx,y+1.48,p.z-rz,-as,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)))}
+    PED.body.setMatrixAt(i,MX(p.x,y+1.3+bob,p.z,0,a,0,1.3,1.1,1.3));PED.head.setMatrixAt(i,MX(p.x,y+2.0+bob,p.z,0,a,0,1.25,1.1,1.25));
+    PED.legs.setMatrixAt(i,MX(p.x-lx*1.4,y+.44,p.z-lz*1.4,sw*.55,a,0,1.3,1.1,1.3));PED.legR.setMatrixAt(i,MX(p.x+lx*1.4,y+.44,p.z+lz*1.4,-sw*.55,a,0,1.3,1.1,1.3));
+    PED.hair.setMatrixAt(i,MX(p.x,y+2.2+bob,p.z,0,a,0,1.25,1.1,1.25));PED.pack.setMatrixAt(i,MX(p.x-sa*.22,y+1.3+bob,p.z-ca*.22,0,a,0));
+    {const rx=-ca*.42,rz=sa*.42,as=moving?-sw*.7:(p.act==='chat'?Math.sin(p.ph*.8+i)*.35:0);PED.arms.setMatrixAt(i*2,MX(p.x+rx,y+1.48,p.z+rz,as,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)));PED.arms.setMatrixAt(i*2+1,MX(p.x-rx,y+1.48,p.z-rz,-as,a,0,1,1,1).multiply(_mm.makeTranslation(0,-.3,0)))}
   }
   for(const m of [PED.arms,PED.body,PED.head,PED.legs,PED.hair,PED.legR,PED.pack])if(m)m.instanceMatrix.needsUpdate=true;
 };
@@ -3973,9 +3973,135 @@ makePerson=function(shirt,o){
   legL.position.set(-.1,.88,0);legR.position.set(.1,.88,0);armL.position.set(-.255*(fem?.94:1),1.46,0);armR.position.set(.255*(fem?.94:1),1.46,0);head.position.set(0,1.73,0);torso.position.set(0,1.2,0);
   legL.add(mesh(parts.legL));legR.add(mesh(parts.legR));armL.add(mesh(parts.armL));armR.add(mesh(parts.armR));head.add(mesh(parts.head));torso.add(mesh(parts.torso));
   g.add(legL,legR,armL,armR,torso,head);
-  const sc=(fem?.955:1)*(.95+r()*.09);g.scale.setScalar(sc);
+  const sc=(fem?.955:1)*(.95+r()*.09);g.scale.set(sc*1.3,sc*1.13,sc*1.3);
   g.userData={legL,legR,armL,armR,head,torso,wpn:null,wkind:null};
   return g};
+// ---------- c11d: lane-centering assist, Roadster flight, save codes, tutorial
+const TUT={on:false,want:false,i:0,el:null,s:null,btn:null,ammo0:0};
+// ===== lane centring: gently steers the player's car toward the middle of the road (L toggles). Fades out whenever you steer or slide.
+const LANE={on:true,grid:null,C:120};
+function laneGrid(){if(LANE.grid||!CITY||!CITY.all)return LANE.grid;const m=new Map();for(const n of CITY.all){const k=Math.floor(n.x/LANE.C)*100000+Math.floor(n.z/LANE.C);let a=m.get(k);if(!a)m.set(k,a=[]);a.push(n)}return LANE.grid=m}
+function laneAssist(v,inp,dt){
+  const sp=v.vx*Math.sin(v.h)+v.vz*Math.cos(v.h);if(sp<4)return 0;
+  const f0=clamp(1-Math.abs(inp.steer)*4,0,1)*clamp(1-(v.slip||0)/3.5,0,1);if(f0<=.02)return 0;
+  const g=laneGrid();if(!g)return 0;const fx=Math.sin(v.h),fz=Math.cos(v.h);let best=null,bd=14;
+  const cx=Math.floor(v.x/LANE.C),cz=Math.floor(v.z/LANE.C);
+  for(let i=cx-1;i<=cx+1;i++)for(let j=cz-1;j<=cz+1;j++){const a=g.get(i*100000+j);if(!a)continue;
+    for(const n of a)for(const e of n.e){const m=e.to,ex=m.x-n.x,ez=m.z-n.z,L2=ex*ex+ez*ez;if(L2<1)continue;
+      let t=((v.x-n.x)*ex+(v.z-n.z)*ez)/L2;t=clamp(t,0,1);const px=n.x+ex*t,pz=n.z+ez*t,d=Math.hypot(v.x-px,v.z-pz);if(d>=bd)continue;
+      const L=Math.sqrt(L2);let dx=ex/L,dz=ez/L;if(dx*fx+dz*fz<0){dx=-dx;dz=-dz}if(dx*fx+dz*fz<.72)continue;
+      bd=d;best={dx,dz,lat:(v.x-px)*(-dz)+(v.z-pz)*dx}}}
+  if(!best)return 0;
+  const da=angDiff(v.h,Math.atan2(best.dx,best.dz));
+  return clamp(-best.lat*.07-da*1.1,-.45,.45)*f0*clamp(sp/14,0,1)}
+// ===== Roadster flight (G): thrusters, climb with SPACE, dive with SHIFT, no collisions while airborne
+const _dsF=driveStep;
+driveStep=function(v,inp,dt){
+  if(v.fly){
+    const fx=Math.sin(v.h),fz=Math.cos(v.h);let vf=v.vx*fx+v.vz*fz;
+    vf+=(inp.thr*70-inp.brk*60)*dt;vf*=Math.exp(-.28*dt);vf=clamp(vf,-25,130);
+    v.h-=inp.steer*(1.5/(1+Math.abs(vf)*.012))*dt;v.vx=Math.sin(v.h)*vf;v.vz=Math.cos(v.h)*vf;v.sp=vf;v.slip=0;
+    const up=(K.Space?1:0)-((K.ShiftLeft||K.ShiftRight)?1:0);v.vy=damp(v.vy||0,up*30,2.6,dt);
+    v.pitch=damp(v.pitch||0,-v.vy*.012,5,dt);v.roll=damp(v.roll||0,inp.steer*.5,5,dt);v.wr+=vf*dt/.42;return}
+  if(v===PL.veh&&PL.mode==='car'&&LANE.on&&!inp.hb&&!(CINE&&CINE.on)){const a=laneAssist(v,inp,dt);if(a)inp=Object.assign({},inp,{steer:clamp(inp.steer+a,-1,1)})}
+  return _dsF(v,inp,dt)};
+const _mvF=moveVeh;
+moveVeh=function(v,dt){
+  if(v.fly){v.x+=v.vx*dt;v.z+=v.vz*dt;v.fy=(v.fy==null?v.y:v.fy)+(v.vy||0)*dt;const gy=groundY(v.x,v.z)+(landKind(v.x,v.z)===0?.2:0);
+    if(v.fy<=gy+.05){v.fy=gy;if(Math.hypot(v.vx,v.vz)<42&&(v.vy||0)<=0){v.fly=false;v.pitch=v.roll=0;v.vy=0;toast('LANDED',900)}else{v.vy=Math.abs(v.vy||0)*.3;if(Math.hypot(v.vx,v.vz)>=42){v.fly=false;v.pitch=v.roll=0;v.vy=0;carDamage(v,20);shake=Math.min(1,shake+.5);toast('HARD LANDING',1000)}}}
+    v.y=v.fy;return 0}
+  return _mvF(v,dt)};
+const _cvcF=carVsCar;carVsCar=function(a,b){if((a.fly&&a.y>groundY(a.x,a.z)+3)||(b.fly&&b.y>groundY(b.x,b.z)+3))return null;return _cvcF(a,b)};
+function roadsterFx(v){let f=v.mesh.userData.fx;if(!f){f=new THREE.Group();const m=new THREE.MeshBasicMaterial({color:0x7fd0ff,transparent:true,opacity:.9}),m2=new THREE.MeshBasicMaterial({color:0xffffff});
+  for(const s of [-1,1]){const c=new THREE.Mesh(new THREE.ConeGeometry(.22,1.6,8),m);c.rotation.x=Math.PI;c.position.set(s*.6,-.5,-.9);const c2=new THREE.Mesh(new THREE.ConeGeometry(.1,.9,8),m2);c2.rotation.x=Math.PI;c2.position.set(s*.6,-.25,-.9);f.add(c,c2)}
+  v.mesh.add(f);v.mesh.userData.fx=f}return f}
+addEventListener('keydown',e=>{if(!G.started||e.repeat)return;
+  if(e.code==='KeyL'&&PL.mode==='car'&&!e.ctrlKey&&!e.metaKey){LANE.on=!LANE.on;toast('LANE ASSIST '+(LANE.on?'ON':'OFF'),1000);return}
+  if(e.code==='KeyG'&&PL.mode==='car'&&PL.veh&&PL.veh.type==='roadster'&&!CINE.on&&!INT.on){const v=PL.veh;
+    if(!v.fly){v.fly=true;v.fy=v.y;v.vy=14;toast('ROADSTER FLIGHT · W/S THRUST · A/D TURN · SPACE CLIMB · SHIFT DESCEND · G LAND',3200)}
+    else{v.vy=-14;toast('LANDING…',800)}}});
+const _buF=busUpdate;busUpdate=function(dt){_buF(dt);
+  const v=PL.veh;if(PL.mode==='car'&&v&&v.type==='roadster'){const f=roadsterFx(v);f.visible=!!v.fly;if(v.fly){f.scale.setScalar(.8+Math.random()*.4+Math.min(.8,Math.abs(v.vy||0)*.02));if(v.fy!=null)PL.y=v.y}}
+  // exiting a hovering car is not allowed
+};
+const _tvF=toggleVehicle;toggleVehicle=function(){if(PL.mode==='car'&&PL.veh&&PL.veh.fly){toast('LAND FIRST (G)',900);return}return _tvF()};
+// ===== save codes
+function codeSum(b){let h=5381;for(let i=0;i<b.length;i++)h=((h*33)^b.charCodeAt(i))>>>0;return h.toString(36).toUpperCase().padStart(6,'0').slice(0,6)}
+function makeCode(){const j=JSON.stringify(SAVE),b=btoa(unescape(encodeURIComponent(j))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return 'TC1-'+b+'-'+codeSum(b)}
+function readCode(s){const m=/^TC1-([A-Za-z0-9_-]+)-([A-Z0-9]{6})$/.exec((s||'').replace(/\s+/g,''));if(!m||codeSum(m[1])!==m[2])return null;
+  try{let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';const o=JSON.parse(decodeURIComponent(escape(atob(b))));if(!o||typeof o.cash!=='number'||!Array.isArray(o.owned))return null;return o}catch(e){return null}}
+function applyCode(txt){const o=readCode(txt);if(!o)return false;Object.assign(SAVE,o);saveGame();try{setCash(0)}catch(e){}return true}
+function codeModal(){
+  let d=document.getElementById('codem');
+  if(!d){d=document.createElement('div');d.id='codem';d.style.cssText='position:fixed;inset:0;z-index:80;background:#000b;display:flex;align-items:center;justify-content:center;font:13px "IBM Plex Mono",monospace;color:#f1eee8';
+    d.innerHTML='<div style="width:min(620px,92vw);background:#0d0f13;border:2px solid #35ff8a;border-radius:12px;padding:20px 22px;display:grid;gap:10px"><div style="font:28px Bebas Neue,Impact,sans-serif;letter-spacing:.2em;color:#35ff8a">SAVE CODE</div><div style="color:#8b909a">Copy this code anywhere safe. Paste it on any device to continue where you left off.</div><textarea id="codeout" readonly rows="4" style="width:100%;background:#14171c;color:#f1eee8;border:1px solid #333;padding:8px;font:11px monospace"></textarea><div style="display:flex;gap:10px"><button id="codecopy" style="flex:1;padding:9px;cursor:pointer">COPY CODE</button><button id="codeclose" style="flex:1;padding:9px;cursor:pointer">CLOSE</button></div><div style="color:#8b909a;margin-top:6px">LOAD A CODE (replaces current progress and reloads the game)</div><textarea id="codein" rows="2" placeholder="TC1-…" style="width:100%;background:#14171c;color:#f1eee8;border:1px solid #333;padding:8px;font:11px monospace"></textarea><button id="codeload" style="padding:9px;cursor:pointer">LOAD CODE</button><div id="codemsg" style="min-height:18px;color:#ffb04a"></div></div>';
+    document.body.appendChild(d);d.addEventListener('keydown',e=>e.stopPropagation());d.addEventListener('keyup',e=>e.stopPropagation());
+    d.querySelector('#codeclose').onclick=()=>{d.hidden=true};
+    d.querySelector('#codecopy').onclick=()=>{const t=d.querySelector('#codeout');t.select();try{navigator.clipboard.writeText(t.value);d.querySelector('#codemsg').textContent='Copied.'}catch(e){document.execCommand&&document.execCommand('copy');d.querySelector('#codemsg').textContent='Copied (or press Ctrl+C).'}};
+    d.querySelector('#codeload').onclick=()=>{const ok=applyCode(d.querySelector('#codein').value);d.querySelector('#codemsg').textContent=ok?'Loaded! Reloading…':'That code is not valid.';if(ok)setTimeout(()=>location.reload(),600)}}
+  d.hidden=false;d.querySelector('#codeout').value=makeCode();d.querySelector('#codemsg').textContent='';if(document.pointerLockElement)document.exitPointerLock()}
+// ===== intro options: tutorial + code box; in-game save-code button
+(function(){
+  const go=document.getElementById('go');if(!go)return;let done=false;try{done=localStorage.getItem('tc_tut')==='1'}catch(e){}
+  const box=document.createElement('div');box.style.cssText='display:grid;gap:8px';
+  box.innerHTML='<label style="display:flex;gap:10px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="tutchk" style="width:18px;height:18px"> TUTORIAL · learn walking, driving, drifting, shooting and buildings step by step</label><div style="display:flex;gap:8px"><input id="tcode" placeholder="HAVE A SAVE CODE? PASTE IT HERE" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button id="tload" style="padding:0 14px;cursor:pointer">LOAD</button></div><div id="tmsg" style="font-size:12px;color:#ffb04a;min-height:14px"></div>';
+  go.parentNode.insertBefore(box,go);document.getElementById('tutchk').checked=!done;
+  box.addEventListener('keydown',e=>e.stopPropagation());
+  document.getElementById('tload').onclick=()=>{const ok=applyCode(document.getElementById('tcode').value);document.getElementById('tmsg').textContent=ok?'SAVE LOADED · $'+SAVE.cash+' · chapter '+(SAVE.chapter||0):'That save code is not valid.';if(ok)document.getElementById('tutchk').checked=false};
+  go.addEventListener('click',()=>{TUT.want=document.getElementById('tutchk').checked},true);
+  const b=document.createElement('button');b.textContent='SAVE CODE';b.style.cssText='position:fixed;left:8px;top:8px;z-index:20;padding:4px 9px;font:10px "IBM Plex Mono",monospace;letter-spacing:.1em;background:#0d0f13aa;color:#9fe8c0;border:1px solid #35ff8a66;border-radius:6px;cursor:pointer;opacity:.6;display:none';b.onclick=codeModal;document.body.appendChild(b);TUT.btn=b;
+})();
+// ===== tutorial
+const TS=[
+ {k:'WALK',d:'Use W A S D to walk around. Walk about 10 metres.',init:s=>{s.x=PL.x;s.z=PL.z},t:s=>Math.hypot(PL.x-s.x,PL.z-s.z)>10},
+ {k:'LOOK',d:'Turn the camera: move the mouse (click the game once to capture it) or hold Q / E.',init:s=>{s.y=PL.cam.yaw},t:s=>Math.abs(angDiff(PL.cam.yaw,s.y))>.8},
+ {k:'SPRINT',d:'Hold SHIFT while moving to sprint.',t:()=>IN.sprint&&PL.speed>6},
+ {k:'JUMP',d:'Press SPACE to jump.',t:()=>PL.air},
+ {k:'PHONE',d:'Press TAB to open your phone: story, garage, armory, travel and settings live there.',t:()=>!$('#phone').hidden},
+ {k:'CLOSE PHONE',d:'Press TAB again to close the phone.',t:()=>$('#phone').hidden},
+ {k:'MAP',d:'Press M to open the big map. Click a spot for turn-by-turn directions.',t:()=>!$('#bigmap').hidden},
+ {k:'CLOSE MAP',d:'Press M again to close it.',t:()=>$('#bigmap').hidden},
+ {k:'GET A CAR',d:'A car just appeared nearby. Walk up to it and press F to get in.',init:s=>{const fx=-Math.sin(PL.cam.yaw),fz=-Math.cos(PL.cam.yaw);try{const v=newVehicleNear('sedan',PL.x+fx*7+fz*2,PL.z+fz*7-fx*2,PL.cam.yaw+Math.PI/2,true);s.car=v}catch(e){}},t:()=>PL.mode==='car'},
+ {k:'DRIVE',d:'W accelerates, S brakes or reverses, A / D steer. Your car gently steers back to the middle of the road when you let go (L toggles lane assist). Drive about 80 metres.',init:s=>{s.x=PL.x;s.z=PL.z},t:s=>PL.mode==='car'&&Math.hypot(PL.x-s.x,PL.z-s.z)>80},
+ {k:'DRIFT',d:'The wheel is heavy on purpose: turn hard at speed, or tap SPACE (handbrake) while turning, to slide the car. Drift around a corner.',t:()=>PL.mode==='car'&&PL.veh&&PL.veh.slip>3.2&&PL.speed>10},
+ {k:'GET OUT',d:'Slow down and press F to get out. Do not bail at speed: it hurts.',t:()=>PL.mode==='foot'},
+ {k:'DRAW & SHOOT',d:'Hold RIGHT CLICK to aim, LEFT CLICK to fire. Number keys 1-5 or the wheel change weapons. Fire your pistol once.',init:s=>{s.a=SAVE.ammo.pistol},t:s=>SAVE.ammo.pistol<s.a},
+ {k:'GO INSIDE',d:'Every building can be entered. Stand against a wall and press F. Locked doors can be broken into with E (spam the key) — but that raises your heat.',t:()=>INT.on},
+ {k:'LEAVE',d:'Walk back to the door and press F to leave.',t:()=>!INT.on},
+ {k:'SUBWAY & TRAVEL',d:'Subway entrances (green) take you to real MTA stations with live arrivals. The phone TRAVEL tab fast-travels. Press ENTER or NEXT to continue.',manual:true},
+ {k:'WANTED LEVEL',d:'Crimes in front of witnesses raise your stars. Police chase you; lose them by breaking line of sight, hiding inside a building, or taking the subway. Press NEXT.',manual:true},
+ {k:'SAVING',d:'Your progress saves automatically. The SAVE CODE button (top-left) gives you a code you can paste on any device. Press NEXT to finish — you get $250.',manual:true}];
+function tutUI(){if(TUT.el)return TUT.el;const d=document.createElement('div');d.id='tut';d.style.cssText='position:fixed;left:50%;top:84px;transform:translateX(-50%);z-index:35;width:min(520px,90vw);background:#0d0f13e8;border:2px solid #ffb04a;border-radius:12px;padding:12px 16px;font:13px/1.5 "IBM Plex Mono",monospace;color:#f1eee8;display:none;pointer-events:auto';
+  d.innerHTML='<div style="display:flex;justify-content:space-between;color:#ffb04a;font-size:11px;letter-spacing:.14em"><span id="tuth"></span><span><button id="tutn" style="cursor:pointer;margin-right:6px">NEXT</button><button id="tuts" style="cursor:pointer">SKIP TUTORIAL</button></span></div><div id="tutt" style="font:22px Bebas Neue,Impact,sans-serif;letter-spacing:.15em;margin:4px 0"></div><div id="tutd"></div><div style="height:4px;background:#333;margin-top:8px"><div id="tutp" style="height:100%;background:#35ff8a;width:0"></div></div>';
+  document.body.appendChild(d);d.querySelector('#tutn').onclick=()=>tutNext();d.querySelector('#tuts').onclick=()=>tutEnd(false);d.addEventListener('keydown',e=>e.stopPropagation());return TUT.el=d}
+function tutShow(){const st=TS[TUT.i],d=tutUI();d.style.display='block';d.querySelector('#tuth').textContent='TUTORIAL '+(TUT.i+1)+' / '+TS.length;d.querySelector('#tutt').textContent=st.k;d.querySelector('#tutd').textContent=st.d;d.querySelector('#tutp').style.width=(TUT.i/TS.length*100)+'%';TUT.s={};if(st.init)try{st.init(TUT.s)}catch(e){console.error(e)}}
+function tutNext(){if(!TUT.on)return;chime();TUT.i++;if(TUT.i>=TS.length)return tutEnd(true);tutShow()}
+function tutEnd(finished){TUT.on=false;if(TUT.el)TUT.el.style.display='none';try{localStorage.setItem('tc_tut','1')}catch(e){}
+  if(finished){setCash(250);toast('TUTORIAL COMPLETE · +$250',2400)}
+  if(!MS.cur&&!CINE.on&&(SAVE.chapter||0)===0)setTimeout(()=>{try{startChapter(0)}catch(e){}},1500)}
+addEventListener('keydown',e=>{if(TUT.on&&e.code==='Enter'&&TS[TUT.i]&&TS[TUT.i].manual&&!CINE.on)tutNext()});
+setInterval(()=>{
+  if(TUT.btn&&G.started)TUT.btn.style.display='block';
+  if(!TUT.on&&TUT.want&&G.started&&!TUT.began){TUT.began=true;TUT.on=true;TUT.i=0;try{MS.cur=null;CINE.on&&endCine(true)}catch(e){}tutShow();return}
+  if(!TUT.on||CINE.on||G.via)return;const st=TS[TUT.i];if(!st||st.manual)return;
+  try{if(st.t(TUT.s))tutNext()}catch(e){}
+},250);
+// ---------- c11e: extra FPS work: half-rate shadow map, half-rate pedestrian AI, finer dynamic resolution
+const FPSX={f:0,pa:0,lastShadow:0};
+const _upF=updatePeds;updatePeds=function(dt,pl,cars,t){FPSX.pa+=dt;if(G.fps<50&&(FPSX.f&1)){return}const d=FPSX.pa;FPSX.pa=0;return _upF(d,pl,cars,t)};
+(function loop(){
+  FPSX.f++;
+  try{if(G.started&&typeof renderer!=='undefined'){const sm=renderer.shadowMap;sm.autoUpdate=false;
+    // refresh shadows every 2nd frame (every frame when fast enough, every 3rd when slow)
+    const every=G.fps>=58?1:G.fps>=40?2:3;if(FPSX.f%every===0)sm.needsUpdate=true}}catch(e){}
+  requestAnimationFrame(loop)})();
+setInterval(()=>{
+  if(!G.started||G.qLock||typeof renderer==='undefined')return;
+  const pr=renderer.getPixelRatio(),max=Math.min(devicePixelRatio||1,1.5);
+  if(G.fps<42&&pr>.6)renderer.setPixelRatio(Math.max(.6,pr-.1));
+  else if(G.fps>62&&pr<max)renderer.setPixelRatio(Math.min(max,pr+.05));
+  if(G.fps<30&&sun.shadow.mapSize.x>1024){sun.shadow.mapSize.set(1024,1024);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
+},2000);
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -4527,7 +4653,7 @@ function boot(){
         for(let i=0;i<30;i++){const c=spawnParked(0,-2404);if(c)PK.cars.push(c)}
         G.started=true;$('#loading').hidden=true;$('#hud').hidden=false;
         joinRoom(room);devStart();
-        toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on)startChapter(0)},3000);
+        toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on&&!TUT.on)startChapter(0)},3000);
         window.__real=REAL;window.__city={makePerson,COL,COAST,leaveRoom,QTE,qteStart,BLD,nearBuilding,enterBuilding,RIDE,CHS,chaseDirector,blocksNear,pedSample,PED,blockAt,SIG,COAST,PERF,devStart,SVC,svFrame,DET,makeCyber,pickTrain,arrivalsOf,enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
       }catch(err){$('#loading').textContent='ERROR: '+err.message;console.error(err)}
     },30));
