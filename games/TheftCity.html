@@ -3135,9 +3135,24 @@ const _im=initMTA;initMTA=function(){_im();initPanel();pollMeta();trafficPoll()}
 const DET={glow:null};
 const SVC={on:true,statics:[],scale:1,ms:16.7,kind:null,far:1600,vis:0,tot:0,hudT:0,regT:0,el:null,fwd:new THREE.Vector3(),rt:new THREE.Vector3(),up:new THREE.Vector3(),UP:new THREE.Vector3(0,1,0)};
 (function(){const ram=+navigator.deviceMemory||4,c=Math.max(1,+navigator.hardwareConcurrency||2);SVC.kind=ram<=2||c<=2?{n:'ENTRY',far:1500}:ram<=4||c<=4?{n:'LOW',far:2000}:ram<=8||c<=8?{n:'MID',far:2600}:{n:'HIGH',far:3200}})();
-function svRegister(){SVC.statics.length=0;
-  scene.traverse(o=>{if(!o.isMesh||!o.geometry||o.userData.noSV||!(o.isInstancedMesh||o.userData.sv)||!o.visible)return;const bs=o.geometry.boundingSphere;if(!bs||!(bs.radius>0)||bs.radius>2500)return;
-    const c=bs.center.clone().applyMatrix4(o.matrixWorld);const prop=!!o.isInstancedMesh&&!(o.material&&o.material.type==='ShaderMaterial');if(prop)o.castShadow=false;SVC.statics.push({o,prop,x:c.x,y:c.y,z:c.z,r:bs.radius*Math.max(o.scale.x,o.scale.y,o.scale.z)})})}
+const _svM=new THREE.Matrix4();
+function svSphere(o){ // true bounds of an InstancedMesh (the geometry sphere only describes one instance)
+  if(o.userData.svS)return o.userData.svS;
+  const g=o.geometry;if(!g.boundingSphere)g.computeBoundingSphere();
+  let n=o.count,x0=1e12,x1=-1e12,y0=1e12,y1=-1e12,z0=1e12,z1=-1e12;
+  for(let i=0;i<n;i++){o.getMatrixAt(i,_svM);const e=_svM.elements,x=e[12],y=e[13],z=e[14];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(z<z0)z0=z;if(z>z1)z1=z}
+  if(!n||x0>x1){return null}
+  const r=Math.hypot(x1-x0,y1-y0,z1-z0)/2+g.boundingSphere.radius*2.2;
+  return o.userData.svS={c:new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),r}}
+function svRegister(){
+  for(const s of SVC.statics)s.o.visible=true; // anything we hid must be re-seen, otherwise it would be forgotten while hidden
+  SVC.statics.length=0;
+  scene.traverse(o=>{if(!o.isMesh||!o.geometry||o.userData.noSV||!(o.isInstancedMesh||o.userData.sv)||!o.visible)return;
+    let center,rad;
+    if(o.isInstancedMesh){const q=svSphere(o);if(!q||!(q.r>0)||q.r>2500)return;center=q.c;rad=q.r}
+    else{const bs=o.geometry.boundingSphere;if(!bs||!(bs.radius>0)||bs.radius>2500)return;center=bs.center;rad=bs.radius}
+    const c=center.clone().applyMatrix4(o.matrixWorld);const prop=!!o.isInstancedMesh&&!(o.material&&o.material.type==='ShaderMaterial');if(prop)o.castShadow=false;
+    SVC.statics.push({o,prop,x:c.x,y:c.y,z:c.z,r:rad*Math.max(o.scale.x,o.scale.y,o.scale.z)})})}
 function svSeen(x,y,z,R,cp,tanH,tanV,near,far){
   const dx=x-cp.x,dy=y-cp.y,dz=z-cp.z,F=SVC.fwd,Rt=SVC.rt,Up=SVC.up,depth=dx*F.x+dy*F.y+dz*F.z;
   if(depth+R<near||depth-R>far)return false;
@@ -3875,6 +3890,92 @@ function chaseDirector(dt){
       fail:()=>{v.h+=sd*1.1;v.vx*=.4;v.vz*=.4;carDamage(v,28);shake=1;toast('SPUN OUT!',1200)}});return}}
 }
 const _bu12=busUpdate;busUpdate=function(dt){_bu12(dt);qteUpdate(dt);try{chaseDirector(dt)}catch(e){}};
+// ---------- c11c: realistic humanoid characters (7.5-head canon, anatomical segments, face, hair, clothing); geometry cached per look
+const HM={mat:null,cache:new Map()};
+const HAIR_EXTRA=[0x2a1a10,0x4a3220,0x8a5a2a,0xc8a060,0x9a9a9e,0x14110e,0x6a2a18];
+const SHOE_COLS=[0xf0f0f0,0x15151a,0x4a3020,0x2a3a5a,0x8a2a2a];
+const EYE_COLS=[0x3a2410,0x2a4a6a,0x2f5a3a,0x1a1a1a,0x5a3a1a];
+function hmMat(){return HM.mat||(HM.mat=new THREE.MeshLambertMaterial({vertexColors:true}))}
+const _hq=new THREE.Quaternion(),_hv1=new THREE.Vector3(),_hv2=new THREE.Vector3(),_hsc=new THREE.Vector3(),_mm2=new THREE.Matrix4(),_hUP=new THREE.Vector3(0,1,0);
+function hbuild(L){
+  const out={torso:[],head:[],armL:[],armR:[],legL:[],legR:[]};
+  const sph=(arr,x,y,z,rx,ry,rz,c,ws,hs)=>arr.push({g:new THREE.SphereGeometry(1,ws||10,hs||8),m:MX(x,y,z,0,0,0,rx,ry,rz),c});
+  const cyl=(arr,x,y,z,rt,rb,h,sx,sz,c,seg)=>arr.push({g:new THREE.CylinderGeometry(rt,rb,h,seg||10),m:MX(x,y,z,0,0,0,sx,1,sz),c});
+  const bx=(arr,x,y,z,w,h,d,c,rx,ry,rz)=>arr.push({g:BX(w,h,d),m:MX(x,y,z,rx||0,ry||0,rz||0),c});
+  const seg=(arr,p0,p1,r0,r1,c,sz)=>{_hv1.set(p0[0],p0[1],p0[2]);_hv2.set(p1[0],p1[1],p1[2]);const d=_hv2.clone().sub(_hv1),len=d.length();_hq.setFromUnitVectors(_hUP,d.normalize());_hsc.set(1,len,sz||1);_mm2.compose(_hv1.clone().add(_hv2).multiplyScalar(.5),_hq,_hsc);arr.push({g:new THREE.CylinderGeometry(r1,r0,1,9),m:_mm2.clone(),c})};
+  const sk=L.skin,skd=new THREE.Color(sk).multiplyScalar(.9).getHex(),W=L.fem?.93:1,sc=L.shirt,jk=L.jacket!=null?L.jacket:null,body=jk!=null?jk:sc;
+  const T=out.torso;
+  // pelvis, abdomen, chest, shoulders, neck (origin = torso centre, world y 1.2)
+  sph(T,0,-.43,0,.175*W*(L.fem?1.08:1),.12,.115,L.pants);
+  cyl(T,0,-.27,0,.15*W,.17*W,.3,1.1,.78,L.dress?sc:body);
+  cyl(T,0,.02,0,.185*W,.155*W,.34,1.2,.72,body);
+  sph(T,0,.2,.0,.205*W,.1,.12,body);
+  if(L.fem){sph(T,-.075,.1,.095,.07,.065,.06,body);sph(T,.075,.1,.095,.07,.065,.06,body)}
+  else{sph(T,0,.12,.07,.17,.075,.06,body)}
+  if(!L.dress){cyl(T,0,-.33,0,.158*W,.158*W,.035,1.12,.8,0x1a1a1e);bx(T,0,-.33,.118,.035,.03,.012,0xb8a050)}
+  else cyl(T,0,-.52,0,.19*W,.27*W,.36,1.1,.9,sc);
+  cyl(T,0,.31,0,.052,.058,.12,1,1,sk);cyl(T,0,.27,0,.078,.085,.04,1,.95,body);
+  if(jk!=null){bx(T,0,-.02,.118,.05,.5,.012,sc);bx(T,-.07,.16,.106,.05,.14,.012,jk,0,0,.4);bx(T,.07,.16,.106,.05,.14,.012,jk,0,0,-.4);cyl(T,0,-.46,0,.185*W,.2*W,.1,1.15,.82,jk)}
+  else{bx(T,0,.24,.1,.07,.05,.012,skd);}
+  // head (origin = head centre, world y 1.72)
+  const H=out.head,HW=L.fem?.97:1;
+  sph(H,0,.0,-.004,.098*HW,.122,.112,sk,12,10);sph(H,0,-.07,.016,.082*HW,.07,.088,sk,10,8);sph(H,0,-.1,.04,.045,.03,.04,sk);
+  bx(H,0,-.014,.114,.026,.05,.034,skd);sph(H,0,-.036,.12,.017,.012,.014,skd,6,5);
+  for(const s of [-1,1]){sph(H,s*.1,-.005,.0,.016,.032,.022,skd,6,5);
+    sph(H,s*.04,.02,.098,.023,.013,.01,0xf4f4f0,8,6);sph(H,s*.04,.02,.106,.0105,.0105,.006,L.eye,6,5);sph(H,s*.04,.02,.109,.0045,.0045,.004,0x050505,5,4);
+    bx(H,s*.04,.052,.104,.05,.009,.012,L.brow,0,0,s*(L.fem?-.08:.04));bx(H,s*.07,-.05,.09,.012,.02,.01,skd)}
+  bx(H,0,-.063,.105,.05,.009,.01,L.fem?0xb04a52:0x7a3a3a);bx(H,0,-.071,.104,.036,.007,.01,L.fem?0xa04048:0x8a4a4a);
+  // hair
+  const hc=L.hair,hs=L.style;
+  if(hs===0||hs===5||hs===6||hs===1){sph(H,0,.018,-.008,.108,.118,.12,hc,12,8);bx(H,0,.05,.085,.19,.03,.03,hc);for(const s of [-1,1])bx(H,s*.1,-.01,-.02,.025,.08,.1,hc)}
+  if(hs===1){bx(H,0,-.1,-.1,.21,.3,.05,hc);for(const s of [-1,1]){bx(H,s*.108,-.09,.0,.03,.22,.1,hc)}}
+  if(hs===3){sph(H,0,.012,-.004,.102,.12,.116,hc,10,6)}
+  if(hs===4){sph(H,0,.04,-.015,.158,.15,.15,hc,10,8)}
+  if(hs===5){cyl(H,0,-.035,-.13,.03,.02,.2,1,1,hc,6)}
+  if(hs===6){sph(H,0,.12,-.07,.05,.05,.05,hc,8,6)}
+  if(hs===2&&L.beard){sph(H,0,-.09,.045,.07,.04,.05,0x1a1410,8,6)}
+  if(L.beard&&hs!==2){bx(H,0,-.1,.05,.12,.05,.05,hc)}
+  if(L.hat){const hcl=L.hat;
+    if(L.hatKind===0){sph(H,0,.045,-.005,.115,.08,.125,hcl,10,6);bx(H,0,.04,.14,.12,.012,.1,hcl,.1)}          // ball cap
+    else if(L.hatKind===1){sph(H,0,.04,0,.112,.09,.12,hcl,10,6)}                                             // beanie
+    else{cyl(H,0,.085,0,.115,.125,.06,1,1.05,hcl,12);bx(H,0,.04,.13,.13,.01,.1,0x111,.0);bx(H,0,.09,.125,.03,.03,.01,0xd8c050)}} // police cap
+  if(L.glasses){for(const s of [-1,1])bx(H,s*.04,.02,.116,.05,.036,.006,0x1a1a1a);bx(H,0,.025,.116,.03,.006,.006,0x1a1a1a)}
+  // arms (origin = shoulder)
+  for(const side of [-1,1]){const A=side<0?out.armL:out.armR,sleeve=(jk!=null||L.long)?body:sc,sh=L.short?sk:sleeve;
+    sph(A,0,0,0,.062,.062,.06,body,8,6);
+    seg(A,[0,0,0],[0,-.3,.0],.052,.043,L.short?sc:sleeve);sph(A,0,-.3,0,.043,.043,.043,sh,6,5);
+    seg(A,[0,-.3,0],[0,-.56,.025],.041,.031,L.short?sk:sleeve);
+    sph(A,0,-.6,.03,.034,.052,.022,sk,8,6);bx(A,-side*.03,-.6,.04,.014,.05,.014,sk);
+    if(L.short)seg(A,[0,0,0],[0,-.13,0],.056,.05,sc)}
+  // legs (origin = hip)
+  for(const side of [-1,1]){const A=side<0?out.legL:out.legR;
+    seg(A,[0,0,0],[0,-.43,.012],.088*W,.062,L.pants);sph(A,0,-.43,.012,.062,.062,.062,L.pants,6,5);
+    seg(A,[0,-.43,.012],[0,-.8,0],.058,.042,L.pants);
+    sph(A,0,-.835,.045,.056,.04,.125,L.shoe,8,6);bx(A,0,-.865,.05,.1,.022,.255,0x1a1a1a);bx(A,0,-.81,-.02,.09,.07,.09,L.shoe)}
+  return out}
+function hmGet(L){
+  const key=[L.shirt,L.skin,L.hair,L.pants,L.jacket,L.hat,L.hatKind,L.fem,L.style,L.shoe,L.eye,L.brow,L.beard,L.glasses,L.short,L.long,L.dress].join('|');
+  let e=HM.cache.get(key);if(e)return e;
+  const b=hbuild(L);e={};for(const k in b)e[k]=mergeParts(b[k]);
+  if(HM.cache.size>240){const f=HM.cache.keys().next().value;HM.cache.delete(f)}HM.cache.set(key,e);return e}
+makePerson=function(shirt,o){
+  o=o||{};const r=Math.random,pick=a=>a[(r()*a.length)|0];
+  const fem=o.fem!=null?o.fem:r()<.42,skin=o.skin!=null?o.skin:pick(SKINS);
+  let hair=o.hair!=null?o.hair:(r()<.7?pick(HAIRS):pick(HAIR_EXTRA));
+  const style=o.style!=null?o.style:(fem?pick([1,1,1,0,5,6,4]):pick([0,0,0,3,2,4,0]));
+  const pants=o.pants!=null?o.pants:pick([0x2c3140,0x3b4256,0x5a4a3a,0x222222,0x4a5a6a,0x6a5a42,0x20242c]);
+  const L={shirt:shirt==null?0x888888:shirt,skin,hair,pants,jacket:o.jacket!=null?o.jacket:null,hat:o.hat!=null?o.hat:null,hatKind:o.hat!=null?(o.hatKind!=null?o.hatKind:(o.hat===0x111827||o.hat===0x0d0f12?2:(r()<.6?0:1))):0,
+    fem,style,shoe:pick(SHOE_COLS),eye:pick(EYE_COLS),brow:new THREE.Color(hair).multiplyScalar(.8).getHex(),beard:!fem&&style!==4&&r()<.18,glasses:r()<.14,short:o.jacket==null&&r()<.45,long:o.jacket==null&&r()<.3,dress:fem&&o.jacket==null&&r()<.16};
+  if(L.hat&&(style===1||style===5))L.style=0;
+  const parts=hmGet(L),mat=hmMat(),g=new THREE.Group();
+  const mesh=geo=>{const m=new THREE.Mesh(geo,mat);m.castShadow=true;return m};
+  const legL=new THREE.Group(),legR=new THREE.Group(),armL=new THREE.Group(),armR=new THREE.Group(),head=new THREE.Group(),torso=new THREE.Group();
+  legL.position.set(-.1,.88,0);legR.position.set(.1,.88,0);armL.position.set(-.255*(fem?.94:1),1.46,0);armR.position.set(.255*(fem?.94:1),1.46,0);head.position.set(0,1.73,0);torso.position.set(0,1.2,0);
+  legL.add(mesh(parts.legL));legR.add(mesh(parts.legR));armL.add(mesh(parts.armL));armR.add(mesh(parts.armR));head.add(mesh(parts.head));torso.add(mesh(parts.torso));
+  g.add(legL,legR,armL,armR,torso,head);
+  const sc=(fem?.955:1)*(.95+r()*.09);g.scale.setScalar(sc);
+  g.userData={legL,legR,armL,armR,head,torso,wpn:null,wkind:null};
+  return g};
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -4427,7 +4528,7 @@ function boot(){
         G.started=true;$('#loading').hidden=true;$('#hud').hidden=false;
         joinRoom(room);devStart();
         toast('WELCOME TO NEW YORK',2400);if((SAVE.chapter||0)===0&&!DEV.police)setTimeout(()=>{if(!MS.cur&&!CINE.on)startChapter(0)},3000);
-        window.__real=REAL;window.__city={COL,COAST,leaveRoom,QTE,qteStart,BLD,nearBuilding,enterBuilding,RIDE,CHS,chaseDirector,blocksNear,pedSample,PED,blockAt,SIG,COAST,PERF,devStart,SVC,svFrame,DET,makeCyber,pickTrain,arrivalsOf,enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
+        window.__real=REAL;window.__city={makePerson,COL,COAST,leaveRoom,QTE,qteStart,BLD,nearBuilding,enterBuilding,RIDE,CHS,chaseDirector,blocksNear,pedSample,PED,blockAt,SIG,COAST,PERF,devStart,SVC,svFrame,DET,makeCyber,pickTrain,arrivalsOf,enterStation,INT,mx,TRAF,ELEV,travelTo,renderPanel,TP,stationRet,spawnBus,STN,SUB,BUS,LINES,boardText,buildMTAStations,oneWayOK,DEV,FUG,via,policeArrest,submitLine,flushLines,HEAT_AT,DFT,devStart,spawnFug,PEERS,say,SAYS,CITYX,MMZ,INT,SUB,STN,enterRoom,enterStation,nearDoor,leaveRoom,roomAct,dropGun,GP,spawnFreeThug,LODP,newVehicleNear,Veh,spawnTraffic,camera:camera,PL,TR,PK,CITY,G,SAVE,MS,scene,camera,renderer,K,IN,W,addHeat,startMission,enterTarget,CMB,fireWeapon,hurtPlayer,PED,PK,makePerson,CINE,STY,CH,SHOPS,startChapter,nextLine,runDef};
       }catch(err){$('#loading').textContent='ERROR: '+err.message;console.error(err)}
     },30));
   });
