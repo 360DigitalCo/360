@@ -548,6 +548,8 @@ function setActiveServer(id){
    SIDEBAR
 ══════════════════════════════════════════════════════ */
 async function buildSidebar(server){
+  window.serverBotNames=[];
+  if(server?.id){sb.from('bot_server_installs').select('bots(handle,name)').eq('server_id',server.id).then(({data})=>{window.serverBotNames=(data||[]).map(r=>r.bots&&(r.bots.handle||r.bots.name)).filter(Boolean).map(n=>String(n).toLowerCase());});}
   const header=document.getElementById('sb-server-name');
   const body=document.getElementById('sidebarBody'); body.innerHTML='';
   if(showingDMs){header.textContent='Direct Messages'; await buildDMList(body); return;}
@@ -1005,7 +1007,7 @@ document.getElementById('dc-messages').addEventListener('scroll',async function(
 ══════════════════════════════════════════════════════ */
 function renderMessage(msg,isRealtime){
   // Fire Carlos event for commands (realtime messages only, not self)
-  if(isRealtime && msg.text?.startsWith('!')) {
+  if(isRealtime && (msg.text?.startsWith('!') || /(^|\s)@carlos\b/i.test(msg.text||''))) {
     window.dispatchEvent(new CustomEvent('carlos-message', { detail: msg }));
   }
   const el=buildMsgEl(msg); if(!el) return;
@@ -2142,7 +2144,7 @@ function handleMentionAC(){
   const popup=document.getElementById('dc-mention-popup');
   if(!match){popup.innerHTML='';mentionQuery=null;return;}
   mentionQuery=match[1]; mentionStart=pos-match[0].length;
-  const matches=knownUsers.filter(u=>u.toLowerCase().startsWith(mentionQuery.toLowerCase())).slice(0,8);
+  const matches=[...new Set([...(window.serverBotNames||[]),...knownUsers])].filter(u=>u.toLowerCase().startsWith(mentionQuery.toLowerCase())).slice(0,8);
   if(!matches.length){popup.innerHTML='';return;}
   popup.innerHTML=matches.map((u,i)=>`<div class="dc-mention-item${i===mentionSelIdx?' active':''}" data-user="${esc(u)}">@${esc(u)}</div>`).join('');
   popup.querySelectorAll('.dc-mention-item').forEach(opt=>opt.addEventListener('mousedown',e=>{e.preventDefault();insertMention(opt.dataset.user);}));
@@ -3118,28 +3120,25 @@ window.denyAgeException = async function(userId) {
 /* ══════════════════════════════════════════════════════
    CLIPBOARD IMAGE PASTE
 ══════════════════════════════════════════════════════ */
-document.addEventListener('paste', async (e) => {
-  if(!currentUserId) return;
-  if(!activeRoom) return;
-  const items = [...(e.clipboardData?.items||[])];
-  const imgItem = items.find(i => i.type.startsWith('image/'));
-  if(!imgItem) return;
-  e.preventDefault();
-  const file = imgItem.getAsFile();
+function stagePastedFile(file){
+  if(file.size>10*1024*1024){showToast('❌ Max file size is 10 MB');return;}
+  const ext=(file.type.split('/')[1]||'png').split('+')[0];
+  const named=file.name&&file.name!=='image.png'?file:new File([file],`pasted-${Date.now()}.${ext}`,{type:file.type});
+  pendingFile=named;
+  document.getElementById('up-name').textContent=named.name;
+  document.getElementById('up-icon').textContent='🖼️';
+  document.getElementById('dc-upload-preview').classList.remove('hidden');
+  document.getElementById('msgInput').focus();
+}
+document.addEventListener('paste',(e)=>{
+  if(!currentUserId||!activeRoom) return;
+  const cd=e.clipboardData; if(!cd) return;
+  let file=[...(cd.files||[])].find(f=>f.type.startsWith('image/'));
+  if(!file){const it=[...(cd.items||[])].find(i=>i.kind==='file'&&i.type.startsWith('image/')); file=it&&it.getAsFile();}
   if(!file) return;
-  const ext = file.type.split('/')[1] || 'png';
-  const fileName = `paste-${currentUserId}-${Date.now()}.${ext}`;
-  showToast('📋 Uploading pasted image…');
-  const{data,error}=await sb.storage.from('chat-uploads').upload(fileName, file, {contentType:file.type});
-  if(error){showToast('❌ Paste upload failed: '+error.message);return;}
-  const{data:urlData}=sb.storage.from('chat-uploads').getPublicUrl(fileName);
-  const url=urlData?.publicUrl;
-  if(!url) return;
-  const payload={user_id:currentUserId,username:currentProfile?.username,avatar_url:currentProfile?.avatar_url||null,tag:currentProfile?.tag||null,role:currentProfile?.role||'user',text:'',file_url:url};
-  if(activeRoom.type==='dm'){payload.dm_id=activeRoom.id;await sb.from('dm_messages').insert(payload);}
-  else{if(activeRoom.type==='channel')payload.channel_id=activeRoom.id;else if(activeRoom.type==='server')payload.server_id=activeRoom.id;await sb.from('messages').insert(payload);}
-  showToast('✅ Image sent!');
-});
+  e.preventDefault();
+  stagePastedFile(file);
+},true);
 
 /* ══════════════════════════════════════════════════════
    CHANNEL EDIT / REORDER
