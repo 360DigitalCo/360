@@ -2533,6 +2533,8 @@ function openModal(id){
   }
 }
 function closeModal(id){document.getElementById(id)?.classList.add('hidden');}
+document.getElementById('sbFriends').onclick=()=>{if(!currentUserId){location.href='/account';return;}openFriendsPanel();};
+document.getElementById('sbDMs').onclick=()=>document.getElementById('railDMs').click();
 document.getElementById('railAddServer').onclick=()=>{if(!currentUserId){location.href='/account';return;}openServerModal(null);};
 document.getElementById('sm-cancel').onclick=()=>closeModal('serverModal');
 document.getElementById('railDMs').onclick=async()=>{

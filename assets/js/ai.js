@@ -415,11 +415,44 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
+  function renderMath(tex, display) {
+    if (!window.katex) return null;
+    try {
+      return katex.renderToString(tex, { displayMode: display, throwOnError: false, strict: "ignore", trust: false });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function extractMath(raw) {
+    const store = [];
+    const keep = (html) => "AIPH" + (store.push(html) - 1) + "END";
+    const codes = [];
+    let out = raw.replace(/```[\s\S]*?(```|$)|`[^`\n]+`/g, (m) => "AICODE" + (codes.push(m) - 1) + "END");
+
+    const put = (tex, display, src) => {
+      const html = renderMath(tex.trim(), display);
+      return html == null ? src : keep(display ? '<div class="ai-math-block">' + html + "</div>" : html);
+    };
+
+    out = out.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => put(tex, true, m));
+    out = out.replace(/\\\[([\s\S]+?)\\\]/g, (m, tex) => put(tex, true, m));
+    out = out.replace(/\\\(([\s\S]+?)\\\)/g, (m, tex) => put(tex, false, m));
+    out = out.replace(/(^|[^\\$\w])\$(?![\s$])([^$\n]+?)(?<![\s\\])\$(?![\d$\w])/g, (m, pre, tex) => pre + put(tex, false, "$" + tex + "$"));
+
+    out = out.replace(/AICODE(\d+)END/g, (m, n) => codes[Number(n)]);
+    return { text: out, store };
+  }
+
   function renderMarkdown(text) {
     const raw = String(text || "");
     if (!window.marked) return escHtml(raw).replace(/\n/g, "<br>");
 
-    const html = marked.parse(raw);
+    const math = extractMath(raw);
+    let html = marked.parse(math.text);
+    if (window.DOMPurify) html = DOMPurify.sanitize(html);
+    html = html.replace(/AIPH(\d+)END/g, (m, n) => math.store[Number(n)] || "");
+
     const wrap = document.createElement("div");
     wrap.innerHTML = html;
 
