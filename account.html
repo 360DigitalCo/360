@@ -417,6 +417,21 @@
     .ac-modal-btns .am-danger { background:#ef4444; color:#fff; }
   </style>
 <meta content="360  Account — part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="360 — Account" property="og:title"/><meta content="360  Account — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/account.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 — Account" name="twitter:title"/><meta content="360  Account — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/account.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<!-- Cloudflare Turnstile: uncomment this script and the three widget divs below to turn it on.
+     Also enable "Captcha protection" (Turnstile) in Supabase Auth settings with the secret key.
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+-->
+<script>
+function captchaToken(sel){
+  const el=document.querySelector(sel);
+  if(!el||!window.turnstile) return undefined;
+  const token=window.turnstile.getResponse(sel);
+  return token||null;
+}
+function captchaReset(sel){
+  try{ if(window.turnstile&&document.querySelector(sel)) window.turnstile.reset(sel); }catch(_){}
+}
+</script>
 </head>
 <body>
 <div class="cursor-dot"></div>
@@ -646,6 +661,7 @@
           <input id="siPass" type="password" placeholder="Your password" autocomplete="current-password" />
         </div>
         <p class="ac-msg" id="siMsg"></p>
+        <!-- <div class="cf-turnstile" id="tsSignIn" data-sitekey="0x4AAAAAAD5wm86suq8-7d89" data-theme="auto"></div> -->
         <button class="ac-btn" id="siBtn">Sign In</button>
         <p class="ac-switch" style="margin-top:8px;"><a href="#" id="forgotPassLink">Forgot password?</a></p>
         <div class="ac-divider">or continue with</div>
@@ -688,8 +704,10 @@
         if(!prof?.email){ setMsg(msg,'No account found with that username.','err'); btn.disabled=false; btn.textContent='Sign In'; return; }
         emailToUse = prof.email;
       }
-      const { error } = await sb.auth.signInWithPassword({ email:emailToUse, password:passVal });
-      if(error){ setMsg(msg,error.message,'err'); btn.disabled=false; btn.textContent='Sign In'; return; }
+      const cap = captchaToken('#tsSignIn');
+      if(cap===null){ setMsg(msg,'Complete the verification check first.','err'); btn.disabled=false; btn.textContent='Sign In'; return; }
+      const { error } = await sb.auth.signInWithPassword({ email:emailToUse, password:passVal, options:{ captchaToken:cap } });
+      if(error){ captchaReset('#tsSignIn'); setMsg(msg,error.message,'err'); btn.disabled=false; btn.textContent='Sign In'; return; }
 
       // If this account has 2FA enabled, the session is only aal1 so far —
       // prompt for the authenticator code before letting them in.
@@ -762,6 +780,7 @@
             <input id="fpEmail" type="email" placeholder="you@example.com" autocomplete="email" />
           </div>
           <p class="ac-msg" id="fpEmailMsg"></p>
+          <!-- <div class="cf-turnstile" id="tsReset" data-sitekey="0x4AAAAAAD5wm86suq8-7d89" data-theme="auto"></div> -->
           <button class="ac-btn" id="fpEmailBtn">Send Reset Link</button>
         `;
         const email = document.getElementById('fpEmail');
@@ -772,9 +791,13 @@
           const val = email.value.trim();
           if(!val){ setMsg(msg,'Enter your email address.','err'); return; }
           btn.disabled = true; btn.textContent = 'Sending…'; setMsg(msg,'','');
+          const cap = captchaToken('#tsReset');
+          if(cap===null){ setMsg(msg,'Complete the verification check first.','err'); btn.disabled=false; btn.textContent='Send Reset Link'; return; }
           const { error } = await sb.auth.resetPasswordForEmail(val, {
-            redirectTo: window.location.origin + '/reset-password'
+            redirectTo: window.location.origin + '/reset-password',
+            captchaToken: cap
           });
+          captchaReset('#tsReset');
           btn.disabled = false; btn.textContent = 'Send Reset Link';
           // Always show a generic success message (avoids leaking which emails exist)
           if(error && error.status && error.status !== 400) { setMsg(msg, error.message, 'err'); return; }
@@ -1016,6 +1039,7 @@
           <span class="ac-hint" id="s4ConfirmHint"></span>
         </div>
         <p class="ac-msg" id="s4Msg"></p>
+        <!-- <div class="cf-turnstile" id="tsSignUp" data-sitekey="0x4AAAAAAD5wm86suq8-7d89" data-theme="auto"></div> -->
         <button class="ac-btn" id="s4Create">Create 360ID</button>
         <button class="su-back-btn" id="s4Back">← Back</button>
       `;
@@ -1073,12 +1097,14 @@
       }
       btn.disabled=true; btn.textContent='Creating your 360ID…'; setMsg(msg,'','');
       const avatarUrl = monogramSVG(SU.letter, SU.bg, 200);
+      const signUpCap = captchaToken('#tsSignUp');
+      if(signUpCap===null){ setMsg(msg,'Complete the verification check first.','err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
       const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
         email, password,
-        options:{ data:{ username, first_name:SU.firstName, last_name:SU.lastName||null, birthdate:SU.birthdate,
+        options:{ captchaToken: signUpCap, data:{ username, first_name:SU.firstName, last_name:SU.lastName||null, birthdate:SU.birthdate,
                          avatar_style:'monogram', avatar_seed:SU.letter+'|'+SU.bg } }
       });
-      if(signUpErr){ setMsg(msg,signUpErr.message,'err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
+      if(signUpErr){ captchaReset('#tsSignUp'); setMsg(msg,signUpErr.message,'err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
       const userId = signUpData?.user?.id;
       if(userId){
         const { error: upsertErr } = await sb.from('profiles').upsert({
