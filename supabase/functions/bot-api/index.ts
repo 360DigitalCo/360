@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
   const { data: bot } = await admin
     .from("bots")
-    .select("id, name, handle, avatar_url, bot_user_id")
+    .select("id, name, handle, avatar_url, bot_user_id, prefix")
     .eq("id", botId)
     .maybeSingle();
   if (!bot?.bot_user_id) return json({ error: "Bot is not available" }, 403);
@@ -59,6 +59,45 @@ Deno.serve(async (req) => {
       .in("server_id", ids)
       .order("position");
     return json({ channels: channels ?? [] });
+  }
+
+  if (req.method === "GET" && path.endsWith("/events")) {
+    const { data: installs } = await admin.from("bot_server_installs").select("server_id").eq("bot_id", bot.id);
+    const serverIds = (installs ?? []).map((i) => i.server_id);
+    if (!serverIds.length) return json({ events: [] });
+    const { data: chans } = await admin.from("channels").select("id, server_id").in("server_id", serverIds);
+    const serverOf = new Map((chans ?? []).map((c) => [c.id, c.server_id]));
+    if (!serverOf.size) return json({ events: [] });
+
+    const q = new URL(req.url).searchParams;
+    const afterRaw = q.get("after");
+    const afterMs = afterRaw ? Date.parse(afterRaw) : Date.now() - 60_000;
+    const after = new Date(Number.isFinite(afterMs) ? afterMs : Date.now() - 60_000).toISOString();
+
+    const { data: rows } = await admin
+      .from("messages")
+      .select("id, channel_id, user_id, username, text, created_at")
+      .in("channel_id", [...serverOf.keys()])
+      .gt("created_at", after)
+      .neq("user_id", bot.bot_user_id)
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    const prefix = bot.prefix || "!";
+    const mention = new RegExp(`(^|\\s)@${bot.handle.replace(/[^a-z0-9_]/gi, "")}\\b`, "i");
+    const events = (rows ?? [])
+      .filter((m) => m.text && (m.text.startsWith(prefix) || mention.test(m.text)))
+      .slice(0, 50)
+      .map((m) => ({
+        id: m.id,
+        channel_id: m.channel_id,
+        server_id: serverOf.get(m.channel_id),
+        author: { id: m.user_id, username: m.username },
+        content: m.text,
+        created_at: m.created_at,
+        type: m.text.startsWith(prefix) ? "command" : "mention",
+      }));
+    return json({ events, next_after: events.length ? events[events.length - 1].created_at : after });
   }
 
   if (req.method === "POST" && path.endsWith("/messages")) {
