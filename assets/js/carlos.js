@@ -234,6 +234,7 @@ window.Carlos = (function () {
   function init() {
     // Hook into the realtime message stream
     window.addEventListener('carlos-message', async (e) => {
+      if (!e.detail || e.detail.user_id !== window.currentUserId) return;
       await handleMessage(e.detail);
     });
     // Also hook into new member joins

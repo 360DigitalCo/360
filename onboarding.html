@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1.0" name="viewport"/>
-<title>Welcome — 360</title>
+<title>Welcome - 360</title>
 <link href="/assets/css/main.css" rel="stylesheet"/>
 <link href="/assets/css/wide.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -34,119 +34,139 @@
     .ob-agree{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--dc-muted);margin-bottom:16px;}
     .ob-agree input{margin-top:2px;accent-color:var(--a);}
   </style>
-<meta content="Welcome  360 — part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="Welcome — 360" property="og:title"/><meta content="Welcome  360 — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/onboarding.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Welcome — 360" name="twitter:title"/><meta content="Welcome  360 — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/onboarding.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<meta content="Welcome  360 - part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="Welcome - 360" property="og:title"/><meta content="Welcome  360 - part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/onboarding.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Welcome - 360" name="twitter:title"/><meta content="Welcome  360 - part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/onboarding.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
 </head>
 <body>
 <div class="ob-wrap">
 <div class="ob-progress" id="ob-progress"></div>
-<div class="ob-card" id="ob-card"><div style="text-align:center;font-size:32px;">⏳</div></div>
+<div class="ob-card" id="ob-card"><div class="ob-sub" style="text-align:center;margin:0;">Loading...</div></div>
 </div>
 <script>
 const SB_URL='https://wiswfpfsjiowtrdyqpxy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const sb=window.supabaseClient||supabase.createClient(SB_URL,SB_KEY);
 
-let server=null, session=null, currentStep=0, selectedRoles=[], selectedChannels=[];
+let server=null,session=null,currentStep=0,startChannel='',channelList=[];
+const selectedRoles=new Set();
 const steps=[];
+const card=()=>document.getElementById('ob-card');
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function iconHTML(){
+  if(server.icon&&/^https?:\/\//.test(server.icon))return '<img src="'+esc(server.icon)+'" alt="" style="width:64px;height:64px;border-radius:16px;object-fit:cover;">';
+  return esc(server.icon||'')||'<span data-octicon="globe"></span>';
+}
+
+function chatUrl(){
+  let u='/chat?s='+encodeURIComponent(server.slug||server.id);
+  if(startChannel)u+='&c='+encodeURIComponent(startChannel);
+  return u;
+}
 
 async function init(){
   const{data:{session:s}}=await sb.auth.getSession();
   session=s;
-  if(!session){location.href='/account';return;}
   const serverId=new URLSearchParams(location.search).get('server');
+  if(!session){location.href='/account?from='+encodeURIComponent(location.pathname+location.search);return;}
   if(!serverId){location.href='/chat';return;}
-  const{data:sv}=await sb.from('servers').select('*').eq('id',serverId).maybeSingle();
+  const{data:sv}=await sb.from('servers').select('id,name,slug,icon,description,onboarding_enabled,onboarding_rules,onboarding_roles,onboarding_welcome_text').eq('id',serverId).maybeSingle();
   server=sv;
   if(!server){location.href='/chat';return;}
+  const{data:mem}=await sb.from('server_members').select('onboarding_done').eq('server_id',server.id).eq('user_id',session.user.id).maybeSingle();
+  if(!mem){location.href='/discover';return;}
+  if(mem.onboarding_done||!server.onboarding_enabled){location.href=chatUrl();return;}
 
-  // Build steps
-  steps.push({id:'welcome',render:renderWelcome});
-  if(server.onboarding_rules) steps.push({id:'rules',render:renderRules});
-  const obRoles=server.onboarding_roles||[];
-  if(obRoles.length) steps.push({id:'roles',render:renderRoles});
-  const obChannels=server.onboarding_channels||[];
-  if(obChannels.length) steps.push({id:'channels',render:renderChannels});
-  steps.push({id:'done',render:renderDone});
+  const{data:chs}=await sb.from('channels').select('name,description').eq('server_id',server.id).eq('is_public',true).order('position');
+  channelList=chs||[];
 
+  steps.push(renderWelcome);
+  if(server.onboarding_rules)steps.push(renderRules);
+  if(Array.isArray(server.onboarding_roles)&&server.onboarding_roles.length)steps.push(renderRoles);
+  if(channelList.length>1)steps.push(renderChannels);
+  steps.push(renderDone);
   renderProgress();
-  renderStep();
+  steps[0]();
 }
 
 function renderProgress(){
-  const el=document.getElementById('ob-progress');
-  el.innerHTML=steps.map((_,i)=>`<div class="ob-step-dot${i<=currentStep?' done':''}"></div>`).join('');
+  document.getElementById('ob-progress').innerHTML=steps.map((_,i)=>'<div class="ob-step-dot'+(i<=currentStep?' done':'')+'"></div>').join('');
 }
 
-function renderStep(){ steps[currentStep].render(); }
-
-function nextStep(){currentStep++;renderProgress();document.getElementById('ob-card').style.animation='none';requestAnimationFrame(()=>{document.getElementById('ob-card').style.animation='';renderStep();});}
-
-function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function nextStep(){
+  currentStep++;
+  renderProgress();
+  const c=card();
+  c.style.animation='none';
+  requestAnimationFrame(()=>{c.style.animation='';steps[currentStep]();});
+}
 
 function renderWelcome(){
-  document.getElementById('ob-card').innerHTML=`
-    <div class="ob-icon">${server.icon||'🌐'}</div>
-    <div class="ob-title">Welcome to ${esc(server.name)}!</div>
-    <div class="ob-sub">${server.onboarding_welcome_text?esc(server.onboarding_welcome_text):'We\'re glad you\'re here. Let\'s get you set up.'}</div>
-    ${server.description?`<div class="ob-sub" style="margin-top:-8px;">${esc(server.description)}</div>`:''}
-    <button class="ob-btn" onclick="nextStep()">Get Started →</button>
-  `;
+  card().innerHTML=
+    '<div class="ob-icon">'+iconHTML()+'</div>'+
+    '<div class="ob-title">Welcome to '+esc(server.name)+'</div>'+
+    '<div class="ob-sub">'+esc(server.onboarding_welcome_text||'We are glad you are here. Let us get you set up.')+'</div>'+
+    (server.description?'<div class="ob-sub" style="margin-top:-8px;">'+esc(server.description)+'</div>':'')+
+    '<button class="ob-btn" id="ob-next" type="button">Get Started</button>';
+  document.getElementById('ob-next').onclick=nextStep;
 }
 
 function renderRules(){
-  document.getElementById('ob-card').innerHTML=`
-    <div class="ob-icon">📜</div>
-    <div class="ob-title">Server Rules</div>
-    <div class="ob-sub">Please read and agree to the rules before continuing.</div>
-    <div class="ob-rules">${esc(server.onboarding_rules)}</div>
-    <label class="ob-agree"><input type="checkbox" id="rules-agree"/> I have read and agree to the server rules.</label>
-    <button class="ob-btn" onclick="agreeRules()">I Agree →</button>
-  `;
-}
-function agreeRules(){
-  if(!document.getElementById('rules-agree').checked){console.warn('Please agree to the rules to continue.');return;}
-  nextStep();
+  card().innerHTML=
+    '<div class="ob-title">Server Rules</div>'+
+    '<div class="ob-sub">Please read and agree to the rules before continuing.</div>'+
+    '<div class="ob-rules">'+esc(server.onboarding_rules)+'</div>'+
+    '<label class="ob-agree"><input type="checkbox" id="rules-agree"/> I have read and agree to the server rules.</label>'+
+    '<button class="ob-btn" id="ob-next" type="button" disabled style="opacity:.5;">I Agree</button>';
+  const cb=document.getElementById('rules-agree'),btn=document.getElementById('ob-next');
+  cb.onchange=()=>{btn.disabled=!cb.checked;btn.style.opacity=cb.checked?'':'.5';};
+  btn.onclick=nextStep;
 }
 
 function renderRoles(){
-  const roles=server.onboarding_roles||[];
-  document.getElementById('ob-card').innerHTML=`
-    <div class="ob-icon">🎭</div>
-    <div class="ob-title">Pick your interests</div>
-    <div class="ob-sub">Select roles that describe you. You can change these later.</div>
-    <div class="ob-roles">${roles.map(r=>`<div class="ob-role" onclick="toggleRole(this,'${esc(r.id||r.name)}')">${esc(r.emoji||'')} ${esc(r.name)}</div>`).join('')}</div>
-    <button class="ob-btn" onclick="saveRolesAndNext()">Continue →</button>
-    <button class="ob-btn ob-btn-sec" style="margin-top:8px;" onclick="nextStep()">Skip</button>
-  `;
-}
-function toggleRole(el,id){el.classList.toggle('selected');if(el.classList.contains('selected'))selectedRoles.push(id);else selectedRoles=selectedRoles.filter(r=>r!==id);}
-async function saveRolesAndNext(){
-  // Store selected roles in server_members.meta or a separate table as needed
-  nextStep();
+  const roles=server.onboarding_roles;
+  card().innerHTML=
+    '<div class="ob-title">Pick your roles</div>'+
+    '<div class="ob-sub">Select the roles that describe you. You can change these later.</div>'+
+    '<div class="ob-roles">'+roles.map((r,i)=>'<div class="ob-role'+(selectedRoles.has(r.name||r.id)?' selected':'')+'" data-i="'+i+'">'+esc(r.emoji||'')+' '+esc(r.name||r.id)+'</div>').join('')+'</div>'+
+    '<button class="ob-btn" id="ob-next" type="button">Continue</button>'+
+    '<button class="ob-btn ob-btn-sec" id="ob-skip" type="button">Skip</button>';
+  card().querySelectorAll('.ob-role').forEach(el=>el.onclick=()=>{
+    const r=roles[Number(el.dataset.i)],key=r.name||r.id;
+    if(selectedRoles.has(key)){selectedRoles.delete(key);el.classList.remove('selected');}
+    else{selectedRoles.add(key);el.classList.add('selected');}
+  });
+  document.getElementById('ob-next').onclick=nextStep;
+  document.getElementById('ob-skip').onclick=()=>{selectedRoles.clear();nextStep();};
 }
 
 function renderChannels(){
-  const channels=server.onboarding_channels||[];
-  document.getElementById('ob-card').innerHTML=`
-    <div class="ob-icon">📣</div>
-    <div class="ob-title">Choose your channels</div>
-    <div class="ob-sub">Subscribe to channels you want to see in your sidebar.</div>
-    <div class="ob-channels">${channels.map(c=>`<label class="ob-ch"><input type="checkbox" onchange="toggleChannel('${esc(c.id)}',this.checked)" checked/># ${esc(c.name)}<span style="color:var(--dc-muted);font-size:11px;margin-left:auto;">${esc(c.description||'')}</span></label>`).join('')}</div>
-    <button class="ob-btn" onclick="saveChannelsAndNext()">Continue →</button>
-  `;
-  selectedChannels=channels.map(c=>c.id);
+  if(!startChannel)startChannel=channelList[0].name;
+  card().innerHTML=
+    '<div class="ob-title">Where do you want to start?</div>'+
+    '<div class="ob-sub">Pick the channel you will land in first.</div>'+
+    '<div class="ob-channels">'+channelList.map(c=>'<label class="ob-ch'+(c.name===startChannel?' selected':'')+'"><input type="radio" name="start" value="'+esc(c.name)+'"'+(c.name===startChannel?' checked':'')+'/># '+esc(c.name)+'<span style="color:var(--dc-muted);font-size:11px;margin-left:auto;">'+esc(c.description||'')+'</span></label>').join('')+'</div>'+
+    '<button class="ob-btn" id="ob-next" type="button">Continue</button>';
+  card().querySelectorAll('input[name=start]').forEach(inp=>inp.onchange=()=>{
+    startChannel=inp.value;
+    card().querySelectorAll('.ob-ch').forEach(l=>l.classList.toggle('selected',l.contains(inp)&&inp.checked));
+  });
+  document.getElementById('ob-next').onclick=nextStep;
 }
-function toggleChannel(id,checked){if(checked)selectedChannels.push(id);else selectedChannels=selectedChannels.filter(c=>c!==id);}
-async function saveChannelsAndNext(){ nextStep(); }
 
 async function renderDone(){
-  await sb.from('server_members').update({onboarding_done:true}).eq('server_id',server.id).eq('user_id',session.user.id);
-  document.getElementById('ob-card').innerHTML=`
-    <div class="ob-icon">🎉</div>
-    <div class="ob-title">You're all set!</div>
-    <div class="ob-sub">Welcome to <strong>${esc(server.name)}</strong>. Enjoy your stay!</div>
-    <button class="ob-btn" onclick="location.href='/chat/${server.slug||'?server='+server.id}'">Go to Server →</button>
-  `;
+  card().innerHTML='<div class="ob-title">Finishing up</div><div class="ob-sub">Saving your choices...</div>';
+  const{error}=await sb.rpc('complete_onboarding',{p_server_id:server.id,p_roles:[...selectedRoles]});
+  if(error){
+    card().innerHTML='<div class="ob-title">Something went wrong</div><div class="ob-sub">'+esc(error.message)+'</div><button class="ob-btn" id="ob-retry" type="button">Try again</button>';
+    document.getElementById('ob-retry').onclick=renderDone;
+    return;
+  }
+  card().innerHTML=
+    '<div class="ob-title">You are all set</div>'+
+    '<div class="ob-sub">Welcome to <strong>'+esc(server.name)+'</strong>.</div>'+
+    '<button class="ob-btn" id="ob-go" type="button">Go to Server</button>';
+  document.getElementById('ob-go').onclick=()=>{location.href=chatUrl();};
 }
 
 init();

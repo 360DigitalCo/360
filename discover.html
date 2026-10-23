@@ -14,11 +14,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
     .disc-shell{max-width:960px;margin:0 auto;padding:72px 24px 80px;}
-    .disc-tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid var(--br);}
-    .disc-tab{padding:10px 20px;font-size:14px;font-weight:600;color:var(--mut);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-1px;}
+    .disc-tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid var(--br);overflow-x:auto;}
+    .disc-tab{padding:10px 20px;font-size:14px;font-weight:600;color:var(--mut);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;}
     .disc-tab.active{color:var(--a);border-bottom-color:var(--a);}
     body.dark .disc-tab{color:var(--mutd);}
-    .disc-header{margin-bottom:22px;}
+    body.dark .disc-tab.active{color:var(--a);}
+    .disc-header{margin-bottom:22px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
     .disc-header h1{font-size:clamp(20px,4vw,28px);font-weight:800;margin:0 0 4px;color:var(--txt);}
     body.dark .disc-header h1{color:var(--txtd);}
     .disc-header p{font-size:13px;color:var(--mut);margin:0;}
@@ -33,7 +34,8 @@
     .disc-card,.bot-card{background:rgba(255,255,255,.06);border:1px solid var(--br);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;transition:border-color .2s,transform .15s;}
     body.dark .disc-card,body.dark .bot-card{background:rgba(255,255,255,.04);}
     .disc-card:hover,.bot-card:hover{border-color:var(--a);transform:translateY(-2px);}
-    .disc-avatar,.bot-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--a),#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;}
+    .disc-card-top{display:flex;align-items:center;gap:12px;}
+    .disc-avatar,.bot-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--a),#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;}
     .bot-avatar{width:48px;height:48px;border-radius:14px;}
     .disc-avatar img,.bot-avatar img{width:100%;height:100%;object-fit:cover;}
     .disc-name,.bot-name{font-size:14px;font-weight:700;color:var(--txt);}
@@ -42,25 +44,50 @@
     body.dark .disc-cat,body.dark .bot-handle{color:var(--mutd);}
     .disc-desc,.bot-desc{font-size:13px;color:var(--mut);line-height:1.5;}
     body.dark .disc-desc,body.dark .bot-desc{color:var(--mutd);}
-    .disc-footer,.bot-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;}
+    .disc-footer,.bot-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:8px;}
     .disc-members,.bot-installs{font-size:12px;color:var(--mut);}
     body.dark .disc-members,body.dark .bot-installs{color:var(--mutd);}
-    .disc-join-btn,.bot-add-btn{padding:7px 16px;border-radius:999px;border:none;background:linear-gradient(120deg,var(--a),#8b5cf6);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s;}
-    .disc-join-btn:hover,.bot-add-btn:hover{opacity:.85;}
-    .disc-join-btn:disabled{opacity:.5;cursor:default;}
-    .bot-verified{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,.12);border-radius:4px;padding:2px 6px;}
+    .disc-join-btn,.bot-add-btn,.disc-primary{padding:7px 16px;border-radius:999px;border:none;background:linear-gradient(120deg,var(--a),#8b5cf6);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s;text-decoration:none;display:inline-block;}
+    .disc-primary{padding:9px 20px;font-size:13px;}
+    .disc-join-btn:hover,.bot-add-btn:hover,.disc-primary:hover{opacity:.85;}
+    .disc-join-btn:disabled,.bot-add-btn:disabled{opacity:.5;cursor:default;}
+    .disc-ghost{padding:7px 14px;border-radius:999px;border:1px solid var(--br);background:none;color:var(--txt);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+    body.dark .disc-ghost{color:var(--txtd);}
+    .disc-ghost:hover{border-color:var(--a);}
+    .disc-ghost.danger{color:#ef4444;}
+    .bot-verified,.disc-verified{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#3b82f6;background:rgba(59,130,246,.12);border-radius:4px;padding:2px 6px;}
+    .disc-lock{font-size:11px;color:var(--mut);}
     .disc-empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--mut);}
     body.dark .disc-empty{color:var(--mutd);}
     .disc-skeleton{background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.06) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;height:14px;}
     @keyframes shimmer{to{background-position:-200% 0;}}
-    .bot-picker-backdrop{position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;}
-    .bot-picker-inner{background:var(--dc-sidebar-bg,#1e1f2e);border:1px solid var(--br);border-radius:16px;padding:24px;width:min(400px,90vw);display:flex;flex-direction:column;gap:12px;}
-    .bot-server-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;}
-    .bot-server-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--br);background:rgba(255,255,255,.04);cursor:pointer;color:var(--txt);font-size:13px;transition:border-color .15s;}
-    body.dark .bot-server-item{color:var(--txtd);}
+    .disc-modal-bg{position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px;}
+    .disc-modal{background:var(--dc-sidebar-bg,#1e1f2e);border:1px solid var(--br);border-radius:16px;padding:24px;width:min(440px,100%);max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px;color:var(--txtd,#fff);}
+    .disc-modal h2{font-size:16px;font-weight:800;margin:0;}
+    .disc-modal p{font-size:13px;color:var(--mutd,#9ca3af);margin:0;line-height:1.5;}
+    .disc-field{display:flex;flex-direction:column;gap:5px;}
+    .disc-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mutd,#9ca3af);}
+    .disc-field input,.disc-field select,.disc-field textarea{padding:9px 12px;border-radius:10px;border:1px solid var(--br);background:rgba(255,255,255,.05);color:inherit;font-size:13px;font-family:inherit;outline:none;}
+    .disc-field input:focus,.disc-field select:focus,.disc-field textarea:focus{border-color:var(--a);}
+    .disc-field textarea{resize:vertical;min-height:70px;}
+    .disc-check{display:flex;align-items:center;gap:8px;font-size:13px;}
+    .disc-check input{accent-color:var(--a);}
+    .disc-err{color:#f87171;font-size:12px;min-height:16px;margin:0;}
+    .disc-modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+    .bot-server-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
+    .bot-server-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--br);background:rgba(255,255,255,.04);cursor:pointer;font-size:13px;transition:border-color .15s;}
     .bot-server-item:hover{border-color:var(--a);}
+    .bot-server-item .state{margin-left:auto;font-size:11px;color:#22c55e;}
+    .bot-server-ico{width:28px;height:28px;border-radius:8px;background:var(--a);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;}
+    .bot-server-ico img{width:100%;height:100%;object-fit:cover;}
+    .token-box{display:flex;gap:8px;}
+    .token-box input{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;}
+    .code-box{background:rgba(0,0,0,.35);border-radius:10px;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all;color:#d1d5db;}
+    .disc-toast{position:fixed;bottom:24px;right:24px;border-radius:10px;padding:12px 18px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);background:#1a1b2e;border:1px solid rgba(255,255,255,.1);color:#fff;}
+    .disc-toast.error{background:#7f1d1d;border-color:rgba(255,100,100,.2);color:#fca5a5;}
+    .bot-actions{display:flex;gap:6px;flex-wrap:wrap;}
   </style>
-<meta content="Discover communities, servers and bots across the 360 platform." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="Discover — 360 Communities &amp; Bots" property="og:title"/><meta content="Discover communities, servers and bots across the 360 platform." property="og:description"/><meta content="https://360-search.com/discover.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Discover — 360 Communities &amp; Bots" name="twitter:title"/><meta content="Discover communities, servers and bots across the 360 platform." name="twitter:description"/><link href="https://360-search.com/discover.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<meta content="Discover communities, servers and bots across the 360 platform." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="Discover - 360 Communities &amp; Bots" property="og:title"/><meta content="Discover communities, servers and bots across the 360 platform." property="og:description"/><meta content="https://360-search.com/discover.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="Discover - 360 Communities &amp; Bots" name="twitter:title"/><meta content="Discover communities, servers and bots across the 360 platform." name="twitter:description"/><link href="https://360-search.com/discover.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
 </head>
 <body>
 <div class="auth-top-right">
@@ -73,11 +100,15 @@
 <div class="overlay" id="overlay"></div>
 <div class="disc-shell">
 <div class="disc-tabs">
-<button class="disc-tab active" id="tab-servers" onclick="switchTab('servers')">Servers</button>
-<button class="disc-tab" id="tab-bots" onclick="switchTab('bots')">Bot Marketplace</button>
+<button class="disc-tab active" id="tab-servers" data-tab="servers">Servers</button>
+<button class="disc-tab" id="tab-bots" data-tab="bots">Bots</button>
+<button class="disc-tab" id="tab-mine" data-tab="mine">My Bots</button>
 </div>
 <div id="view-servers">
-<div class="disc-header"><h1>Discover Servers</h1><p>Find public communities to join.</p></div>
+<div class="disc-header">
+<div><h1>Discover Servers</h1><p>Find public communities to join.</p></div>
+<a class="disc-primary" href="/chat?create=1">Create a server</a>
+</div>
 <div class="disc-controls">
 <input autocomplete="off" class="disc-search" id="serverSearch" placeholder="Search servers..." type="text"/>
 <select class="disc-select" id="serverCategory">
@@ -95,14 +126,17 @@
 </div>
 </div>
 <div id="view-bots" style="display:none;">
-<div class="disc-header"><h1>Bot Marketplace</h1><p>Add bots to your servers.</p></div>
+<div class="disc-header">
+<div><h1>Bot Marketplace</h1><p>Add bots to servers you own.</p></div>
+<button class="disc-primary" id="newBotFromMarket" type="button">Build a bot</button>
+</div>
 <div class="disc-controls">
 <input autocomplete="off" class="disc-search" id="botSearch" placeholder="Search bots..." type="text"/>
 <select class="disc-select" id="botCategory">
 <option value="">All categories</option>
 <option value="Utility">Utility</option><option value="Moderation">Moderation</option>
 <option value="Fun">Fun</option><option value="Music">Music</option>
-<option value="Productivity">Productivity</option>
+<option value="Productivity">Productivity</option><option value="General">General</option>
 </select>
 </div>
 <div class="disc-grid" id="botGrid">
@@ -110,128 +144,404 @@
 <div class="bot-card" style="pointer-events:none;gap:8px;"><div class="disc-skeleton" style="width:48px;height:48px;border-radius:14px;"></div><div class="disc-skeleton" style="width:45%;"></div><div class="disc-skeleton" style="width:80%;"></div></div>
 </div>
 </div>
+<div id="view-mine" style="display:none;">
+<div class="disc-header">
+<div><h1>My Bots</h1><p>Create bots, manage their tokens and publish them to the marketplace.</p></div>
+<button class="disc-primary" id="newBotBtn" type="button">Create bot</button>
 </div>
+<div class="disc-grid" id="mineGrid"></div>
+</div>
+</div>
+<div id="disc-modal-root"></div>
 <script src="/assets/js/main.js"></script>
 <script src="/assets/js/auth-fix.js"></script>
 <script src="/assets/js/wide.js"></script>
 <script src="/assets/js/gallium.js"></script>
 <script src="/assets/js/cursor.js"></script>
 <script>
-  (async function() {
-    const SB_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
-    const sb = window.supabaseClient || supabase.createClient(SB_URL, SB_KEY);
+(function () {
+  const SB_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
+  const sb = window.supabaseClient || supabase.createClient(SB_URL, SB_KEY);
+  const CATEGORIES = ['Utility', 'Moderation', 'Fun', 'Music', 'Productivity', 'General'];
 
-    let currentUser=null, myServerIds=new Set(), myBotInstalls=new Set(), myServers=[], allServers=[], allBots=[];
+  const state = { user: null, servers: [], bots: [], owned: [], installs: new Set(), myBots: [], preselect: null };
+  const $ = (id) => document.getElementById(id);
 
-    const { data:{ user } } = await sb.auth.getUser();
-    currentUser = user;
-    if (currentUser) {
-      const [{ data:mem },{ data:owned },{ data:installs }] = await Promise.all([
-        sb.from('server_members').select('server_id').eq('user_id',currentUser.id),
-        sb.from('servers').select('id,name,icon_url').eq('owner_id',currentUser.id),
-        sb.from('bot_server_installs').select('bot_id,server_id'),
-      ]);
-      (mem||[]).forEach(m=>myServerIds.add(m.server_id));
-      myServers = owned||[];
-      (installs||[]).forEach(i=>myBotInstalls.add(i.bot_id+':'+i.server_id));
-    }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
-    const { data:servers } = await sb.from('servers').select('id,name,description,icon_url,category,created_at').eq('is_public',true).order('created_at',{ascending:false}).limit(100);
-    if (servers?.length) {
-      const { data:counts } = await sb.from('server_members').select('server_id').in('server_id',servers.map(s=>s.id));
-      const mc={};
-      (counts||[]).forEach(r=>{ mc[r.server_id]=(mc[r.server_id]||0)+1; });
-      allServers = servers.map(s=>({...s,memberCount:mc[s.id]||0}));
-    }
+  function iconHTML(icon, name) {
+    if (icon && /^https?:\/\//.test(icon)) return '<img src="' + esc(icon) + '" alt="" loading="lazy">';
+    if (icon) return esc(icon);
+    return esc((name || '?').charAt(0).toUpperCase());
+  }
 
-    const { data:bots } = await sb.from('bots').select('*').order('install_count',{ascending:false});
-    allBots = bots||[];
+  function toast(msg, isError) {
+    const t = document.createElement('div');
+    t.className = 'disc-toast' + (isError ? ' error' : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
 
-    renderServers(); renderBots();
-    document.getElementById('serverSearch').addEventListener('input',renderServers);
-    document.getElementById('serverCategory').addEventListener('change',renderServers);
-    document.getElementById('botSearch').addEventListener('input',renderBots);
-    document.getElementById('botCategory').addEventListener('change',renderBots);
+  function login() {
+    location.href = '/account?from=' + encodeURIComponent(location.pathname + location.search);
+  }
 
-    const params = new URLSearchParams(location.search);
-    if (params.get('bots')==='1') switchTab('bots');
-    if (params.get('server')) window._preselectedServer = params.get('server');
-
-    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-    function renderServers() {
-      const q=document.getElementById('serverSearch').value.trim().toLowerCase();
-      const cat=document.getElementById('serverCategory').value;
-      const f=allServers.filter(s=>(!q||s.name.toLowerCase().includes(q)||(s.description||'').toLowerCase().includes(q))&&(!cat||s.category===cat));
-      const grid=document.getElementById('serverGrid');
-      if (!f.length){ grid.innerHTML='<div class="disc-empty"><p>No public servers found.</p><p style="font-size:13px;margin-top:4px;">Server owners can list their server in server settings.</p></div>'; return; }
-      grid.innerHTML=f.map(s=>{
-        const joined=myServerIds.has(s.id);
-        const av=s.icon_url?'<img src="'+esc(s.icon_url)+'" alt="" loading="lazy">':(s.name[0]||'?').toUpperCase();
-        return '<div class="disc-card"><div class="disc-card-top"><div class="disc-avatar">'+av+'</div><div style="min-width:0;"><div class="disc-name">'+esc(s.name)+'</div><div class="disc-cat">'+esc(s.category||'General')+'</div></div></div><div class="disc-desc">'+esc(s.description||'No description.')+'</div><div class="disc-footer"><div class="disc-members">'+s.memberCount.toLocaleString()+' members</div><button class="disc-join-btn" data-id="'+s.id+'"'+(joined?' disabled':'')+'>'+(joined?'Joined':'Join')+'</button></div></div>';
-      }).join('');
-      grid.querySelectorAll('.disc-join-btn:not([disabled])').forEach(btn=>btn.addEventListener('click',()=>joinServer(btn.dataset.id,btn)));
-    }
-
-    async function joinServer(serverId,btn) {
-      if (!currentUser){ document.getElementById('signInBtn')?.click(); return; }
-      btn.disabled=true; btn.textContent='Joining...';
-      const { error } = await sb.from('server_members').insert({server_id:serverId,user_id:currentUser.id,role:'member'});
-      if (error&&!error.code?.includes('23505')){ btn.disabled=false; btn.textContent='Join'; return; }
-      myServerIds.add(serverId); btn.textContent='Joined';
-      setTimeout(()=>{ window.location.href='/chat?s='+serverId; },600);
-    }
-
-    function renderBots() {
-      const q=document.getElementById('botSearch').value.trim().toLowerCase();
-      const cat=document.getElementById('botCategory').value;
-      const f=allBots.filter(b=>(!q||b.name.toLowerCase().includes(q)||b.handle.toLowerCase().includes(q)||(b.description||'').toLowerCase().includes(q))&&(!cat||b.category===cat));
-      const grid=document.getElementById('botGrid');
-      if (!f.length){ grid.innerHTML='<div class="disc-empty"><p>No bots found.</p></div>'; return; }
-      grid.innerHTML=f.map(b=>{
-        const av=b.avatar_url?'<img src="'+esc(b.avatar_url)+'" alt="">':'&#129302;';
-        const ver=b.verified?'<span class="bot-verified">&#10003; Verified</span>':'';
-        return '<div class="bot-card"><div style="display:flex;align-items:center;gap:12px;"><div class="bot-avatar">'+av+'</div><div><div style="display:flex;align-items:center;gap:6px;">'+' <div class="bot-name">'+esc(b.name)+'</div>'+ver+'</div><div class="bot-handle">@'+esc(b.handle)+'</div></div></div><div class="bot-desc">'+esc(b.description||'No description.')+'</div><div class="bot-footer"><div class="bot-installs">'+((b.install_count||0).toLocaleString())+' installs</div><button class="bot-add-btn" data-bot-id="'+b.id+'" data-bot-name="'+esc(b.name)+'">Add to Server</button></div></div>';
-      }).join('');
-      grid.querySelectorAll('.bot-add-btn').forEach(btn=>btn.addEventListener('click',()=>openBotPicker(btn.dataset.botId,btn.dataset.botName)));
-    }
-
-    window.switchTab = function(tab) {
-      document.getElementById('view-servers').style.display=tab==='servers'?'':'none';
-      document.getElementById('view-bots').style.display=tab==='bots'?'':'none';
-      document.getElementById('tab-servers').classList.toggle('active',tab==='servers');
-      document.getElementById('tab-bots').classList.toggle('active',tab==='bots');
+  function debounce(fn, ms) {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), ms);
     };
+  }
 
-    function openBotPicker(botId,botName) {
-      if (!currentUser){ document.getElementById('signInBtn')?.click(); return; }
-      document.getElementById('bot-picker')?.remove();
-      const picker=document.createElement('div'); picker.id='bot-picker'; picker.className='bot-picker-backdrop';
-      const presel=window._preselectedServer;
-      const srvs=presel?myServers.filter(s=>s.id===presel).concat(myServers.filter(s=>s.id!==presel)):myServers;
-      const listHTML=srvs.length?srvs.map(s=>{
-        const inst=myBotInstalls.has(botId+':'+s.id);
-        const av=s.icon_url?'<img src="'+esc(s.icon_url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">':(s.name[0]||'?').toUpperCase();
-        return '<div class="bot-server-item" data-server-id="'+s.id+'"><div style="width:28px;height:28px;border-radius:8px;background:var(--a);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">'+av+'</div><span>'+esc(s.name)+'</span>'+(inst?'<span style="margin-left:auto;font-size:11px;color:#22c55e;">Installed</span>':'')+'</div>';
-      }).join(''):'<div style="font-size:13px;color:var(--mut);text-align:center;padding:16px;">You don't own any servers yet. Create one in 360 Chat.</div>';
-      picker.innerHTML='<div class="bot-picker-inner"><div style="font-size:15px;font-weight:800;color:var(--txt);">Add '+esc(botName)+' to...</div><div class="bot-server-list">'+listHTML+'</div><button onclick="document.getElementById('bot-picker').remove()" style="padding:9px;border-radius:8px;border:1px solid var(--br);background:none;color:var(--mut);cursor:pointer;font-family:inherit;font-size:13px;">Cancel</button></div>';
-      document.body.appendChild(picker);
-      picker.addEventListener('click',e=>{ if(e.target===picker) picker.remove(); });
-      picker.querySelectorAll('.bot-server-item').forEach(item=>item.addEventListener('click',()=>installBot(botId,botName,item.dataset.serverId,picker)));
+  async function fnError(err) {
+    try {
+      const body = await err.context.json();
+      return body.error || err.message;
+    } catch (e) {
+      return (err && err.message) || 'Request failed';
     }
+  }
 
-    async function installBot(botId,botName,serverId,picker) {
-      const key=botId+':'+serverId;
-      if (myBotInstalls.has(key)){ picker.remove(); return; }
-      const { error } = await sb.from('bot_server_installs').upsert({bot_id:botId,server_id:serverId,installed_by:currentUser.id},{onConflict:'bot_id,server_id'});
-      if (error){ const t=document.createElement('div'); t.style.cssText='position:fixed;bottom:24px;right:24px;background:#7f1d1d;border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:12px 18px;font-size:13px;color:#fca5a5;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);'; t.textContent='Failed: '+error.message; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); return; }
-      myBotInstalls.add(key); picker.remove();
-      const t=document.createElement('div'); t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1a1b2e;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 18px;font-size:13px;color:#fff;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);';
-      t.textContent='&#10003; '+botName+' added!'; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+  function openModal(html) {
+    closeModal();
+    const bg = document.createElement('div');
+    bg.className = 'disc-modal-bg';
+    bg.id = 'disc-modal';
+    bg.innerHTML = '<div class="disc-modal">' + html + '</div>';
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) closeModal(); });
+    $('disc-modal-root').appendChild(bg);
+    return bg;
+  }
+
+  function closeModal() {
+    const m = $('disc-modal');
+    if (m) m.remove();
+  }
+
+  function switchTab(tab) {
+    ['servers', 'bots', 'mine'].forEach((t) => {
+      $('view-' + t).style.display = t === tab ? '' : 'none';
+      $('tab-' + t).classList.toggle('active', t === tab);
+    });
+    const url = new URL(location.href);
+    url.searchParams.set('tab', tab);
+    url.searchParams.delete('bots');
+    history.replaceState(null, '', url.pathname + url.search);
+    if (tab === 'mine') renderMine();
+  }
+
+  async function loadServers() {
+    const q = $('serverSearch').value.trim();
+    const cat = $('serverCategory').value;
+    const { data, error } = await sb.rpc('discover_servers', { p_query: q || null, p_category: cat || null, p_limit: 60, p_offset: 0 });
+    if (error) {
+      $('serverGrid').innerHTML = '<div class="disc-empty"><p>Could not load servers.</p></div>';
+      return;
     }
+    state.servers = data || [];
+    renderServers();
+  }
+
+  async function loadBots() {
+    const { data } = await sb
+      .from('bots')
+      .select('id,name,handle,description,avatar_url,website_url,verified,featured,category,install_count,owner_id,is_public,prefix')
+      .order('featured', { ascending: false })
+      .order('install_count', { ascending: false });
+    const me = state.user && state.user.id;
+    state.bots = (data || []).filter((b) => b.is_public !== false || b.owner_id === me);
+    state.myBots = me ? state.bots.filter((b) => b.owner_id === me) : [];
+  }
+
+  async function loadOwned() {
+    if (!state.user) return;
+    const { data: owned } = await sb.from('servers').select('id,name,icon,slug').eq('owner_id', state.user.id).order('name');
+    state.owned = owned || [];
+    state.installs = new Set();
+    if (state.owned.length) {
+      const { data: installs } = await sb.from('bot_server_installs').select('bot_id,server_id').in('server_id', state.owned.map((s) => s.id));
+      (installs || []).forEach((i) => state.installs.add(i.bot_id + ':' + i.server_id));
+    }
+  }
+
+  function renderServers() {
+    const grid = $('serverGrid');
+    if (!state.servers.length) {
+      grid.innerHTML = '<div class="disc-empty"><p>No public servers found.</p><p style="font-size:13px;margin-top:4px;">Server owners can list their server from Edit Server in 360 Chat.</p></div>';
+      return;
+    }
+    grid.innerHTML = state.servers.map((s) => {
+      const verified = s.verified ? '<span class="disc-verified">Verified</span>' : '';
+      const lock = s.has_passcode && !s.is_member ? '<span class="disc-lock">Passcode</span>' : '';
+      const action = s.is_member
+        ? '<a class="disc-join-btn" href="/chat?s=' + encodeURIComponent(s.slug || s.id) + '">Open</a>'
+        : '<button class="disc-join-btn" type="button" data-join="' + esc(s.id) + '">Join</button>';
+      return '<div class="disc-card"><div class="disc-card-top"><div class="disc-avatar">' + iconHTML(s.icon, s.name) + '</div><div style="min-width:0;"><div class="disc-name">' + esc(s.name) + ' ' + verified + '</div><div class="disc-cat">' + esc(s.category || 'General') + ' ' + lock + '</div></div></div><div class="disc-desc">' + esc(s.description || 'No description.') + '</div><div class="disc-footer"><div class="disc-members">' + Number(s.member_count || 0).toLocaleString() + ' members</div>' + action + '</div></div>';
+    }).join('');
+  }
+
+  function goToServer(info) {
+    if (info.onboarding_required) location.href = '/onboarding?server=' + encodeURIComponent(info.server_id);
+    else location.href = '/chat?s=' + encodeURIComponent(info.slug || info.server_id);
+  }
+
+  async function joinServer(serverId, btn) {
+    if (!state.user) return login();
+    const server = state.servers.find((s) => s.id === serverId);
+    if (!server) return;
+    if (server.has_passcode) return openPasscodeModal(server);
+    btn.disabled = true;
+    btn.textContent = 'Joining...';
+    const { data, error } = await sb.rpc('join_server', { p_server_id: serverId });
+    if (error) {
+      btn.disabled = false;
+      btn.textContent = 'Join';
+      toast(error.message, true);
+      return;
+    }
+    goToServer(data);
+  }
+
+  function openPasscodeModal(server) {
+    const modal = openModal(
+      '<h2>Join ' + esc(server.name) + '</h2><p>This server is protected. Enter the passcode to join.</p>' +
+      '<div class="disc-field"><label for="pc-input">Passcode</label><input id="pc-input" type="password" autocomplete="off"></div>' +
+      '<p class="disc-err" id="pc-err"></p>' +
+      '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="pc-cancel">Cancel</button><button class="disc-primary" type="button" id="pc-go">Join</button></div>'
+    );
+    const input = modal.querySelector('#pc-input');
+    input.focus();
+    const submit = async () => {
+      const value = input.value.trim();
+      if (!value) { modal.querySelector('#pc-err').textContent = 'Enter the passcode.'; return; }
+      const { data: ok, error } = await sb.rpc('join_server_with_passcode', { p_server_id: server.id, p_passcode: value });
+      if (error || !ok) {
+        modal.querySelector('#pc-err').textContent = error ? error.message : 'Wrong passcode.';
+        input.value = '';
+        input.focus();
+        return;
+      }
+      const { data: srv } = await sb.from('servers').select('id,slug,onboarding_enabled').eq('id', server.id).maybeSingle();
+      const { data: mem } = await sb.from('server_members').select('onboarding_done').eq('server_id', server.id).eq('user_id', state.user.id).maybeSingle();
+      goToServer({ server_id: server.id, slug: srv && srv.slug, onboarding_required: !!(srv && srv.onboarding_enabled && !(mem && mem.onboarding_done)) });
+    };
+    modal.querySelector('#pc-go').onclick = submit;
+    modal.querySelector('#pc-cancel').onclick = closeModal;
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  }
+
+  function botAvatar(b) {
+    return b.avatar_url ? '<img src="' + esc(b.avatar_url) + '" alt="" loading="lazy">' : esc((b.name || '?').charAt(0).toUpperCase());
+  }
+
+  function renderBots() {
+    const q = $('botSearch').value.trim().toLowerCase();
+    const cat = $('botCategory').value;
+    const list = state.bots.filter((b) =>
+      (!q || b.name.toLowerCase().includes(q) || b.handle.toLowerCase().includes(q) || (b.description || '').toLowerCase().includes(q)) &&
+      (!cat || b.category === cat));
+    const grid = $('botGrid');
+    if (!list.length) {
+      grid.innerHTML = '<div class="disc-empty"><p>No bots found.</p></div>';
+      return;
+    }
+    grid.innerHTML = list.map((b) => {
+      const ver = b.verified ? '<span class="bot-verified">Verified</span>' : '';
+      return '<div class="bot-card"><div style="display:flex;align-items:center;gap:12px;"><div class="bot-avatar">' + botAvatar(b) + '</div><div><div style="display:flex;align-items:center;gap:6px;"><div class="bot-name">' + esc(b.name) + '</div>' + ver + '</div><div class="bot-handle">@' + esc(b.handle) + '</div></div></div><div class="bot-desc">' + esc(b.description || 'No description.') + '</div><div class="bot-footer"><div class="bot-installs">' + Number(b.install_count || 0).toLocaleString() + ' installs</div><button class="bot-add-btn" type="button" data-bot="' + esc(b.id) + '">Add to Server</button></div></div>';
+    }).join('');
+  }
+
+  function openBotPicker(botId) {
+    if (!state.user) return login();
+    const bot = state.bots.find((b) => b.id === botId);
+    if (!bot) return;
+    const pre = state.preselect;
+    const servers = pre ? state.owned.filter((s) => s.id === pre).concat(state.owned.filter((s) => s.id !== pre)) : state.owned;
+    const list = servers.length
+      ? servers.map((s) => {
+          const on = state.installs.has(botId + ':' + s.id);
+          return '<div class="bot-server-item" data-server="' + esc(s.id) + '"><div class="bot-server-ico">' + iconHTML(s.icon, s.name) + '</div><span>' + esc(s.name) + '</span><span class="state">' + (on ? 'Installed' : '') + '</span></div>';
+        }).join('')
+      : '<p>You do not own a server yet. <a href="/chat?create=1" style="color:var(--a);">Create one in 360 Chat</a>.</p>';
+    const modal = openModal(
+      '<h2>Add ' + esc(bot.name) + ' to a server</h2><p>Click a server to add or remove this bot.</p><div class="bot-server-list">' + list + '</div>' +
+      '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="bp-close">Done</button></div>'
+    );
+    modal.querySelector('#bp-close').onclick = closeModal;
+    modal.querySelectorAll('.bot-server-item').forEach((item) => {
+      item.addEventListener('click', async () => {
+        const serverId = item.dataset.server;
+        const key = botId + ':' + serverId;
+        const installed = state.installs.has(key);
+        const { error } = await sb.rpc(installed ? 'uninstall_bot' : 'install_bot', { p_bot_id: botId, p_server_id: serverId });
+        if (error) { toast(error.message, true); return; }
+        if (installed) { state.installs.delete(key); bot.install_count = Math.max((bot.install_count || 1) - 1, 0); }
+        else { state.installs.add(key); bot.install_count = (bot.install_count || 0) + 1; }
+        item.querySelector('.state').textContent = installed ? '' : 'Installed';
+        toast(installed ? bot.name + ' removed' : bot.name + ' added');
+        renderBots();
+        renderMine();
+      });
+    });
+  }
+
+  function renderMine() {
+    const grid = $('mineGrid');
+    if (!state.user) {
+      grid.innerHTML = '<div class="disc-empty"><p>Sign in to create and manage bots.</p><p style="margin-top:12px;"><button class="disc-primary" type="button" id="mine-login">Sign in</button></p></div>';
+      const b = $('mine-login');
+      if (b) b.onclick = login;
+      return;
+    }
+    if (!state.myBots.length) {
+      grid.innerHTML = '<div class="disc-empty"><p>You have not created a bot yet.</p></div>';
+      return;
+    }
+    grid.innerHTML = state.myBots.map((b) => {
+      const vis = b.is_public === false ? 'Private' : 'Public';
+      return '<div class="bot-card"><div style="display:flex;align-items:center;gap:12px;"><div class="bot-avatar">' + botAvatar(b) + '</div><div><div class="bot-name">' + esc(b.name) + '</div><div class="bot-handle">@' + esc(b.handle) + ' · ' + vis + '</div></div></div><div class="bot-desc">' + esc(b.description || 'No description.') + '</div><div class="bot-installs">' + Number(b.install_count || 0).toLocaleString() + ' installs</div><div class="bot-actions"><button class="disc-ghost" type="button" data-act="install" data-id="' + esc(b.id) + '">Add to server</button><button class="disc-ghost" type="button" data-act="edit" data-id="' + esc(b.id) + '">Edit</button><button class="disc-ghost" type="button" data-act="token" data-id="' + esc(b.id) + '">New token</button><button class="disc-ghost danger" type="button" data-act="delete" data-id="' + esc(b.id) + '">Delete</button></div></div>';
+    }).join('');
+  }
+
+  function botForm(bot) {
+    const isEdit = !!bot;
+    const b = bot || { name: '', handle: '', description: '', category: 'General', avatar_url: '', website_url: '', prefix: '!', is_public: true };
+    const cats = CATEGORIES.map((c) => '<option value="' + c + '"' + (b.category === c ? ' selected' : '') + '>' + c + '</option>').join('');
+    const modal = openModal(
+      '<h2>' + (isEdit ? 'Edit bot' : 'Create bot') + '</h2>' +
+      '<div class="disc-field"><label for="bf-name">Name</label><input id="bf-name" maxlength="32" value="' + esc(b.name) + '"></div>' +
+      '<div class="disc-field"><label for="bf-handle">Handle</label><input id="bf-handle" maxlength="24" placeholder="my_bot" value="' + esc(b.handle) + '"' + (isEdit ? ' disabled' : '') + '></div>' +
+      '<div class="disc-field"><label for="bf-desc">Description</label><textarea id="bf-desc" maxlength="200">' + esc(b.description || '') + '</textarea></div>' +
+      '<div class="disc-field"><label for="bf-cat">Category</label><select id="bf-cat">' + cats + '</select></div>' +
+      '<div class="disc-field"><label for="bf-avatar">Avatar URL</label><input id="bf-avatar" placeholder="https://" value="' + esc(b.avatar_url || '') + '"></div>' +
+      '<div class="disc-field"><label for="bf-site">Website or docs URL</label><input id="bf-site" placeholder="https://" value="' + esc(b.website_url || '') + '"></div>' +
+      '<div class="disc-field"><label for="bf-prefix">Command prefix</label><input id="bf-prefix" maxlength="3" value="' + esc(b.prefix || '!') + '"></div>' +
+      '<label class="disc-check"><input type="checkbox" id="bf-public"' + (b.is_public === false ? '' : ' checked') + '> List in the bot marketplace</label>' +
+      '<p class="disc-err" id="bf-err"></p>' +
+      '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="bf-cancel">Cancel</button><button class="disc-primary" type="button" id="bf-save">' + (isEdit ? 'Save' : 'Create') + '</button></div>'
+    );
+    modal.querySelector('#bf-cancel').onclick = closeModal;
+    modal.querySelector('#bf-save').onclick = async () => {
+      const err = modal.querySelector('#bf-err');
+      const values = {
+        name: modal.querySelector('#bf-name').value.trim(),
+        handle: modal.querySelector('#bf-handle').value.trim().toLowerCase(),
+        description: modal.querySelector('#bf-desc').value.trim(),
+        category: modal.querySelector('#bf-cat').value,
+        avatar_url: modal.querySelector('#bf-avatar').value.trim() || null,
+        website_url: modal.querySelector('#bf-site').value.trim() || null,
+        prefix: modal.querySelector('#bf-prefix').value.trim() || '!',
+        is_public: modal.querySelector('#bf-public').checked,
+      };
+      if (values.name.length < 2) { err.textContent = 'Name must be at least 2 characters.'; return; }
+      if (!isEdit && !/^[a-z0-9_]{3,24}$/.test(values.handle)) { err.textContent = 'Handle must be 3 to 24 characters: letters, numbers, underscore.'; return; }
+      const urlOk = (u) => !u || /^https:\/\//i.test(u);
+      if (!urlOk(values.avatar_url) || !urlOk(values.website_url)) { err.textContent = 'URLs must start with https://'; return; }
+      const saveBtn = modal.querySelector('#bf-save');
+      saveBtn.disabled = true;
+      if (isEdit) {
+        const patch = { name: values.name, description: values.description || null, category: values.category, avatar_url: values.avatar_url, website_url: values.website_url, prefix: values.prefix, is_public: values.is_public };
+        const { error } = await sb.from('bots').update(patch).eq('id', bot.id);
+        if (error) { err.textContent = error.message; saveBtn.disabled = false; return; }
+        closeModal();
+        await loadBots();
+        renderBots();
+        renderMine();
+        toast('Bot saved');
+        return;
+      }
+      const { data, error } = await sb.functions.invoke('bot-manage', { body: Object.assign({ action: 'create' }, values) });
+      if (error) { err.textContent = await fnError(error); saveBtn.disabled = false; return; }
+      await loadBots();
+      renderBots();
+      renderMine();
+      showToken(data.bot.name, data.token);
+    };
+  }
+
+  function showToken(name, token) {
+    const usage = 'curl -X POST ' + SB_URL + '/functions/v1/bot-api/messages \\\n  -H "Authorization: Bot ' + token + '" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"channel_id":"CHANNEL_ID","content":"Hello"}\'';
+    const modal = openModal(
+      '<h2>' + esc(name) + ' token</h2><p>Copy this token now. It is only shown once. Anyone with it can post as your bot.</p>' +
+      '<div class="token-box disc-field"><input id="tk-input" readonly></div>' +
+      '<div class="code-box" id="tk-usage"></div>' +
+      '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="tk-copy">Copy token</button><button class="disc-primary" type="button" id="tk-done">Done</button></div>'
+    );
+    modal.querySelector('#tk-input').value = token;
+    modal.querySelector('#tk-usage').textContent = usage;
+    modal.querySelector('#tk-copy').onclick = () => navigator.clipboard.writeText(token).then(() => toast('Token copied'), () => toast('Copy failed', true));
+    modal.querySelector('#tk-done').onclick = closeModal;
+  }
+
+  async function botAction(act, id) {
+    const bot = state.myBots.find((b) => b.id === id);
+    if (!bot) return;
+    if (act === 'install') { state.preselect = null; return openBotPicker(id); }
+    if (act === 'edit') return botForm(bot);
+    if (act === 'token') {
+      if (!confirm('Generate a new token for ' + bot.name + '? The current token stops working.')) return;
+      const { data, error } = await sb.functions.invoke('bot-manage', { body: { action: 'rotate', bot_id: id } });
+      if (error) { toast(await fnError(error), true); return; }
+      showToken(bot.name, data.token);
+      return;
+    }
+    if (act === 'delete') {
+      if (!confirm('Delete ' + bot.name + '? It will be removed from every server.')) return;
+      const { error } = await sb.functions.invoke('bot-manage', { body: { action: 'delete', bot_id: id } });
+      if (error) { toast(await fnError(error), true); return; }
+      await Promise.all([loadBots(), loadOwned()]);
+      renderBots();
+      renderMine();
+      toast('Bot deleted');
+    }
+  }
+
+  function openCreate() {
+    if (!state.user) return login();
+    switchTab('mine');
+    botForm(null);
+  }
+
+  document.querySelectorAll('.disc-tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  $('serverSearch').addEventListener('input', debounce(loadServers, 250));
+  $('serverCategory').addEventListener('change', loadServers);
+  $('botSearch').addEventListener('input', renderBots);
+  $('botCategory').addEventListener('change', renderBots);
+  $('newBotBtn').addEventListener('click', openCreate);
+  $('newBotFromMarket').addEventListener('click', openCreate);
+
+  $('serverGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-join]');
+    if (btn) joinServer(btn.dataset.join, btn);
+  });
+  $('botGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-bot]');
+    if (btn) openBotPicker(btn.dataset.bot);
+  });
+  $('mineGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (btn) botAction(btn.dataset.act, btn.dataset.id);
+  });
+
+  (async function init() {
+    const params = new URLSearchParams(location.search);
+    state.preselect = params.get('server');
+    const { data: { session } } = await sb.auth.getSession();
+    state.user = session ? session.user : null;
+    await Promise.all([loadServers(), loadBots(), loadOwned()]);
+    state.myBots = state.user ? state.bots.filter((b) => b.owner_id === state.user.id) : [];
+    renderBots();
+    renderMine();
+    const tab = params.get('tab') || (params.get('bots') === '1' ? 'bots' : 'servers');
+    switchTab(['servers', 'bots', 'mine'].includes(tab) ? tab : 'servers');
   })();
-  </script>
+})();
+</script>
 <script src="/assets/js/mobile-nav.js" defer></script>
 </body>
 </html>
