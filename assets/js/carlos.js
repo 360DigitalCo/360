@@ -68,7 +68,9 @@ window.Carlos = (function () {
   };
 
   async function handleMessage(msg) {
-    if (!msg.text?.startsWith('!')) return;
+    const mention = /(^|\s)@carlos\b/i;
+    if (!msg.text) return;
+    if (!msg.text.startsWith('!') && !mention.test(msg.text)) return;
     if (msg.username === BOT_NAME && msg.tag === BOT_TAG) return; // don't respond to self
     const room = myRoom();
     if (!room) return;
@@ -76,7 +78,13 @@ window.Carlos = (function () {
     if (room.serverId) {
       if (!await isCarlosEnabled(room.serverId)) return;
     }
-    const parts = msg.text.trim().split(/\s+/);
+    let body = msg.text.trim();
+    if (!body.startsWith('!')) {
+      body = body.replace(mention, ' ').trim();
+      const first = (body.split(/\s+/)[0] || '').toLowerCase().replace(/^!/, '');
+      body = COMMANDS['!' + first] ? '!' + body.replace(/^!/, '') : '!carlos';
+    }
+    const parts = body.split(/\s+/);
     const cmd = parts[0].toLowerCase();
     const args = parts.slice(1);
     const fn = COMMANDS[cmd];
