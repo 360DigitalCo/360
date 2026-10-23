@@ -9,7 +9,7 @@ input,select,button{font:inherit;font-size:16px;padding:9px;margin:5px 0;width:1
 <div id="menu"><div class="box"><h1>FLAG RUSH</h1><small>Blocky 3D Capture the Flag · 4v4 · swords</small>
 <div id="menu1"><input id="pname" placeholder="Your name" maxlength="14" value="Player"><button id="solo">PLAY NOW (bots fill teams)</button><hr><button id="mk">Create multiplayer room</button><input id="rin" placeholder="Room code" maxlength="8"><button id="jn">Join room</button></div>
 <div id="lobby" style="display:none"><p>Room code: <b id="rcode" style="font-size:28px"></b><br><small>Share it; empty slots become bots.</small></p><div id="plist"></div><div id="hostctl"><button id="go">START MATCH</button></div><p id="waitmsg" style="display:none">Waiting for host...</p></div>
-<p><small>WASD move · Ctrl sprint · Space jump · Click swing sword · V camera · Grab the enemy flag, bring it home while yours is safe. First to 3.</small></p></div></div>
+<p><small>WASD move · Ctrl sprint · Shift sneak · Space jump · Click swing sword · V camera · Grab the enemy flag, bring it home while yours is safe. First to 3.</small></p></div></div>
 <div id="hud"><div id="cross"></div><div id="hurt"></div><div id="time"></div><div id="fl"></div><div id="feed"></div><div id="msg"></div><div id="hp"></div></div><div id="over"><div id="overt"></div><button id="again">Back to lobby</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.45.4/supabase.min.js"></script><script>
 // ===== Net: Supabase Realtime broadcast (falls back to BroadcastChannel for same-browser testing). Host = lowest id.
@@ -141,6 +141,16 @@ function mkHand(){const h=new THREE.Group(),a=new THREE.Mesh(new THREE.BoxGeomet
 function camPlace(ex,ey,ez,yaw,pitch){if(!VIEW){camera.position.set(ex,ey,ez);camera.rotation.set(pitch,yaw,0);return}
   const cp=Math.cos(pitch),f=[-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp],s=VIEW===1?-1:1,d=[f[0]*s,f[1]*s,f[2]*s];const h=raycast(ex,ey,ez,d[0],d[1],d[2],4.2);const t=h?Math.max(.4,h.t-.35):4;camera.position.set(ex+d[0]*t,ey+d[1]*t,ez+d[2]*t);camera.rotation.set(VIEW===1?pitch:-pitch,VIEW===1?yaw:yaw+Math.PI,0)}
 function animAvatar(e,dt,own){const sw=Math.sin(e.anim*7)*.7;e.legL.rotation.x=sw;e.legR.rotation.x=-sw;e.armL.rotation.x=-sw;e.armR.rotation.x=e.shown&&e.shown!=='n'?-1.15+sw*.12:sw;e.head.rotation.x=0}
+// ===== Minecraft-style movement (20 tick/s constants, applied per-frame)
+function groundAt(x,y,z){const yy=Math.floor(y-.05);for(let xx=Math.floor(x-PW);xx<=Math.floor(x+PW);xx++)for(let zz=Math.floor(z-PW);zz<=Math.floor(z+PW);zz++)if(getB(xx,yy,zz))return true;return false}
+function mcStep(e,dt,wx,wz,jump,sprint,sneak,spd){const sp=spd||(sneak?1.31:sprint?5.61:4.32);let hx=e.hvx||0,hz=e.hvz||0;
+  if(e.onGround){const k=1-Math.exp(-dt*22);hx+=(wx*sp-hx)*k;hz+=(wz*sp-hz)*k}else{const d=Math.pow(.91,dt*20);hx*=d;hz*=d;hx+=wx*8*dt;hz+=wz*8*dt}
+  e.vy=(e.vy-32*dt)*Math.pow(.98,dt*20);if(e.vy<-78)e.vy=-78;
+  if(jump&&e.onGround){e.vy=8.9;e.onGround=false;if(sprint&&(wx||wz)){hx+=wx*4;hz+=wz*4}}
+  e.vx=hx+e.kx;e.vz=hz+e.kz;
+  if(sneak&&e.onGround){if(!groundAt(e.x+e.vx*dt,e.y,e.z)){e.vx=0;hx=0;e.kx=0}if(!groundAt(e.x,e.y,e.z+e.vz*dt)){e.vz=0;hz=0;e.kz=0}}
+  const bvx=e.vx,bvz=e.vz;moveBody(e,dt);if(e.vx!==bvx){hx=0;e.kx=0}if(e.vz!==bvz){hz=0;e.kz=0}e.hvx=hx;e.hvz=hz;
+  const dec=Math.exp(-dt*(e.onGround?9:.6));e.kx*=dec;e.kz*=dec}
 
 // ===== Flag Rush: voxel Capture the Flag (swords)
 const $=id=>document.getElementById(id);
@@ -186,7 +196,7 @@ Net.on('resp',d=>{const e=S.ents.get(d.id);if(e&&e!==ME){e.alive=true;e.hp=20;e.
 Net.on('hit',d=>{const e=S.ents.get(d.t);if(e&&(e===ME||(e.bot&&Net.isHost())))hurt(e,d.d,d.kx,d.kz,d.by)});
 function sendHit(t,d,kx,kz,by){if(t===ME||(t.bot&&Net.isHost()))hurt(t,d,kx,kz,by);else Net.send('hit',{t:t.id,d,kx,kz,by})}
 function look(){const cp=Math.cos(ME.pitch);return[-Math.sin(ME.yaw)*cp,Math.sin(ME.pitch),-Math.cos(ME.yaw)*cp]}
-function aimEnt(range){const o=[ME.x,ME.y+1.62,ME.z],[dx,dy,dz]=look();const bl=raycast(o[0],o[1],o[2],dx,dy,dz,range),lim=bl?bl.t:range;let best=null,bt=range;
+function aimEnt(range){const o=[ME.x,ME.y+(ME.sneak?1.54:1.62),ME.z],[dx,dy,dz]=look();const bl=raycast(o[0],o[1],o[2],dx,dy,dz,range),lim=bl?bl.t:range;let best=null,bt=range;
   for(const [,e] of S.ents){if(e===ME||!e.alive||e.team===ME.team)continue;const px=e.x-o[0],py=e.y+.9-o[1],pz=e.z-o[2],t=px*dx+py*dy+pz*dz;if(t<0||t>lim)continue;if(Math.hypot(px-dx*t,py-dy*t,pz-dz*t)<.7&&t<bt){bt=t;best=e}}return best}
 // flags (host authoritative)
 const homeP=t=>[64.5,Y+2,FZ[t]+.5];
@@ -200,18 +210,18 @@ function hostFlags(){for(const [,e] of S.ents){if(!e.alive)continue;const mine=S
   for(const f of S.flags)if(f.st==='carry'){const c=S.ents.get(f.carrier);if(c){f.x=c.x;f.y=c.y;f.z=c.z}}}
 function endGame(w){if(S.over)return;S.over=true;S.state='over';$('over').style.display='flex';$('overt').textContent=ME&&ME.team===w?'VICTORY!':TN8[w]+' TEAM WINS';$('overt').style.color='#'+TC8[w].toString(16).padStart(6,'0');document.exitPointerLock&&document.exitPointerLock();beep(ME&&ME.team===w?880:200,.8)}
 Net.on('over',d=>endGame(d.w));
-function phys(e,wx,wz,dt){if(e.y<Y-8){die(e,'',true);return}e.vy=Math.max(-50,e.vy-28*dt);e.vx=wx+e.kx;e.vz=wz+e.kz;const dec=Math.exp(-dt*(e.onGround?9:.6));e.kx*=dec;e.kz*=dec;const bx=e.x,bz=e.z;moveBody(e,dt);if(e.x===bx)e.kx=0;if(e.z===bz)e.kz=0;clampA(e);if(e.reg>0)e.reg-=dt;else if(e.hp<20)e.hp=Math.min(20,e.hp+dt*.5)}
+function phys(e,wx,wz,dt){if(e.y<Y-8){die(e,'',true);return}const sp=Math.hypot(wx,wz);mcStep(e,dt,sp?wx/sp:0,sp?wz/sp:0,false,false,false,sp);clampA(e);if(e.reg>0)e.reg-=dt;else if(e.hp<20)e.hp=Math.min(20,e.hp+dt*.5)}
 function botStep(b,dt){if(!b.alive){b.rt-=dt;if(b.rt<=0)respawn(b);return}if(b.prot>0)b.prot-=dt;b.cd-=dt;b.think-=dt;
   if(b.think<=0){b.think=.4;let best=null,bd=1e9;for(const [,e] of S.ents){if(e.team===b.team||!e.alive)continue;const d=Math.hypot(e.x-b.x,e.z-b.z);if(d<bd){bd=d;best=e}}b.tgt=best;b.bd=bd;
     const en=S.flags[1-b.team],mine=S.flags[b.team],num=+b.id.slice(1);let g;if(en.carrier===b.id)g=[mine.x,0,mine.z];else if(mine.st!=='home'&&(mine.st==='carry'||Math.hypot(mine.x-b.x,mine.z-b.z)<45))g=[mine.x,0,mine.z];else if(num%4===0)g=best&&bd<30?[best.x,0,best.z]:[mine.x,0,mine.z+(b.team?-6:6)];else g=[en.x,0,en.z];b.goal=g}
   const g=b.goal,dx=g[0]-b.x,dz=g[2]-b.z,d=Math.hypot(dx,dz)||1,carry=S.flags[1-b.team].carrier===b.id,sp=carry?3.8:4.5;let wx=0,wz=0;
   const t=b.tgt;let fx=dx/d,fz=dz/d;if(t&&b.bd<3.5&&!carry){const ex=t.x-b.x,ez=t.z-b.z,l=Math.hypot(ex,ez)||1;fx=ex/l;fz=ez/l}
   b.yaw=Math.atan2(-fx,-fz);if(d>1.2){wx=fx*sp;wz=fz*sp}
-  const px=b.x,pz=b.z;phys(b,wx,wz,dt);if(Math.hypot(b.x-px,b.z-pz)<sp*dt*.4&&d>1.5){if(b.onGround)b.vy=8.4;b.blk=(b.blk||0)+dt;if(b.blk>.6){b.blk=0;b.kx+=-fz*7*(Math.random()<.5?1:-1);b.kz+=fx*7}}b.anim+=sp*dt;
+  const px=b.x,pz=b.z;phys(b,wx,wz,dt);if(Math.hypot(b.x-px,b.z-pz)<sp*dt*.4&&d>1.5){if(b.onGround)b.vy=8.9;b.blk=(b.blk||0)+dt;if(b.blk>.6){b.blk=0;b.kx+=-fz*7*(Math.random()<.5?1:-1);b.kz+=fx*7}}b.anim+=sp*dt;
   if(t&&b.bd<3.2&&b.cd<=0){b.cd=.85;const l=Math.hypot(t.x-b.x,t.z-b.z)||1;sendHit(t,SD*.8,(t.x-b.x)/l*6,(t.z-b.z)/l*6,b.id)}}
 function stepSelf(dt){const e=ME;if(e.prot>0)e.prot-=dt;if(!e.alive){e.rt-=dt;if(e.rt<=0){respawn(e);msg('Respawned',1000)}return}
-  const f=(K.KeyW?1:0)-(K.KeyS?1:0),s=(K.KeyD?1:0)-(K.KeyA?1:0),carry=S.flags[1-e.team].carrier===e.id,sp=(K.ControlLeft||K.ShiftLeft?6.2:4.8)*(carry?.85:1);let wx=0,wz=0;if(f||s){const l=Math.hypot(f,s);wx=(-Math.sin(e.yaw)*f+Math.cos(e.yaw)*s)/l*sp;wz=(-Math.cos(e.yaw)*f-Math.sin(e.yaw)*s)/l*sp}
-  if(K.Space&&e.onGround){e.vy=8.6;e.onGround=false}phys(e,wx,wz,dt);e.anim+=Math.hypot(wx,wz)*dt;e.cd-=dt;hand.rotation.x*=.85;
+  const f=(K.KeyW?1:0)-(K.KeyS?1:0),s=(K.KeyD?1:0)-(K.KeyA?1:0),carry=S.flags[1-e.team].carrier===e.id;e.sneak=!!K.ShiftLeft;const sp=(e.sneak?1.31:K.ControlLeft?5.61:4.32)*(carry?.85:1);let wx=0,wz=0;if(f||s){const l=Math.hypot(f,s);wx=(-Math.sin(e.yaw)*f+Math.cos(e.yaw)*s)/l*sp;wz=(-Math.cos(e.yaw)*f-Math.sin(e.yaw)*s)/l*sp}
+  if(K.Space&&e.onGround){e.vy=8.9;e.onGround=false;if(K.ControlLeft){e.hvx=(e.hvx||0)+wx/(sp||1)*3.2;e.hvz=(e.hvz||0)+wz/(sp||1)*3.2}}if(e.sneak&&e.onGround){const sx=e.x+wx*dt,sz=e.z+wz*dt;if(!groundAt(sx,e.y,e.z))wx=0;if(!groundAt(e.x,e.y,sz))wz=0}phys(e,wx,wz,dt);e.anim+=Math.hypot(wx,wz)*dt;e.cd-=dt;hand.rotation.x*=.85;
   if(MS&&locked&&e.cd<=0){e.cd=.5;hand.rotation.x=-1;beep(260,.06);const t=aimEnt(3.6);if(t){const l=Math.hypot(t.x-e.x,t.z-e.z)||1;sendHit(t,SD,(t.x-e.x)/l*6,(t.z-e.z)/l*6,e.id);beep(180,.08)}}}
 let lastPos=0,lastB=0;
 Net.on('pos',(d,from)=>{const e=S.ents.get(from);if(!e||e===ME)return;e.tx=d[0];e.ty=d[1];e.tz=d[2];e.yaw=d[3];e.pitch=d[4];e.hp=d[5]});
@@ -226,7 +236,7 @@ function loop(){requestAnimationFrame(loop);const now=performance.now(),dt=Math.
     for(const f of S.flags){if(f.st==='home'){const h=homeP(f.t);f.x=h[0];f.y=h[1];f.z=h[2]}f.mesh.position.set(f.x,f.y+(f.st==='carry'?1.4:-1.5),f.z);f.mesh.rotation.y+=dt*(f.st==='carry'?3:1)}
     if(ME&&now-lastPos>66){lastPos=now;Net.send('pos',[+ME.x.toFixed(2),+ME.y.toFixed(2),+ME.z.toFixed(2),+ME.yaw.toFixed(2),+ME.pitch.toFixed(2),Math.round(ME.hp)])}
     if(Net.isHost()&&now-lastB>90){lastB=now;const a=[];for(const [,e] of S.ents)if(e.bot)a.push([e.id,+e.x.toFixed(2),+e.y.toFixed(2),+e.z.toFixed(2),+e.yaw.toFixed(2),Math.round(e.hp)]);Net.send('bots',a)}
-    if(ME&&ME.alive)camPlace(ME.x,ME.y+1.62,ME.z,ME.yaw,ME.pitch);else{camera.position.set(64,50,ME&&ME.team?135:-8);camera.rotation.set(-.6,ME&&ME.team?0:Math.PI,0)}hand.visible=!!(ME&&ME.alive)&&VIEW===0;if(ME)setFP('s'+ME.sword);
+    if(ME&&ME.alive)camPlace(ME.x,ME.y+(ME.sneak?1.54:1.62),ME.z,ME.yaw,ME.pitch);else{camera.position.set(64,50,ME&&ME.team?135:-8);camera.rotation.set(-.6,ME&&ME.team?0:Math.PI,0)}hand.visible=!!(ME&&ME.alive)&&VIEW===0;if(ME)setFP('s'+ME.sword);
     scene.children.forEach(c=>{if(c.userData.cl){c.position.x+=dt*1.5;if(c.position.x>200)c.position.x=-80}});flushChunks(10);hud();renderer.render(scene,camera)}}
 addEventListener('keydown',e=>{K[e.code]=1;if(e.code==='KeyV'&&S.state==='play'){VIEW=(VIEW+1)%3;msg(['First person','Third person (back)','Third person (front)'][VIEW],900)}if(e.code==='Space')e.preventDefault()});addEventListener('keyup',e=>K[e.code]=0);
 addEventListener('mousedown',e=>{if(S.state==='menu')return;if(!locked&&!S.over){$('c').requestPointerLock&&$('c').requestPointerLock();return}if(e.button===0)MS=1});addEventListener('mouseup',()=>MS=0);
