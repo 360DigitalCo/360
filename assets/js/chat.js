@@ -11,6 +11,7 @@ const SB_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
 let currentUserId    = null;
 let currentProfile   = null;
 let activeRoom       = {type:'public',id:'public',name:'general',icon:'#',serverId:null,serverName:'360 Chat'};
+window.activeRoom    = activeRoom;
 let activeServerId   = null;
 let pendingFile      = null;
 let replyingTo       = null;
@@ -819,7 +820,7 @@ function switchRoom(room){
     serverSlug: room.serverSlug||null, topic: room.topic||null,
     otherId: room.otherId||null, isGroup: room.isGroup||false
   })); } catch(e) {}
-  activeRoom=room; lastMsgUserId=null; lastMsgDate=null; replyingTo=null; isSending=false;
+  activeRoom=room; window.activeRoom=room; lastMsgUserId=null; lastMsgDate=null; replyingTo=null; isSending=false;
   closeAllPanels();
   document.getElementById('dc-reply-bar').classList.add('hidden');
   document.getElementById('dc-upload-preview').classList.add('hidden');
@@ -2216,7 +2217,7 @@ async function loadFriendsList(){
     const item=document.createElement('div'); item.className='fl-item';
     item.appendChild(makeFriendListAvatar(prof)); item.appendChild(makeFriendListInfo(prof.username,online?'● Online':'○ Offline',online?'online':'offline'));
     const actions=document.createElement('div'); actions.className='fl-actions';
-    const dmBtn=document.createElement('button'); dmBtn.className='dc-action-btn'; dmBtn.title='Message'; dmBtn.textContent='💬'; dmBtn.onclick=e=>{e.stopPropagation();friendsPanel?.classList.add('hidden');startDMWith(prof.username||prof.email||'');};
+    const dmBtn=document.createElement('button'); dmBtn.className='dc-action-btn'; dmBtn.title='Message'; dmBtn.textContent='💬'; dmBtn.onclick=e=>{e.stopPropagation();friendsPanel?.classList.add('hidden');openDMWithProfile({id:fid,username:prof.username||prof.email||'DM'});};
     const rmBtn=document.createElement('button'); rmBtn.className='dc-action-btn'; rmBtn.title='Remove'; rmBtn.innerHTML=ICON.close; rmBtn.style.color='#ef4444'; rmBtn.onclick=async e=>{e.stopPropagation();await sb.from('friendships').delete().eq('id',f.id);loadFriendsList();showToast('Removed friend.');};
     const callBtn=document.createElement('button'); callBtn.className='fl-call-btn'; callBtn.title='Voice call'; callBtn.textContent='📞'; callBtn.onclick=e=>{e.stopPropagation();friendsPanel?.classList.add('hidden');if(window.Voice)window.Voice.startCall(fid,prof.username||'Friend');};
     actions.append(dmBtn,callBtn,rmBtn); item.appendChild(actions); item.addEventListener('click',()=>showProfilePopup(fid,item)); el.appendChild(item);
@@ -2297,7 +2298,7 @@ async function showProfilePopup(userId,anchorEl){
   const chatP=await loadChatProfile(userId);
   renderProfileExtras(userId,p,chatP,popup);
   const dmBtn=document.getElementById('pp-dm-btn'); dmBtn.style.display=userId===currentUserId?'none':'block';
-  dmBtn.onclick=async()=>{popup.classList.add('hidden');if(p.username||p.email)await startDMWith(p.username||p.email);};
+  dmBtn.onclick=async()=>{popup.classList.add('hidden');if(p.username||p.email)await openDMWithProfile({id:userId,username:p.username||p.email});};
   await renderProfileActions(userId,p,popup,dmBtn);
   const rect=anchorEl.getBoundingClientRect();
   popup.style.top=Math.min(rect.bottom+6,window.innerHeight-380)+'px';
@@ -2309,13 +2310,54 @@ document.addEventListener('click',e=>{if(!document.getElementById('profile-popup
 /* ══════════════════════════════════════════════════════
    DM
 ══════════════════════════════════════════════════════ */
+async function findDMTargets(query){
+  const q=query.trim().replace(/^@/,'');
+  if(!q) return [];
+  const cols='id,username,email,is_bot,account_deleted';
+  if(q.includes('@')){
+    const{data}=await sb.from('profiles').select(cols).ilike('email',q.replace(/[%_\\]/g,m=>'\\'+m)).limit(5);
+    if(data?.length) return data;
+  }
+  const esc_=q.replace(/[%_\\]/g,m=>'\\'+m);
+  const{data}=await sb.from('profiles').select(cols).ilike('username',esc_).limit(8);
+  return (data||[]).filter(p=>!p.account_deleted);
+}
+function maskEmail(e){
+  if(!e||!e.includes('@')) return '';
+  const[a,d]=e.split('@'); return a.slice(0,2)+'***@'+d;
+}
+function showDMPicker(matches){
+  const err=document.getElementById('dm-err');
+  err.textContent='Several people use that name. Pick one:';
+  let box=document.getElementById('dm-picker');
+  if(!box){box=document.createElement('div');box.id='dm-picker';box.style.cssText='display:flex;flex-direction:column;gap:6px;margin-top:8px;';err.after(box);}
+  box.innerHTML='';
+  matches.forEach(m=>{
+    const b=document.createElement('button');b.type='button';b.className='dc-btn-sec';b.style.cssText='text-align:left;padding:8px 10px;';
+    b.textContent=m.username+(m.is_bot?' (bot)':'')+(maskEmail(m.email)?'  '+maskEmail(m.email):'');
+    b.onclick=()=>openDMWithProfile(m);
+    box.appendChild(b);
+  });
+}
 async function startDMWith(emailOrUsername){
-  let profile;
-  const{data:byEmail}=await sb.from('profiles').select('id,username,email').ilike('email',emailOrUsername).maybeSingle();
-  if(byEmail){profile=byEmail;}else{const un=emailOrUsername.replace(/^@/,'');const{data:byUser}=await sb.from('profiles').select('id,username,email').ilike('username',un).maybeSingle();profile=byUser;}
-  if(!profile){document.getElementById('dm-err').textContent='No user found.';return;}
+  document.getElementById('dm-picker')?.remove();
+  document.getElementById('dm-err').textContent='';
+  const matches=await findDMTargets(emailOrUsername);
+  const exact=matches.filter(m=>m.username.toLowerCase()===emailOrUsername.trim().replace(/^@/,'').toLowerCase());
+  const pool=exact.length?exact:matches;
+  if(!pool.length){document.getElementById('dm-err').textContent='No user found.';return;}
+  if(pool.length>1&&!pool.some(m=>m.id===currentUserId&&pool.length===1)){
+    const others=pool.filter(m=>m.id!==currentUserId);
+    if(others.length>1){showDMPicker(others);return;}
+    if(others.length===1) return openDMWithProfile(others[0]);
+  }
+  return openDMWithProfile(pool[0]);
+}
+async function openDMWithProfile(profile){
+  document.getElementById('dm-picker')?.remove();
   if(profile.id===currentUserId){document.getElementById('dm-err').textContent="That's you!";return;}
-  const{data:ex}=await sb.from('direct_messages').select('id').or(`and(user_a.eq.${currentUserId},user_b.eq.${profile.id}),and(user_a.eq.${profile.id},user_b.eq.${currentUserId})`).maybeSingle();
+  const{data:exRows}=await sb.from('direct_messages').select('id').or(`and(user_a.eq.${currentUserId},user_b.eq.${profile.id}),and(user_a.eq.${profile.id},user_b.eq.${currentUserId})`).order('created_at',{ascending:true}).limit(1);
+  const ex=exRows?.[0];
   let dmId;
   if(ex){dmId=ex.id;}else{
     const{data:nd,error}=await sb.from('direct_messages').insert({user_a:currentUserId,user_b:profile.id,created_by:currentUserId}).select().single();
