@@ -32,21 +32,15 @@ window.Carlos = (function () {
   /* ── Send as Carlos ─────────────────────────────────── */
   async function send(text, fileUrl, serverId, channelId) {
     const sb = getSb();
-    const uid = window.currentUserId;
-    if (!sb || !uid) return; // must be signed in to send
-    const payload = {
-      user_id:    uid,          // use real user — RLS requires it
-      username:   BOT_NAME,     // display as "carlos"
-      tag:        BOT_TAG,      // shows [BOT] badge
-      avatar_url: BOT_AVATAR,
-      role:       'bot',
-      text:       text || '',
-      file_url:   fileUrl || null,
-    };
-    if (channelId)  payload.channel_id = channelId;
-    else if (serverId) payload.server_id = serverId;
-    const { error } = await sb.from('messages').insert(payload);
-    if (error) console.warn('Carlos send error:', error.message);
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const res = await fetch(sb.supabaseUrl + '/functions/v1/bot-runner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token, apikey: sb.supabaseKey },
+      body: JSON.stringify({ mode: 'say', text: text || '', file_url: fileUrl || null, server_id: serverId || null, channel_id: channelId || null }),
+    });
+    if (!res.ok) console.warn('Carlos send error:', res.status);
   }
 
   /* ── Command parser ─────────────────────────────────── */
@@ -66,6 +60,8 @@ window.Carlos = (function () {
     '!stats': cmdStats,
     '!carlos': cmdInfo,
   };
+
+  const SERVER_CMDS = new Set(['!help','!ping','!roll','!flip','!8ball','!stats','!carlos']);
 
   async function handleMessage(msg) {
     const mention = /(^|\s)@carlos\b/i;
@@ -87,6 +83,7 @@ window.Carlos = (function () {
     const parts = body.split(/\s+/);
     const cmd = parts[0].toLowerCase();
     const args = parts.slice(1);
+    if (SERVER_CMDS.has(cmd)) return;
     const fn = COMMANDS[cmd];
     if (fn) await fn(args, msg, room);
   }
