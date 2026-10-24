@@ -2816,13 +2816,14 @@ function updateUserChip(){
     if(currentUserId) await seedUnreadCounts();
     await buildRail();
     await buildSidebar(null);
+    const _bootSearch=location.search;
     switchRoom({type:'public',id:'public',name:'general',icon:'#',serverName:'360 Chat',serverId:null});
     setTimeout(()=>window.ChatNotif?.onRoomSwitch(activeRoom),0);
     startPresence();
     if (handleInviteCode()) return;
-    const _urlParams = new URLSearchParams(location.search);
+    const _urlParams = new URLSearchParams(_bootSearch);
     const _hasUrlRoom = _urlParams.has('s') || _urlParams.has('dm');
-    const _routed = _hasUrlRoom && await handleUrlRouting();
+    const _routed = _hasUrlRoom && await handleUrlRouting(_bootSearch);
     if (!_routed) {
       try {
         const saved = localStorage.getItem('360_last_room');
@@ -2887,15 +2888,24 @@ async function seedUnreadCounts(){
 // ── URL routing using query params — no server config needed, no 404 on reload
 // Format: /chat?s=server-slug&c=channel-name  or  /chat?dm=userId
 
-async function handleUrlRouting() {
-  const params = new URLSearchParams(location.search);
+async function handleUrlRouting(search) {
+  const params = new URLSearchParams(search||location.search);
   const serverSlug = params.get('s');
   const channelName = params.get('c');
   const dmId = params.get('dm');
 
   if (dmId) {
     const { data: dm } = await sb.from('direct_messages').select('*').eq('id', dmId).maybeSingle();
-    if (dm) { switchRoom({ type:'dm', id:dm.id, name:'DM', icon:'@', serverId:null, serverName:'Direct Messages' }); return true; }
+    if (dm) {
+      let label = dm.name || 'DM', isGroup = !!dm.is_group, otherId = null;
+      if (!isGroup) {
+        otherId = dm.user_a === currentUserId ? dm.user_b : dm.user_a;
+        const prof = otherId ? await getProfile(otherId) : null;
+        label = prof?.username || label;
+      }
+      switchRoom({ type:'dm', id:dm.id, name:label, icon:isGroup?'\u{1F465}':'@', serverId:null, serverName:'Direct Messages', otherId, isGroup });
+      return true;
+    }
   }
   if (!serverSlug) return false;
 
@@ -2959,7 +2969,7 @@ function updateUrlForRoom(room) {
       });
     }
   } else if (room.type === 'dm') {
-    url = '/chat';
+    url = `/chat?dm=${encodeURIComponent(room.id)}`;
     title = room.name ? `${room.name} — DM` : '360 Chat';
   }
   history.replaceState(null, '', url);
