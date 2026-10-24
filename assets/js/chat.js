@@ -3185,15 +3185,30 @@ function stagePastedFile(file){
   const named=file.name&&file.name!=='image.png'?file:new File([file],`pasted-${Date.now()}.${ext}`,{type:file.type});
   pendingFile=named;
   document.getElementById('up-name').textContent=named.name;
-  document.getElementById('up-icon').textContent='🖼️';
+  const icon=document.getElementById('up-icon');
+  icon.textContent='';
+  const img=document.createElement('img');
+  img.src=URL.createObjectURL(named); img.alt='';
+  img.style.cssText='width:28px;height:28px;object-fit:cover;border-radius:4px;vertical-align:middle;';
+  icon.appendChild(img);
   document.getElementById('dc-upload-preview').classList.remove('hidden');
   document.getElementById('msgInput').focus();
 }
+function imageFromTransfer(dt){
+  if(!dt) return null;
+  let f=[...(dt.files||[])].find(x=>x.type.startsWith('image/'));
+  if(!f){const it=[...(dt.items||[])].find(i=>i.kind==='file'&&i.type.startsWith('image/')); f=it&&it.getAsFile();}
+  return f||null;
+}
+document.addEventListener('dragover',(e)=>{ if(e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop',(e)=>{
+  if(!currentUserId||!activeRoom) return;
+  const f=imageFromTransfer(e.dataTransfer); if(!f) return;
+  e.preventDefault(); stagePastedFile(f);
+});
 document.addEventListener('paste',(e)=>{
   if(!currentUserId||!activeRoom) return;
-  const cd=e.clipboardData; if(!cd) return;
-  let file=[...(cd.files||[])].find(f=>f.type.startsWith('image/'));
-  if(!file){const it=[...(cd.items||[])].find(i=>i.kind==='file'&&i.type.startsWith('image/')); file=it&&it.getAsFile();}
+  const file=imageFromTransfer(e.clipboardData);
   if(!file) return;
   e.preventDefault();
   stagePastedFile(file);
