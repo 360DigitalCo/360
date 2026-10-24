@@ -1007,14 +1007,12 @@ document.getElementById('dc-messages').addEventListener('scroll',async function(
    RENDER MESSAGE
 ══════════════════════════════════════════════════════ */
 async function runServerBots(msg){
-  try{
-    const {data:{session}}=await sb.auth.getSession(); if(!session) return;
-    await fetch(sb.supabaseUrl+'/functions/v1/bot-runner',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:sb.supabaseKey},body:JSON.stringify({message_id:msg.id})});
-  }catch(_){}
+  const {error}=await sb.functions.invoke('bot-runner',{body:{message_id:msg.id}});
+  if(error) console.warn('bot-runner failed:',error.message);
 }
 function renderMessage(msg,isRealtime){
   // Fire Carlos event for commands (realtime messages only, not self)
-  if(isRealtime && msg.user_id===currentUserId && msg.id && msg.text && (/^[!\/]/.test(msg.text)||/(^|\s)@(carlos|danbot|zakibot)\b/i.test(msg.text))) runServerBots(msg);
+  if(isRealtime && msg.user_id===currentUserId && msg.id && msg.text && (/^[!\/]/.test(msg.text)||/(^|\s)@(carlos|danbot|zakibot|mingzebot)\b/i.test(msg.text))) runServerBots(msg);
   if(isRealtime && (msg.text?.startsWith('!') || /(^|\s)@carlos\b/i.test(msg.text||''))) {
     window.dispatchEvent(new CustomEvent('carlos-message', { detail: msg }));
   }
