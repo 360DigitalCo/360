@@ -293,7 +293,7 @@ function stepGens(prev,now){if(!ME||!ME.alive)return;const tick=(iv,pt,nt)=>Math
     if(g.k==='t'&&g.team===ME.team){if(tick(1.1,prev,now)&&INV.i<64)INV.i++;if(tick(4.5,prev,now)&&INV.g<32)INV.g++}
     else if(g.k==='d'&&tick(22,prev,now))INV.d++;else if(g.k==='e'&&tick(38,prev,now))INV.e++}}
 // ---- bots (host only)
-function botPlace(b,x,y,z){if(getB(x,y,z)||b.place>0)return;const id=G.mode==='sky'?B.PLANKS:WOOL[b.team%4];setB(x,y,z,id);sendBlk(x,y,z,id);b.place=.28}
+function botPlace(b,x,y,z){if(getB(x,y,z)||b.place>0)return;const id=G.mode==='sky'?B.PLANKS:WOOL[b.team%4];if(Math.random()<.2){b.place=.35;return}setB(x,y,z,id);sendBlk(x,y,z,id);b.place=.6+Math.random()*.55}
 function fbOK(b){if(G.mode==='fire')return true;if(G.mode==='bridge')return false;if(b.bk>0||(b.bedT&&Math.hypot(b.bedT[0]-b.x,b.bedT[2]-b.z)<10))return false;return Math.random()<.12}
 function botStep(b,dt){if(!b.alive){if(canResp(b)){b.rt-=dt;if(b.rt<=0)respawn(b)}return}if(b.prot>0)b.prot-=dt;b.cd-=dt;b.place-=dt;b.fcd-=dt;b.think-=dt;
   if(b.y<G.M.voidY){onDead(b,'',true);return}
@@ -301,14 +301,14 @@ function botStep(b,dt){if(!b.alive){if(canResp(b)){b.rt-=dt;if(b.rt<=0)respawn(b
     if(G.mode==='bed'){let bb=1e9;for(let t=0;t<4;t++){if(t===b.team||!G.teamBed[t])continue;const p=G.M.beds[t],d=Math.hypot(p[0]-b.x,p[2]-b.z);if(d<bb){bb=d;b.bedT=p}}if(bd>10&&b.bedT)b.goal=[b.bedT[0]+.5,b.bedT[1],b.bedT[2]+.5];else if(best)b.goal=[best.x,best.y,best.z];else b.goal=null}
     else if(G.mode==='bridge'){const en=G.M.pits[1-b.team];b.goal=(best&&bd<7)?[best.x,best.y,best.z]:[en[0],30,en[1]]}
     else b.goal=best?[best.x,best.y,best.z]:null}
-  const g=b.goal;let wx=0,wz=0;if(g){const dx=g[0]-b.x,dz=g[2]-b.z,d=Math.hypot(dx,dz)||1;b.yaw=Math.atan2(-dx,-dz);if(d>1.6){wx=dx/d*3.6;wz=dz/d*3.6}
-    if(b.onGround){const ax=b.x+dx/d*.9,az=b.z+dz/d*.9,fy=Math.floor(b.y);if(!(G.M.pits&&G.M.pits.some(p=>Math.abs(ax-p[0])<2.6&&Math.abs(az-p[1])<2.6))&&!getB(Math.floor(ax),fy-1,Math.floor(az))&&!getB(Math.floor(ax),fy-2,Math.floor(az))&&b.y>G.M.voidY+12)botPlace(b,Math.floor(ax),fy-1,Math.floor(az));
+  const g=b.goal;let wx=0,wz=0;b.bridgeNow=false;if(g){const dx=g[0]-b.x,dz=g[2]-b.z,d=Math.hypot(dx,dz)||1;b.yaw=Math.atan2(-dx,-dz);if(d>1.6){wx=dx/d*3.6;wz=dz/d*3.6}
+    if(b.onGround){const ax=b.x+dx/d*.9,az=b.z+dz/d*.9,fy=Math.floor(b.y);if(!(G.M.pits&&G.M.pits.some(p=>Math.abs(ax-p[0])<2.6&&Math.abs(az-p[1])<2.6))&&!getB(Math.floor(ax),fy-1,Math.floor(az))&&!getB(Math.floor(ax),fy-2,Math.floor(az))&&b.y>G.M.voidY+12){b.bridgeNow=true;botPlace(b,Math.floor(ax),fy-1,Math.floor(az))};
       if(b.hitW||(getB(Math.floor(ax),fy,Math.floor(az)))){if(!getB(Math.floor(ax),fy+1,Math.floor(az))&&!getB(Math.floor(b.x),fy+2,Math.floor(b.z))){b.vy=8.9;b.onGround=false}else{b.dig+=dt;if(b.dig>.7){b.dig=0;const bx=Math.floor(ax),bz=Math.floor(az);for(const yy of[fy,fy+1]){const bl=getB(bx,yy,bz);if(bl&&BDEF[bl].h<90){applyBlk(bx,yy,bz,0);sendBlk(bx,yy,bz,0);break}}}}}
       if(g[1]>b.y+2&&d<6&&b.place<=0){b.vy=8.9;b.onGround=false}}
     if(b.bedT&&G.mode==='bed'&&Math.hypot(b.bedT[0]+.5-b.x,b.bedT[2]+.5-b.z)<3&&Math.abs(b.bedT[1]-b.y)<3&&(b.bk=(b.bk||0)+dt)>1){b.bk=0;const bt=G.M.beds[G.teamBed.findIndex((v,t)=>v&&t!==b.team&&G.M.beds[t]===b.bedT)];if(bt&&isBed(getB(bt[0],bt[1],bt[2]))){applyBlk(bt[0],bt[1],bt[2],0);sendBlk(bt[0],bt[1],bt[2],0)}}}
   const t=b.tgt;if(t&&b.bd<3.2&&b.cd<=0){b.cd=.9;const l=Math.hypot(t.x-b.x,t.z-b.z)||1;sendHit(t,SD[Math.min(3,b.sword)]*.8,(t.x-b.x)/l*5,(t.z-b.z)/l*5,b.id)}
   if(t&&b.fcd<=0&&b.bd>5&&b.bd<28&&fbOK(b)){b.fcd=G.mode==='fire'?2.6:14;const ox=b.x,oy=b.y+1.6,oz=b.z,dx=t.x-ox,dy=t.y+.6-oy,dz=t.z-oz,l=Math.hypot(dx,dy,dz);throwFB(b,ox+dx/l*1.2,oy+dy/l*1.2,oz+dz/l*1.2,dx/l,dy/l,dz/l)}
-  const px=b.x,pz=b.z,sp=Math.hypot(wx,wz);mcStep(b,dt,sp?wx/sp:0,sp?wz/sp:0,false,false,false,sp);b.hitW=(Math.abs(wx)>.1&&b.x===px)||(Math.abs(wz)>.1&&b.z===pz);b.anim+=Math.hypot(wx,wz)*dt}
+  if(b.bridgeNow){wx*=.35;wz*=.35}const px=b.x,pz=b.z,sp=Math.hypot(wx,wz);mcStep(b,dt,sp?wx/sp:0,sp?wz/sp:0,false,false,false,sp);b.hitW=(Math.abs(wx)>.1&&b.x===px)||(Math.abs(wz)>.1&&b.z===pz);b.anim+=Math.hypot(wx,wz)*dt}
 // ---- win check (host)
 function checkWin(){if(G.over||!Net.isHost())return;if(G.mode==='bridge'){bridgeCheck();return}const alive=[];for(let t=0;t<G.teams;t++){let ok=false;for(const [,e] of G.ents)if(e.team===t&&(e.alive||canResp(e)))ok=true;if(ok)alive.push(t)}
   const total=[...G.ents.values()].filter(e=>!e.bot&&e.team>=0).length;if(alive.length<=1&&(G.teams>1)){const w=alive.length?alive[0]:-1;Net.send('over',{w});endGame(w)}}
