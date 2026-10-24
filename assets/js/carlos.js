@@ -33,14 +33,10 @@ window.Carlos = (function () {
   async function send(text, fileUrl, serverId, channelId) {
     const sb = getSb();
     if (!sb) return;
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
-    const res = await fetch(sb.supabaseUrl + '/functions/v1/bot-runner', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token, apikey: sb.supabaseKey },
-      body: JSON.stringify({ mode: 'say', text: text || '', file_url: fileUrl || null, server_id: serverId || null, channel_id: channelId || null }),
+    const { error } = await sb.functions.invoke('bot-runner', {
+      body: { mode: 'say', text: text || '', file_url: fileUrl || null, server_id: serverId || null, channel_id: channelId || null },
     });
-    if (!res.ok) console.warn('Carlos send error:', res.status);
+    if (error) console.warn('Carlos send error:', error.message);
   }
 
   /* ── Command parser ─────────────────────────────────── */

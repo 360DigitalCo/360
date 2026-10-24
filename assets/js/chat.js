@@ -1007,14 +1007,12 @@ document.getElementById('dc-messages').addEventListener('scroll',async function(
    RENDER MESSAGE
 ══════════════════════════════════════════════════════ */
 async function runServerBots(msg){
-  try{
-    const {data:{session}}=await sb.auth.getSession(); if(!session) return;
-    await fetch(sb.supabaseUrl+'/functions/v1/bot-runner',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:sb.supabaseKey},body:JSON.stringify({message_id:msg.id})});
-  }catch(_){}
+  const {error}=await sb.functions.invoke('bot-runner',{body:{message_id:msg.id}});
+  if(error) console.warn('bot-runner failed:',error.message);
 }
 function renderMessage(msg,isRealtime){
   // Fire Carlos event for commands (realtime messages only, not self)
-  if(isRealtime && msg.user_id===currentUserId && msg.id && msg.text && (/^[!\/]/.test(msg.text)||/(^|\s)@(carlos|danbot|zakibot)\b/i.test(msg.text))) runServerBots(msg);
+  if(isRealtime && msg.user_id===currentUserId && msg.id && msg.text && (/^[!\/]/.test(msg.text)||/(^|\s)@(carlos|danbot|zakibot|mingzebot)\b/i.test(msg.text))) runServerBots(msg);
   if(isRealtime && (msg.text?.startsWith('!') || /(^|\s)@carlos\b/i.test(msg.text||''))) {
     window.dispatchEvent(new CustomEvent('carlos-message', { detail: msg }));
   }
@@ -2816,13 +2814,14 @@ function updateUserChip(){
     if(currentUserId) await seedUnreadCounts();
     await buildRail();
     await buildSidebar(null);
+    const _bootSearch=location.search;
     switchRoom({type:'public',id:'public',name:'general',icon:'#',serverName:'360 Chat',serverId:null});
     setTimeout(()=>window.ChatNotif?.onRoomSwitch(activeRoom),0);
     startPresence();
     if (handleInviteCode()) return;
-    const _urlParams = new URLSearchParams(location.search);
+    const _urlParams = new URLSearchParams(_bootSearch);
     const _hasUrlRoom = _urlParams.has('s') || _urlParams.has('dm');
-    const _routed = _hasUrlRoom && await handleUrlRouting();
+    const _routed = _hasUrlRoom && await handleUrlRouting(_bootSearch);
     if (!_routed) {
       try {
         const saved = localStorage.getItem('360_last_room');
@@ -2887,15 +2886,24 @@ async function seedUnreadCounts(){
 // ── URL routing using query params — no server config needed, no 404 on reload
 // Format: /chat?s=server-slug&c=channel-name  or  /chat?dm=userId
 
-async function handleUrlRouting() {
-  const params = new URLSearchParams(location.search);
+async function handleUrlRouting(search) {
+  const params = new URLSearchParams(search||location.search);
   const serverSlug = params.get('s');
   const channelName = params.get('c');
   const dmId = params.get('dm');
 
   if (dmId) {
     const { data: dm } = await sb.from('direct_messages').select('*').eq('id', dmId).maybeSingle();
-    if (dm) { switchRoom({ type:'dm', id:dm.id, name:'DM', icon:'@', serverId:null, serverName:'Direct Messages' }); return true; }
+    if (dm) {
+      let label = dm.name || 'DM', isGroup = !!dm.is_group, otherId = null;
+      if (!isGroup) {
+        otherId = dm.user_a === currentUserId ? dm.user_b : dm.user_a;
+        const prof = otherId ? await getProfile(otherId) : null;
+        label = prof?.username || label;
+      }
+      switchRoom({ type:'dm', id:dm.id, name:label, icon:isGroup?'\u{1F465}':'@', serverId:null, serverName:'Direct Messages', otherId, isGroup });
+      return true;
+    }
   }
   if (!serverSlug) return false;
 
@@ -2959,7 +2967,7 @@ function updateUrlForRoom(room) {
       });
     }
   } else if (room.type === 'dm') {
-    url = '/chat';
+    url = `/chat?dm=${encodeURIComponent(room.id)}`;
     title = room.name ? `${room.name} — DM` : '360 Chat';
   }
   history.replaceState(null, '', url);
@@ -3177,15 +3185,30 @@ function stagePastedFile(file){
   const named=file.name&&file.name!=='image.png'?file:new File([file],`pasted-${Date.now()}.${ext}`,{type:file.type});
   pendingFile=named;
   document.getElementById('up-name').textContent=named.name;
-  document.getElementById('up-icon').textContent='🖼️';
+  const icon=document.getElementById('up-icon');
+  icon.textContent='';
+  const img=document.createElement('img');
+  img.src=URL.createObjectURL(named); img.alt='';
+  img.style.cssText='width:28px;height:28px;object-fit:cover;border-radius:4px;vertical-align:middle;';
+  icon.appendChild(img);
   document.getElementById('dc-upload-preview').classList.remove('hidden');
   document.getElementById('msgInput').focus();
 }
+function imageFromTransfer(dt){
+  if(!dt) return null;
+  let f=[...(dt.files||[])].find(x=>x.type.startsWith('image/'));
+  if(!f){const it=[...(dt.items||[])].find(i=>i.kind==='file'&&i.type.startsWith('image/')); f=it&&it.getAsFile();}
+  return f||null;
+}
+document.addEventListener('dragover',(e)=>{ if(e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop',(e)=>{
+  if(!currentUserId||!activeRoom) return;
+  const f=imageFromTransfer(e.dataTransfer); if(!f) return;
+  e.preventDefault(); stagePastedFile(f);
+});
 document.addEventListener('paste',(e)=>{
   if(!currentUserId||!activeRoom) return;
-  const cd=e.clipboardData; if(!cd) return;
-  let file=[...(cd.files||[])].find(f=>f.type.startsWith('image/'));
-  if(!file){const it=[...(cd.items||[])].find(i=>i.kind==='file'&&i.type.startsWith('image/')); file=it&&it.getAsFile();}
+  const file=imageFromTransfer(e.clipboardData);
   if(!file) return;
   e.preventDefault();
   stagePastedFile(file);
