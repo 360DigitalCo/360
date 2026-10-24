@@ -572,7 +572,7 @@ window.Meet = (function () {
       isHost,
       video: mode === 'video' && camOn,
       audio: micOn,
-      screenSharing: false
+      screenSharing: localScreenSharing
     });
   }
 
@@ -587,7 +587,14 @@ window.Meet = (function () {
     micOn = previewMicOn;
     camOn = previewCamOn;
     buildChannel();
-    channel.subscribe(status => { if (status === 'SUBSCRIBED') { enterCallRoom(); trackPresence(); } });
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') { enterCallRoom(); trackPresence(); }
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setPrimaryBusy(false);
+        showError('Could not reach the meeting service. Check your connection and try again.');
+        if (!inCall && channel) { getSb().removeChannel(channel); channel = null; }
+      }
+    });
   }
 
   /* ── Joiner step 1: submit code + passcode, wait for admission ── */
@@ -606,6 +613,14 @@ window.Meet = (function () {
     pendingJoin = { settled: false, passcode: enteredPasscode };
     buildChannel();
     channel.subscribe(status => {
+      if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && pendingJoin && !pendingJoin.settled) {
+        pendingJoin.settled = true;
+        setJoinCodeBusy(false);
+        showStatus('');
+        showError('Could not reach the meeting service. Check your connection and try again.');
+        if (channel) { getSb().removeChannel(channel); channel = null; }
+        return;
+      }
       if (status === 'SUBSCRIBED') {
         channel.send({
           type: 'broadcast', event: 'join-request',
@@ -698,17 +713,23 @@ window.Meet = (function () {
     channel?.send({ type: 'broadcast', event: 'signal', payload: { from: myPeerId, to: toId, type, data } });
   }
   function broadcastMeta() {
+    if (channel && inCall) trackPresence();
     channel?.send({ type: 'broadcast', event: 'meta', payload: { from: myPeerId, data: { video: mode === 'video' && camOn, audio: micOn, screenSharing: localScreenSharing } } });
   }
 
   function evaluatePresence() {
-    if (!channel) return;
+    if (!channel || !inCall) return;
     const state = channel.presenceState();
     Object.keys(state).forEach(key => {
       if (key === myPeerId) return;
+      const meta = state[key][0] || {};
       if (!peers[key]) {
-        const meta = state[key][0] || {};
         createPeerConnection(key, meta);
+      } else {
+        const entry = peers[key];
+        if (meta.name) entry.name = meta.name;
+        if (meta.avatarUrl) entry.avatarUrl = meta.avatarUrl;
+        if (meta.isHost) entry.isHost = true;
       }
       // Existing peers' live video/audio/screenSharing flags are kept
       // current via the 'meta' broadcast, not this (stale) presence
@@ -872,8 +893,21 @@ window.Meet = (function () {
     return pc;
   }
 
-  async function handleSignal(fromId, type, payload) {
-    if (!peers[fromId] && type === 'offer') createPeerConnection(fromId, {});
+  const signalChains = {};
+  function handleSignal(fromId, type, payload) {
+    if (!inCall) return;
+    if (!peers[fromId] && type === 'offer') {
+      const meta = (channel && channel.presenceState()[fromId] || [])[0] || {};
+      createPeerConnection(fromId, meta);
+    }
+    const entry = peers[fromId];
+    if (!entry) return;
+    signalChains[fromId] = (signalChains[fromId] || Promise.resolve())
+      .then(() => processSignal(fromId, type, payload))
+      .catch(e => console.error('Meet signal error', e));
+  }
+
+  async function processSignal(fromId, type, payload) {
     const entry = peers[fromId];
     if (!entry) return;
     const pc = entry.pc;
@@ -902,8 +936,18 @@ window.Meet = (function () {
         }
       } catch (e) { console.error('Meet signal error', e); }
     } else if (type === 'ice') {
+      if (!pc.remoteDescription) {
+        (entry.pendingIce = entry.pendingIce || []).push(payload);
+        return;
+      }
       try { await pc.addIceCandidate(new RTCIceCandidate(payload)); }
       catch (e) { if (!entry.ignoreOffer) console.error('Meet ICE error', e); }
+    }
+    if (pc.remoteDescription && entry.pendingIce && entry.pendingIce.length) {
+      const queued = entry.pendingIce; entry.pendingIce = [];
+      for (const c of queued) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) { if (!entry.ignoreOffer) console.error('Meet ICE error', e); }
+      }
     }
   }
 
@@ -913,6 +957,7 @@ window.Meet = (function () {
     try { entry.pc.close(); } catch (e) {}
     stopAudioMeter(peerId);
     delete peers[peerId];
+    delete signalChains[peerId];
     renderStage();
     updateParticipantCount();
   }
@@ -952,6 +997,7 @@ window.Meet = (function () {
     renderStage();
     updateParticipantCount();
     startTimer();
+    evaluatePresence();
     window.addEventListener('beforeunload', onBeforeUnload);
     setupLeaveTabWatcher();
   }
@@ -1168,6 +1214,7 @@ window.Meet = (function () {
   }
 
   function startTimer() {
+    clearInterval(timerInterval);
     callStartTime = Date.now();
     timerInterval = setInterval(() => {
       const s = Math.floor((Date.now() - callStartTime) / 1000);
@@ -1663,15 +1710,26 @@ window.Meet = (function () {
   // "you left" toast, since a more specific one was already shown.
   function leaveCall(kicked) {
     if (!inCall) return;
+    let endingChannel = null;
     if (isHost && !kicked && channel) {
-      // Kick everyone else out and shut the meeting down before tearing
-      // down our own connection.
-      channel.send({ type: 'broadcast', event: 'meeting-ended', payload: {} });
+      endingChannel = channel;
+      endingChannel.send({ type: 'broadcast', event: 'meeting-ended', payload: {} }).catch(() => {});
     }
     inCall = false;
     stopTimer();
     Object.keys(peers).forEach(removePeer);
-    if (channel) { getSb().removeChannel(channel); channel = null; }
+    if (channel) {
+      const done = channel;
+      channel = null;
+      if (endingChannel === done) setTimeout(() => getSb().removeChannel(done), 700);
+      else getSb().removeChannel(done);
+    }
+    clearTimeout(screenRequestTimer);
+    clearTimeout(admitTimer);
+    pendingJoin = null;
+    passcode = '';
+    pendingKnownSharerId = null;
+    pendingKnownSharerName = null;
     if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
     if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
     localScreenSharing = false;
