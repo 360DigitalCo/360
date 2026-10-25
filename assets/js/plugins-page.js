@@ -1,6 +1,5 @@
 (() => {
   "use strict";
-  document.querySelectorAll(".plugin-row").forEach((row) => {
-    row.setAttribute("aria-label", `${row.querySelector("h3")?.textContent || "Plugin"}: coming soon`);
-  });
+  const root = document.getElementById("hub-root");
+  if (root && window.McpHub) window.McpHub.render(root, {});
 })();

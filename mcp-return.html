@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Connecting</title>
+<link rel="icon" type="image/png" href="/favicon-32x32.png"/>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;background:#f8fafc;color:#111827;text-align:center}
+@media(prefers-color-scheme:dark){body{background:#0b0f19;color:#f8fafc}}
+p{max-width:320px;line-height:1.6;font-size:14px;opacity:.75}
+</style>
+</head>
+<body><p id="m">Finishing the connection.</p>
+<script>
+(function(){
+  var q=new URLSearchParams(location.search);
+  var msg={type:'mcp-hub-code',state:q.get('state'),code:q.get('code'),error:q.get('error_description')||q.get('error')||null};
+  if(window.opener&&!window.opener.closed){
+    window.opener.postMessage(msg,location.origin);
+    document.getElementById('m').textContent=msg.error?'Connection failed. You can close this window.':'Connected. This window will close.';
+    setTimeout(function(){window.close();},msg.error?4000:600);
+  }else{
+    document.getElementById('m').textContent='Return to 360 and try connecting again.';
+  }
+})();
+</script>
+</body></html>
