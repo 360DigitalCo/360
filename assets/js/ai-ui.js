@@ -303,12 +303,12 @@
   });
   $("ai-profile-auth-action")?.addEventListener("click", async () => {
     menuOpen(false);
-    if (!client) { location.href = "/signin?from=%2Fai.html"; return; }
+    if (!client) { location.href = "/signin?from=%2Fai%2F"; return; }
     try {
       const { data } = await client.auth.getSession();
       if (data?.session) { await client.auth.signOut(); await updateProfile(null); }
-      else location.href = "/signin?from=%2Fai.html";
-    } catch (_) { location.href = "/signin?from=%2Fai.html"; }
+      else location.href = "/signin?from=%2Fai%2F";
+    } catch (_) { location.href = "/signin?from=%2Fai%2F"; }
   });
   $("model-picker-btn")?.addEventListener("click", () => setTimeout(modelLabel, 100));
 

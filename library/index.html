@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#14253a" />
+  <meta name="description" content="A private place for your uploaded documents and files." />
+  <title>Library · 360 Workspace</title>
+  <link rel="icon" type="image/png" href="/favicon-32x32.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/main.css" />
+  <link rel="stylesheet" href="/assets/css/wide.css" />
+  <link rel="stylesheet" href="/assets/css/gallium.css" />
+  <link rel="stylesheet" href="/assets/css/cursor.css" />
+  <link rel="stylesheet" href="/assets/css/workspace-tools.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/360-settings.js"></script>
+  
+  <script>window.SKIP_AUTH_CHIP = true;</script>
+
+  <script>
+    (() => {
+      const routes = { '/ai.html': '/ai/', '/library.html': '/library/', '/health.html': '/health/', '/scholar.html': '/scholar/', '/plugins.html': '/plugins/' };
+      const target = routes[window.location.pathname];
+      if (target) window.location.replace(target + window.location.search + window.location.hash);
+    })();
+  </script>
+</head><body class="desk-body workspace-page">
+<div class="desk-layout">
+  <aside class="sidebar" id="sidebar" aria-label="360 navigation"><span id="sidebar-slot"></span></aside>
+<div class="overlay" id="overlay"></div>
+<div class="settings-panel" id="settingsPanel">
+<h3>Appearance</h3>
+<div class="settings-label">Theme</div>
+<div class="theme-swatches">
+<div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+<div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+<div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+<div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
+</div>
+<div class="settings-label" style="margin-top:20px;">Mode</div>
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+<span style="font-size:14px;">Dark mode</span>
+<input id="darkToggle" type="checkbox"/>
+</label>
+<h3 style="margin-top:20px;">Cursor</h3>
+<div class="settings-label">Style</div>
+<div class="cursor-options">
+<div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+<div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+<div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+<div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+<div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+<div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
+</div>
+<div class="cursor-color-row">
+<label>Cursor color</label>
+<input id="cursorColorPicker" type="color" value="#3b82f6"/>
+<button id="cursorColorReset">Reset</button>
+</div>
+<div class="settings-box" style="margin-top:20px;">
+<div class="settings-label">Background Image</div>
+<input accept="image/*" class="settings-input" id="bgUpload" type="file"/>
+<input class="settings-input" id="bgUrlInput" placeholder="Paste image URL…" type="text"/>
+<button class="settings-btn" id="bgUrlBtn">Apply URL</button>
+<button class="settings-btn" id="bgResetBtn">Reset</button>
+</div>
+</div><aside class="desk-rail" aria-label="360 workspace">
+      <button class="desk-menu-trigger sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="Menu" aria-controls="sidebar" aria-expanded="false">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="desk-rail-rule"></div>
+      <nav class="desk-rail-nav"><a class="desk-rail-link" href="/ai/" aria-label="AI" title="AI"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z M8 9h8 M8 13h5"/></svg><span>AI</span></a><a class="desk-rail-link active" href="/library/" aria-label="Library" title="Library"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10a2 2 0 0 1 2 2v14H7a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2Z M8 8h6 M8 12h6 M8 16h4"/></svg><span>Library</span></a><a class="desk-rail-link" href="/scholar/" aria-label="Scholar" title="Scholar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5Z M6 10v6c3 3 9 3 12 0v-6 M22 8v7"/></svg><span>Scholar</span></a><a class="desk-rail-link" href="/health/" aria-label="Health" title="Health"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span>Health</span></a><a class="desk-rail-link" href="/plugins/" aria-label="Plugins" title="Plugins"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5 M15 3v5 M4 9h16v3a3 3 0 0 0 0 6v3H4v-3a3 3 0 0 0 0-6V9Z"/></svg><span>Plugins</span></a></nav>
+    </aside><div class="desk-main"><header class="desk-topbar">
+      <div class="desk-topbar-heading"><h1>Library</h1><p>Files and references, kept in one place.</p></div>
+      <div class="desk-topbar-actions">
+        <div class="desk-profile-wrap">
+          <button class="desk-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="desk-avatar" id="desk-profile-avatar">G</span><span class="desk-profile-copy"><strong id="desk-profile-name">Guest</strong><small id="desk-profile-subtitle">Your workspace</small></span><span class="desk-profile-caret">⌄</span></button>
+          <div class="desk-profile-menu" id="desk-profile-menu" role="menu" hidden>
+            <div class="desk-profile-menu-head"><span class="desk-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Guest</strong><small id="desk-menu-email">Not signed in</small></span></div>
+            <a role="menuitem" href="/ai/?settings=1">AI preferences</a>
+            <a role="menuitem" href="/settings">Account settings</a>
+            <button role="menuitem" type="button" id="desk-auth-action">Sign in</button>
+          </div>
+        </div>
+      </div>
+    </header><main class="workspace-content library-content">
+  
+  <div id="library-auth-state" class="tool-disclaimer" hidden>Sign in to use your private Library. <a href="/signin?from=%2Flibrary%2F">Sign in</a></div>
+  <section class="library-upload-panel" aria-label="Upload files"><div class="upload-copy"><span class="upload-icon">↥</span><div><h3>Add to your Library</h3><p>Drop documents, images, code or reference files here.</p><small>50 MB per file · stored privately</small></div></div><label id="library-dropzone" class="dropzone" for="library-file-input"><span class="dropzone-action">Choose files <b>↗</b></span><span class="dropzone-caption">or drag them into this area</span><input id="library-file-input" type="file" multiple hidden /></label></section>
+  <section class="library-files-panel"><div class="panel-title-row"><div><div class="section-eyebrow">COLLECTION</div><h3>Your files <span class="soft-counter" id="library-file-count">—</span></h3></div><button id="library-refresh" type="button" class="quiet-button">↻ Refresh</button></div><div id="library-status" class="tool-status" role="status" aria-live="polite">Loading your Library…</div><div id="library-file-list"><div class="tool-empty">Your files will appear here.</div></div></section>
+</main></div></div>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/wide.js"></script>
+<script src="/assets/js/gallium.js"></script>
+<script src="/assets/js/cursor.js"></script>
+<script src="/assets/js/workspace-shell.js"></script>
+<script src="/assets/js/library.js"></script>
+</body></html>
