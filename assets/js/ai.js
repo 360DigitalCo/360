@@ -787,7 +787,18 @@
 
     if (error) return null;
 
-    const publicData = sb.storage.from("ai-uploads").getPublicUrl(path).data; return publicData ? (publicData.publicUrl || null) : null;
+    // Keep the existing chat attachment URL for current conversations, while
+    // saving a separate private copy in the user's Library when signed in.
+    if (currentUserId) {
+      const safeName = String(name || "file").split(/[\\/]/).pop().replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 180) || "file";
+      const libraryPath = `${currentUserId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+      await sb.storage.from("ai-library").upload(libraryPath, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type || "application/octet-stream"
+      }).catch(() => null);
+    }
+
+    const publicData = sb.storage.from("ai-uploads").getPublicUrl(path).data;
+    return publicData ? (publicData.publicUrl || null) : null;
   }
 
   /* ── talking to the backend ──────────────────────────────────────── */
@@ -905,6 +916,21 @@
         "[[TITLE: a concise 3-6 word title for this conversation]] — this " +
         "line will be extracted and hidden from the user, so do not " +
         "reference it in your actual answer.)";
+    }
+
+    const scholarMode = localStorage.getItem("ai360:scholarMode") === "true";
+    const webResearch = localStorage.getItem("ai360:webResearch") === "true";
+    if (scholarMode) {
+      backendMessage = "!web " + backendMessage +
+        "\n\nResearch instructions: prioritize trustworthy primary sources, official documentation, peer-reviewed research and respected publications. Cite direct source links, separate evidence from inference, mention uncertainty and limitations, and never invent citations.";
+    } else if (webResearch) {
+      backendMessage = "!web " + backendMessage;
+    }
+
+    // Add factual quote context from the same 360 Stocks function used by stocks.html.
+    // If the market-data service is unavailable, continue with the normal AI request.
+    if (window.AI360Stocks && typeof window.AI360Stocks.enrichMessage === "function") {
+      backendMessage = await window.AI360Stocks.enrichMessage(backendMessage, prompt).catch(() => backendMessage);
     }
 
     let thinkingBuf = "";
@@ -1035,7 +1061,11 @@
       if (thinkingLabel) thinkingLabel.textContent = "Finished";
       if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
       if (answerContent) {
-        answerContent.innerHTML = `<span style="color:#ef4444;">${escHtml((err && err.message) || "Unknown error")}</span>`;
+        const rawMessage = String((err && err.message) || "Unknown error");
+        const userMessage = /daily ai limit reached/i.test(rawMessage)
+          ? "You've reached today's AI usage limit. It resets at 00:00 UTC."
+          : rawMessage;
+        answerContent.innerHTML = `<span style="color:#ef4444;">${escHtml(userMessage)}</span>`;
       }
     } finally {
       isSending = false;

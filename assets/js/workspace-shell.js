@@ -39,6 +39,15 @@
     if (authAction) authAction.textContent = user ? "Sign out" : "Sign in";
     if (authAction) authAction.dataset.signedIn = String(!!user);
   }
+  // Keep the restored site-wide 360 menu button accessible without changing its items.
+  const siteMenuTrigger = $("sidebarToggle"), siteMenu = $("sidebar"), siteMenuOverlay = $("overlay");
+  const syncSiteMenuState = () => siteMenuTrigger?.setAttribute("aria-expanded", String(!!siteMenu?.classList.contains("open")));
+  siteMenuTrigger?.addEventListener("click", () => requestAnimationFrame(syncSiteMenuState));
+  siteMenuOverlay?.addEventListener("click", () => requestAnimationFrame(syncSiteMenuState));
+  document.addEventListener("click", event => {
+    if (!event.target?.closest?.(".sidebar") && !event.target?.closest?.("#sidebarToggle")) requestAnimationFrame(syncSiteMenuState);
+  });
+
   trigger?.addEventListener("click", e => { e.stopPropagation(); setMenu(!!menu?.hidden); });
   document.addEventListener("click", e => { if (menu && !menu.hidden && !menu.contains(e.target) && !trigger?.contains(e.target)) setMenu(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });

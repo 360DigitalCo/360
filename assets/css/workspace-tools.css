@@ -175,3 +175,198 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 1050px) { .desk-live { display: none; }.desk-topbar-actions { gap: 10px; }.module-intro { padding: 27px; }.plugin-orbit { transform: scale(.85); margin-left: -10px; margin-right: -10px; } }
 @media (max-width: 760px) { .desk-layout { grid-template-columns: 61px minmax(0,1fr); }.desk-rail { padding: 12px 4px; }.desk-mark { width: 42px; height: 42px; flex-basis: 42px; border-radius: 13px; }.desk-rail-link, .desk-rail-home { width: 52px; min-height: 51px; }.desk-rail-link span { font-size: 8px; }.desk-topbar { min-height: 72px; gap: 10px; padding: 10px 13px; }.desk-topbar-heading h1 { font-size: 15px; }.desk-topbar-heading p { display: none; }.desk-breadcrumb { font-size: 8px; }.desk-profile-btn { min-width: 0; width: 44px; justify-content: center; gap: 0; padding: 4px; border-radius: 13px; }.desk-profile-copy, .desk-profile-caret { display: none; }.desk-profile-menu { right: 0; }.workspace-content { padding: 19px 13px 35px; }.module-intro { align-items: flex-start; min-height: unset; padding: 24px 20px; margin-bottom: 16px; border-radius: 17px; }.module-intro h2 { font-size: 29px; letter-spacing: -1.1px; }.module-intro p { font-size: 12px; }.module-overline { margin-bottom: 12px; }.plugin-orbit { display: none; }.plugin-row { grid-template-columns: 40px minmax(0,1fr); gap: 12px; padding: 17px 14px; }.plugin-state { grid-column: 2; justify-self: start; }.plugin-symbol { width: 39px; height: 39px; }.status-ribbon { align-items: flex-start; flex-wrap: wrap; }.status-ribbon > span:last-child { width: 100%; margin-left: 18px; }.library-private-mark, .health-stamp, .scholar-badge { display: none; }.library-upload-panel { grid-template-columns: 1fr; padding: 17px; gap: 17px; }.library-files-panel, .tool-card { padding: 17px; border-radius: 14px; }.tool-tabs { display: flex; width: 100%; gap: 3px; }.tool-tab { flex: 1; padding: 10px 7px; font-size: 10px; }.tool-grid, .tool-grid.three { grid-template-columns: 1fr; }.tool-field-row .tool-button { flex: 0 0 auto; }.library-file { align-items: flex-start; }.library-file-actions { flex-direction: column; }.health-content .tool-card > .tool-grid { grid-template-columns: 1fr; }.health-content .tool-grid > .tool-card { margin-top: 14px; }.scholar-content .tool-field-row { align-items: stretch; }.scholar-content .tool-field-row .tool-select { width: 100% !important; }.scholar-content .tool-field-row .tool-button { flex: 1; } }
 @media (max-width: 420px) { .desk-layout { grid-template-columns: 55px minmax(0,1fr); }.desk-rail { padding-left: 2px; padding-right: 2px; }.desk-rail-link, .desk-rail-home { width: 48px; }.desk-topbar { padding-inline: 9px; }.desk-topbar-actions { gap: 7px; }.module-intro h2 { font-size: 26px; }.health-content .tool-field-row { align-items: stretch; }.health-content .tool-field-row .tool-button { width: 100%; } }
+
+/* 360 preference bridge: these pages use the same palette, mode, font and
+   optional background preferences as the rest of 360. Keep the sidebar navy,
+   but let the user-selected accent drive the active states and actions. */
+@font-face {
+  font-family: "DidactGothic";
+  src: url("/assets/DidactGothic-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --desk-blue: var(--a, #3b82f6);
+  --desk-blue-soft: rgba(59,130,246,.12);
+  --desk-orange: var(--a2, #06b6d4);
+}
+body.theme-ocean { --a:#3b82f6; --a2:#06b6d4; }
+body.theme-midnight { --a:#0ea5e9; --a2:#6366f1; }
+body.theme-sunset { --a:#f97316; --a2:#ef4444; }
+body.theme-mint { --a:#10b981; --a2:#34d399; }
+body.theme-neon { --a:#a21caf; --a2:#ec4899; }
+body.theme-mono { --a:#6b7280; --a2:#9ca3af; }
+body.desk-body {
+  --desk-paper: var(--bg, #f3f4f6);
+  --desk-surface: #fff;
+  --desk-ink: var(--txt, #172234);
+  --desk-muted: var(--mut, #758092);
+  --desk-line: var(--br, #dfe4eb);
+  --desk-blue: var(--a, #3b82f6);
+  --desk-blue-soft: rgba(59,130,246,.11);
+  --desk-orange: var(--a2, #06b6d4);
+  font-family: "DidactGothic", "DM Sans", Inter, system-ui, sans-serif;
+  background-color: var(--desk-paper);
+  color: var(--desk-ink);
+}
+body.dark.desk-body {
+  color-scheme: dark;
+  --desk-paper: #080c13;
+  --desk-surface: #111923;
+  --desk-ink: var(--txtd, #e7e7ea);
+  --desk-muted: var(--mutd, #a3a7b3);
+  --desk-line: rgba(255,255,255,.12);
+  --desk-blue-soft: rgba(59,130,246,.18);
+  --desk-shadow: 0 16px 48px rgba(0,0,0,.24);
+  background-color: var(--desk-paper);
+  color: var(--desk-ink);
+}
+body.desk-body .desk-topbar {
+  background: rgba(255,255,255,.92);
+  border-bottom-color: var(--desk-line);
+}
+body.dark.desk-body .desk-topbar {
+  background: rgba(10,15,23,.94);
+  border-bottom-color: var(--desk-line);
+}
+body.desk-body .desk-topbar-heading h1,
+body.desk-body .module-intro h2,
+body.desk-body .tool-card h2,
+body.desk-body .tool-card h3,
+body.desk-body .scholar-card h2 { color: var(--desk-ink); }
+body.desk-body .desk-topbar-heading p,
+body.desk-body .desk-breadcrumb,
+body.desk-body .desk-live { color: var(--desk-muted); }
+body.desk-body .desk-profile-btn,
+body.desk-body .desk-profile-menu,
+body.desk-body .module-intro,
+body.desk-body .tool-card,
+body.desk-body .scholar-card,
+body.desk-body .library-upload-panel,
+body.desk-body .library-files-panel,
+body.desk-body .plugin-row,
+body.desk-body .health-stamp,
+body.desk-body .scholar-badge {
+  color: var(--desk-ink);
+  border-color: var(--desk-line);
+}
+body.desk-body .desk-profile-btn,
+body.desk-body .desk-profile-menu,
+body.desk-body .tool-card,
+body.desk-body .scholar-card,
+body.desk-body .library-upload-panel,
+body.desk-body .library-files-panel,
+body.desk-body .plugin-row { background: var(--desk-surface); }
+body.desk-body .module-intro { background: linear-gradient(135deg, var(--desk-surface), color-mix(in srgb, var(--desk-blue) 7%, var(--desk-surface))); }
+body.dark.desk-body .module-intro { background: linear-gradient(135deg, #111923, color-mix(in srgb, var(--desk-blue) 13%, #111923)); }
+body.desk-body .desk-profile-copy strong,
+body.desk-body .desk-profile-menu-head strong,
+body.desk-body .desk-profile-menu > a,
+body.desk-body .desk-profile-menu > button { color: var(--desk-ink); }
+body.desk-body .desk-profile-copy small,
+body.desk-body .desk-profile-menu-head small { color: var(--desk-muted); }
+body.desk-body .desk-profile-menu-head { border-bottom-color: var(--desk-line); }
+body.desk-body .desk-profile-menu > a:hover,
+body.desk-body .desk-profile-menu > button:hover { background: var(--desk-blue-soft); color: var(--desk-blue); }
+body.desk-body .tool-input,
+body.desk-body .tool-select,
+body.desk-body .tool-textarea,
+body.desk-body input[type="search"],
+body.desk-body input[type="text"],
+body.desk-body input[type="email"],
+body.desk-body input[type="password"],
+body.desk-body textarea,
+body.desk-body select {
+  border-color: var(--desk-line);
+}
+body.desk-body .tool-button,
+body.desk-body .tool-tab.active,
+body.desk-body .plugin-status,
+body.desk-body .health-tab.active { background-color: var(--desk-blue); border-color: var(--desk-blue); }
+body.desk-body .tool-button { color: #fff; }
+body.desk-body a:hover,
+body.desk-body .tool-link { color: var(--desk-blue); }
+body.dark.desk-body .desk-profile-btn,
+body.dark.desk-body .desk-profile-menu,
+body.dark.desk-body .module-intro,
+body.dark.desk-body .tool-card,
+body.dark.desk-body .scholar-card,
+body.dark.desk-body .library-upload-panel,
+body.dark.desk-body .library-files-panel,
+body.dark.desk-body .plugin-row { background-color: var(--desk-surface); }
+body.dark.desk-body .desk-profile-btn { box-shadow: none; }
+body.dark.desk-body .desk-profile-menu { box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+body.dark.desk-body .tool-input,
+body.dark.desk-body .tool-select,
+body.dark.desk-body .tool-textarea,
+body.dark.desk-body .tool-search,
+body.dark.desk-body .tool-status,
+body.dark.desk-body input[type="search"],
+body.dark.desk-body input[type="text"],
+body.dark.desk-body input[type="email"],
+body.dark.desk-body input[type="password"],
+body.dark.desk-body textarea,
+body.dark.desk-body select {
+  color: var(--desk-ink);
+  background-color: #0c131d;
+  border-color: var(--desk-line);
+}
+body.dark.desk-body input::placeholder,
+body.dark.desk-body textarea::placeholder { color: #8592a4; }
+body.dark.desk-body .tool-empty,
+body.dark.desk-body .library-file,
+body.dark.desk-body .plugin-detail,
+body.dark.desk-body .research-brief,
+body.dark.desk-body .tool-result-item { color: var(--desk-ink); border-color: var(--desk-line); }
+body.dark.desk-body .library-file,
+body.dark.desk-body .tool-result-item { background: #0d151f; }
+body.dark.desk-body .quiet-footer,
+body.dark.desk-body .tool-card p,
+body.dark.desk-body .module-intro p { color: var(--desk-muted); }
+
+/* The top-left control is the original 360 menu trigger, moved into the
+   workspace rail. main.js still renders the standard site menu unchanged. */
+body.desk-body .desk-rail .desk-menu-trigger.sidebar-toggle {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 14px;
+  background: rgba(255,255,255,.07);
+  color: #e8efff;
+  box-shadow: none;
+  font-size: 0;
+  line-height: 1;
+}
+body.desk-body .desk-rail .desk-menu-trigger:hover,
+body.desk-body .desk-rail .desk-menu-trigger[aria-expanded="true"] {
+  border-color: var(--desk-orange);
+  background: rgba(255,255,255,.13);
+  color: #fff;
+}
+body.desk-body .desk-rail .desk-menu-trigger svg { display: block; }
+body.desk-body .desk-rail-rule { margin-top: 16px; }
+/* Overlay and the standard menu need to sit above the workspace rail while open. */
+body.desk-body .sidebar { z-index: 801; }
+body.desk-body .overlay { z-index: 790; }
+body.desk-body .settings-panel { z-index: 820; }
+body.desk-body .settings-panel input,
+body.desk-body .settings-panel button,
+body.desk-body .settings-panel select { font-family: inherit; }
+body.dark.desk-body .settings-panel { background: rgba(12,18,28,.98); color: var(--desk-ink); border-color: var(--desk-line); }
+body.dark.desk-body .settings-panel h3,
+body.dark.desk-body .settings-panel .settings-label { color: var(--desk-muted); }
+body.dark.desk-body .settings-panel .settings-input { color: var(--desk-ink); background: #0a111b; border-color: var(--desk-line); }
+body.dark.desk-body .sidebar { background: rgba(10,15,23,.98); border-color: var(--desk-line); }
+body.desk-body { --desk-blue-soft: color-mix(in srgb, var(--desk-blue) 13%, white); }
+body.dark.desk-body { --desk-blue-soft: color-mix(in srgb, var(--desk-blue) 20%, #111923); }
+.desk-rail-link span { font-size: 10px; }
+@media (max-width: 760px) { .desk-rail-link span { font-size: 8px; } }

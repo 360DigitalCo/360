@@ -11,18 +11,88 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/main.css" />
+  <link rel="stylesheet" href="/assets/css/wide.css" />
+  <link rel="stylesheet" href="/assets/css/gallium.css" />
+  <link rel="stylesheet" href="/assets/css/cursor.css" />
   <link rel="stylesheet" href="/assets/css/workspace-tools.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/360-settings.js"></script>
   
   <script>window.SKIP_AUTH_CHIP = true;</script>
 </head><body class="desk-body workspace-page">
-<div class="desk-layout"><aside class="desk-rail" aria-label="360 workspace">
-      <a class="desk-mark" href="/ai.html" aria-label="360 home"><span>360</span><i></i></a>
+<div class="desk-layout">
+  <aside class="sidebar" id="sidebar" aria-label="360 navigation"><span id="sidebar-slot"></span></aside>
+<div class="overlay" id="overlay"></div>
+<div class="settings-panel" id="settingsPanel">
+<h3>Appearance</h3>
+<div class="settings-label">Theme</div>
+<div class="theme-swatches">
+<div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+<div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+<div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+<div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
+</div>
+<div class="settings-label" style="margin-top:20px;">Mode</div>
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+<span style="font-size:14px;">Dark mode</span>
+<input id="darkToggle" type="checkbox"/>
+</label>
+<h3 style="margin-top:20px;">Cursor</h3>
+<div class="settings-label">Style</div>
+<div class="cursor-options">
+<div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+<div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+<div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+<div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+<div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+<div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
+</div>
+<div class="cursor-color-row">
+<label>Cursor color</label>
+<input id="cursorColorPicker" type="color" value="#3b82f6"/>
+<button id="cursorColorReset">Reset</button>
+</div>
+<div class="temp-unit-box" style="margin-top:20px;">
+      Temp Unit: <span id="tempUnitLabel">°C</span>
+<button id="tempUnitBtn">Switch</button>
+</div>
+<div class="settings-box" style="margin-top:20px;">
+<div class="settings-label">Background Image</div>
+<input accept="image/*" class="settings-input" id="bgUpload" type="file"/>
+<input class="settings-input" id="bgUrlInput" placeholder="Paste image URL…" type="text"/>
+<button class="settings-btn" id="bgUrlBtn">Apply URL</button>
+<button class="settings-btn" id="bgResetBtn">Reset</button>
+</div>
+<!-- ── BOB TOGGLE in Settings ── -->
+<h3 style="margin-top:25px;">Bob</h3>
+<div class="settings-bob-section">
+<div class="bob-toggle-row" id="bobToggleRow">
+<div>
+<div class="bob-toggle-label">Enable Bob</div>
+<div class="bob-toggle-sub">Stick figure reacts as you type in the search bar</div>
+</div>
+<div class="bob-track" id="bobTrack"></div>
+</div>
+</div>
+<h3 style="margin-top:25px;">Legal</h3>
+<a class="legal-link" href="/privacypolicy">🔒 Privacy Policy</a>
+<a class="legal-link" href="/tos">📜 Terms of Service</a>
+<h3 style="margin-top:25px;">About</h3>
+<details class="about-dropdown">
+<summary>ℹ️ What is 360?</summary>
+<p>360 is a next-generation search engine and digital workspace. Search, chat, translate, check weather, monitor stocks, and interact with AI — all in one unified interface. Built by 360 Digital, Co.</p>
+</details>
+</div><aside class="desk-rail" aria-label="360 workspace">
+      <button class="desk-menu-trigger sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="Menu" aria-controls="sidebar" aria-expanded="false">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
       <div class="desk-rail-rule"></div>
       <nav class="desk-rail-nav"><a class="desk-rail-link" href="/ai.html" aria-label="AI" title="AI"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z M8 9h8 M8 13h5"/></svg><span>AI</span></a><a class="desk-rail-link" href="/library.html" aria-label="Library" title="Library"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10a2 2 0 0 1 2 2v14H7a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2Z M8 8h6 M8 12h6 M8 16h4"/></svg><span>Library</span></a><a class="desk-rail-link" href="/scholar.html" aria-label="Scholar" title="Scholar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5Z M6 10v6c3 3 9 3 12 0v-6 M22 8v7"/></svg><span>Scholar</span></a><a class="desk-rail-link" href="/health.html" aria-label="Health" title="Health"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span>Health</span></a><a class="desk-rail-link active" href="/plugins.html" aria-label="Plugins" title="Plugins"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5 M15 3v5 M4 9h16v3a3 3 0 0 0 0 6v3H4v-3a3 3 0 0 0 0-6V9Z"/></svg><span>Plugins</span></a></nav>
-      <div class="desk-rail-bottom"><a class="desk-rail-home" href="/" title="360 Search" aria-label="360 Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5 M5.5 9v11h13V9 M9 20v-6h6v6"/></svg></a><span class="desk-rail-caption">WORKSPACE</span></div>
     </aside><div class="desk-main"><header class="desk-topbar">
-      <div class="desk-topbar-heading"><span class="desk-breadcrumb">360 <span>/</span> Workspace</span><h1>Plugins</h1><p>A small directory for a growing workspace.</p></div>
+      <div class="desk-topbar-heading"><span class="desk-breadcrumb">360 AI <span>/</span> Workspace</span><h1>Plugins</h1><p>A small directory for a growing workspace.</p></div>
       <div class="desk-topbar-actions">
         <span class="desk-live"><i></i> Personal workspace</span>
         <div class="desk-profile-wrap">
@@ -52,6 +122,9 @@
   <p class="quiet-footer">Integrations will appear here as they become available.</p>
 </main></div></div>
 <script src="/assets/js/main.js"></script>
+<script src="/assets/js/wide.js"></script>
+<script src="/assets/js/gallium.js"></script>
+<script src="/assets/js/cursor.js"></script>
 <script src="/assets/js/workspace-shell.js"></script>
 <script src="/assets/js/plugins-page.js"></script>
 </body></html>
