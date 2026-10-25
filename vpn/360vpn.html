@@ -477,6 +477,22 @@ textarea.test-input{resize:vertical;min-height:70px}
       </div>
     </article>
 
+    <!-- AUTO SETUP -->
+    <article class="panel span2" id="autoPanel">
+      <div class="panel-head"><span>Automatic Setup</span><span class="badge badge-warn" id="autoBadge">CHECKING</span></div>
+      <div class="panel-body">
+        <div class="stat-row"><span class="stat-key">Device</span><span class="stat-val" id="autoDevice">-</span></div>
+        <div class="stat-row"><span class="stat-key">This app</span><span class="stat-val" id="autoApp">-</span></div>
+        <div class="stat-row"><span class="stat-key">Whole device</span><span class="stat-val" id="autoSys">-</span></div>
+        <div class="note" id="autoNote" style="margin:8px 0 0"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="autoAppBtn" type="button" hidden>Turn on for 360</button>
+          <button class="btn" id="autoSysBtn" type="button" hidden>Turn on for this device</button>
+          <button class="btn" id="autoOffBtn" type="button" hidden>Turn off</button>
+        </div>
+      </div>
+    </article>
+
     <!-- PROXY SERVICE -->
     <article class="panel">
       <div class="panel-head">Proxy Service</div>
@@ -706,6 +722,44 @@ textarea.test-input{resize:vertical;min-height:70px}
     const labels = { windows:'Windows', macos:'macOS', ios:'iOS', android:'Android', linux:'Linux', chrome:'ChromeOS', firefox:'Firefox' };
     $('osDetectedBadge').textContent = labels[os] || os;
   }
+
+  // ── Automatic setup (desktop app) ─────────────────────────
+  const autoVpn = window.electronVPN;
+  async function autoRefresh() {
+    const note = $('autoNote');
+    if (!autoVpn) {
+      $('autoBadge').className = 'badge badge-warn'; $('autoBadge').textContent = 'MANUAL';
+      $('autoDevice').textContent = detectOs();
+      $('autoApp').textContent = 'Not available in a browser';
+      $('autoSys').textContent = 'Use the guide below';
+      note.textContent = 'Open this page in the 360 desktop app to configure the proxy automatically. In a browser, add the PAC URL by hand using the guide below.';
+      return;
+    }
+    try {
+      const st = await autoVpn.status();
+      $('autoDevice').textContent = st.platform === 'win32' ? 'Windows' : st.platform === 'darwin' ? 'macOS' : 'Linux';
+      $('autoApp').textContent = st.appEnabled ? 'On' : 'Off';
+      $('autoSys').textContent = st.systemProxy ? (st.systemEnabled ? 'On (' + st.systemLabel + ')' : 'Off') : 'Not supported on this device';
+      const on = st.appEnabled || st.systemEnabled;
+      $('autoBadge').className = 'badge ' + (on ? 'badge-good' : 'badge-warn');
+      $('autoBadge').textContent = on ? 'ACTIVE' : 'OFF';
+      $('autoAppBtn').hidden = st.appEnabled;
+      $('autoSysBtn').hidden = !st.systemProxy || st.systemEnabled;
+      $('autoOffBtn').hidden = !on;
+      note.textContent = 'Settings are restored when you turn this off or quit 360.';
+    } catch (err) {
+      $('autoBadge').className = 'badge badge-bad'; $('autoBadge').textContent = 'ERROR';
+      note.textContent = err.message;
+    }
+  }
+  async function autoDo(fn) {
+    try { await fn(); } catch (err) { $('autoNote').textContent = err.message; return; }
+    autoRefresh();
+  }
+  $('autoAppBtn').addEventListener('click', () => autoDo(() => autoVpn.enable('app')));
+  $('autoSysBtn').addEventListener('click', () => autoDo(() => autoVpn.enable('system')));
+  $('autoOffBtn').addEventListener('click', () => autoDo(() => autoVpn.disable()));
+  autoRefresh();
 
   // ── Connection check ──────────────────────────────────────
   async function checkConnection() {

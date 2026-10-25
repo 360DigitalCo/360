@@ -144,7 +144,7 @@ const sb=supabase.createClient(SB_URL,SB_ANON);
 const BUCKET='chat-uploads';
 
 let me=null,myProfile=null,convs=[],msgs=[],activeId=null,replyTo=null,pendingFile=null;
-let msgCh=null,presCh=null,online=new Set(),q='',typingT=null,lastTypingSent=0;
+let msgCh=null,presCh=null,inboxCh=null,inboxT=null,online=new Set(),q='',typingT=null,lastTypingSent=0;
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -176,6 +176,7 @@ async function init(){
   WebCall.init({sb,userId:me.id,name:myProfile.username});
   await loadConvs();
   subscribePresence();
+  subscribeInbox();
   const u=new URLSearchParams(location.search).get('user')||new URLSearchParams(location.search).get('call');
   if(u)openWith(u);
 }
@@ -409,6 +410,21 @@ function subscribeMessages(id){
     .subscribe();
 }
 
+function subscribeInbox(){
+  if(inboxCh)sb.removeChannel(inboxCh);
+  const bump=()=>{clearTimeout(inboxT);inboxT=setTimeout(loadConvs,350);};
+  inboxCh=sb.channel('current-inbox-'+me.id);
+  inboxCh
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'msg_messages'},p=>{
+      if(p.new.conv_id===activeId)return;
+      bump();
+      if(p.new.sender_id!==me.id){const c=convs.find(x=>x.id===p.new.conv_id);toast('New message'+(c?' from '+c.name:''),2200);}
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'msg_conversations'},bump)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'msg_conversations'},bump)
+    .subscribe();
+}
+
 function subscribePresence(){
   if(presCh)sb.removeChannel(presCh);
   presCh=sb.channel('current-presence',{config:{presence:{key:me.id}}});
@@ -442,7 +458,11 @@ $('newSearch').addEventListener('input',()=>{clearTimeout(sd);sd=setTimeout(asyn
 
 async function startDM(oid){
   $('newModal').classList.remove('show');
-  let ex=convs.find(c=>c.oid===oid&&true);
+  let ex=convs.find(c=>c.oid===oid);
+  if(!ex){
+    const {data:found}=await sb.from('msg_conversations').select('id').contains('participant_ids',[me.id,oid]).limit(5);
+    if(found?.length){await loadConvs();ex=convs.find(c=>c.oid===oid);}
+  }
   if(ex){openConv(ex.id);return;}
   const {data,error}=await sb.from('msg_conversations').insert({participant_ids:[me.id,oid],updated_at:new Date().toISOString()}).select().single();
   if(error){toast('Could not start conversation: '+error.message);return;}
@@ -450,6 +470,7 @@ async function startDM(oid){
   await loadConvs();openConv(data.id);
 }
 
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&activeId)markRead(activeId);});
 $('searchIn').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();renderConvList();});
 $('lb').addEventListener('click',()=>$('lb').classList.remove('show'));
 
