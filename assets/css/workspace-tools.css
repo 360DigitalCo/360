@@ -370,3 +370,68 @@ body.desk-body { --desk-blue-soft: color-mix(in srgb, var(--desk-blue) 13%, whit
 body.dark.desk-body { --desk-blue-soft: color-mix(in srgb, var(--desk-blue) 20%, #111923); }
 .desk-rail-link span { font-size: 10px; }
 @media (max-width: 760px) { .desk-rail-link span { font-size: 8px; } }
+
+/* Compact pass: let the tools use the actual viewport instead of a narrow centered column. */
+body.desk-body .desk-topbar {
+  min-height: 68px;
+  gap: 18px;
+  padding: 10px clamp(16px, 2.5vw, 36px);
+}
+body.desk-body .desk-topbar-heading h1 { font-size: 17px; }
+body.desk-body .desk-topbar-heading p { margin-top: 2px; font-size: 11px; }
+body.desk-body .desk-breadcrumb,
+body.desk-body .desk-live { display: none !important; }
+body.desk-body .workspace-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 24px clamp(16px, 2.5vw, 36px) 36px;
+}
+body.desk-body .workspace-content > .tool-tabs { margin-top: 0; margin-bottom: 15px; }
+body.desk-body .workspace-content > .tool-panel,
+body.desk-body .workspace-content > .tool-card,
+body.desk-body .workspace-content > .library-upload-panel,
+body.desk-body .workspace-content > .library-files-panel,
+body.desk-body .workspace-content > .plugins-empty-state { margin-top: 14px; }
+body.desk-body .workspace-content > .tool-tabs + .tool-panel { margin-top: 0; }
+body.desk-body .library-upload-panel { margin-bottom: 15px; }
+body.desk-body .tool-card,
+body.desk-body .library-upload-panel,
+body.desk-body .library-files-panel,
+body.desk-body .scholar-card { min-width: 0; }
+body.desk-body .section-eyebrow { display: none; }
+body.desk-body .quiet-footer { margin-top: 14px; }
+.plugins-empty-state {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 14px;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 22px 24px;
+  border: 1px solid var(--desk-line);
+  border-radius: 15px;
+  background: var(--desk-surface);
+}
+.plugins-empty-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--desk-blue-soft);
+  color: var(--desk-blue);
+  font-size: 25px;
+}
+.plugins-empty-state h2 { margin: 0; color: var(--desk-ink); font: 750 16px/1.3 Manrope, sans-serif; }
+.plugins-empty-state p { margin: 0; color: var(--desk-muted); font-size: 12px; line-height: 1.5; }
+body.dark.desk-body .plugins-empty-state { background: var(--desk-surface); border-color: var(--desk-line); }
+@media (max-width: 760px) {
+  body.desk-body .desk-topbar { min-height: 64px; padding: 9px 13px; }
+  body.desk-body .workspace-content { padding: 16px 13px 28px; }
+  .plugins-empty-state { padding: 17px; }
+}
+@media (max-width: 760px) {
+  body.desk-body .desk-topbar-heading p { display: none; }
+}

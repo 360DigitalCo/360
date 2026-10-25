@@ -236,3 +236,80 @@ body.ai-page .ai-shell { background: color-mix(in srgb, var(--desk-paper) 88%, t
 body.dark.ai-page .ai-shell { background: color-mix(in srgb, var(--desk-paper) 88%, transparent); }
 .ai-welcome .welcome-bottom-line { flex-wrap: wrap; }
 .stock-prompt-chip { white-space: nowrap; }
+
+/* Compact AI layout: more usable width, fewer repeated labels, theme-aware surfaces. */
+.ai-topbar { min-height: 68px; padding-block: 9px; }
+.ai-topbar .desk-topbar-heading p { display: block; }
+.ai-topbar-actions { gap: 9px; }
+.ai-topbar-model, .ai-usage-meter { display: none !important; }
+.ai-shell::after { display: none; }
+.ai-output { padding: 22px clamp(18px, 2.4vw, 36px) 14px; }
+.ai-welcome { width: min(1120px, 100%); padding: 10px 0 18px; }
+.ai-welcome h2 { max-width: 100%; font-size: clamp(32px, 3.2vw, 44px); line-height: 1.12; letter-spacing: -1.7px; }
+.ai-welcome > p { max-width: 700px; margin: 10px 0 20px; font-size: 13px; }
+.welcome-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.welcome-card { grid-template-columns: 36px minmax(0,1fr) 10px; gap: 9px; min-height: 76px; padding: 12px; border-radius: 13px; }
+.welcome-card-icon { width: 35px; height: 35px; border-radius: 10px; }
+.welcome-card strong { font-size: 11px; }
+.welcome-card small { font-size: 10px; }
+.stock-card .welcome-card-icon { background: color-mix(in srgb, var(--desk-blue) 12%, var(--desk-surface)); color: var(--desk-blue); }
+.ai-input-area { width: min(1120px, calc(100% - 32px)); padding: 8px 0 12px; }
+.ai-composer-card { border-color: var(--desk-line); }
+#ai-input { min-height: 61px; padding: 15px 18px 7px; font-size: 13px; }
+.ai-input-foot { justify-content: center; margin-top: 7px; font-size: 9px; }
+.history-trigger { min-height: 35px; }
+.connector-trigger { min-height: 35px; padding: 7px 10px; }
+.ai-profile-wrap .desk-profile-btn { min-width: 154px; }
+.ai-history-drawer { width: min(300px, calc(100vw - 92px)); }
+body.dark.ai-page .welcome-card,
+body.dark.ai-page .ai-composer-card,
+body.dark.ai-page .ai-file-preview { background: var(--desk-surface); border-color: var(--desk-line); color: var(--desk-ink); }
+body.dark.ai-page .ai-welcome h2,
+body.dark.ai-page .welcome-card strong,
+body.dark.ai-page #ai-input { color: var(--desk-ink); }
+body.dark.ai-page .welcome-card small,
+body.dark.ai-page .ai-welcome > p,
+body.dark.ai-page .ai-input-foot { color: var(--desk-muted); }
+body.dark.ai-page .composer-icon-btn,
+body.dark.ai-page .model-picker-chip { background: #0d151f; color: var(--desk-ink); border-color: var(--desk-line); }
+body.dark.ai-page .research-toggle { color: var(--desk-muted); }
+@media (max-width: 1100px) {
+  .welcome-actions { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .ai-welcome { width: min(850px, 100%); }
+  .ai-input-area { width: min(870px, calc(100% - 32px)); }
+}
+@media (max-width: 760px) {
+  .ai-topbar { min-height: 64px; padding: 8px 12px; }
+  .ai-output { padding: 18px 13px 12px; }
+  .ai-welcome { width: 100%; padding: 10px 0 14px; }
+  .ai-welcome h2 { font-size: clamp(29px, 7vw, 38px); letter-spacing: -1px; }
+  .ai-welcome > p { margin: 8px 0 15px; }
+  .welcome-actions { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .welcome-card { min-height: 74px; padding: 9px; grid-template-columns: 30px minmax(0,1fr); }
+  .welcome-card-icon { width: 29px; height: 29px; font-size: 11px; }
+  .welcome-card > b { display: none; }
+  .welcome-card small { font-size: 9px; }
+  .ai-input-area { width: 100%; padding: 6px 8px max(9px, env(safe-area-inset-bottom)); }
+  .ai-profile-wrap .desk-profile-btn { min-width: 0; width: 42px; }
+}
+@media (max-width: 420px) {
+  .welcome-actions { grid-template-columns: 1fr; }
+  .welcome-card { min-height: 63px; grid-template-columns: 34px minmax(0,1fr); }
+  .welcome-card-icon { width: 32px; height: 32px; }
+  .ai-topbar-actions { gap: 4px; }
+  .connector-trigger { width: 38px; min-width: 38px; justify-content: center; font-size: 0; padding: 0; }
+  .connector-trigger .connector-dot { display: none; }
+  .history-trigger { width: 38px; min-width: 38px; }
+}
+@media (min-width: 1101px) {
+  .ai-welcome { width: min(1240px, 100%); }
+  .ai-input-area { width: min(1240px, calc(100% - 32px)); }
+}
+.welcome-card-icon,
+.build-card .welcome-card-icon,
+.learn-card .welcome-card-icon,
+.research-card .welcome-card-icon,
+.stock-card .welcome-card-icon {
+  background: var(--desk-blue-soft);
+  color: var(--desk-blue);
+}
