@@ -417,8 +417,6 @@
     .ac-modal-btns .am-danger { background:#ef4444; color:#fff; }
   </style>
 <meta content="360  Account — part of the 360 web platform." name="description"/><meta content="noindex, nofollow" name="robots"/><meta content="website" property="og:type"/><meta content="360 — Account" property="og:title"/><meta content="360  Account — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/account.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 — Account" name="twitter:title"/><meta content="360  Account — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/account.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
-<!-- Cloudflare Turnstile: uncomment this script and the three widget divs below to turn it on.
-     Also enable "Captcha protection" (Turnstile) in Supabase Auth settings with the secret key. -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
 function captchaToken(sel){
@@ -427,6 +425,18 @@ function captchaToken(sel){
   const token=window.turnstile.getResponse(sel);
   return token||null;
 }
+function captchaMountAll(){
+  if(!window.turnstile) return;
+  document.querySelectorAll('.cf-turnstile:not([data-mounted])').forEach(el=>{
+    if(el.hasChildNodes()){ el.setAttribute('data-mounted','1'); return; }
+    el.setAttribute('data-mounted','1');
+    try{ window.turnstile.render(el,{sitekey:el.dataset.sitekey,theme:el.dataset.theme||'auto'}); }catch(_){ el.removeAttribute('data-mounted'); }
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  new MutationObserver(captchaMountAll).observe(document.body,{childList:true,subtree:true});
+  const t=setInterval(()=>{ if(window.turnstile){ captchaMountAll(); clearInterval(t); } },200);
+});
 function captchaReset(sel){
   try{ if(window.turnstile&&document.querySelector(sel)) window.turnstile.reset(sel); }catch(_){}
 }
@@ -779,7 +789,7 @@ function captchaReset(sel){
             <input id="fpEmail" type="email" placeholder="you@example.com" autocomplete="email" />
           </div>
           <p class="ac-msg" id="fpEmailMsg"></p>
-          <!-- <div class="cf-turnstile" id="tsReset" data-sitekey="0x4AAAAAAD5wm86suq8-7d89" data-theme="auto"></div> -->
+          <div class="cf-turnstile" id="tsReset" data-sitekey="0x4AAAAAAFkrpeNNuDpfEolT" data-theme="auto"></div>
           <button class="ac-btn" id="fpEmailBtn">Send Reset Link</button>
         `;
         const email = document.getElementById('fpEmail');
@@ -1038,7 +1048,7 @@ function captchaReset(sel){
           <span class="ac-hint" id="s4ConfirmHint"></span>
         </div>
         <p class="ac-msg" id="s4Msg"></p>
-        <!-- <div class="cf-turnstile" id="tsSignUp" data-sitekey="0x4AAAAAAD5wm86suq8-7d89" data-theme="auto"></div> -->
+        <div class="cf-turnstile" id="tsSignUp" data-sitekey="0x4AAAAAAFkrpeNNuDpfEolT" data-theme="auto"></div>
         <button class="ac-btn" id="s4Create">Create 360ID</button>
         <button class="su-back-btn" id="s4Back">← Back</button>
       `;
