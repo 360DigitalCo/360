@@ -32,6 +32,7 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     win.show();
+    vpn.onReady(win);
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, session, ipcMain } = require('electron');
+const { app, session, ipcMain, dialog } = require('electron');
 const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -8,7 +8,7 @@ const path = require('path');
 const PAC_URL = 'https://360-search.com/vpn/proxy.pac';
 const stateFile = () => path.join(app.getPath('userData'), 'vpn.json');
 
-let state = { app: false, system: false, prev: null };
+let state = { app: false, system: false, prev: null, want: 'off', configured: false };
 
 function load() {
   try { state = Object.assign(state, JSON.parse(fs.readFileSync(stateFile(), 'utf8'))); } catch (_) {}
@@ -143,6 +143,8 @@ async function enable(scope) {
     state.system = true;
   }
   await applyApp(true);
+  state.want = scope === 'system' ? 'system' : 'app';
+  state.configured = true;
   save();
   return status();
 }
@@ -155,8 +157,31 @@ async function disable() {
     state.prev = null;
   }
   await applyApp(false);
+  state.want = 'off';
+  state.configured = true;
   save();
   return status();
+}
+
+async function firstRunPrompt(win) {
+  const d = await driver().catch(() => null);
+  const buttons = d ? ['Whole device', 'Only 360', 'Not now'] : ['Only 360', 'Not now'];
+  const { response } = await dialog.showMessageBox(win || null, {
+    type: 'question',
+    title: '360 VPN',
+    message: 'Turn on 360 VPN?',
+    detail: d
+      ? 'Route traffic through the 360 proxy. You can protect this whole device or just the 360 app, and change it any time from the VPN page.'
+      : 'Route traffic in the 360 app through the 360 proxy. You can change it any time from the VPN page.',
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+    noLink: true,
+  });
+  const choice = buttons[response];
+  if (choice === 'Whole device') await enable('system').catch(() => {});
+  else if (choice === 'Only 360') await enable('app').catch(() => {});
+  else { state.configured = true; save(); }
 }
 
 async function init() {
@@ -164,7 +189,12 @@ async function init() {
   ipcMain.handle('vpn:status', () => status());
   ipcMain.handle('vpn:enable', (_e, scope) => enable(scope === 'system' ? 'system' : 'app'));
   ipcMain.handle('vpn:disable', () => disable());
-  if (state.app) await applyApp(true).catch(() => {});
+  if (state.want === 'system') await enable('system').catch(() => applyApp(true));
+  else if (state.want === 'app') await applyApp(true).catch(() => {});
+}
+
+function onReady(win) {
+  if (!state.configured) setTimeout(() => firstRunPrompt(win).catch(() => {}), 1200);
 }
 
 async function shutdown() {
@@ -177,4 +207,4 @@ async function shutdown() {
   }
 }
 
-module.exports = { init, shutdown, status, enable, disable, PAC_URL };
+module.exports = { init, onReady, shutdown, status, enable, disable, PAC_URL };
