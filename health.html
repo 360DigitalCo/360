@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>360 Health</title>
+<link href="/favicon-32x32.png" rel="icon" type="image/png"/>
+<link href="/manifest.json" rel="manifest"/>
+<meta content="#3b82f6" name="theme-color"/>
+<link href="/assets/css/workspace-tools.css" rel="stylesheet"/>
+<link href="/assets/css/wide.css" rel="stylesheet"/>
+<link href="/assets/css/gallium.css" rel="stylesheet"/>
+<link href="/assets/css/responsive.css" rel="stylesheet"/>
+<link href="/assets/css/cursor.css" rel="stylesheet"/>
+<link href="/assets/css/main.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-SCZB3M2PNX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-SCZB3M2PNX');</script>
+<meta content="Exercise resources, public health research and informational market data." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360 Stocks — Stock Market Tools" property="og:title"/><meta content="Explore stock market information and tools with 360 Stocks." property="og:description"/><meta content="https://360-search.com/stocks.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 Stocks — Stock Market Tools" name="twitter:title"/><meta content="Explore stock market information and tools with 360 Stocks." name="twitter:description"/><link href="https://360-search.com/stocks.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body class="dark workspace-page">
+<div class="cursor-dot"></div>
+<div class="cursor-trail"></div>
+<div class="cursor-crosshair"></div>
+<div class="cursor-blob"></div>
+<div class="auth-top-right">
+<button class="auth-btn" id="signInBtn">Sign In</button>
+<button class="auth-btn" id="signUpBtn">Sign Up</button>
+<button class="auth-btn" id="signOutBtn" style="display:none;">Sign Out</button>
+</div>
+<!-- 360 navigation sidebar (required by main.js) -->
+<button class="sidebar-toggle" id="sidebarToggle">☰ Menu</button>
+<aside class="sidebar" id="sidebar"><span id="sidebar-slot"></span></aside>
+<div class="overlay" id="overlay"></div>
+<div class="settings-panel" id="settingsPanel">
+<h3>Appearance</h3>
+<div class="settings-label">Theme</div>
+<div class="theme-swatches">
+<div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+<div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+<div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+<div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+<div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
+</div>
+<div class="settings-label" style="margin-top:20px;">Mode</div>
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+<span style="font-size:14px;">Dark mode</span>
+<input id="darkToggle" type="checkbox"/>
+</label>
+<h3 style="margin-top:20px;">Cursor</h3>
+<div class="settings-label">Style</div>
+<div class="cursor-options">
+<div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+<div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+<div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+<div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+<div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+<div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
+</div>
+<div class="settings-label" style="margin-top:20px;">Background</div>
+<div class="settings-box">
+<input accept="image/*" class="settings-input" id="bgUpload" type="file"/>
+<input class="settings-input" id="bgUrlInput" placeholder="Paste image URL…" type="text"/>
+<button class="settings-btn" id="bgUrlBtn">Apply URL</button>
+<button class="settings-btn" id="bgResetBtn">Reset</button>
+</div>
+<h3 style="margin-top:25px;">Legal</h3>
+<a class="legal-link" href="/privacypolicy">Privacy Policy</a>
+<a class="legal-link" href="/tos">Terms of Service</a>
+<h3 style="margin-top:25px;">About</h3>
+<details class="about-dropdown">
+<summary>What is 360?</summary>
+<p>360 is a next-generation search engine and digital workspace. Built by 360 Digital, Co.</p>
+</details>
+</div>
+<div class="auth-popup hidden" id="auth-popup">
+<div class="auth-box">
+<h2>Account</h2>
+<input id="auth-email" placeholder="Email" type="email"/>
+<input id="auth-password" placeholder="Password" type="password"/>
+<button id="auth-login-btn">Log In</button>
+<button id="auth-signup-btn">Sign Up</button>
+<p class="auth-error" id="auth-error"></p>
+<button class="close-btn" id="auth-close-btn">Close</button>
+</div>
+</div>
+<main class="tool-shell"><header class="tool-head"><div><p class="tool-eyebrow">360 AI workspace</p><h1 class="tool-title">Health</h1><p class="tool-description">Exercise guidance, public health research, and market information in one place. Educational use only, not a substitute for professional care or financial advice.</p></div></header><div class="tool-tabs" role="tablist" aria-label="Health sections"><button class="tool-tab" role="tab" aria-selected="true" data-panel="health-fitness-panel">Fitness</button><button class="tool-tab" role="tab" aria-selected="false" data-panel="health-evidence-panel">Health research</button><button class="tool-tab" role="tab" aria-selected="false" data-panel="health-markets-panel">Markets</button></div><section id="health-fitness-panel" class="tool-panel"><div class="tool-card"><h2>Exercise library</h2><p>Find movement instructions and exercise descriptions from a public exercise database.</p><form id="exercise-search-form" class="tool-field-row"><input id="exercise-search" class="tool-input tool-search" type="search" placeholder="Search exercises (e.g. squat, rowing)"/><button class="tool-button" type="submit">Search</button></form><div id="exercise-status" class="tool-status" role="status">Loading exercises…</div><div id="exercise-results" class="tool-result-list"></div><p class="tool-muted">Source: <a href="https://wger.de/en/software/api" target="_blank" rel="noopener noreferrer" style="color:#ccc">wger public API</a>. Choose movements appropriate for your ability.</p></div></section><section id="health-evidence-panel" class="tool-panel" hidden><div class="tool-card"><h2>Health research</h2><p>Search biomedical publications indexed by PubMed.</p><form id="health-evidence-form" class="tool-field-row"><input id="health-evidence-query" class="tool-input tool-search" type="search" value="exercise and cardiovascular health" placeholder="Research topic"/><button class="tool-button" type="submit">Search research</button></form><div id="health-evidence-status" class="tool-status" role="status"></div><div id="health-evidence-results" class="tool-result-list"></div></div></section><section id="health-markets-panel" class="tool-panel" hidden><div class="tool-card"><h2>Market snapshot</h2><p>Historical prices and the latest quote provided by 360’s existing market-data function.</p><form id="health-stock-form" class="tool-field-row"><input id="health-stock-symbol" class="tool-input tool-search" type="search" maxlength="16" value="AAPL" placeholder="Ticker symbol, e.g. MSFT"/><button class="tool-button" type="submit">Load data</button></form><div class="tool-pills" id="health-stock-watchlist"><button class="tool-pill" data-symbol="AAPL">AAPL</button><button class="tool-pill" data-symbol="MSFT">MSFT</button><button class="tool-pill" data-symbol="NVDA">NVDA</button><button class="tool-pill" data-symbol="GOOGL">GOOGL</button><button class="tool-pill" data-symbol="SPY">SPY</button></div><div id="health-stock-status" class="tool-status" role="status">Loading AAPL…</div><div id="health-stock-quote" hidden><div class="tool-grid"><div><div id="health-stock-company" class="tool-kicker">—</div><div id="health-stock-price" class="stock-big-price">—</div><div id="health-stock-change" class="stock-change">—</div></div><div class="tool-card" style="padding:14px"><div class="tool-kicker">Day range</div><strong id="health-stock-day-range" style="display:block;margin-top:9px;font-size:16px">—</strong><div class="tool-kicker" style="margin-top:13px">52-week range</div><strong id="health-stock-year-range" style="display:block;margin-top:7px;font-size:14px">—</strong></div></div><div class="health-chart-wrap" style="margin-top:24px"><canvas id="health-stock-chart" aria-label="Historical stock price chart"></canvas></div></div><div class="tool-disclaimer" style="margin-top:18px"><strong>Informational only, not investment advice.</strong> Quotes may be delayed, incomplete, or incorrect. Verify figures with an official exchange or issuer and independently research financial decisions. No buy/sell recommendations are provided.</div></div></section><p class="tool-footer">Public sources may change or become unavailable. Health information is educational and is not a diagnosis or personal treatment plan.</p>
+</main>
+<script src="/assets/js/main.js"></script><script src="/assets/js/auth-fix.js"></script><script src="/assets/js/wide.js"></script><script src="/assets/js/gallium.js"></script><script src="/assets/js/cookie.js"></script><script src="/assets/js/cursor.js"></script><script src="/assets/js/mobile-nav.js" defer></script>
+<script src="assets/js/health.js"></script>
+</body></html>

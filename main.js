@@ -1,9 +1,9 @@
 /* ============================================================
-   360 — MAIN.JS V.3.6.0 (M.3.6.2 beta)
+   360 — MAIN.JS V.3.6.2
       ____    __   ___  
      |___ \  / /  / _ \ 
        __) |/ /_ | | | |
-      |__ <| '_ \| | | |   so tuff TT
+      |__ <| '_ \| | | |   tufff 😭😭😭
       ___) | (_) | |_| |
      |____/ \___/ \___/ 
    ============================================================ */
@@ -34,7 +34,7 @@ const version = "3.6.2";
 const popupConfig = {
   enabled: true,
   title: "&l&c360 Announcement",
-  body: "&eWelcome to 360 V.3.6.0! &aEnjoy the new updates and customize your experience in Settings."
+  body: "&tWelcome to 360 V.3.6.0! &aEnjoy the new updates and customize your experience in Settings."
 };
 
 /* Helper function to safely escape HTML special characters */
@@ -55,7 +55,7 @@ function escapeHtml(value) {
    ============================================================ */
 
 function getStyleString(styles) {
-  let str = "";                                                // & IS BROKEN!!!!!!!!!
+  let str = "";
   if (styles.color) str += `color:${styles.color};`;
   if (styles.bold) str += `font-weight:bold;`;
   if (styles.italic) str += `font-style:italic;`;
@@ -147,7 +147,7 @@ function parseMinecraftCodes(text, keepCodes = false) {
 
 /* Formats ANY tag, anywhere in the document — no [data-mc]/.mc-text
    opt-in required. Any element whose own text contains a code (§/& style)
-   gets parsed automatically. Containers that only wrap other elements are
+   gets parsed automatically. Containers that only wrap other elements are     /| THIS SHOULDONLY APPLY TO POPUPS AND CHAT
    left alone; only "leaf" text-holding elements are touched. */
 const MC_CODE_TEST = /[§&](?:#[0-9a-fA-F]{6}|[0-9a-fA-Fg-uG-U])/;
 const MC_SKIP_TAGS = new Set([
@@ -351,7 +351,7 @@ function setupMcInputs(root = document) {
    ============================================================ */
 const MC_OBFUSCATE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?@#$%&";
 const MC_OBFUSCATE_INTERVAL_MS = 50;
-
+// maybe add an unobfuscation function as well?
 function injectObfuscatedStyles() {
   if (document.getElementById("mc-obfuscated-style")) return;
   const style = document.createElement("style");
@@ -392,7 +392,7 @@ function initObfuscatedGlitch() {
    2. POPUP SYSTEM & TITLE-CHANGE DETECTOR
    ============================================================ */
 const POPUP_TITLE_STORAGE_KEY = "360_popup_last_title";
-
+// remember to add settings to customize popups - on topic, also save ALL possible user data in their account so they don't change every login to default
 function showCustomPopup({ title = "", body = "", buttonText = "OK", onClose = null }) {
   let modal = document.getElementById("custom-popup-modal");
   if (!modal) {
@@ -489,7 +489,7 @@ const $$ = s => document.querySelectorAll(s);
 const body = document.body;
 
 /* ============================================================
-   SIDEBAR — SINGLE SOURCE OF TRUTH
+   SIDEBAR — SINGLE SOURCE OF TRUTH <-- what 😭
    Every page just contains an empty <span id="sidebar-slot"></span>
    inside its <aside class="sidebar" id="sidebar">. This function
    builds the sidebar HTML (header, nav links, footer) and injects
@@ -519,7 +519,9 @@ const PINNED_APP_CATALOG = [
   { label: "Gather", href: "/apps/360Meet", icon: "👥" },
 { label: "360VPN", href: "/vpn/360vpn", icon: "🛜" },
 { label: "Maps", href: "/apps/360Maps", icon: "🗺️" },
-    { label: "Pomodoro", href: "/apps/Pomodoro", icon: "🕥" }, // please always leave a comma on last item in case we add a new app ty :)
+    { label: "Pomodoro", href: "/apps/Pomodoro", icon: "🕥" },
+    { label: "degreeSNS", href: "/apps/degreeSNS", icon: "💬" },
+    { label: "Aurora", href: "/apps/Aurora", icon: "✨" }, // please always leave a comma on last item in case we add a new app ty :)
 
 ];
 
@@ -552,16 +554,20 @@ function getPinnedAppsPosition() {
 }
 
 const SIDEBAR_NAV_ITEMS = [
-  { label: "Home",           href: "/" },
-  { label: "AI",             href: "/ai" },
-  { label: "Weather",        href: "/weather" },
-  { label: "Translator",     href: "/translator" },
-  { label: "Stocks",         href: "/stocks" },
-  { label: "URL Shortener",  href: "/url-shortener" },
-  { label: "Chat",           href: "/chat" },
-  { label: "News",           href: "/news" },
-  { label: "Apps",           href: "/apps" },
-  { label: "Games",          href: "/games" }
+  { label: "Home", href: "/" },
+  { label: "Weather", href: "/weather" },
+  { label: "Translator", href: "/translator" },
+  { label: "Stocks", href: "/stocks" },
+  { label: "URL Shortener", href: "/url-shortener" },
+  { label: "Chat (Age Restricted)", href: "/chat" },
+  { label: "News", href: "/news" },
+  { label: "AI", href: "/ai" },
+  { label: "Library", href: "/library.html" },
+  { label: "Plugins", href: "/plugins.html" },
+  { label: "Health", href: "/health.html" },
+  { label: "Scholar", href: "/scholar.html" },
+  { label: "Apps", href: "/apps" },
+  { label: "Games", href: "/games" }
 ];
 
 function renderSidebar() {
@@ -1049,8 +1055,8 @@ function closeAuth() {
   if (authError) authError.textContent = "";
 }
 
-if (signInBtn) signInBtn.onclick = () => location.href = "signin.html?from=" + encodeURIComponent(currentUrl);
-if (signUpBtn) signUpBtn.onclick = () => location.href = "signup.html?from=" + encodeURIComponent(currentUrl);
+if (signInBtn) signInBtn.onclick = () => location.href = "account?from=" + encodeURIComponent(currentUrl);
+if (signUpBtn) signUpBtn.onclick = () => location.href = "account?from=" + encodeURIComponent(currentUrl);
 if (authCloseBtn) authCloseBtn.onclick = closeAuth;
 
 if (authPopup) {
@@ -1281,8 +1287,12 @@ sidebar?.addEventListener("click", e => {
   if (!item || !sidebar.contains(item)) return;
   e.stopPropagation();
 
-  // Ctrl/meta/shift: let the browser handle it natively (new tab, new window)
-  if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Ctrl/meta/shift: open in new tab (for <div> items; <a> items handle this natively but we also catch it here)
+  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    e.preventDefault();
+    window.open(item.dataset.href, "_blank", "noopener");
+    return;
+  }
 
   e.preventDefault();
 
@@ -1561,11 +1571,14 @@ function polishSettingsPanel() {
     legal.id = "settingsLegalLinks";
     legal.className = "settings-legal";
     legal.innerHTML = `
-      <summary>Legal</summary>
+      <summary>Legal & More Settings</summary>
       <div class="settings-link-list">
         <a href="/tos"><span data-octicon="law"></span> Terms of Service</a>
         <a href="/privacypolicy"><span data-octicon="lock"></span> Privacy Policy</a>
-        <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
+      </div>
+      <summary>More Settings</summary>
+      <div class="more-settings-link-list">
+      <a href="/settings"><span data-octicon="gear"></span> Advanced Settings</a>
       </div>
     `;
     panel.appendChild(legal);
@@ -1596,7 +1609,7 @@ function initAppsPagePinButtons() {
 
     const pinned = getPinnedAppHrefs().includes(normalizeAppHref(app.href));
     btn.classList.toggle("pinned", pinned);
-    btn.textContent = pinned ? "★ Pinned" : "☆ Pin";
+    btn.innerHTML = pinned ? '<span data-octicon="star-fill"></span> Pinned!' : '<span data-octicon="star"></span> Pin';
     btn.setAttribute("aria-label", `${pinned ? "Unpin" : "Pin"} ${app.label} on the menu bar`);
   });
 }
@@ -1605,4 +1618,4 @@ initPinnedAppsSettings();
 polishSettingsPanel();
 initAppsPagePinButtons();
 
-console.log("%c360 V.3.6.0 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");
+console.log("%c360 V.3.6.2 — main.js loaded.", "color:#4ade80;font-weight:bold;font-size:14px;");

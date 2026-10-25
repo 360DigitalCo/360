@@ -24,7 +24,7 @@
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-SCZB3M2PNX');</script>
 <link rel="stylesheet" href="/assets/css/mobile-nav.css">
 </head>
-<body class="dark">
+<body class="dark ai-page">
   <div class="cursor-dot"></div>
   <div class="cursor-trail"></div>
   <div class="cursor-crosshair"></div>
@@ -107,28 +107,39 @@
   </div>
 
   <div class="ai-shell">
-    <!-- Conversation sidebar -->
-    <div id="ai-sidebar">
+    <aside id="ai-sidebar" aria-label="360 AI navigation">
       <div class="sb-head">
-        <span class="sb-logo">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-          Chats
-        </span>
-        <button id="new-chat-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New
-        </button>
+        <a class="sb-logo" href="/ai.html">360 AI</a>
+        <button id="ai-sidebar-collapse" class="icon-btn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
       </div>
-      <div id="conv-list"></div>
-    </div>
+      <button id="new-chat-btn" class="ai-new-chat" type="button"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span>New chat</span></button>
+      <nav class="ai-sidebar-nav" aria-label="360 AI tools">
+        <a href="/search.html?tab=images" class="ai-nav-item"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="m5 13 3-3 3 3 2-2 3 3M16 8h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-4"/></svg><span>Images</span></a>
+        <a href="/library.html" class="ai-nav-item"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22Z"/><path d="M4 5.5V22M8 7h8M8 11h8"/></svg><span>Library</span></a>
+        <a href="/plugins.html" class="ai-nav-item"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M3 8h18M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M9 13h6"/></svg><span>Plugins</span></a>
+        <a href="/health.html" class="ai-nav-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Health</span></a>
+        <a href="/scholar.html" class="ai-nav-item"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10v6c3 3 9 3 12 0v-6M22 8v7"/></svg><span>Scholar</span></a>
+        <a href="/apps" class="ai-nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1"/><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3"/></svg><span>Explore</span></a>
+      </nav>
+      <div class="ai-sidebar-section">Projects</div><div class="ai-projects-empty">No projects</div>
+      <div class="ai-sidebar-section ai-recents-label">Recents</div><div id="conv-list" aria-label="Recent chats"></div>
+      <div class="ai-profile-wrap">
+        <div id="ai-profile-menu" class="ai-profile-menu" hidden>
+          <div class="ai-profile-menu-user"><span id="ai-profile-menu-avatar" class="ai-profile-avatar">U</span><span><strong id="ai-profile-menu-name">Guest</strong><small id="ai-profile-menu-email">Not signed in</small></span></div>
+          <button id="ai-open-settings" type="button" class="ai-profile-menu-item">AI settings</button>
+          <button id="ai-open-models" type="button" class="ai-profile-menu-item">Choose model</button>
+          <a href="/settings" class="ai-profile-menu-item">Account settings</a>
+          <button id="ai-profile-auth-action" type="button" class="ai-profile-menu-item">Sign in</button>
+        </div>
+        <button id="ai-profile-btn" class="ai-profile-btn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="ai-profile-avatar" class="ai-profile-avatar">U</span><span class="ai-profile-labels"><strong id="ai-profile-name">Guest</strong><small id="ai-profile-subtitle">AI settings</small></span><svg class="ai-profile-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m7 10 5 5 5-5"/></svg></button>
+      </div>
+    </aside>
 
     <!-- Main chat column -->
     <div class="ai-main" id="ai-main">
       <div class="ai-topbar">
         <div class="ai-topbar-side ai-topbar-left">
-          <button id="ai-chat-sidebar-toggle" class="icon-btn" title="Toggle chat history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-          </button>
+          <button id="ai-chat-sidebar-toggle" class="icon-btn" type="button" title="Toggle sidebar" aria-label="Toggle sidebar"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
         </div>
         <div class="ai-brand">
           <span class="ai-brand-mark" aria-label="360 AI logo">
@@ -170,8 +181,8 @@
               <path d="M4.95 22.4A12.8 12.8 0 0 1 4.95 9.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
             </svg>
           </div>
-          <div class="wl-title">360 AI</div>
-          <div class="wl-sub">Ask anything, paste images, upload files, write code and solve problems!</div>
+          <div class="wl-title">Ready when you are.</div>
+          <div class="wl-sub">Ask anything</div>
           <div class="wl-chips">
             <div class="wl-chip" data-prompt="Explain how the internet works in simple terms.">Explain how the internet works</div>
             <div class="wl-chip" data-prompt="Write a Python function to reverse a linked list.">Reverse a linked list</div>
@@ -199,24 +210,25 @@
           </button>
         </div>
         <div class="ai-input-row">
-          <textarea id="ai-input" rows="1" placeholder="Ask anything… (Ctrl+V to paste image)"></textarea>
-          <button id="model-picker-btn" type="button" title="Choose AI model">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg>
-          </button>
-          <div class="ai-input-btns">
-            <button id="ai-attach-btn" title="Attach file or image">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            </button>
-            <button id="ai-send-btn" title="Send (Enter)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-            </button>
-          </div>
+          <button id="ai-attach-btn" type="button" title="Attach file or image" aria-label="Attach file or image"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          <textarea id="ai-input" rows="1" placeholder="Message 360 AI" aria-label="Message 360 AI"></textarea>
+          <button id="model-picker-btn" type="button" title="Choose AI model" aria-label="Choose AI model"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg></button>
+          <div class="ai-input-btns"><button id="ai-send-btn" type="button" title="Send (Enter)" aria-label="Send message"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button></div>
         </div>
-        <div class="ai-input-hint">Enter to send · Shift+Enter for new line · Paste image with Ctrl+V</div>
+        <div class="ai-input-hint">Enter to send · Shift+Enter for new line · Paste an image with Ctrl+V</div>
       </div>
     </div>
   </div>
 
+  <div id="ai-settings-backdrop" class="ai-settings-backdrop" hidden>
+    <section class="ai-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-settings-title">
+      <div class="ai-settings-heading"><div><h2 id="ai-settings-title">AI settings</h2><p>Set how 360 AI works for you.</p></div><button id="ai-settings-close" type="button" aria-label="Close settings">×</button></div>
+      <button id="ai-open-models-dialog" type="button" class="ai-setting-model"><span><strong>Model</strong><small>Choose the model used for your chats</small></span><span id="ai-settings-model-name">Default ›</span></button>
+      <label class="ai-setting-toggle"><span><strong>Web research</strong><small>Search the web and cite current sources when answering.</small></span><input id="ai-web-research-toggle" type="checkbox" /></label>
+      <label class="ai-setting-toggle"><span><strong>Scholar mode</strong><small>Prioritize credible publications, evidence quality, and linked references.</small></span><input id="ai-scholar-mode-toggle" type="checkbox" /></label>
+      <p class="ai-settings-note">Web research can take longer because it consults external sources.</p>
+    </section>
+  </div>
   <input type="file" id="ai-file-input" style="display:none" accept="*/*" />
 
   <!-- MCP Connector overlay + panel -->
@@ -259,6 +271,7 @@
   <script src="/assets/js/cookie.js"></script>
   <script src="/assets/js/cursor.js"></script>
   <script src="/assets/js/ai.js"></script>
+  <script src="/assets/js/ai-ui.js"></script>
   <script src="/assets/js/mcp.js"></script>
 <script src="/assets/js/mobile-nav.js" defer></script>
 </body>

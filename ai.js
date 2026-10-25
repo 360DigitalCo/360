@@ -1,0 +1,1484 @@
+(() => {
+  /* ── 360 AI — ai.js (scoped + safer) ─────────────────────────────────── */
+
+  // main.js declares `const supabaseClient = supabase.createClient(...)` at
+  // the top level of a classic <script>. That does NOT create a
+  // window.supabaseClient property (only var/function declarations do), so
+  // window.supabaseClient / window.sb were always undefined here and every
+  // Supabase call below silently no-opped — this is why saved chats never
+  // loaded. Classic scripts do share one global lexical scope though, so
+  // the bare `supabaseClient` identifier from main.js is reachable here.
+  const sb = window.supabaseClient || window.sb ||
+    (typeof supabaseClient !== "undefined" ? supabaseClient : null);
+
+  const aiInput = document.getElementById("ai-input");
+  const aiSendBtn = document.getElementById("ai-send-btn");
+  const aiOutput = document.getElementById("ai-output");
+  const convList = document.getElementById("conv-list");
+  const fileInput = document.getElementById("ai-file-input");
+  const welcome = document.getElementById("ai-welcome");
+  const aiMain = document.getElementById("ai-main");
+
+  const attachBtn = document.getElementById("ai-attach-btn");
+  const filePreview = document.getElementById("file-preview");
+  const fpThumb = document.getElementById("fp-thumb");
+  const fpName = document.getElementById("fp-name");
+  const fpCancel = document.getElementById("fp-cancel");
+  const sidebarToggleBtn = document.getElementById("ai-chat-sidebar-toggle");
+  const aiSidebar = document.getElementById("ai-sidebar");
+  const aiShell = document.querySelector(".ai-shell");
+  // Sidebar overlays on mobile (see ai.html's max-width:760px rule) —
+  // start collapsed there so it doesn't block the chat on first load.
+  if (aiSidebar && window.innerWidth <= 760) {
+    aiSidebar.classList.add("collapsed");
+    if (aiShell) aiShell.classList.add("sidebar-collapsed");
+  }
+  const newChatBtn = document.getElementById("new-chat-btn");
+  const convTitleBar = document.getElementById("conv-title-bar");
+  const convTitleLabel = document.getElementById("conv-title-label");
+
+  const SB_URL = "https://wiswfpfsjiowtrdyqpxy.supabase.co";
+
+  /* ── model catalog ───────────────────────────────────────────────────
+     Pulled live from the openrouter-models edge function (hundreds of
+     models) instead of a hardcoded list, so this never goes stale. Each
+     entry is grouped into one of the named categories by its OpenRouter
+     id prefix; anything unrecognized falls into "Other". "default" is a
+     sentinel the backend understands as "pick the best model yourself
+     based on the request" (topic-detection auto-race) — it is not a real
+     OpenRouter id and is never sent to the models list. */
+  const MODEL_STORAGE_KEY = "ai360:selectedModel";
+  let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "default";
+  let allModels = [];          // raw rows from openrouter-models
+  let modelsLoaded = false;
+  let modelsLoading = null;
+
+  const CATEGORY_MATCHERS = [
+    ["OpenAI", (id) => id.startsWith("openai/")],
+    ["Anthropic", (id) => id.startsWith("anthropic/")],
+    ["Azure", (id) => id.startsWith("azure/") || id.includes("azure")],
+    ["DeepSeek", (id) => id.startsWith("deepseek/")],
+    ["Google AI Studio", (id) => id.startsWith("google/")],
+    ["Groq", (id) => id.startsWith("groq/") || id.includes("groq")],
+    ["Meta", (id) => id.startsWith("meta-llama/") || id.startsWith("meta/")],
+    ["NVIDIA", (id) => id.startsWith("nvidia/")],
+  ];
+  const CATEGORY_ORDER = ["OpenAI", "Anthropic", "Azure", "DeepSeek", "Google AI Studio", "Groq", "Meta", "NVIDIA", "Other"];
+
+  function categoryFor(id) {
+    const lo = String(id || "").toLowerCase();
+    for (const [name, test] of CATEGORY_MATCHERS) if (test(lo)) return name;
+    return "Other";
+  }
+
+  const modelPickerBtn = document.getElementById("model-picker-btn");
+  const modelPickerLabel = document.getElementById("model-picker-label");
+  const modelOverlay = document.getElementById("model-overlay");
+  const modelModal = document.getElementById("model-modal");
+  const modelSearchInput = document.getElementById("model-search-input");
+  const modelTabs = document.getElementById("model-tabs");
+  const modelList = document.getElementById("model-list");
+  const modelCloseBtn = document.getElementById("model-modal-close");
+  const adminBadge = document.getElementById("admin-badge");
+  const usageMeter = document.getElementById("usage-meter");
+  const usageMeterFill = document.getElementById("usage-meter-fill");
+  const usageMeterLabel = document.getElementById("usage-meter-label");
+
+  let activeCategory = "All";
+  let searchQuery = "";
+
+  function labelForModel(id) {
+    if (!id || id === "default") return "Default";
+    const hit = allModels.find(m => m.id === id);
+    return hit ? hit.name || id : id;
+  }
+
+  function setSelectedModel(id) {
+    selectedModel = id;
+    localStorage.setItem(MODEL_STORAGE_KEY, id);
+    if (modelPickerLabel) modelPickerLabel.textContent = labelForModel(id);
+    if (modelPickerBtn) modelPickerBtn.classList.toggle("custom", id !== "default");
+    if (modelPickerBtn) modelPickerBtn.title = id === "default" ? "Choose AI model (Default: auto-select)" : "Model: " + labelForModel(id);
+  }
+
+  async function loadModels() {
+    if (modelsLoaded) return;
+    if (modelsLoading) return modelsLoading;
+    modelsLoading = (async () => {
+      try {
+        if (sb && sb.functions) {
+          const { data, error } = await sb.functions.invoke("openrouter-models");
+          if (!error && data && data.success && Array.isArray(data.models)) {
+            allModels = data.models;
+            modelsLoaded = true;
+          }
+        }
+      } catch (_) {}
+    })();
+    return modelsLoading;
+  }
+
+  function renderTabs() {
+    if (!modelTabs) return;
+    const counts = { All: allModels.length };
+    CATEGORY_ORDER.forEach(c => (counts[c] = 0));
+    allModels.forEach(m => { const c = categoryFor(m.id); counts[c] = (counts[c] || 0) + 1; });
+    const tabs = ["All", ...CATEGORY_ORDER.filter(c => counts[c] > 0)];
+    modelTabs.innerHTML = tabs.map(t =>
+      `<button type="button" class="model-tab${t === activeCategory ? " active" : ""}" data-cat="${escHtml(t)}">${escHtml(t)}${t !== "All" ? ` <span class="model-tab-count">${counts[t]}</span>` : ""}</button>`
+    ).join("");
+    modelTabs.querySelectorAll(".model-tab").forEach(btn => {
+      on(btn, "click", () => { activeCategory = btn.dataset.cat; renderTabs(); renderList(); });
+    });
+  }
+
+  function formatPrice(v) {
+    const n = parseFloat(v || "0");
+    if (!n) return "Free";
+    return "$" + (n * 1000000).toFixed(2) + "/1M";
+  }
+
+  function renderList() {
+    if (!modelList) return;
+    const q = searchQuery.trim().toLowerCase();
+    let rows = allModels;
+    if (activeCategory !== "All") rows = rows.filter(m => categoryFor(m.id) === activeCategory);
+    if (q) rows = rows.filter(m => (m.name || "").toLowerCase().includes(q) || (m.id || "").toLowerCase().includes(q));
+
+    const defaultCard = !q ? `
+      <button type="button" class="model-row model-row-default${selectedModel === "default" ? " active" : ""}" data-model-id="default">
+        <div class="model-row-main">
+          <span class="model-row-name">✨ Default — Auto-select</span>
+          <span class="model-row-id">Picks the best model for your prompt automatically</span>
+        </div>
+      </button>` : "";
+
+    if (!rows.length) {
+      modelList.innerHTML = defaultCard + `<div class="model-empty">No models match${q ? ` “${escHtml(q)}”` : " this category"}.</div>`;
+      return;
+    }
+
+    modelList.innerHTML = defaultCard + rows.slice(0, 300).map(m => {
+      const active = m.id === selectedModel;
+      const ctx = m.context_length ? Number(m.context_length).toLocaleString() + " ctx" : "";
+      const price = m.pricing ? formatPrice(m.pricing.prompt) : "";
+      return `<button type="button" class="model-row${active ? " active" : ""}" data-model-id="${escHtml(m.id)}">
+        <div class="model-row-main">
+          <span class="model-row-name">${escHtml(m.name || m.id)}</span>
+          <span class="model-row-id">${escHtml(m.id)}</span>
+        </div>
+        <div class="model-row-meta">${[ctx, price].filter(Boolean).join(" · ")}</div>
+      </button>`;
+    }).join("");
+
+    modelList.querySelectorAll(".model-row").forEach(row => {
+      on(row, "click", () => {
+        setSelectedModel(row.dataset.modelId);
+        closeModelModal();
+      });
+    });
+  }
+
+  function openModelModal() {
+    if (!modelOverlay || !modelModal) return;
+    modelOverlay.classList.add("show");
+    modelModal.classList.add("show");
+    if (modelSearchInput) { modelSearchInput.value = ""; searchQuery = ""; }
+    loadModels().then(() => { renderTabs(); renderList(); });
+    renderTabs();
+    renderList();
+    setTimeout(() => safeFocus(modelSearchInput), 30);
+  }
+
+  function closeModelModal() {
+    if (modelOverlay) modelOverlay.classList.remove("show");
+    if (modelModal) modelModal.classList.remove("show");
+  }
+
+  setSelectedModel(selectedModel);
+  on(modelPickerBtn, "click", openModelModal);
+  on(modelCloseBtn, "click", closeModelModal);
+  on(modelOverlay, "click", closeModelModal);
+  on(modelSearchInput, "input", e => { searchQuery = e.target.value; renderList(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && modelModal && modelModal.classList.contains("show")) closeModelModal();
+  });
+
+  /* ── usage meter + admin badge ───────────────────────────────────── */
+
+  async function refreshUsageAndAdmin() {
+    if (!sb || !currentUserId) {
+      if (usageMeter) usageMeter.style.display = "none";
+      if (adminBadge) adminBadge.classList.remove("show");
+      return;
+    }
+    try {
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", currentUserId)
+        .maybeSingle();
+      if (adminBadge) adminBadge.classList.toggle("show", !!(profile && profile.is_admin));
+    } catch (_) {}
+
+    try {
+      const { data: usage } = await sb
+        .from("ai_usage_today")
+        .select("total_tokens, daily_token_limit")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      if (usage && usageMeter) {
+        usageMeter.style.display = "flex";
+        const limit = usage.daily_token_limit;
+        const used = usage.total_tokens || 0;
+        if (limit == null || limit < 0) {
+          usageMeterFill.style.width = "4%";
+          usageMeterLabel.textContent = `${used.toLocaleString()} tokens today`;
+          usageMeter.classList.remove("warn", "limit");
+        } else {
+          const pct = Math.min(100, Math.round((used / limit) * 100));
+          usageMeterFill.style.width = pct + "%";
+          usageMeterLabel.textContent = `${used.toLocaleString()}/${limit.toLocaleString()}`;
+          usageMeter.classList.toggle("warn", pct >= 75 && pct < 100);
+          usageMeter.classList.toggle("limit", pct >= 100);
+        }
+      }
+    } catch (_) {}
+  }
+
+  let history = [];
+  let currentConvId = null;
+  let currentUserId = null;
+  let currentTitle = null;
+  let pendingFile = null;
+  let isSending = false;
+  let autoSaveTimer = null;
+  let loadConvTimer = null;
+  let titleSaveTimer = null;
+
+  function on(el, evt, handler, opts) {
+    if (el) el.addEventListener(evt, handler, opts);
+  }
+
+  // New 360 AI mark: three 120°-spaced orbit arcs around a center dot —
+  // a cleaner "360°" motif than the old dashed-circle-and-triangle logo.
+  const LOGO_SVG = `<svg class="ai-logo-svg" width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+  <circle cx="16" cy="16" r="4.2" fill="currentColor"/>
+  <path d="M16 3.2a12.8 12.8 0 0 1 11.05 6.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M27.05 22.4A12.8 12.8 0 0 1 16 28.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M4.95 22.4A12.8 12.8 0 0 1 4.95 9.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+</svg>`;
+
+  function escHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function scrollBottom(force = false) {
+    if (!aiOutput) return;
+    // Don't hijack scroll if the user has scrolled up to read earlier content.
+    // "Near bottom" = within 120px of the end, which covers the typical case
+    // where a new chunk arrives before the previous smooth-scroll finishes.
+    const nearBottom = aiOutput.scrollHeight - aiOutput.scrollTop - aiOutput.clientHeight < 120;
+    if (force || nearBottom) aiOutput.scrollTop = aiOutput.scrollHeight;
+  }
+
+  function hideWelcome() {
+    if (welcome) welcome.style.display = "none";
+    if (convTitleBar) convTitleBar.classList.add("show");
+  }
+
+  function showWelcome() {
+    if (welcome) welcome.style.display = "flex";
+    if (convTitleBar) convTitleBar.classList.remove("show");
+  }
+
+  function setTitle(title, { save = false } = {}) {
+    currentTitle = title || null;
+    if (convTitleLabel) convTitleLabel.textContent = currentTitle || "Untitled chat";
+    if (save) saveTitleOnly();
+  }
+
+  async function saveTitleOnly() {
+    if (!sb || !currentUserId || !currentConvId) return;
+    const title = (currentTitle || "Untitled chat").slice(0, 80);
+    try {
+      await sb.from("ai_conversations").update({ title }).eq("id", currentConvId);
+      updateSidebarTitle(currentConvId, title);
+    } catch (_) {}
+  }
+
+  function updateSidebarTitle(id, title) {
+    // Patch the sidebar item's text directly instead of re-fetching /
+    // re-rendering the whole list, so renaming doesn't cause a flash.
+    if (!convList) return;
+    const item = [...convList.querySelectorAll(".conv-item")]
+      .find(el => el.dataset.convId === String(id));
+    const span = item ? item.querySelector(".conv-item-title") : null;
+    if (span) span.textContent = title;
+  }
+
+  function clearMessages() {
+    // Removes rendered bubbles only, instead of wiping #ai-output's
+    // entire innerHTML — that used to permanently delete the
+    // #ai-welcome node from the DOM on the first new/loaded chat,
+    // so showWelcome() silently did nothing ever after.
+    if (!aiOutput) return;
+    aiOutput.querySelectorAll(".ai-bubble").forEach(el => el.remove());
+  }
+
+  function safeFocus(el) {
+    try { if (el) el.focus(); } catch (_) {}
+  }
+
+  function setInputHeight() {
+    if (!aiInput) return;
+    aiInput.style.height = "auto";
+    aiInput.style.height = Math.min(aiInput.scrollHeight, 200) + "px";
+  }
+
+  function fileLooksLikeImage(name = "") {
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+  }
+
+  /* ── markdown ─────────────────────────────────────────────────────── */
+
+  if (window.marked) {
+    marked.setOptions({ breaks: true, gfm: true });
+
+    const renderer = new marked.Renderer();
+    renderer.code = function (codeArg, langArg) {
+      // marked v5+ calls renderer.code(token) with a single
+      // { text, lang, escaped } object; older versions called
+      // renderer.code(code, infostring). Support both so a version
+      // bump can't silently turn code blocks into "[object Object]".
+      let codeText, lang;
+      if (codeArg && typeof codeArg === "object") {
+        codeText = codeArg.text != null ? codeArg.text : "";
+        lang = codeArg.lang != null ? codeArg.lang : "";
+      } else {
+        codeText = codeArg;
+        lang = langArg;
+      }
+
+      const safeCode = String(codeText != null ? codeText : "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const label = (lang || "code").trim().split(/\s+/)[0];
+      const id = "cb-" + Math.random().toString(36).slice(2, 8);
+
+      return `
+        <div class="code-block-wrap">
+          <div class="code-block-header">
+            <span class="code-block-lang">${label}</span>
+            <button class="code-download-btn" data-copy-target="${id}" data-lang="${label}" title="Download as file">⭳</button>
+            <button class="code-copy-btn" data-copy-target="${id}">Copy</button>
+          </div>
+          <pre><code id="${id}" class="language-${label}">${safeCode}</code></pre>
+        </div>
+      `;
+    };
+
+    marked.use({ renderer });
+  }
+
+  /* file extension guess for the code-block download button */
+  const LANG_EXT = {
+    javascript: "js", js: "js", typescript: "ts", ts: "ts", jsx: "jsx", tsx: "tsx",
+    python: "py", py: "py", html: "html", css: "css", json: "json", yaml: "yml", yml: "yml",
+    bash: "sh", sh: "sh", shell: "sh", sql: "sql", java: "java", c: "c", cpp: "cpp", "c++": "cpp",
+    go: "go", rust: "rs", rs: "rs", ruby: "rb", rb: "rb", php: "php", swift: "swift",
+    markdown: "md", md: "md", xml: "xml", text: "txt", plaintext: "txt", code: "txt",
+  };
+
+  on(document, "click", (e) => {
+    const btn = e.target && typeof e.target.closest === "function" ? e.target.closest(".code-download-btn") : null;
+    if (!btn) return;
+    const id = btn.getAttribute("data-copy-target");
+    const el = id && document.getElementById(id);
+    if (!el) return;
+    const lang = (btn.getAttribute("data-lang") || "txt").toLowerCase();
+    const ext = LANG_EXT[lang] || "txt";
+    const blob = new Blob([el.textContent || ""], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `snippet.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  function renderMath(tex, display) {
+    if (!window.katex) return null;
+    try {
+      return katex.renderToString(tex, { displayMode: display, throwOnError: false, strict: "ignore", trust: false });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function extractMath(raw) {
+    const store = [];
+    const keep = (html) => "AIPH" + (store.push(html) - 1) + "END";
+    const codes = [];
+    let out = raw.replace(/```[\s\S]*?(```|$)|`[^`\n]+`/g, (m) => "AICODE" + (codes.push(m) - 1) + "END");
+
+    const put = (tex, display, src) => {
+      const html = renderMath(tex.trim(), display);
+      return html == null ? src : keep(display ? '<div class="ai-math-block">' + html + "</div>" : html);
+    };
+
+    out = out.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => put(tex, true, m));
+    out = out.replace(/\\\[([\s\S]+?)\\\]/g, (m, tex) => put(tex, true, m));
+    out = out.replace(/\\\(([\s\S]+?)\\\)/g, (m, tex) => put(tex, false, m));
+    out = out.replace(/(^|[^\\$\w])\$(?![\s$])([^$\n]+?)(?<![\s\\])\$(?![\d$\w])/g, (m, pre, tex) => pre + put(tex, false, "$" + tex + "$"));
+
+    out = out.replace(/AICODE(\d+)END/g, (m, n) => codes[Number(n)]);
+    return { text: out, store };
+  }
+
+  function renderMarkdown(text) {
+    const raw = String(text || "");
+    if (!window.marked) return escHtml(raw).replace(/\n/g, "<br>");
+
+    const math = extractMath(raw);
+    let html = marked.parse(math.text);
+    if (window.DOMPurify) html = DOMPurify.sanitize(html);
+    html = html.replace(/AIPH(\d+)END/g, (m, n) => math.store[Number(n)] || "");
+
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+
+    if (window.hljs) {
+      wrap.querySelectorAll("pre code").forEach(el => {
+        try { hljs.highlightElement(el); } catch (_) {}
+      });
+    }
+
+    return wrap.innerHTML;
+  }
+
+  /* delegated copy buttons */
+  on(document, "click", async (e) => {
+    const btn = e.target && typeof e.target.closest === "function" ? e.target.closest(".code-copy-btn") : null;
+    if (!btn) return;
+
+    const id = btn.getAttribute("data-copy-target");
+    if (!id || !navigator.clipboard) return;
+
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    try {
+      await navigator.clipboard.writeText(el.textContent || "");
+      const old = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = old || "Copy"; }, 1800);
+    } catch (_) {}
+  });
+
+  /* ── bubbles ──────────────────────────────────────────────────────── */
+
+  function appendUserBubble(text, file) {
+    if (!aiOutput) return null;
+
+    hideWelcome();
+
+    const div = document.createElement("div");
+    div.className = "ai-bubble user";
+
+    let inner = "";
+
+    if (file && file.previewUrl && file.mimeType && file.mimeType.startsWith("image/")) {
+      inner += `
+        <div class="attached-preview">
+          <img src="${file.previewUrl}" alt="${escHtml(file.name || "image")}" />
+        </div>
+      `;
+    } else if (file) {
+      inner += `
+        <a class="attached-file-link" href="${file.previewUrl || "#"}" target="_blank" rel="noopener noreferrer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          ${escHtml(file.name || "file")}
+        </a>
+      `;
+    }
+
+    if (text) {
+      inner += `<div class="bubble-inner">${escHtml(text)}</div>`;
+    }
+
+    div.innerHTML = inner;
+    aiOutput.appendChild(div);
+    scrollBottom(true);
+    return div;
+  }
+
+  function appendAssistantBubble(text, isThinking = false) {
+    if (!aiOutput) return { div: null, inner: null };
+
+    hideWelcome();
+
+    const div = document.createElement("div");
+    div.className = "ai-bubble assistant";
+
+    const avatar = document.createElement("div");
+    avatar.className = "ai-avatar";
+    avatar.innerHTML = LOGO_SVG;
+
+    const inner = document.createElement("div");
+    inner.className = "bubble-inner";
+
+    if (isThinking) {
+      inner.innerHTML = `<div class="thinking"><span></span><span></span><span></span></div>`;
+    } else {
+      inner.innerHTML = renderMarkdown(text);
+    }
+
+    div.appendChild(avatar);
+    div.appendChild(inner);
+    aiOutput.appendChild(div);
+    scrollBottom(true);
+
+    return { div, inner };
+  }
+
+  // Streaming variant — a collapsible "Thinking" panel that fills in live as
+  // reasoning tokens arrive, plus a separate answer area below it that fills
+  // in with the final text. Reasoning isn't available from every provider;
+  // the panel just stays hidden if none ever arrives.
+  function appendStreamingBubble() {
+    if (!aiOutput) return {};
+    hideWelcome();
+
+    const div = document.createElement("div");
+    div.className = "ai-bubble assistant";
+
+    const avatar = document.createElement("div");
+    avatar.className = "ai-avatar";
+    avatar.innerHTML = LOGO_SVG;
+
+    const inner = document.createElement("div");
+    inner.className = "bubble-inner";
+    inner.innerHTML = `
+      <div class="ai-thinking-box">
+        <button class="ai-thinking-toggle" type="button">
+          <span class="ai-thinking-spinner"></span>
+          <span class="ai-thinking-label">Thinking…</span>
+          <span class="ai-thinking-arrow">▾</span>
+        </button>
+        <div class="ai-thinking-content"><span class="ai-thinking-empty">Nothing to show yet…</span></div>
+      </div>
+      <div class="ai-tools-box" style="display:none;">
+        <button class="ai-tools-toggle" type="button">
+          <span class="ai-tools-spinner"></span>
+          <span class="ai-tools-label">Running Command…</span>
+          <span class="ai-tools-arrow">▾</span>
+        </button>
+        <div class="ai-tools-content"></div>
+      </div>
+      <div class="ai-answer-content"></div>
+    `;
+
+    div.appendChild(avatar);
+    div.appendChild(inner);
+    aiOutput.appendChild(div);
+    scrollBottom(true);
+
+    const thinkingBox = inner.querySelector(".ai-thinking-box");
+    const thinkingContent = inner.querySelector(".ai-thinking-content");
+    const thinkingLabel = inner.querySelector(".ai-thinking-label");
+    const answerContent = inner.querySelector(".ai-answer-content");
+    const toolsBox = inner.querySelector(".ai-tools-box");
+    const toolsLabel = inner.querySelector(".ai-tools-label");
+    const toolsContent = inner.querySelector(".ai-tools-content");
+    const toolsSpinner = inner.querySelector(".ai-tools-spinner");
+
+    // Collapsed by default — the dropdown is for "what did it think of",
+    // not something that should take up space on every reply.
+    let thinkExpanded = false;
+    thinkingContent.style.display = "none";
+    const thinkArrowEl = inner.querySelector(".ai-thinking-arrow");
+    if (thinkArrowEl) thinkArrowEl.textContent = "▸";
+    on(inner.querySelector(".ai-thinking-toggle"), "click", () => {
+      thinkExpanded = !thinkExpanded;
+      thinkingContent.style.display = thinkExpanded ? "block" : "none";
+      if (thinkArrowEl) thinkArrowEl.textContent = thinkExpanded ? "▾" : "▸";
+    });
+
+    let toolsExpanded = false;
+    on(inner.querySelector(".ai-tools-toggle"), "click", () => {
+      toolsExpanded = !toolsExpanded;
+      toolsContent.style.display = toolsExpanded ? "block" : "none";
+      const arrow = inner.querySelector(".ai-tools-arrow");
+      if (arrow) arrow.textContent = toolsExpanded ? "▾" : "▸";
+    });
+
+    // Tool-call bundling: every "running"/"done" pair for a command is one
+    // entry; when more than one command runs in a single reply they're
+    // bundled under one dropdown titled with the connector/tool count
+    // instead of stacking separate pills.
+    const toolCalls = [];
+    function renderTools() {
+      if (!toolCalls.length) return;
+      toolsBox.style.display = "block";
+      const anyRunning = toolCalls.some(t => t.status === "running");
+      toolsSpinner.style.display = anyRunning ? "" : "none";
+      if (toolCalls.length === 1) {
+        toolsLabel.textContent = anyRunning ? "Running Command…" : "Ran a command";
+      } else {
+        toolsLabel.textContent = anyRunning
+          ? `Running ${toolCalls.length} commands…`
+          : `Connectors and resources used (${toolCalls.length} command${toolCalls.length === 1 ? "" : "s"})`;
+      }
+      toolsContent.innerHTML = toolCalls.map(t => `
+        <div class="ai-tool-entry">
+          <div class="ai-tool-entry-name">${escHtml(t.name)}${t.status === "running" ? " <em>running…</em>" : ""}</div>
+          ${t.code ? `<pre class="ai-tool-code">${escHtml(t.code)}</pre>` : ""}
+          ${t.output ? `<pre class="ai-tool-output">${escHtml(t.output)}</pre>` : ""}
+        </div>
+      `).join("");
+    }
+
+    return {
+      div, inner, thinkingBox, thinkingContent, thinkingLabel, answerContent,
+      toolsBox, toolsLabel, toolsContent, toolCalls, renderTools,
+    };
+  }
+
+  /* ── file handling ───────────────────────────────────────────────── */
+
+  function updateFilePreview(fileObj) {
+    if (!filePreview || !fpThumb || !fpName) return;
+
+    if (!fileObj) {
+      filePreview.classList.remove("show");
+      fpThumb.innerHTML = "";
+      fpName.textContent = "";
+      return;
+    }
+
+    const isImage = !!(fileObj.mimeType && fileObj.mimeType.startsWith("image/"));
+
+    if (isImage && fileObj.previewUrl) {
+      fpThumb.innerHTML = `<img src="${fileObj.previewUrl}" alt="preview" style="max-height:44px;border-radius:6px;" />`;
+    } else {
+      fpThumb.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+    }
+
+    fpName.textContent = fileObj.name || "file";
+    filePreview.classList.add("show");
+  }
+
+  function clearFile() {
+    pendingFile = null;
+    updateFilePreview(null);
+  }
+
+  function attachFile(file) {
+    if (!file) return;
+    const name = file.name || "file";
+    const mimeType = file.type || "application/octet-stream";
+    const isImage = mimeType.startsWith("image/");
+
+    if (isImage) {
+      // Compress to max 1024px / JPEG 0.82 — keeps base64 under ~500KB for OpenRouter
+      const objUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl);
+        const MAX = 1024;
+        let { naturalWidth: w, naturalHeight: h } = img;
+        if (w > MAX || h > MAX) {
+          if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+          else        { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        pendingFile = { file, name, base64: dataUrl.split(",")[1], mimeType: "image/jpeg", previewUrl: dataUrl };
+        updateFilePreview(pendingFile);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objUrl); showToast("Could not read image"); };
+      img.src = objUrl;
+    } else {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const result = ev.target ? ev.target.result : undefined;
+        if (typeof result !== "string" || !result.includes(",")) return;
+        pendingFile = { file, name, base64: result.split(",")[1], mimeType, previewUrl: null };
+        updateFilePreview(pendingFile);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  on(attachBtn, "click", () => { if (fileInput) fileInput.click(); });
+
+  on(fileInput, "change", e => {
+    const file = e.target && e.target.files ? e.target.files[0] : undefined;
+    if (file) attachFile(file);
+    if (e.target) e.target.value = "";
+  });
+
+  on(fpCancel, "click", clearFile);
+
+  on(document, "paste", e => {
+    const items = e.clipboardData ? e.clipboardData.items : undefined;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type && item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+
+        const named = new File(
+          [file],
+          `pasted-image-${Date.now()}.png`,
+          { type: file.type || "image/png" }
+        );
+
+        attachFile(named);
+        break;
+      }
+    }
+  });
+
+  on(aiMain, "dragover", e => {
+    e.preventDefault();
+    aiMain.classList.add("drag-over");
+  });
+
+  on(aiMain, "dragleave", e => {
+    if (!aiMain) return;
+    const related = e.relatedTarget;
+    if (!related || !aiMain.contains(related)) {
+      aiMain.classList.remove("drag-over");
+    }
+  });
+
+  on(aiMain, "drop", e => {
+    e.preventDefault();
+    if (aiMain) aiMain.classList.remove("drag-over");
+    const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : undefined;
+    if (file) attachFile(file);
+  });
+
+  /* ── storage upload ──────────────────────────────────────────────── */
+
+  async function uploadToStorage(file, name) {
+    if (!sb || !sb.storage || !file) return null;
+
+    const ext = ((name ? name.split(".").pop() : "") || "bin").replace(/[^\w-]/g, "");
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+    const { error } = await sb.storage
+      .from("ai-uploads")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+
+    if (error) return null;
+
+    // Keep the existing chat attachment URL for current conversations, while
+    // saving a separate private copy in the user's Library when signed in.
+    if (currentUserId) {
+      const safeName = String(name || "file").split(/[\\/]/).pop().replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 180) || "file";
+      const libraryPath = `${currentUserId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+      await sb.storage.from("ai-library").upload(libraryPath, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type || "application/octet-stream"
+      }).catch(() => null);
+    }
+
+    const publicData = sb.storage.from("ai-uploads").getPublicUrl(path).data;
+    return publicData ? (publicData.publicUrl || null) : null;
+  }
+
+  /* ── talking to the backend ──────────────────────────────────────── */
+
+  // Only {role, content} is ever sent as conversation memory. Earlier
+  // versions forwarded the full local history objects — which also
+  // carry fileUrl/fileName/etc for our own UI — straight through as
+  // "memory". Once a file message entered history, every subsequent
+  // request re-sent that malformed shape, which every provider on the
+  // backend rejected, permanently breaking the rest of the chat with
+  // "All AI providers temporarily unavailable". Stripping down to the
+  // plain shape the backend actually expects fixes that for good.
+  function apiMemory(hist) {
+    return hist.map(m => ({ role: m.role, content: String(m.content != null ? m.content : "") }));
+  }
+
+  const PROVIDERS_DOWN_RE = /all ai providers (are )?temporarily unavailable/i;
+
+  // Streams the SSE response, calling handlers.onThinking/onText per chunk
+  // as they arrive instead of waiting for the full reply. Retries on the
+  // specific "all providers down" case, same as the old non-streaming path.
+  async function streamChatEndpoint(body, handlers, attempt = 1) {
+    const MAX_ATTEMPTS = 10;
+
+    const res = await fetch(`${SB_URL}/functions/v1/ai-chatbot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok || !res.body) {
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      const msg = String(data.error || data.reply || res.statusText || "Request failed");
+      if (PROVIDERS_DOWN_RE.test(msg) && attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, 400 * attempt));
+        return streamChatEndpoint(body, handlers, attempt + 1);
+      }
+      throw new Error(msg);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let sawAnything = false;
+    let sawError = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload) continue;
+        let evt;
+        try { evt = JSON.parse(payload); } catch (_) { continue; }
+        if (evt.type === "thinking") { sawAnything = true; handlers.onThinking(evt.delta); }
+        else if (evt.type === "tool") { sawAnything = true; if (handlers.onTool) handlers.onTool(evt.name || evt.tool || "tool", evt.status || "running", { code: evt.code, output: evt.output }); }
+        else if (evt.type === "text") { sawAnything = true; handlers.onText(evt.delta); }
+        else if (evt.type === "done") { if (handlers.onDone) handlers.onDone(evt.model); }
+        else if (evt.type === "error") { sawError = evt.message; }
+      }
+    }
+
+    if (!sawAnything && sawError) {
+      if (PROVIDERS_DOWN_RE.test(sawError) && attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, 400 * attempt));
+        return streamChatEndpoint(body, handlers, attempt + 1);
+      }
+      throw new Error(sawError);
+    }
+  }
+
+  /* ── send ────────────────────────────────────────────────────────── */
+
+  async function sendAI() {
+    if (isSending) return;
+    if (!aiInput && !pendingFile) return;
+
+    const prompt = aiInput && aiInput.value ? aiInput.value.trim() : "";
+    if (!prompt && !pendingFile) return;
+
+    isSending = true;
+    if (aiSendBtn) aiSendBtn.disabled = true;
+
+    if (aiInput) {
+      aiInput.value = "";
+      aiInput.style.height = "auto";
+    }
+
+    const captured = pendingFile ? { ...pendingFile } : null;
+    clearFile();
+
+    let storageUrl = null;
+    if (captured && captured.file) {
+      storageUrl = await uploadToStorage(captured.file, captured.name).catch(() => null);
+    }
+
+    appendUserBubble(
+      prompt,
+      captured ? { ...captured, previewUrl: storageUrl || captured.previewUrl } : null
+    );
+
+    const { thinkingBox, thinkingContent, thinkingLabel, answerContent, toolCalls, renderTools } = appendStreamingBubble();
+
+    const isFirstMessage = history.length === 0;
+
+    let backendMessage = prompt || "The user attached a file. Please analyze it.";
+    if (isFirstMessage) {
+      backendMessage +=
+        "\n\n(Separately, on a new final line of your reply, output exactly " +
+        "[[TITLE: a concise 3-6 word title for this conversation]] — this " +
+        "line will be extracted and hidden from the user, so do not " +
+        "reference it in your actual answer.)";
+    }
+
+    const scholarMode = localStorage.getItem("ai360:scholarMode") === "true";
+    const webResearch = localStorage.getItem("ai360:webResearch") === "true";
+    if (scholarMode) {
+      backendMessage = "!web " + backendMessage +
+        "\n\nResearch instructions: prioritize trustworthy primary sources, official documentation, peer-reviewed research and respected publications. Cite direct source links, separate evidence from inference, mention uncertainty and limitations, and never invent citations.";
+    } else if (webResearch) {
+      backendMessage = "!web " + backendMessage;
+    }
+
+    let thinkingBuf = "";
+    let textBuf = "";
+    let firstTextChunk = true;
+
+    try {
+      const body = {
+        message: backendMessage,
+        memory: apiMemory(history),
+        userId: currentUserId,
+        model: selectedModel,
+      };
+
+      if (captured) {
+        body.file = {
+          base64: captured.base64,
+          mimeType: captured.mimeType,
+          fileName: captured.name,
+        };
+      }
+
+      // Batch DOM updates to one per frame — avoids triggering layout/paint
+      // on every token chunk, which is the main source of UI jank during streaming.
+      let renderPending = false;
+      function scheduleRender() {
+        if (renderPending) return;
+        renderPending = true;
+        requestAnimationFrame(() => {
+          renderPending = false;
+          // Strip a fully-arrived [[TITLE: ...]] tag immediately, and hide a
+          // still-arriving one (e.g. "...\n[[TIT") so it never flashes on
+          // screen mid-stream, not just after the reply finishes.
+          let display = textBuf;
+          if (isFirstMessage) {
+            display = display.replace(/\n?\s*\[\[TITLE:\s*(.+?)\]\]\s*/i, "").replace(/\n?\s*\[\[TITLE?:?\s*[^\]]*$/i, "");
+          }
+          if (answerContent) answerContent.innerHTML = renderMarkdown(display);
+          scrollBottom();
+        });
+      }
+
+      await streamChatEndpoint(body, {
+        onThinking(delta) {
+          thinkingBuf += delta;
+          // Keep it collapsed while streaming — only update the text
+          // underneath; the user opens the dropdown to see it, we don't
+          // force it open (that was making the box jump around live).
+          if (thinkingContent) {
+            thinkingContent.textContent = thinkingBuf;
+            thinkingContent.scrollTop = thinkingContent.scrollHeight;
+          }
+        },
+        onTool(name, status, detail) {
+          detail = detail || {};
+          if (status === "running") {
+            toolCalls.push({ name: String(name), code: detail.code || "", output: "", status: "running" });
+          } else {
+            // Match the most recent running entry with this name and complete it.
+            let entry = null;
+            for (let i = toolCalls.length - 1; i >= 0; i--) {
+              if (toolCalls[i].name === String(name) && toolCalls[i].status === "running") { entry = toolCalls[i]; break; }
+            }
+            if (!entry) entry = { name: String(name), code: detail.code || "" };
+            entry.status = "done";
+            entry.output = detail.output || "";
+            if (!toolCalls.includes(entry)) toolCalls.push(entry);
+          }
+          renderTools();
+          scrollBottom();
+        },
+        onText(delta) {
+          if (firstTextChunk) {
+            firstTextChunk = false;
+            if (thinkingLabel) thinkingLabel.textContent = "Finished";
+            if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
+          }
+          textBuf += delta;
+          scheduleRender();
+        },
+      });
+
+      let reply = textBuf || "No response.";
+
+      if (isFirstMessage) {
+        // Not anchored to the very end: the model doesn't always put the
+        // tag on its own last line exactly as asked (trailing punctuation,
+        // a stray newline, or a short sign-off after it were all enough to
+        // make the old end-anchored regex miss and leave the tag visible
+        // in the chat). Find it anywhere near the end and cut it out.
+        const m = reply.match(/\n?\s*\[\[TITLE:\s*(.+?)\]\]\s*/i);
+        if (m) {
+          reply = (reply.slice(0, m.index) + reply.slice(m.index + m[0].length)).trim();
+          setTitle(m[1].trim().replace(/["'.]+$/, ""));
+        } else {
+          setTitle((prompt || (captured ? captured.name : "") || "Chat").slice(0, 50));
+        }
+      }
+
+      if (thinkingLabel && thinkingLabel.textContent === "Thinking…") thinkingLabel.textContent = "Finished";
+      if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
+      if (!thinkingBuf && thinkingContent) thinkingContent.innerHTML = '<span class="ai-thinking-empty">No detailed reasoning was returned for this reply.</span>';
+
+      if (answerContent) {
+        answerContent.innerHTML = renderMarkdown(reply);
+        if (window.hljs) answerContent.querySelectorAll("pre code").forEach(el => { try { hljs.highlightElement(el); } catch (_) {} });
+      }
+
+      refreshUsageAndAdmin();
+
+      scrollBottom();
+
+      const userEntry = {
+        role: "user",
+        content: prompt || "(file attached)",
+      };
+
+      if (storageUrl && captured) {
+        userEntry.fileUrl = storageUrl;
+        userEntry.fileName = captured.name;
+      }
+
+      history.push(userEntry);
+      history.push({ role: "assistant", content: reply });
+
+      scheduleAutoSave();
+    } catch (err) {
+      if (thinkingLabel) thinkingLabel.textContent = "Finished";
+      if (thinkingBox) { const spinner = thinkingBox.querySelector(".ai-thinking-spinner"); if (spinner) spinner.remove(); }
+      if (answerContent) {
+        const rawMessage = String((err && err.message) || "Unknown error");
+        const userMessage = /daily ai limit reached/i.test(rawMessage)
+          ? "You've reached today's AI usage limit. It resets at 00:00 UTC."
+          : rawMessage;
+        answerContent.innerHTML = `<span style="color:#ef4444;">${escHtml(userMessage)}</span>`;
+      }
+    } finally {
+      isSending = false;
+      if (aiSendBtn) aiSendBtn.disabled = false;
+      safeFocus(aiInput);
+    }
+  }
+
+  /* ── input events ────────────────────────────────────────────────── */
+
+  on(aiInput, "input", setInputHeight);
+
+  on(aiInput, "keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendAI();
+    }
+  });
+
+  on(aiSendBtn, "click", sendAI);
+
+  document.querySelectorAll(".wl-chip").forEach(chip => {
+    on(chip, "click", () => {
+      if (!aiInput) return;
+      aiInput.value = chip.dataset.prompt || "";
+      setInputHeight();
+      safeFocus(aiInput);
+      sendAI();
+    });
+  });
+
+  on(sidebarToggleBtn, "click", () => {
+    if (aiSidebar) aiSidebar.classList.toggle("collapsed");
+    if (aiShell) aiShell.classList.toggle("sidebar-collapsed", !!(aiSidebar && aiSidebar.classList.contains("collapsed")));
+  });
+
+  /* ── autosave ────────────────────────────────────────────────────── */
+
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => saveConversation(true), 1800);
+  }
+
+  async function saveConversation(silent = false) {
+    if (!sb || !currentUserId) return;
+
+    const userMsgs = history.filter(m => m.role === "user");
+    if (!userMsgs.length) return;
+
+    const title = (currentTitle || (userMsgs[0] ? userMsgs[0].content : "") || "Chat").slice(0, 80);
+    const payload = {
+      user_id: currentUserId,
+      title,
+      messages: history,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      if (currentConvId) {
+        await sb.from("ai_conversations").update(payload).eq("id", currentConvId);
+      } else {
+        const { data, error } = await sb
+          .from("ai_conversations")
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) {
+          if (!silent) showToast("Save failed: " + error.message);
+          return;
+        }
+
+        currentConvId = data.id;
+      }
+
+      currentTitle = title;
+      if (convTitleLabel) convTitleLabel.textContent = title;
+
+      if (!silent) showToast("Saved");
+      loadConversations();
+    } catch (_) {
+      if (!silent) showToast("Save failed");
+    }
+  }
+
+  function scheduleLoad() {
+    clearTimeout(loadConvTimer);
+    loadConvTimer = setTimeout(loadConversations, 100);
+  }
+
+  function buildConvItem(conv) {
+    const item = document.createElement("div");
+    item.className = "conv-item" + (conv.id === currentConvId ? " active" : "");
+    item.dataset.convId = String(conv.id);
+    item.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      <span class="conv-item-title">${escHtml(conv.title)}</span>
+      <button class="conv-menu-btn" title="More">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+      </button>
+    `;
+
+    on(item, "click", e => {
+      if (!e.target.closest(".conv-menu-btn")) {
+        loadConversation(conv.id);
+      }
+    });
+
+    const menuBtn = item.querySelector(".conv-menu-btn");
+    on(menuBtn, "click", e => {
+      e.stopPropagation();
+      openConvMenu(menuBtn, conv);
+    });
+
+    return item;
+  }
+
+  let openConvDropdown = null;
+
+  function closeConvMenu() {
+    if (openConvDropdown) openConvDropdown.remove();
+    openConvDropdown = null;
+    document.querySelectorAll(".conv-menu-btn.open").forEach(b => b.classList.remove("open"));
+  }
+
+  function openConvMenu(btn, conv) {
+    if (openConvDropdown) { closeConvMenu(); return; }
+
+    const rect = btn.getBoundingClientRect();
+    const dd = document.createElement("div");
+    dd.className = "conv-dropdown";
+    dd.innerHTML = `
+      <button class="conv-dropdown-item" data-act="rename">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+        Rename
+      </button>
+      <button class="conv-dropdown-item" data-act="duplicate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Duplicate
+      </button>
+      <button class="conv-dropdown-item danger" data-act="delete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Delete
+      </button>
+    `;
+    document.body.appendChild(dd);
+
+    // Position after measuring so it stays on-screen (flips up if it
+    // would run off the bottom of the viewport).
+    const ddRect = dd.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    if (top + ddRect.height > window.innerHeight - 8) top = rect.top - ddRect.height - 4;
+    let left = Math.min(rect.right - ddRect.width, window.innerWidth - ddRect.width - 8);
+    dd.style.top = Math.max(8, top) + "px";
+    dd.style.left = Math.max(8, left) + "px";
+
+    btn.classList.add("open");
+    openConvDropdown = dd;
+
+    on(dd, "click", e => {
+      e.stopPropagation();
+      const actEl = e.target.closest(".conv-dropdown-item"); const act = actEl ? actEl.dataset.act : undefined;
+      closeConvMenu();
+      if (act === "rename") renameConversation(conv);
+      else if (act === "duplicate") duplicateConversation(conv);
+      else if (act === "delete") deleteConversation(conv.id);
+    });
+  }
+
+  on(document, "click", closeConvMenu);
+  on(window, "resize", closeConvMenu);
+  on(window, "scroll", closeConvMenu, true);
+
+  async function renameConversation(conv) {
+    const name = await showPrompt("Rename chat", conv.title || "");
+    if (name === null) return;
+    const title = name.trim().slice(0, 80) || "Untitled chat";
+
+    await sb.from("ai_conversations").update({ title }).eq("id", conv.id);
+    updateSidebarTitle(conv.id, title);
+    if (conv.id === currentConvId) setTitle(title);
+  }
+
+  async function duplicateConversation(conv) {
+    if (!sb || !currentUserId) return;
+    const { data } = await sb.from("ai_conversations").select("*").eq("id", conv.id).single();
+    if (!data) return;
+
+    await sb.from("ai_conversations").insert({
+      user_id: currentUserId,
+      title: (data.title || "Chat") + " (copy)",
+      messages: data.messages,
+      updated_at: new Date().toISOString(),
+    });
+
+    loadConversations();
+  }
+
+  async function loadConversations() {
+    if (!convList) return;
+
+    if (!sb || !currentUserId) {
+      convList.innerHTML = `<div class="conv-empty">Sign in to save chats</div>`;
+      return;
+    }
+
+    const { data } = await sb
+      .from("ai_conversations")
+      .select("id,title,updated_at")
+      .eq("user_id", currentUserId)
+      .order("updated_at", { ascending: false })
+      .limit(60);
+
+    // Build the new list off-DOM first, then swap it in in one go.
+    // Clearing convList before this network request resolves (the old
+    // behavior) meant the sidebar rendered empty for a frame on every
+    // save/load/delete — the "glitch" — while this awaited. Building
+    // everything first and only touching the DOM once avoids that.
+    const frag = document.createDocumentFragment();
+    if (!data || !data.length) {
+      const empty = document.createElement("div");
+      empty.className = "conv-empty";
+      empty.textContent = "No saved chats yet";
+      frag.appendChild(empty);
+    } else {
+      data.forEach(conv => frag.appendChild(buildConvItem(conv)));
+    }
+
+    convList.innerHTML = "";
+    convList.appendChild(frag);
+  }
+
+  async function loadConversation(id) {
+    if (!sb || !id) return;
+
+    const { data } = await sb
+      .from("ai_conversations")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (!data) return;
+
+    currentConvId = data.id;
+    history = Array.isArray(data.messages) ? data.messages : [];
+    setTitle(data.title || null);
+
+    clearMessages();
+    if (!history.length) {
+      showWelcome();
+    } else {
+      hideWelcome();
+    }
+
+    history
+      .filter(m => m.role !== "system")
+      .forEach(m => {
+        if (m.role === "user") {
+          const att = m.fileUrl
+            ? {
+                name: m.fileName || "file",
+                previewUrl: m.fileUrl,
+                mimeType: fileLooksLikeImage(m.fileUrl)
+                  ? "image/jpeg"
+                  : "application/octet-stream",
+              }
+            : null;
+
+          appendUserBubble(m.content, att);
+        } else {
+          appendAssistantBubble(m.content);
+        }
+      });
+
+    scrollBottom(true);
+    loadConversations();
+  }
+
+  async function deleteConversation(id) {
+    if (!sb || !id) return;
+    const ok = await showConfirm("Delete this chat?", "This can't be undone.");
+    if (!ok) return;
+
+    await sb.from("ai_conversations").delete().eq("id", id);
+
+    if (currentConvId === id) {
+      startNewChat();
+    } else {
+      loadConversations();
+    }
+  }
+
+  function startNewChat() {
+    currentConvId = null;
+    history = [];
+    setTitle(null);
+    clearMessages();
+    showWelcome();
+    clearFile();
+    loadConversations();
+  }
+
+  on(newChatBtn, "click", startNewChat);
+
+  /* ── seed conversation from search.html's "Continue this conversation"
+     handoff link (?q=...&a=...) — makes the AI tab feel like Gemini's
+     "continue in full chat" flow instead of starting over from scratch ── */
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const seedQ = params.get("q");
+    const seedA = params.get("a");
+    if (!seedQ || !seedA) return;
+    try {
+      const decodedA = decodeURIComponent(escape(atob(seedA)));
+      appendUserBubble(seedQ);
+      appendAssistantBubble(decodedA);
+      history.push({ role: "user", content: seedQ });
+      history.push({ role: "assistant", content: decodedA });
+      const url = new URL(location.href);
+      url.searchParams.delete("q");
+      url.searchParams.delete("a");
+      window.history.replaceState(null, "", url.toString());
+    } catch (e) {
+      console.error("Failed to seed conversation from handoff:", e);
+    }
+  })();
+
+  function showToast(msg) {
+    const t = document.createElement("div");
+    t.className = "ai-toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  }
+
+  function showConfirm(title, message) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement("div");
+      backdrop.className = "ai-confirm-backdrop";
+      backdrop.innerHTML = `
+        <div class="ai-confirm-box">
+          <div class="ai-confirm-title">${escHtml(title)}</div>
+          <div class="ai-confirm-msg">${escHtml(message || "")}</div>
+          <div class="ai-confirm-actions">
+            <button class="ai-confirm-cancel">Cancel</button>
+            <button class="ai-confirm-ok">Delete</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+
+      const cleanup = (result) => {
+        backdrop.remove();
+        resolve(result);
+      };
+
+      on(backdrop, "click", e => { if (e.target === backdrop) cleanup(false); });
+      on(backdrop.querySelector(".ai-confirm-cancel"), "click", () => cleanup(false));
+      on(backdrop.querySelector(".ai-confirm-ok"), "click", () => cleanup(true));
+    });
+  }
+
+  // Custom rename popup, replacing window.prompt(). Resolves with the
+  // trimmed text, or null if cancelled.
+  function showPrompt(title, initialValue) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement("div");
+      backdrop.className = "ai-confirm-backdrop";
+      backdrop.innerHTML = `
+        <div class="ai-confirm-box">
+          <div class="ai-confirm-title">${escHtml(title)}</div>
+          <input class="ai-confirm-input" maxlength="80" />
+          <div class="ai-confirm-actions">
+            <button class="ai-confirm-cancel">Cancel</button>
+            <button class="ai-confirm-ok">Save</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+
+      const input = backdrop.querySelector(".ai-confirm-input");
+      input.value = initialValue || "";
+      input.focus();
+      input.select();
+
+      const cleanup = (result) => {
+        backdrop.remove();
+        resolve(result);
+      };
+
+      on(backdrop, "click", e => { if (e.target === backdrop) cleanup(null); });
+      on(backdrop.querySelector(".ai-confirm-cancel"), "click", () => cleanup(null));
+      on(backdrop.querySelector(".ai-confirm-ok"), "click", () => cleanup(input.value));
+      on(input, "keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); cleanup(input.value); }
+        if (e.key === "Escape") { e.preventDefault(); cleanup(null); }
+      });
+    });
+  }
+
+  /* ── auth ────────────────────────────────────────────────────────── */
+
+  (async () => {
+    if (!sb || !sb.auth) return;
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      currentUserId = session && session.user ? session.user.id : null;
+      scheduleLoad();
+      refreshUsageAndAdmin();
+    } catch (_) {}
+  })();
+
+  if (sb && sb.auth) {
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      currentUserId = session && session.user ? session.user.id : null;
+      scheduleLoad();
+      refreshUsageAndAdmin();
+    });
+  }
+})();
