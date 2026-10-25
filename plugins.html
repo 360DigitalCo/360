@@ -1,93 +1,57 @@
-<!DOCTYPE html>
-
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>360 AI Plugins</title>
-<link href="/favicon-32x32.png" rel="icon" type="image/png"/>
-<link href="/manifest.json" rel="manifest"/>
-<meta content="#3b82f6" name="theme-color"/>
-<link href="/assets/css/workspace-tools.css" rel="stylesheet"/>
-<link href="/assets/css/wide.css" rel="stylesheet"/>
-<link href="/assets/css/gallium.css" rel="stylesheet"/>
-<link href="/assets/css/responsive.css" rel="stylesheet"/>
-<link href="/assets/css/cursor.css" rel="stylesheet"/>
-<link href="/assets/css/main.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-SCZB3M2PNX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-SCZB3M2PNX');</script>
-<meta content="Explore the 360 AI plugin directory. More coming soon." name="description"/><meta content="index, follow" name="robots"/><meta content="website" property="og:type"/><meta content="360 Stocks — Stock Market Tools" property="og:title"/><meta content="Explore stock market information and tools with 360 Stocks." property="og:description"/><meta content="https://360-search.com/stocks.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="360 Stocks — Stock Market Tools" name="twitter:title"/><meta content="Explore stock market information and tools with 360 Stocks." name="twitter:description"/><link href="https://360-search.com/stocks.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
-</head>
-<body class="dark workspace-page">
-<div class="cursor-dot"></div>
-<div class="cursor-trail"></div>
-<div class="cursor-crosshair"></div>
-<div class="cursor-blob"></div>
-<div class="auth-top-right">
-<button class="auth-btn" id="signInBtn">Sign In</button>
-<button class="auth-btn" id="signUpBtn">Sign Up</button>
-<button class="auth-btn" id="signOutBtn" style="display:none;">Sign Out</button>
-</div>
-<!-- 360 navigation sidebar (required by main.js) -->
-<button class="sidebar-toggle" id="sidebarToggle">☰ Menu</button>
-<aside class="sidebar" id="sidebar"><span id="sidebar-slot"></span></aside>
-<div class="overlay" id="overlay"></div>
-<div class="settings-panel" id="settingsPanel">
-<h3>Appearance</h3>
-<div class="settings-label">Theme</div>
-<div class="theme-swatches">
-<div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
-<div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
-<div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
-<div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
-<div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
-<div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
-</div>
-<div class="settings-label" style="margin-top:20px;">Mode</div>
-<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-<span style="font-size:14px;">Dark mode</span>
-<input id="darkToggle" type="checkbox"/>
-</label>
-<h3 style="margin-top:20px;">Cursor</h3>
-<div class="settings-label">Style</div>
-<div class="cursor-options">
-<div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
-<div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
-<div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
-<div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
-<div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
-<div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
-</div>
-<div class="settings-label" style="margin-top:20px;">Background</div>
-<div class="settings-box">
-<input accept="image/*" class="settings-input" id="bgUpload" type="file"/>
-<input class="settings-input" id="bgUrlInput" placeholder="Paste image URL…" type="text"/>
-<button class="settings-btn" id="bgUrlBtn">Apply URL</button>
-<button class="settings-btn" id="bgResetBtn">Reset</button>
-</div>
-<h3 style="margin-top:25px;">Legal</h3>
-<a class="legal-link" href="/privacypolicy">Privacy Policy</a>
-<a class="legal-link" href="/tos">Terms of Service</a>
-<h3 style="margin-top:25px;">About</h3>
-<details class="about-dropdown">
-<summary>What is 360?</summary>
-<p>360 is a next-generation search engine and digital workspace. Built by 360 Digital, Co.</p>
-</details>
-</div>
-<div class="auth-popup hidden" id="auth-popup">
-<div class="auth-box">
-<h2>Account</h2>
-<input id="auth-email" placeholder="Email" type="email"/>
-<input id="auth-password" placeholder="Password" type="password"/>
-<button id="auth-login-btn">Log In</button>
-<button id="auth-signup-btn">Sign Up</button>
-<p class="auth-error" id="auth-error"></p>
-<button class="close-btn" id="auth-close-btn">Close</button>
-</div>
-</div>
-<main class="tool-shell"><header class="tool-head"><div><p class="tool-eyebrow">360 AI workspace</p><h1 class="tool-title">Plugins</h1><p class="tool-description">A home for connected tools and integrations that extend what 360 AI can do.</p></div></header><section class="plugins-banner"><span class="tool-tag">IN DEVELOPMENT</span><h2>More coming soon.</h2><p style="max-width:650px;margin-bottom:0">The plugin directory is being built. Once integrations are ready, you’ll be able to discover what they do and manage them from here.</p></section><section class="tool-grid three" style="margin-top:15px"><article class="tool-card plugins-feature"><h3>Research tools</h3><p>Research and source gathering integrations.</p><span class="tool-tag">Coming soon</span></article><article class="tool-card plugins-feature"><h3>Productivity</h3><p>Tools to connect your work across services.</p><span class="tool-tag">Coming soon</span></article><article class="tool-card plugins-feature"><h3>Creative tools</h3><p>More ways to make, edit, and build things.</p><span class="tool-tag">Coming soon</span></article></section><p class="tool-footer">No paid tiers or upgrade prompts. Available integrations appear here when they are ready.</p>
-</main>
-<script src="/assets/js/main.js"></script><script src="/assets/js/auth-fix.js"></script><script src="/assets/js/wide.js"></script><script src="/assets/js/gallium.js"></script><script src="/assets/js/cookie.js"></script><script src="/assets/js/cursor.js"></script><script src="/assets/js/mobile-nav.js" defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#14253a" />
+  <meta name="description" content="A directory for the tools and integrations coming to 360 AI." />
+  <title>Plugins · 360 Workspace</title>
+  <link rel="icon" type="image/png" href="/favicon-32x32.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/workspace-tools.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>window.SKIP_AUTH_CHIP = true;</script>
+</head><body class="desk-body workspace-page">
+<div class="desk-layout"><aside class="desk-rail" aria-label="360 workspace">
+      <a class="desk-mark" href="/ai.html" aria-label="360 home"><span>360</span><i></i></a>
+      <div class="desk-rail-rule"></div>
+      <nav class="desk-rail-nav"><a class="desk-rail-link" href="/ai.html" aria-label="AI" title="AI"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z M8 9h8 M8 13h5"/></svg><span>AI</span></a><a class="desk-rail-link" href="/library.html" aria-label="Library" title="Library"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10a2 2 0 0 1 2 2v14H7a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2Z M8 8h6 M8 12h6 M8 16h4"/></svg><span>Library</span></a><a class="desk-rail-link" href="/scholar.html" aria-label="Scholar" title="Scholar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5Z M6 10v6c3 3 9 3 12 0v-6 M22 8v7"/></svg><span>Scholar</span></a><a class="desk-rail-link" href="/health.html" aria-label="Health" title="Health"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg><span>Health</span></a><a class="desk-rail-link active" href="/plugins.html" aria-label="Plugins" title="Plugins"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5 M15 3v5 M4 9h16v3a3 3 0 0 0 0 6v3H4v-3a3 3 0 0 0 0-6V9Z"/></svg><span>Plugins</span></a></nav>
+      <div class="desk-rail-bottom"><a class="desk-rail-home" href="/" title="360 Search" aria-label="360 Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5 M5.5 9v11h13V9 M9 20v-6h6v6"/></svg></a><span class="desk-rail-caption">WORKSPACE</span></div>
+    </aside><div class="desk-main"><header class="desk-topbar">
+      <div class="desk-topbar-heading"><span class="desk-breadcrumb">360 <span>/</span> Workspace</span><h1>Plugins</h1><p>A small directory for a growing workspace.</p></div>
+      <div class="desk-topbar-actions">
+        <span class="desk-live"><i></i> Personal workspace</span>
+        <div class="desk-profile-wrap">
+          <button class="desk-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu"><span class="desk-avatar" id="desk-profile-avatar">G</span><span class="desk-profile-copy"><strong id="desk-profile-name">Guest</strong><small id="desk-profile-subtitle">Your workspace</small></span><span class="desk-profile-caret">⌄</span></button>
+          <div class="desk-profile-menu" id="desk-profile-menu" role="menu" hidden>
+            <div class="desk-profile-menu-head"><span class="desk-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Guest</strong><small id="desk-menu-email">Not signed in</small></span></div>
+            <a role="menuitem" href="/ai.html?settings=1">AI preferences</a>
+            <a role="menuitem" href="/settings">Account settings</a>
+            <button role="menuitem" type="button" id="desk-auth-action">Sign in</button>
+          </div>
+        </div>
+      </div>
+    </header><main class="workspace-content plugins-content">
+  <section class="module-intro plugins-intro">
+    <div><div class="module-overline"><span class="overline-index">05</span><span>INTEGRATION DIRECTORY</span></div>
+      <h2>Tools, when they're ready.</h2>
+      <p>360 AI's plugin system is still being put together. This page will become the place to discover what a tool does and decide whether to connect it.</p>
+    </div>
+    <div class="plugin-orbit" aria-hidden="true"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">360<span>+</span></div><i class="orbit-dot dot-a"></i><i class="orbit-dot dot-b"></i><i class="orbit-dot dot-c"></i></div>
+  </section>
+  <div class="status-ribbon"><span class="status-dot"></span><strong>Directory in progress</strong><span>More coming soon</span></div>
+  <section class="plugin-list" aria-label="Planned integrations">
+    <article class="plugin-row"><span class="plugin-symbol blue-symbol">{ }</span><div><h3>Research sources</h3><p>Connect search and publication tools with clear citations.</p></div><span class="plugin-state">Planned</span></article>
+    <article class="plugin-row"><span class="plugin-symbol orange-symbol">↗</span><div><h3>Productivity</h3><p>Bring everyday files and workflows into one place.</p></div><span class="plugin-state">Planned</span></article>
+    <article class="plugin-row"><span class="plugin-symbol green-symbol">◎</span><div><h3>Creative tools</h3><p>Extend how 360 AI helps you build, edit and explore.</p></div><span class="plugin-state">Planned</span></article>
+  </section>
+  <p class="quiet-footer">Integrations will appear here as they become available.</p>
+</main></div></div>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/workspace-shell.js"></script>
+<script src="/assets/js/plugins-page.js"></script>
 </body></html>
