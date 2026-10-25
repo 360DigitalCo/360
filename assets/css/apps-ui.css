@@ -37,3 +37,56 @@ button,input,textarea{font-family:inherit;color:inherit}
 .ui-modal{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:380px;
   display:flex;flex-direction:column;gap:14px}
 .ui-modal h3{font-size:16px;font-weight:700}
+
+.c-ripple-btn{--btn-color-primary:var(--text);--btn-color-hover-bg:var(--text);--btn-color-hover-text:var(--bg);--btn-ripple-color:rgba(127,127,127,.35);
+  --btn-speed:.45s;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;
+  letter-spacing:-.01em;color:var(--btn-color-primary);background:transparent;border:1px solid var(--line-hover);border-radius:8px;cursor:pointer;
+  overflow:hidden;outline:none;-webkit-tap-highlight-color:transparent;isolation:isolate;
+  transition:color var(--btn-speed) var(--ease),border-color var(--btn-speed) var(--ease),transform .15s var(--ease)}
+.c-ripple-btn::before{content:'';position:absolute;left:0;width:100%;height:100%;background:var(--btn-color-hover-bg);z-index:-1;top:100%}
+.c-ripple-btn:hover{color:var(--btn-color-hover-text);border-color:var(--btn-color-hover-bg)}
+.c-ripple-btn:hover::before{top:0;transition:top var(--btn-speed) var(--ease)}
+.c-ripple-btn.is-sliding-away::before{top:-100%;transition:top var(--btn-speed) var(--ease)}
+.c-ripple-btn:active{transform:scale(.98)}
+.c-ripple-btn:disabled{opacity:.45;cursor:default;pointer-events:none}
+.c-ripple-btn__ripple{position:absolute;background:var(--btn-ripple-color);border-radius:50%;transform:translate(-50%,-50%) scale(0);
+  animation:rippleBurst 1.2s cubic-bezier(.1,.8,.3,1) forwards;pointer-events:none;z-index:2}
+@keyframes rippleBurst{to{transform:translate(-50%,-50%) scale(2.3);opacity:0}}
+.c-ripple-btn--accent{--btn-color-primary:var(--a);--btn-color-hover-bg:var(--a);--btn-color-hover-text:#fff;border-color:rgba(59,130,246,.4)}
+.c-ripple-btn--danger{--btn-color-primary:var(--danger);--btn-color-hover-bg:var(--danger);--btn-color-hover-text:#fff;border-color:rgba(239,68,68,.4)}
+.c-ripple-btn--solid{background:var(--a);border-color:var(--a);--btn-color-primary:#fff;--btn-color-hover-bg:var(--text);--btn-color-hover-text:var(--bg)}
+.c-ripple-btn--icon{width:36px;height:36px;padding:0;border-radius:50%}
+
+.c-dropdown{position:relative;display:inline-block}
+.c-dropdown__menu{position:absolute;z-index:60;min-width:190px;padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+  box-shadow:0 18px 45px rgba(0,0,0,.28),0 2px 10px rgba(0,0,0,.14);opacity:0;visibility:hidden;transform:translateY(7px) scale(.985);
+  transform-origin:bottom left;transition:opacity .2s var(--ease),transform .3s var(--ease),visibility .3s;bottom:calc(100% + 8px);left:0}
+.c-dropdown.down .c-dropdown__menu{bottom:auto;top:calc(100% + 8px);transform:translateY(-7px) scale(.985);transform-origin:top right;left:auto;right:0}
+.c-dropdown[data-open="true"] .c-dropdown__menu{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.c-dropdown__item{width:100%;display:block;padding:10px 11px;border:0;border-radius:5px;background:transparent;color:var(--text);font:inherit;
+  font-size:14px;text-align:left;cursor:pointer;transition:background .2s var(--ease),transform .2s var(--ease)}
+.c-dropdown__item:hover,.c-dropdown__item:focus-visible{background:var(--panel-hover);outline:none}
+.c-dropdown__item:active{transform:translateX(2px)}
+
+.confirm-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.5);
+  opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease}
+.confirm-modal.open{opacity:1;visibility:visible;pointer-events:auto}
+.confirm-box{width:min(100%,340px);padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--bg);color:var(--text);text-align:center;
+  box-shadow:0 20px 50px rgba(0,0,0,.25);transform:translateY(8px) scale(.98);transition:transform .22s ease}
+.confirm-modal.open .confirm-box{transform:translateY(0) scale(1)}
+.confirm-title{margin-bottom:9px;font-size:15px;font-weight:600}
+.confirm-message{margin-bottom:16px;color:var(--muted);font-size:13px;line-height:1.55}
+.confirm-actions{display:flex;justify-content:center;gap:10px;margin-top:16px}
+.confirm-button{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);font-size:13px;font-weight:600;
+  cursor:pointer;transition:opacity .18s ease,background .18s ease,transform .12s ease}
+.confirm-button:hover{background:rgba(148,163,184,.10)}
+.confirm-button:active{transform:scale(.98)}
+.confirm-button.primary{border:none;background:linear-gradient(110deg,var(--a),#0ea5e9);color:#050816}
+@media(max-width:420px){.confirm-actions{flex-direction:column-reverse}.confirm-button{width:100%}}
+
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 20px;animation:loadFade .22s ease-out both}
+.loader-spinner{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--a);border-right-color:#0ea5e9;border-radius:50%;animation:spin360 .8s linear infinite}
+.loader-text{font-size:13px;color:var(--muted)}
+@keyframes spin360{to{transform:rotate(360deg)}}
+@keyframes loadFade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

@@ -19,7 +19,6 @@ html,body{overflow:hidden}
 .sb-title span{color:var(--a)}
 .round{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;transition:border-color .2s var(--ease),color .2s var(--ease)}
-.round:hover{border-color:var(--a);color:var(--a)}
 .round svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sb-search{padding:10px 12px;border-bottom:1px solid var(--line)}
 .conv-list{flex:1;overflow-y:auto;padding:6px}
@@ -105,7 +104,7 @@ textarea.msg-in::placeholder{color:var(--muted)}
     <div class="sb-head">
       <a href="/apps" title="Apps">←</a>
       <div class="sb-title">Cur<span>rent</span></div>
-      <button class="round" id="newBtn" title="New message">+</button>
+      <button class="round c-ripple-btn c-ripple-btn--icon" id="newBtn" title="New message">+</button>
     </div>
     <div class="sb-search"><input class="ui-input" id="searchIn" placeholder="Search" autocomplete="off"/></div>
     <div class="conv-list" id="convList"></div>
@@ -129,13 +128,14 @@ textarea.msg-in::placeholder{color:var(--muted)}
     <input class="ui-input" id="newSearch" placeholder="Search by username" autocomplete="off"/>
     <div id="userResults" style="max-height:230px;overflow-y:auto"></div>
     <div class="err" id="newErr"></div>
-    <div style="display:flex;justify-content:flex-end"><button class="ui-btn" id="newCancel">Close</button></div>
+    <div style="display:flex;justify-content:flex-end"><button class="c-ripple-btn" id="newCancel">Close</button></div>
   </div>
 </div>
 <div class="lightbox" id="lb"><img id="lbImg" src="" alt=""/></div>
 <input type="file" id="fileIn" style="display:none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"/>
 <div class="ui-toast" id="toast"></div>
 
+<script src="/assets/js/apps-ui.js"></script>
 <script src="/assets/js/webcall.js"></script>
 <script>
 const SB_URL='https://wiswfpfsjiowtrdyqpxy.supabase.co';
@@ -191,6 +191,7 @@ async function openWith(key){
 }
 
 async function loadConvs(){
+  if(!convs.length&&!$('convList').children.length)$('convList').innerHTML=UI.loader('Loading');
   const {data:rows}=await sb.from('msg_conversations').select('*').contains('participant_ids',[me.id]).order('updated_at',{ascending:false});
   if(!rows?.length){convs=[];renderConvList();return;}
   const otherIds=[...new Set(rows.flatMap(c=>c.participant_ids.filter(i=>i!==me.id)))];
@@ -229,7 +230,8 @@ function clearChat(){
 function showEmpty(){clearChat();$('emptyState').style.display='flex';}
 
 async function callPeer(conv,video){
-  WebCall.call({id:conv.oid,name:conv.name},video);
+  const ok=await UI.confirm({title:(video?'Start a video call':'Start a voice call')+'?',message:'Call '+conv.name+' now.',confirmText:'Call',cancelText:'Cancel'});
+  if(ok)WebCall.call({id:conv.oid,name:conv.name},video);
 }
 
 async function openConv(id){
@@ -243,8 +245,8 @@ async function openConv(id){
     <div class="ui-avatar" style="width:38px;height:38px;font-size:14px">${esc(ini(conv.name))}${conv.avatar?`<img src="${esc(conv.avatar)}" alt="">`:''}</div>
     <div class="hdr-info"><div class="hdr-name">${esc(conv.name)}</div><div class="hdr-sub" id="hdrSub">${online.has(conv.oid)?'Active now':''}</div></div>
     <div class="hdr-acts">
-      <button class="round" id="callBtn" title="Voice call">${ICON.phone}</button>
-      <button class="round" id="vidBtn" title="Video call">${ICON.video}</button>
+      <button class="round c-ripple-btn c-ripple-btn--icon" id="callBtn" title="Voice call">${ICON.phone}</button>
+      <button class="round c-ripple-btn c-ripple-btn--icon" id="vidBtn" title="Video call">${ICON.video}</button>
     </div>`;
   $('main').appendChild(hdr);
   const mw=document.createElement('div');mw.className='msgs';mw.id='msgsList';$('main').appendChild(mw);
@@ -252,9 +254,9 @@ async function openConv(id){
   ia.innerHTML=`<div class="strip" id="replyBar" style="display:none"><span id="replyTxt"></span><button id="replyX">✕</button></div>
     <div class="strip" id="upPrev" style="display:none"><span id="upName"></span><button id="upX">✕</button></div>
     <div class="inp-row">
-      <button class="round" id="attBtn" title="Attach">${ICON.clip}</button>
+      <button class="round c-ripple-btn c-ripple-btn--icon" id="attBtn" title="Attach">${ICON.clip}</button>
       <textarea class="msg-in" id="msgIn" rows="1" placeholder="Message" maxlength="4000"></textarea>
-      <button class="round send" id="sendBtn" title="Send">${ICON.send}</button>
+      <button class="round send c-ripple-btn c-ripple-btn--icon c-ripple-btn--solid" id="sendBtn" title="Send">${ICON.send}</button>
     </div>`;
   $('main').appendChild(ia);
 
@@ -268,10 +270,14 @@ async function openConv(id){
     const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith('image/'));
     if(f){e.preventDefault();stage(f);}
   });
-  $('attBtn').onclick=()=>$('fileIn').click();
+  UI.dropdown($('attBtn'),[{value:'media',label:'Photo or video'},{value:'file',label:'File'}],v=>{
+    $('fileIn').accept=v==='media'?'image/*,video/*':'.pdf,.doc,.docx,.txt,audio/*,*/*';
+    $('fileIn').click();
+  });
   $('upX').onclick=()=>{pendingFile=null;$('upPrev').style.display='none';};
   $('replyX').onclick=()=>{replyTo=null;$('replyBar').style.display='none';};
 
+  $('msgsList').innerHTML=UI.loader('Loading messages');
   await loadMsgs(id);
   markRead(id);
   subscribeMessages(id);

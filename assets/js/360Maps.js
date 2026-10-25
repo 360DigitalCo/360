@@ -4,6 +4,8 @@
   const SB_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indpc3dmcGZzamlvd3RyZHlxcHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzMzg4OTcsImV4cCI6MjA4MzkxNDg5N30.z_4FtM2c8UwgrRlafPYjolQuod4IoHQats95XHio1zM';
   const NOMINATIM = 'https://nominatim.openstreetmap.org';
+  const PHOTON = 'https://photon.komoot.io/api/';
+  const GEOCODE_FN = SB_URL + '/functions/v1/maps-geocode';
   const ROUTERS = {
     driving: 'https://router.project-osrm.org/route/v1/driving/',
     cycling: 'https://routing.openstreetmap.de/routed-bike/route/v1/driving/',
@@ -72,6 +74,61 @@
     return r.json();
   }
 
+  function withTimeout(url, opts, ms) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms || 6000);
+    return fetch(url, Object.assign({}, opts, { signal: ctl.signal })).finally(() => clearTimeout(t));
+  }
+
+  function photonLabel(p) {
+    const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+    const place = p.city || p.town || p.village || p.locality || p.district || p.county;
+    const parts = [p.name, street && street !== p.name ? street : '', place && place !== p.name ? place : '', p.state, p.country];
+    return parts.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', ');
+  }
+
+  async function geocodePhoton(q, c) {
+    const r = await withTimeout(`${PHOTON}?q=${encodeURIComponent(q)}&limit=8&lang=en&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`, {}, 5000);
+    if (!r.ok) throw new Error('photon');
+    const j = await r.json();
+    return (j.features || []).filter((f) => f.geometry && f.geometry.coordinates).map((f) => {
+      const p = f.properties || {};
+      const name = p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city || 'Place';
+      return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], name, label: photonLabel(Object.assign({}, p, { name })) };
+    });
+  }
+
+  async function geocodeNominatim(q, b) {
+    const vb = `&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`;
+    let rows;
+    try {
+      const r = await withTimeout(GEOCODE_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q }) }, 7000);
+      rows = r.ok ? await r.json() : null;
+    } catch (_) { rows = null; }
+    if (!Array.isArray(rows) || !rows.length) rows = await nominatim(`/search?format=jsonv2&limit=8&addressdetails=0&q=${encodeURIComponent(q)}${vb}`);
+    return rows.map((r) => ({ lat: +r.lat, lon: +r.lon, name: r.name || shortName(r.display_name), label: r.display_name }));
+  }
+
+  async function geocode(q) {
+    const c = S.map.getCenter(), b = S.map.getBounds();
+    let rows = [];
+    try { rows = await geocodePhoton(q, c); } catch (_) {}
+    if (!rows.length) {
+      try { rows = await geocodeNominatim(q, b); } catch (err) { if (!rows.length) throw err; }
+    }
+    const seen = new Set();
+    return rows.filter((r) => { const k = r.name + '|' + r.lat.toFixed(3) + '|' + r.lon.toFixed(3); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  async function reverseGeocode(lat, lon) {
+    try {
+      const r = await withTimeout(`${NOMINATIM}/reverse?format=jsonv2&zoom=18&lat=${lat}&lon=${lon}`, { headers: { Accept: 'application/json' } }, 6000);
+      if (r.ok) return r.json();
+    } catch (_) {}
+    const r2 = await withTimeout(GEOCODE_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reverse: true, lat, lon }) }, 7000);
+    return r2.json();
+  }
+
   function initMap() {
     const hash = location.hash.replace('#', '').split('/').map(Number);
     const last = store.get('360maps_view', null);
@@ -124,7 +181,7 @@
     const p = { lat: e.latlng.lat, lon: e.latlng.lng, label: 'Dropped pin', address: '' };
     selectPlace(p, { fly: false });
     try {
-      const r = await nominatim(`/reverse?format=jsonv2&zoom=18&lat=${p.lat}&lon=${p.lon}`);
+      const r = await reverseGeocode(p.lat, p.lon);
       if (S.place === p && r && r.display_name) {
         p.label = r.name || r.display_name;
         p.address = r.display_name;
@@ -581,12 +638,10 @@
   function markSuggest() { $('suggest').querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === S.sugIdx)); }
   async function suggest(q, pickFirst) {
     const seq = ++S.sugSeq;
-    const b = S.map.getBounds();
-    const vb = `&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`;
     try {
-      const rows = await nominatim(`/search?format=jsonv2&limit=6&q=${encodeURIComponent(q)}${vb}`);
+      const rows = await geocode(q);
       if (seq !== S.sugSeq) return;
-      S.sugItems = rows.map((r) => ({ lat: +r.lat, lon: +r.lon, label: r.display_name, name: r.name || shortName(r.display_name) }));
+      S.sugItems = rows;
       S.sugIdx = -1;
       if (pickFirst && S.sugItems[0]) return pickSuggest(S.sugItems[0]);
       const ul = $('suggest');
