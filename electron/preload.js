@@ -11,3 +11,9 @@ contextBridge.exposeInMainWorld('electronGames', {
   getCurrent()           { return ipcRenderer.sendSync('game-current'); },
   removeListener(ch, cb) { ipcRenderer.removeListener(ch, cb); },
 });
+
+contextBridge.exposeInMainWorld('electronVPN', {
+  status()       { return ipcRenderer.invoke('vpn:status'); },
+  enable(scope)  { return ipcRenderer.invoke('vpn:enable', scope); },
+  disable()      { return ipcRenderer.invoke('vpn:disable'); },
+});

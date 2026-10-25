@@ -3,6 +3,7 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const detector = require('./game-detector');
+const vpn = require('./vpn');
 
 const BASE_URL = 'https://360-search.com';
 
@@ -82,9 +83,18 @@ ipcMain.on('game-current', (event) => {
 
 /* ── Lifecycle ── */
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await vpn.init().catch(() => {});
   createWindow();
   startDetector();
+});
+
+let quitting = false;
+app.on('before-quit', (e) => {
+  if (quitting) return;
+  quitting = true;
+  e.preventDefault();
+  vpn.shutdown().finally(() => app.quit());
 });
 
 app.on('window-all-closed', () => {
