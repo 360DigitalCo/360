@@ -374,16 +374,13 @@ function buildCity(scene,progress){
         const m=e.to;if(m.id<n.id&&m.grid===n.grid)continue;
         const dx=m.x-n.x,dz=m.z-n.z,L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,nx=-uz,nz=ux;
         const horiz=Math.abs(dz)<1;const hw=(horiz?STW:AVW)/2;
-        // centre dashes
-        const c=isUp&&!horiz?yl:wl;
-        for(let s=10;s<L-10;s+=7){
-          const ax=n.x+ux*s,az=n.z+uz*s,bx=ax+ux*3.4,bz=az+uz*3.4,w=.16;
-          roadPaint.push(ax+nx*w,.03,az+nz*w,ax-nx*w,.03,az-nz*w,bx+nx*w,.03,bz+nz*w, ax-nx*w,.03,az-nz*w,bx-nx*w,.03,bz-nz*w,bx+nx*w,.03,bz+nz*w);
-          for(let q=0;q<6;q++)paintCol.push(c.r,c.g,c.b);
-        }
+        // double solid yellow centre line + white lane dashes on wide roads
+        {const hwx=horiz?AVW/2:STW/2,e0=hwx+8,e1=L-hwx-8,w=.13,quad=(ax,az,bx,bz,col,ww)=>{roadPaint.push(ax+nx*ww,.03,az+nz*ww,ax-nx*ww,.03,az-nz*ww,bx+nx*ww,.03,bz+nz*ww, ax-nx*ww,.03,az-nz*ww,bx-nx*ww,.03,bz-nz*ww,bx+nx*ww,.03,bz+nz*ww);for(let q=0;q<6;q++)paintCol.push(col.r,col.g,col.b)};
+          if(e1>e0)for(const o of [-.3,.3]){const ax=n.x+ux*e0+nx*o,az=n.z+uz*e0+nz*o,bx=n.x+ux*e1+nx*o,bz=n.z+uz*e1+nz*o;quad(ax,az,bx,bz,yl,w)}
+          if(hw>9)for(const o of [-hw*.5,hw*.5])for(let q=e0;q<e1-3;q+=9){const ax=n.x+ux*q+nx*o,az=n.z+uz*q+nz*o;quad(ax,az,ax+ux*3.4,az+uz*3.4,wl,.08)}}
         // crosswalk bars at both ends
         for(const end of [0,1]){
-          const base=end?L-hw-5.5:hw+3,sgn=1;
+          const hwx2=horiz?AVW/2:STW/2,base=end?L-hwx2-5.4:hwx2+2,sgn=1;
           for(let t=-hw+1.0;t<hw-.8;t+=1.4){
             const px=n.x+ux*base+nx*t,pz=n.z+uz*base+nz*t,x2=px+ux*3.4,z2=pz+uz*3.4,w=.42;
             roadPaint.push(px+nx*w,.03,pz+nz*w,px-nx*w,.03,pz-nz*w,x2+nx*w,.03,z2+nz*w, px-nx*w,.03,pz-nz*w,x2-nx*w,.03,z2-nz*w,x2+nx*w,.03,z2+nz*w);
@@ -5237,6 +5234,49 @@ makePerson=function(shirt,o){
   const sc=(fem?.955:1)*(.95+r()*.09);const bd=o.build||1;g.scale.set(sc*1.3*bd,sc*1.13,sc*1.3*bd);
   g.userData={legL,legR,armL,armR,head,torso,wpn:null,wkind:null};
   return g};
+// ---------- c11zf: building exterior overhaul (streamed per cell): parapets, cornices, belt courses, plinths, quoins, entrances, stoops, signs, AC units, rooftop plant, drain pipes
+const FD={cell:128,idx:null,cells:new Map(),busy:0};
+const FD_STONE=[0xcfc9b8,0xb9b3a3,0xa8a090,0xd8d2c2,0x9a948a],FD_DARK=[0x4a4640,0x5a5650,0x3a3834];
+function fdIndex(){const seen=new Set(),idx=new Map();for(const a of COL.values())for(const b of a){if(seen.has(b))continue;seen.add(b);if(b.x0>1e4||b.h<9||b.h>160)continue;const w=b.x1-b.x0,d=b.z1-b.z0;if(w<9||d<9||w>150||d>150)continue;
+    const k=Math.floor((b.x0+b.x1)/2/FD.cell)+','+Math.floor((b.z0+b.z1)/2/FD.cell);let l=idx.get(k);if(!l)idx.set(k,l=[]);l.push(b)}FD.idx=idx}
+function fdDetail(b,r,P){const w=b.x1-b.x0,d=b.z1-b.z0,h=b.h,cx=(b.x0+b.x1)/2,cz=(b.z0+b.z1)/2,pick=a=>a[(r()*a.length)|0],stone=pick(FD_STONE),dark=pick(FD_DARK);
+  const box=(x,y,z,sx,sy,sz,c)=>P.push({g:BX(sx,sy,sz),m:MX(x,y,z),c});
+  // face helper: f 0:+x 1:-x 2:+z 3:-z ; u along face from centre; returns centre pos & dims
+  const put=(f,u,y,len,hh,th,off,c)=>{const o=off+th/2;if(f<2){const sgn=f===0?1:-1;box(sgn===1?b.x1+o:b.x0-o,y,cz+u,th,hh,len,c)}else{const sgn=f===2?1:-1;box(cx+u,y,sgn===1?b.z1+o:b.z0-o,len,hh,th,c)}};
+  const flen=f=>f<2?d:w;
+  // plinth
+  for(let f=0;f<4;f++)put(f,0,.55,flen(f)+.4,1.1,.3,-.02,dark);
+  // belt course above ground floor & periodic bands
+  const bands=[4.3];if(h>28)for(let y=4.3+h/3;y<h-6;y+=h/3)bands.push(y);
+  for(const y of bands)for(let f=0;f<4;f++)put(f,0,y,flen(f)+.5,.35,.22,0,stone);
+  // cornice + parapet
+  if(h>12){for(let f=0;f<4;f++){put(f,0,h-.35,flen(f)+1.1,.5,.55,0,stone);put(f,0,h-.95,flen(f)+.4,.4,.2,0,stone)}
+    for(let f=0;f<4;f++)put(f,0,h+.45,flen(f)+.5,.9,.3,-.15,stone);
+    for(let f=0;f<4;f++)put(f,0,h+.95,flen(f)+.8,.12,.5,-.3,hxDk(stone,.92))}
+  // corner quoins / piers
+  if(r()<.6&&h<90){for(const sx of[-1,1])for(const sz of[-1,1])box(sx>0?b.x1+.12:b.x0-.12,h/2,sz>0?b.z1+.12:b.z0-.12,.55,h-1,.55,hxDk(stone,.96))}
+  // drain pipes
+  if(r()<.7){const cxn=r()<.5?b.x0-.1:b.x1+.1,czn=r()<.5?b.z0+1.2:b.z1-1.2;box(cxn,h/2,czn,.13,h-1.4,.13,0x2a2c30)}
+  // entrance + stoop on a random street-ish face
+  if(r()<.7){const f=(r()*4)|0,len=flen(f),u=(r()-.5)*Math.max(0,len-8);
+    put(f,u,1.35,2.2,2.7,.2,-.05,0x1a1c20);put(f,u,2.95,3.0,.35,.5,0,stone);for(let i=0;i<3;i++)put(f,u,.15+i*.15,2.6,.3,.5+(2-i)*.35,0,hxDk(stone,.9));
+    for(const s of[-1,1])put(f,u+s*1.35,1.55,.22,3.1,.3,0,hxDk(stone,1.02));
+    if(r()<.5)put(f,u,3.5,3.4,.12,1.4,0,pick([0x2a5a4a,0x7a2a2a,0x2a3a5a,0x1a1c20]))}
+  // storefront sign band
+  if(h<60&&r()<.4){const f=(r()*4)|0,len=Math.min(flen(f)-4,6+r()*8),u=(r()-.5)*Math.max(0,flen(f)-len-2);put(f,u,4.55,len,.9,.22,0,hxCol.setHSL(r(),.45,.28+r()*.2).getHex())}
+  // window AC units
+  if(r()<.55){const n=3+((r()*9)|0);for(let i=0;i<n;i++){const f=(r()*4)|0,u=(r()-.5)*(flen(f)-3),fl=1+((r()*Math.max(1,Math.min(14,h/3.4-2)))|0),y=4.6+fl*3.4;if(y<h-2)put(f,u,y,.8,.5,.5,.02,pick([0xb8b8bc,0x9a9aa0,0xd4d4d8]))}}
+  // rooftop plant
+  const bx0=b.x0+w*.25+r()*w*.3,bz0=b.z0+d*.25+r()*d*.3;box(bx0,h+1.6,bz0,Math.min(5,w*.25),3.2,Math.min(5,d*.25),0x8a867e);
+  for(let i=0;i<2+((r()*3)|0);i++)box(b.x0+2+r()*(w-4),h+.45+.6,b.z0+2+r()*(d-4),1.8,1.2,1.4,pick([0xa8a8ac,0x8a8a90]));
+  if(h>16&&r()<.3){const x=b.x0+3+r()*(w-6),z=b.z0+3+r()*(d-6);P.push({g:new THREE.CylinderGeometry(1.6,1.6,2.8,10),m:MX(x,h+3.2,z),c:0x6b4b35});P.push({g:new THREE.ConeGeometry(1.75,.9,10),m:MX(x,h+5.05,z),c:0x4a3828});for(const[a,c]of[[-1,-1],[1,-1],[-1,1],[1,1]])box(x+a*1.1,h+1.7,z+c*1.1,.14,1.6,.14,0x2a2a2e)}}
+function fdBuild(cx,cz){const k=cx+','+cz,list=FD.idx.get(k)||[];if(!list.length){FD.cells.set(k,null);return}
+  const r=rng32(((cx*7919)^(cz*104729))>>>0),P=[];for(const b of list){try{fdDetail(b,r,P)}catch(e){}}
+  const m=new THREE.Mesh(mergeParts(P),lam());m.castShadow=false;m.receiveShadow=false;m.matrixAutoUpdate=false;m.userData.noSV=true;scene.add(m);FD.cells.set(k,m)}
+const _buFD=busUpdate;busUpdate=function(dt){_buFD(dt);if(!G.started)return;if(!FD.idx)try{fdIndex()}catch(e){FD.idx=new Map();console.error('fd',e)}
+  const pcx=Math.floor(PL.x/FD.cell),pcz=Math.floor(PL.z/FD.cell);let built=0;
+  for(let dx=-1;dx<=1&&built<1;dx++)for(let dz=-1;dz<=1&&built<1;dz++){const k=(pcx+dx)+','+(pcz+dz);if(!FD.cells.has(k)){fdBuild(pcx+dx,pcz+dz);built++}}
+  for(const [k,m] of FD.cells){const [a,b]=k.split(',').map(Number);if(Math.abs(a-pcx)>2||Math.abs(b-pcz)>2){if(m){scene.remove(m);m.geometry.dispose()}FD.cells.delete(k)}}};
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
