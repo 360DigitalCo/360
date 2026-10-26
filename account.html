@@ -1152,6 +1152,14 @@ function captchaReset(sel){
           ${isEdit?'Update your profile below.':'Just two more things and you\'re all set.'}
         </p>
         ${renderMonogramPicker('cp', avState.letter, avState.bg)}
+        ${isEdit?`<div class="ac-field">
+          <label>Or use an image link</label>
+          <div style="display:flex;gap:8px;">
+            <input id="cpPfpUrl" type="url" placeholder="https://example.com/me.png" value="${profile.avatar_style==='url'?esc(profile.avatar_url||''):''}" />
+            <button type="button" class="ac-btn" id="cpPfpGo" style="width:auto;padding:0 16px;flex-shrink:0;">Check</button>
+          </div>
+          <p class="ac-msg" id="cpPfpMsg"></p>
+        </div>`:''}
         <div style="display:flex;gap:10px;">
           <div class="ac-field" style="flex:1">
             <label>First name</label>
@@ -1171,6 +1179,31 @@ function captchaReset(sel){
         ${isEdit?'<button class="su-back-btn" id="cpCancel">← Back</button>':''}
       `;
       wireMonogramPicker('cp', avState);
+      const initLetter = avState.letter, initBg = avState.bg;
+      let urlSet = profile.avatar_style==='url';
+      const pfpGo = document.getElementById('cpPfpGo');
+      if(pfpGo) pfpGo.onclick = async()=>{
+        const link = document.getElementById('cpPfpUrl').value.trim();
+        const pm = document.getElementById('cpPfpMsg');
+        if(!link){ setMsg(pm,'Paste an image link first.','err'); return; }
+        pfpGo.disabled=true; pfpGo.textContent='Checking…'; setMsg(pm,'','');
+        try{
+          const { data:{ session } } = await sb.auth.getSession();
+          const res = await fetch('https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/pfp-scan',{
+            method:'POST',
+            headers:{'Content-Type':'application/json', apikey:sb.supabaseKey, Authorization:'Bearer '+(session?.access_token||'')},
+            body:JSON.stringify({url:link})
+          });
+          const out = await res.json().catch(()=>({}));
+          if(!res.ok||out.error){ setMsg(pm,out.error||'Could not use that image.','err'); }
+          else{
+            urlSet=true; avState.letter=initLetter; avState.bg=initBg;
+            document.getElementById('cpAvImg').src = out.avatar_url;
+            setMsg(pm,'Looks good. Your picture is updated.','ok');
+          }
+        }catch(e){ setMsg(pm,'Could not reach the checker. Try again.','err'); }
+        pfpGo.disabled=false; pfpGo.textContent='Check';
+      };
       if(isEdit) document.getElementById('cpCancel').onclick = ()=>showProfile(user);
       document.getElementById('cpSave').onclick = async()=>{
         const firstName = document.getElementById('cpFirst').value.trim();
@@ -1180,11 +1213,16 @@ function captchaReset(sel){
         if(!firstName){ setMsg(msg,'First name is required.','err'); return; }
         if(!birthdate){ setMsg(msg,'Birthdate is required.','err'); return; }
         btn.disabled=true; btn.textContent='Saving…';
-        const avatarUrl = monogramSVG(avState.letter, avState.bg, 200);
-        const { data, error } = await sb.from('profiles').update({
-          first_name:firstName, last_name:lastName||null, date_of_birth:birthdate||null,
-          avatar_url:avatarUrl, avatar_style:'monogram', avatar_seed:avState.letter+'|'+avState.bg, updated_at:new Date().toISOString(),
-        }).eq('id',user.id).select('*').maybeSingle();
+        const keepUrl = urlSet && avState.letter===initLetter && avState.bg===initBg;
+        const fields = {
+          first_name:firstName, last_name:lastName||null, date_of_birth:birthdate||null, updated_at:new Date().toISOString(),
+        };
+        if(!keepUrl){
+          fields.avatar_url = monogramSVG(avState.letter, avState.bg, 200);
+          fields.avatar_style = 'monogram';
+          fields.avatar_seed = avState.letter+'|'+avState.bg;
+        }
+        const { data, error } = await sb.from('profiles').update(fields).eq('id',user.id).select('*').maybeSingle();
         if(error){ setMsg(msg,error.message,'err'); btn.disabled=false; btn.textContent=isEdit?'Save changes':'Finish setup'; return; }
         showProfile(user, data);
       };
