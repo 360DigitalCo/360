@@ -25,6 +25,7 @@
 <link href="/assets/css/gallium.css" rel="stylesheet"/>
 <link href="/assets/css/cursor.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/signup-guard.js"></script>
 <style>
     body {
       min-height: 100vh;
@@ -437,7 +438,8 @@
         if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
         return a;
       })();
-      if (dobAge < 13) { setMsg(suMsg, "You must be at least 13 years old to create an account.", "err"); return; }
+      if (SignupGuard.locked()) { setMsg(suMsg, "You must be at least 13 years old to create an account.", "err"); return; }
+      if (dobAge < 13) { SignupGuard.lock(); setMsg(suMsg, "You must be at least 13 years old to create an account.", "err"); return; }
       if (!/^[a-zA-Z0-9_]{3,32}$/.test(username)) { setMsg(suMsg, "Username must be 3–32 chars, letters/numbers/underscores only.", "err"); return; }
       if (password.length < 6) { setMsg(suMsg, "Password must be at least 6 characters.", "err"); return; }
       if (password !== confirm) { setMsg(suMsg, "Passwords do not match.", "err"); return; }
@@ -447,8 +449,9 @@
 
       suBtn.disabled = true; suBtn.textContent = "Creating account…"; setMsg(suMsg, "", "");
 
-      const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
-        email, password, options: { data: { username } }
+      const { data: signUpData, error: signUpErr } = await SignupGuard.signUp(sb, {
+        email, password,
+        data: { username, birthdate: dobVal, first_name: document.getElementById("suFirst")?.value?.trim() || "", last_name: document.getElementById("suLast")?.value?.trim() || null }
       });
       if (signUpErr) { setMsg(suMsg, signUpErr.message, "err"); suBtn.disabled = false; suBtn.textContent = "Create Account"; return; }
 

@@ -25,6 +25,7 @@
 <link href="/assets/css/gallium.css" rel="stylesheet"/>
 <link href="/assets/css/cursor.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/assets/js/signup-guard.js"></script>
 <style>
     body {
       min-height: 100vh;
@@ -1000,7 +1001,7 @@ function captchaReset(sel){
         const v = document.getElementById('s3Birth').value;
         if(!v){ setMsg(document.getElementById('s3Msg'),'Please enter your birthdate.','err'); return; }
         const age = (Date.now()-new Date(v).getTime())/(1000*60*60*24*365.25);
-        if(age<13){ setMsg(document.getElementById('s3Msg'),'You must be 13 or older to create a 360ID.','err'); return; }
+        if(age<13){ SignupGuard.lock(); setMsg(document.getElementById('s3Msg'),'You must be 13 or older to create a 360ID.','err'); return; }
         SU.birthdate=v; SU.step=4; renderSUStep();
       };
       document.getElementById('s3Back').onclick = ()=>{ SU.step=2; renderSUStep(); };
@@ -1108,10 +1109,11 @@ function captchaReset(sel){
       const avatarUrl = monogramSVG(SU.letter, SU.bg, 200);
       const signUpCap = captchaToken('#tsSignUp');
       if(signUpCap===null){ setMsg(msg,'Complete the verification check first.','err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
-      const { data: signUpData, error: signUpErr } = await sb.auth.signUp({
-        email, password,
-        options:{ captchaToken: signUpCap, data:{ username, first_name:SU.firstName, last_name:SU.lastName||null, birthdate:SU.birthdate,
-                         avatar_style:'monogram', avatar_seed:SU.letter+'|'+SU.bg } }
+      if(SignupGuard.locked()){ setMsg(msg,'You must be 13 or older to create a 360ID.','err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
+      const { data: signUpData, error: signUpErr } = await SignupGuard.signUp(sb, {
+        email, password, captchaToken: signUpCap,
+        data:{ username, first_name:SU.firstName, last_name:SU.lastName||null, birthdate:SU.birthdate,
+               avatar_style:'monogram', avatar_seed:SU.letter+'|'+SU.bg }
       });
       if(signUpErr){ captchaReset('#tsSignUp'); setMsg(msg,signUpErr.message,'err'); btn.disabled=false; btn.textContent='Create 360ID'; return; }
       const userId = signUpData?.user?.id;
