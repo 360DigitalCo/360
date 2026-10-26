@@ -476,7 +476,7 @@ function buildCity(scene,progress){
   {const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(spos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(scol,3));g.computeVertexNormals();
     city.parts.side=new THREE.Mesh(g,lam());group.add(city.parts.side);}
   {const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(roadPaint,3));g.setAttribute('color',new THREE.Float32BufferAttribute(paintCol,3));g.computeVertexNormals();
-    const m=new THREE.Mesh(g,lam());m.position.y=0;group.add(m)}
+    const pm=lam();pm.polygonOffset=true;pm.polygonOffsetFactor=-6;pm.polygonOffsetUnits=-6;pm.side=THREE.DoubleSide;const m=new THREE.Mesh(g,pm);m.position.y=.04;m.renderOrder=1;m.userData.noSV=true;group.add(m)}
   city.bl=bl;
   return {city,group,trees,lampsA,subways,towers,rnd};
 }
