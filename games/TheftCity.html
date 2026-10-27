@@ -5289,6 +5289,408 @@ const _buFD=busUpdate;busUpdate=function(dt){_buFD(dt);if(!G.started)return;if(!
   const pcx=Math.floor(PL.x/FD.cell),pcz=Math.floor(PL.z/FD.cell);let built=0;
   for(let dx=-1;dx<=1&&built<1;dx++)for(let dz=-1;dz<=1&&built<1;dz++){const k=(pcx+dx)+','+(pcz+dz);if(!FD.cells.has(k)){fdBuild(pcx+dx,pcz+dz);built++}}
   for(const [k,m] of FD.cells){const [a,b]=k.split(',').map(Number);if(Math.abs(a-pcx)>2||Math.abs(b-pcz)>2){if(m){scene.remove(m);m.geometry.dispose()}FD.cells.delete(k)}}};
+// ---------- c11zi: per-building interiors. Every building gets its own floor plan (rooms, walls, doorways, windows, flooring) sized to its footprint; rooms are furnished by purpose (c11zj)
+const ZI={n:0,tex:{},cache:new Map()};
+const zSnap=(v,s)=>Math.round(v/(s||.25))*(s||.25);
+const zClamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function ziFloorTex(kind){if(ZI.tex[kind])return ZI.tex[kind];const S=128,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+  if(kind==='wood'||kind==='woodDark'){const base=kind==='wood'?[176,128,78]:[96,64,40];for(let i=0;i<8;i++){const k=.88+Math.random()*.2;g.fillStyle='rgb('+(base[0]*k|0)+','+(base[1]*k|0)+','+(base[2]*k|0)+')';g.fillRect(0,i*16,S,16);g.strokeStyle='rgba(0,0,0,.35)';g.strokeRect(0,i*16,S,16);for(let j=0;j<8;j++){g.fillStyle='rgba(0,0,0,.06)';g.fillRect(Math.random()*S,i*16+Math.random()*14,18+Math.random()*30,1)}}}
+  else if(kind==='tile'||kind==='tileDark'){const a=kind==='tile'?'#e8e6de':'#6a6e72',b=kind==='tile'?'#d4d0c4':'#5a5e62';for(let y=0;y<4;y++)for(let x=0;x<4;x++){g.fillStyle=(x+y)%2?a:b;g.fillRect(x*32,y*32,32,32)}g.strokeStyle='rgba(0,0,0,.25)';for(let i=0;i<=4;i++){g.beginPath();g.moveTo(i*32,0);g.lineTo(i*32,S);g.moveTo(0,i*32);g.lineTo(S,i*32);g.stroke()}}
+  else if(kind==='bathtile'){g.fillStyle='#cfe0e4';g.fillRect(0,0,S,S);g.strokeStyle='rgba(60,90,100,.45)';for(let i=0;i<=8;i++){g.beginPath();g.moveTo(i*16,0);g.lineTo(i*16,S);g.moveTo(0,i*16);g.lineTo(S,i*16);g.stroke()}}
+  else if(kind==='carpet'||kind==='carpetRed'||kind==='carpetBlue'){const base=kind==='carpet'?[120,120,126]:kind==='carpetRed'?[128,52,52]:[56,76,112];g.fillStyle='rgb('+base.join(',')+')';g.fillRect(0,0,S,S);for(let i=0;i<1800;i++){const k=.85+Math.random()*.3;g.fillStyle='rgba('+(base[0]*k|0)+','+(base[1]*k|0)+','+(base[2]*k|0)+',.7)';g.fillRect(Math.random()*S,Math.random()*S,2,2)}}
+  else if(kind==='concrete'){g.fillStyle='#8a8a86';g.fillRect(0,0,S,S);for(let i=0;i<900;i++){const v=110+Math.random()*50|0;g.fillStyle='rgba('+v+','+v+','+(v-4)+',.5)';g.fillRect(Math.random()*S,Math.random()*S,3,3)}g.strokeStyle='rgba(0,0,0,.25)';g.strokeRect(0,0,S,S)}
+  else if(kind==='marble'){g.fillStyle='#e6e2da';g.fillRect(0,0,S,S);for(let y=0;y<2;y++)for(let x=0;x<2;x++){g.fillStyle=(x+y)%2?'#d9d4c8':'#efece4';g.fillRect(x*64,y*64,64,64)}g.strokeStyle='rgba(120,110,100,.45)';for(let i=0;i<14;i++){g.beginPath();g.moveTo(Math.random()*S,Math.random()*S);g.bezierCurveTo(Math.random()*S,Math.random()*S,Math.random()*S,Math.random()*S,Math.random()*S,Math.random()*S);g.stroke()}g.strokeStyle='rgba(0,0,0,.2)';g.strokeRect(0,0,64,64);g.strokeRect(64,64,64,64)}
+  else{g.fillStyle='#c9bfa8';g.fillRect(0,0,S,S)}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;return ZI.tex[kind]=t}
+function ziFloor(g,ox,oz,q,kind){const w=q.x1-q.x0,d=q.z1-q.z0,geo=new THREE.PlaneGeometry(w,d);geo.rotateX(-Math.PI/2);const uv=geo.attributes.uv,sc=kind==='marble'?.5:kind==='wood'||kind==='woodDark'?.45:.5;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*w*sc,uv.getY(i)*d*sc);
+  const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({map:ziFloorTex(kind)}));m.position.set(ox+(q.x0+q.x1)/2,.012,oz+(q.z0+q.z1)/2);g.add(m)}
+const ZI_FLOOR={living:'wood',dining:'wood',kitchen:'tile',bath:'bathtile',bedroom:'woodDark',study:'woodDark',foyer:'marble',hall:'wood',closet:'wood',stairs:'concrete',
+  office:'carpet',open:'carpet',meeting:'carpetBlue',reception:'marble',lobby:'marble',security:'tileDark',mail:'tile',janitor:'concrete',server:'tileDark',restroom:'bathtile',
+  shop:'tile',backroom:'concrete',fitting:'carpetRed',dining_r:'wood',kitchen_c:'tileDark',storage:'concrete',gym:'carpetBlue',locker:'tile',barber:'tileDark',laundry:'tile',books:'woodDark',warehouse:'concrete',cafe:'woodDark',corridor:'carpet',elev:'marble',utility:'concrete'};
+const ZI_WALL={living:['#e6dcc6','#d8e0e6','#e8d8cc','#dfe6d8'],dining:['#d9b894','#c8a07a','#d8c8a8'],kitchen:['#eae6da','#dfe8e0','#f0e8d0'],bath:['#cfe0e4','#d8e6e0'],bedroom:['#d8d0e0','#e0d8c8','#cfd8e0','#e6d8d8'],study:['#c8b898','#b8c4b0'],foyer:['#e8dfcc','#ddd4c0'],hall:['#e6dfcc','#d8d4c4'],
+  office:['#dfe3e6','#d0d8e0'],open:['#e0e4e8','#d6dce2'],meeting:['#c8d2dc','#d4d8de'],reception:['#e8e4da','#d8d2c4'],lobby:['#ddd6c6','#d0c8b6'],security:['#c4c8cc'],mail:['#d8d4c8'],janitor:['#b8b8b4'],server:['#b4bcc4'],restroom:['#d0dce0'],
+  shop:['#ece6da','#e0e6ec'],backroom:['#c8c4b8'],fitting:['#d8c8c8'],dining_r:['#b87050','#c89870','#7a3a30'],kitchen_c:['#d8dad8'],storage:['#c4beb0'],gym:['#cfd6dc','#2a2d33'],locker:['#c8d0d4'],barber:['#d8d0c4','#2a2d33'],laundry:['#d8e4ec'],books:['#c8b898','#a89878'],warehouse:['#b8b4a8'],cafe:['#e6d8be','#d6c4a0'],corridor:['#d8d4c4','#c8cccc'],stairs:['#c8c4b8'],closet:['#e0d8c8'],elev:['#d0ccc0'],utility:['#b8b4a8']};
+// ---- plan construction
+function ziBsp(rect,n,minW,minD,r,walls){const L=[rect];
+  while(L.length<n){L.sort((a,b)=>(b.x1-b.x0)*(b.z1-b.z0)-(a.x1-a.x0)*(a.z1-a.z0));let done=false;
+    for(let i=0;i<L.length;i++){const q=L[i],w=q.x1-q.x0,d=q.z1-q.z0,cx=w>=minW*2,cz=d>=minD*2;if(!cx&&!cz)continue;const alongX=cx&&(!cz||w*(.85+r()*.3)>d);const t=.38+r()*.24;
+      if(alongX){const x=q.x0+zSnap(w*t,.25);L.splice(i,1,{x0:q.x0,x1:x,z0:q.z0,z1:q.z1},{x0:x,x1:q.x1,z0:q.z0,z1:q.z1});walls.push({v:true,p:x,a:q.z0,b:q.z1})}
+      else{const z=q.z0+zSnap(d*t,.25);L.splice(i,1,{x0:q.x0,x1:q.x1,z0:q.z0,z1:z},{x0:q.x0,x1:q.x1,z0:z,z1:q.z1});walls.push({v:false,p:z,a:q.x0,b:q.x1})}
+      done=true;break}
+    if(!done)break}
+  return L}
+// pick door positions on each wall, avoiding T-junctions
+function ziDoors(walls,doorW){for(const wl of walls){const J=[];for(const o of walls){if(o===wl||o.v===wl.v)continue;if(Math.abs(o.a-wl.p)<.05||Math.abs(o.b-wl.p)<.05){if(o.p>wl.a+.01&&o.p<wl.b-.01)J.push(o.p)}}
+    J.sort((a,b)=>a-b);const pts=[wl.a].concat(J,[wl.b]);let best=null,bl=0;for(let i=0;i<pts.length-1;i++){const l=pts[i+1]-pts[i];if(l>bl){bl=l;best=i}}
+    wl.doors=[];if(best==null)continue;const lo=pts[best],hi=pts[best+1],dw=Math.min(doorW,Math.max(.9,hi-lo-.5));wl.doors.push({c:(lo+hi)/2+((hi-lo)>7?((wl.p*13)%1-.5)*(hi-lo)*.3:0),w:dw});
+    // long walls get a second doorway into the neighbouring room
+    if(bl>8.5){const lo2=lo,hi2=hi,c2=wl.doors[0].c;const alt=c2>(lo2+hi2)/2?lo2+(c2-lo2)*.35:hi2-(hi2-c2)*.35;if(Math.abs(alt-c2)>2.6)wl.doors.push({c:alt,w:dw})}}}
+function ziBuildWalls(g,ox,oz,h,walls,wallColOf,Z){
+  const seg=(vert,p,a,b,thick)=>{ // solid segment a..b along wall line p
+    if(b-a<.04)return;const L=b-a,c=(a+b)/2;
+    if(vert){ibox(g,ox+p,h/2,oz+c,thick,h,L,wallColOf(p,c,vert));icol(ox+p,oz+c,thick+.1,L,h)}
+    else{ibox(g,ox+c,h/2,oz+p,L,h,thick,wallColOf(c,p,vert));icol(ox+c,oz+p,L,thick+.1,h)}};
+  for(const wl of walls){const T=.2,ds=wl.doors.slice().sort((x,y)=>x.c-y.c);let cur=wl.a;
+    for(const dr of ds){const d0=dr.c-dr.w/2,d1=dr.c+dr.w/2;seg(wl.v,wl.p,cur,d0,T);
+      // lintel + frame
+      if(wl.v){ibox(g,ox+wl.p,2.5+(h-2.5)/2,oz+dr.c,T,h-2.5,dr.w,wallColOf(wl.p,dr.c,true));ibox(g,ox+wl.p,1.25,oz+d0,.26,2.5,.07,0x3a2c20);ibox(g,ox+wl.p,1.25,oz+d1,.26,2.5,.07,0x3a2c20);ibox(g,ox+wl.p,2.52,oz+dr.c,.26,.06,dr.w+.14,0x3a2c20);Z.doorPts.push({x:wl.p,z:dr.c,v:true,w:dr.w})}
+      else{ibox(g,ox+dr.c,2.5+(h-2.5)/2,oz+wl.p,dr.w,h-2.5,T,wallColOf(dr.c,wl.p,false));ibox(g,ox+d0,1.25,oz+wl.p,.07,2.5,.26,0x3a2c20);ibox(g,ox+d1,1.25,oz+wl.p,.07,2.5,.26,0x3a2c20);ibox(g,ox+dr.c,2.52,oz+wl.p,dr.w+.14,.06,.26,0x3a2c20);Z.doorPts.push({x:dr.c,z:wl.p,v:false,w:dr.w})}
+      cur=d1}
+    seg(wl.v,wl.p,cur,wl.b,T)}}
+// windows on exterior walls (north, west, east) per room
+function ziWindows(g,ox,oz,w,d,h,rooms,r,Z){const glassM=new THREE.MeshBasicMaterial({color:0xaed4f0}),frameM=imat(0xe8e4da);
+  const win=(x,z,vert)=>{const gw=1.5;const m=new THREE.Mesh(BX(vert?.05:gw,1.35,vert?gw:.05),glassM);m.position.set(ox+x,1.75,oz+z);g.add(m);
+    const f=new THREE.Mesh(BX(vert?.12:gw+.16,.08,vert?gw+.16:.12),frameM);f.position.set(ox+x,1.05,oz+z);g.add(f);const t=new THREE.Mesh(BX(vert?.1:gw+.16,.08,vert?gw+.16:.1),frameM);t.position.set(ox+x,2.45,oz+z);g.add(t);
+    const mu=new THREE.Mesh(BX(vert?.08:.06,1.35,vert?.06:.08),frameM);mu.position.set(ox+x,1.75,oz+z);g.add(mu);
+    Z.windows.push({x,z,vert})};
+  for(const q of rooms){if(q.role==='stairs'||q.role==='closet'||q.role==='bath'&&r()<.4)continue;
+    if(Math.abs(q.z0+d/2)<.05){const L=q.x1-q.x0;const n=Math.max(0,Math.floor((L-1.2)/3.4));for(let i=0;i<n;i++)win(q.x0+(i+.5)*L/n,-d/2+.03,false)}
+    if(Math.abs(q.x0+w/2)<.05){const L=q.z1-q.z0;const n=Math.max(0,Math.floor((L-1.2)/3.4));for(let i=0;i<n;i++)win(-w/2+.03,q.z0+(i+.5)*L/n,true)}
+    if(Math.abs(q.x1-w/2)<.05){const L=q.z1-q.z0;const n=Math.max(0,Math.floor((L-1.2)/3.4));for(let i=0;i<n;i++)win(w/2-.03,q.z0+(i+.5)*L/n,true)}}}
+// ---- the interior generator for one building floor
+function ziPlan(nb,floor,top){const b=nb.b,info=nb.info,kind=floor>1?(info.kind==='house'?'bed':(info.s*7%1<(info.floors>14?.65:.25)?'office':'apt')):info.kind;
+  const seedN=((Math.round(b.x0)*73856093)^(Math.round(b.z0)*19349663)^(floor*83492791))>>>0,r=rng32(seedN||1);
+  const bw=b.x1-b.x0,bd=b.z1-b.z0;
+  const dims={house:[16,22,12,18],bed:[16,22,12,18],apt:[16,40,13,28],office:[22,46,15,30],lobby2:[24,46,18,30],cafe:[16,28,11,18],restaurant:[20,34,12,20],shop:[16,30,11,20],gym:[22,40,14,24],bookstore:[16,30,11,20],barber:[11,16,9,12],laundromat:[13,22,9,14],warehouse:[26,46,18,30]}[kind]||[16,24,12,18];
+  const w=zSnap(zClamp(bw*.85,dims[0],dims[1]),.5),d=zSnap(zClamp(bd*.85,dims[2],dims[3]),.5),h=kind==='lobby2'?3.9:(kind==='warehouse'?4.6:(kind==='office'?3.4:3.2));
+  return {kind,seedN,r,w,d,h,floor,top}}
+function ziLayout(P){const {kind,r,w,d,floor,top}=P,walls=[],rooms=[];const R=(x0,z0,x1,z1,role)=>{const q={x0,z0,x1,z1,role};rooms.push(q);return q};
+  const hw=w/2,hd=d/2,stairNeed=floor<top,minW=3.6,minD=3.4;let open=null;
+  const stair=stairNeed?R(hw-3.4,-hd,hw,-hd+4.6,'stairs'):null;
+  // carve the stair core out of the NE corner
+  const split=(rect,axis,pos)=>{if(axis==='z'){walls.push({v:false,p:pos,a:rect.x0,b:rect.x1});return [{x0:rect.x0,x1:rect.x1,z0:rect.z0,z1:pos},{x0:rect.x0,x1:rect.x1,z0:pos,z1:rect.z1}]}
+    walls.push({v:true,p:pos,a:rect.z0,b:rect.z1});return [{x0:rect.x0,x1:pos,z0:rect.z0,z1:rect.z1},{x0:pos,x1:rect.x1,z0:rect.z0,z1:rect.z1}]};
+  let region={x0:-hw,x1:hw,z0:-hd,z1:hd};
+  if(stair){walls.push({v:true,p:hw-3.4,a:-hd,b:-hd+4.6});walls.push({v:false,p:-hd+4.6,a:hw-3.4,b:hw})}
+  const assign=(leaves,roles)=>{const L=leaves.slice().sort((a,b)=>(b.x1-b.x0)*(b.z1-b.z0)-(a.x1-a.x0)*(a.z1-a.z0));L.forEach((q,i)=>{q.role=roles[i]||roles[roles.length-1]});return L};
+  const leavesTo=(L,roles)=>{assign(L,roles).forEach(q=>rooms.push(q))};
+  // regions that avoid the stair core: left part (full height) + right part below the core
+  const regions=(rg)=>{if(!stair)return [rg];return [{x0:rg.x0,x1:hw-3.4,z0:rg.z0,z1:rg.z1},{x0:hw-3.4,x1:hw,z0:-hd+4.6,z1:rg.z1}]};
+  const bspRegions=(rg,n,roles)=>{const rs=regions(rg);const out=[];const main=ziBsp(rs[0],Math.max(1,Math.ceil(n*.7)),minW,minD,r,walls);out.push(...main);if(rs[1]&&rs[1].z1-rs[1].z0>=minD){const sec=ziBsp(rs[1],Math.max(1,Math.floor(n*.3)),minW,minD,r,walls);out.push(...sec)}
+    // wall between main part and right part when stairs exist
+    if(rs[1]){walls.push({v:true,p:hw-3.4,a:-hd+4.6,b:rg.z1})}
+    leavesTo(out,roles)};
+  const foyerDepth=3.6;
+  if(kind==='house'){const f=R(-hw,hd-foyerDepth,hw,hd,'foyer');walls.push({v:false,p:hd-foyerDepth,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-foyerDepth},6,['living','kitchen','dining','study','bath','closet'])}
+  else if(kind==='bed'){const f=R(-hw,hd-3.2,hw,hd,'hall');walls.push({v:false,p:hd-3.2,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-3.2},5,['bedroom','bedroom','bath','bedroom','study','closet'])}
+  else if(kind==='apt'){const corr=w>26;
+    if(corr){const cd=2.8;R(-hw,hd-cd,hw,hd,'corridor');walls.push({v:false,p:hd-cd,a:-hw,b:hw});const n=Math.max(2,Math.floor((w-(stair?3.4:0))/10.5)),uw=(w-(stair?3.4:0))/n;
+      for(let i=0;i<n;i++){const ux0=-hw+i*uw,ux1=ux0+uw;if(i>0)walls.push({v:true,p:ux0,a:-hd,b:hd-cd});
+        const sub=ziBsp({x0:ux0,x1:ux1,z0:-hd,z1:hd-cd},4,3.2,3.2,r,walls);leavesTo(sub,['living','bedroom','kitchen','bath'])}
+      if(stair)walls.push({v:true,p:hw-3.4,a:-hd,b:hd-cd})}
+    else{R(-hw,hd-foyerDepth,hw,hd,'foyer');walls.push({v:false,p:hd-foyerDepth,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-foyerDepth},5,['living','bedroom','kitchen','bath','closet'])}}
+  else if(kind==='office'){R(-hw,hd-3.4,hw,hd,'reception');walls.push({v:false,p:hd-3.4,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-3.4},7,['open','meeting','office','office','server','restroom','janitor'])}
+  else if(kind==='lobby2'){const ld=Math.max(7,d*.5);R(-hw+0,hd-ld,hw,hd,'lobby');walls.push({v:false,p:hd-ld,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-ld},6,['elev','mail','security','restroom','janitor','storage'])}
+  else if(kind==='cafe'||kind==='restaurant'){const rs=kind==='restaurant',bd_=rs?5.4:4.2;const main=R(-hw,-hd+bd_,hw,hd,rs?'dining_r':'cafe');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});
+    const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},rs?4:3,3.2,3.2,r,walls);leavesTo(back,rs?['kitchen_c','storage','restroom','restroom']:['kitchen_c','storage','restroom'])}
+  else if(kind==='shop'||kind==='bookstore'){const bd_=4.4;R(-hw,-hd+bd_,hw,hd,kind==='shop'?'shop':'books');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},3,3.2,3.2,r,walls);leavesTo(back,kind==='shop'?['backroom','fitting','fitting']:['backroom','storage','restroom'])}
+  else if(kind==='gym'){const bd_=6;R(-hw,-hd+bd_,hw,hd,'gym');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},4,3.6,3.6,r,walls);leavesTo(back,['locker','locker','office','restroom'])}
+  else if(kind==='barber'){const bd_=3.4;R(-hw,-hd+bd_,hw,hd,'barber');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},2,3.2,3,r,walls);leavesTo(back,['storage','restroom'])}
+  else if(kind==='laundromat'){const bd_=3.6;R(-hw,-hd+bd_,hw,hd,'laundry');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},2,3.2,3,r,walls);leavesTo(back,['storage','restroom'])}
+  else if(kind==='warehouse'){const bd_=6;R(-hw,-hd+bd_,hw,hd,'warehouse');walls.push({v:false,p:-hd+bd_,a:-hw,b:hw});const back=ziBsp({x0:-hw,x1:hw,z0:-hd,z1:-hd+bd_},3,4,3.6,r,walls);leavesTo(back,['office','restroom','storage'])}
+  else{R(-hw,-hd,hw,hd,'living')}
+  // remove degenerate / duplicate walls
+  const W=[];for(const q of walls){if(q.b-q.a<1.2)continue;if(W.some(o=>o.v===q.v&&Math.abs(o.p-q.p)<.02&&Math.abs(o.a-q.a)<.02&&Math.abs(o.b-q.b)<.02))continue;W.push(q)}
+  return {rooms,walls:W,stair}}
+// ---- builder passed to ROOMDEF
+function ziBuilder(nb,floor,top){return function(g,ox,oz){
+  const P=ziPlan(nb,floor,top),{w,d,h,r,kind}=P,L=ziLayout(P);
+  const palette=[['#e8dfcc','#d8e0e6','#e8d8cc'],['#dfe6d8','#e6dcc6','#d8d4e0'],['#d6d8dc','#e4e0d4','#dce4e0']][P.seedN%3];
+  roomShell(g,ox,oz,w,d,h,{f1:'#8a8a86',f2:'#7a7a76',wall:palette[0],trim:0x3a3a40,lamp:0xfff3d6});
+  const Z={ox,oz,w,d,h,r,kind,P,rooms:L.rooms,walls:L.walls,doorPts:[],windows:[],acts:[],npcs:[],occ:new Uint8Array(Math.ceil(w/.25)*Math.ceil(d/.25)),nbk:nb.id+'_'+floor,nb,floor,top,stair:L.stair};
+  Z.cw=Math.ceil(w/.25);
+  // room colours
+  const rc=new Map();for(const q of L.rooms){const list=ZI_WALL[q.role]||palette;q.wall=list[(P.seedN+((q.x0*7+q.z0*3)|0)&255)%list.length];q.floorKind=ZI_FLOOR[q.role]||'wood';rc.set(q,q)}
+  const roomAt=(x,z)=>{for(const q of L.rooms)if(x>=q.x0-.01&&x<=q.x1+.01&&z>=q.z0-.01&&z<=q.z1+.01)return q;return null};
+  const wallColOf=(x,z,vert)=>{const q=roomAt(x+(vert?.3:0),z+(vert?0:.3))||roomAt(x-(vert?.3:0),z-(vert?0:.3));return q?q.wall:palette[0]};
+  for(const q of L.rooms)ziFloor(g,ox,oz,q,q.floorKind);
+  ziDoorsOnce(L.walls,P);
+  ziBuildWalls(g,ox,oz,h,L.walls,wallColOf,Z);
+  ziWindows(g,ox,oz,w,d,h,L.rooms,r,Z);
+  // exterior walls get the colour of the room behind them (inner skin)
+  for(const q of L.rooms){const t=.05;if(Math.abs(q.z0+d/2)<.05)ibox(g,ox+(q.x0+q.x1)/2,h/2,oz-d/2+t/2,q.x1-q.x0-.02,h,t,q.wall);if(Math.abs(q.x0+w/2)<.05)ibox(g,ox-w/2+t/2,h/2,oz+(q.z0+q.z1)/2,t,h,q.z1-q.z0-.02,q.wall);if(Math.abs(q.x1-w/2)<.05)ibox(g,ox+w/2-t/2,h/2,oz+(q.z0+q.z1)/2,t,h,q.z1-q.z0-.02,q.wall);
+    if(Math.abs(q.z1-d/2)<.05){const xs=[[q.x0,Math.min(q.x1,-1.6)],[Math.max(q.x0,1.6),q.x1]];for(const[a,b]of xs)if(b-a>.1)ibox(g,ox+(a+b)/2,h/2,oz+d/2-t/2,b-a-.02,h,t,q.wall)}}
+  // mark clearances: doorways, entrance, drawer cabinet, spawn
+  Z.mark=(x,z,sw,sd)=>{const x0=Math.floor((x-sw/2+w/2)/.25),x1=Math.floor((x+sw/2+w/2-.001)/.25),z0=Math.floor((z-sd/2+d/2)/.25),z1=Math.floor((z+sd/2+d/2-.001)/.25);for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++)if(i>=0&&j>=0&&i<Z.cw&&j<Math.ceil(d/.25))Z.occ[j*Z.cw+i]=1};
+  Z.isFree=(x,z,sw,sd)=>{const x0=Math.floor((x-sw/2+w/2)/.25),x1=Math.floor((x+sw/2+w/2-.001)/.25),z0=Math.floor((z-sd/2+d/2)/.25),z1=Math.floor((z+sd/2+d/2-.001)/.25);if(x0<0||z0<0||x1>=Z.cw||z1>=Math.ceil(d/.25))return false;for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++)if(Z.occ[j*Z.cw+i])return false;return true};
+  for(const p of Z.doorPts){if(p.v)Z.mark(p.x,p.z,1.9,p.w+.9);else Z.mark(p.x,p.z,p.w+.9,1.9)}
+  Z.mark(0,d/2-1.8,4.4,3.6);Z.mark(w/4+.8,d/2-.45,1.7,.8);
+  if(L.stair){Z.mark(w/2-1.7,-d/2+2.3,3.4,4.6)}
+  return ziFurnish(g,ox,oz,Z)}}
+function ziDoorsOnce(walls,P){ziDoors(walls,1.45)}
+function ziKey(nb,floor){const info=nb.info;return 'z_'+nb.id.replace(/[^0-9a-z\-:]/gi,'')+'_'+floor}
+// ---- override enterBuilding so every building floor uses its own plan
+const _ebZI=enterBuilding;
+enterBuilding=function(nb,floor){
+  try{const key=ziKey(nb,floor),top=nb.info.floors;
+    if(!ROOMDEF[key]){const i=NEXT_X.n++;ROOMDEF[key]={b:ziBuilder(nb,floor,top),ox:31000+(i%16)*76,oz:30100+Math.floor(i/16)*56,n:nb.info.name}}
+    const type=nb.info.kind;ROOMDEF[key].n=(nb.info.kind==='lobby2'||nb.info.kind==='house'||floor>1?nb.info.name+' · FLOOR '+floor:nb.info.name);
+    BLD.cur={nb,floor};enterRoom(key,nb.ret);INT.exitT=.25;INT.lights.forEach(L=>{L.intensity=.62;L.distance=Math.max(L.distance,16)});
+    setTimeout(()=>{for(const o of INT.npcs)if(o.sleep){o.g.rotation.set(-Math.PI/2,0,0);o.g.position.set(o.x,.78,o.z+.9)}},50)
+  }catch(e){console.error('zi enter',e);return _ebZI(nb,floor)}};
+// ---------- c11zj: furnishing for the per-building floor plans (c11zi). Every room is furnished by its purpose; placement uses the occupancy grid so nothing overlaps or blocks a doorway
+const ZF={};
+const zdef=(n,w,d,fn,o)=>{ZF[n]=Object.assign({w,d,fn},o||{})};
+const ZWD=[0x6b4a2e,0x8a6a42,0x4a3424,0x9a7a52],ZFB=[0x8a3a3a,0x3a5a8a,0x4a6a4a,0x7a6a5a,0xa8884a,0x5a4a7a,0x3a6a6a,0x9a5a3a],ZPR=[0xd9534a,0x4a7fd6,0xf2d640,0x6fbf73,0xe8e4da,0x9a6bd0,0xff8a3b,0x3ad0d8],ZST=0xb8bcc2;
+// ---- furniture library. local frame: back against -z, front faces +z, origin = footprint centre
+zdef('bed',1.7,2.15,(P,c,r)=>{P.b(0,0,0,1.7,.38,2.1,0x5a3e28,1).b(0,.38,.02,1.6,.22,2.0,0xf0ece2).b(0,.58,.38,1.62,.08,1.3,c).b(-.42,.64,-.78,.55,.14,.38,0xffffff).b(.42,.64,-.78,.55,.14,.38,0xffffff).b(0,.38,-1.04,1.78,1.0,.1,0x5a3e28).b(0,.58,.95,1.62,.1,.2,c)},{art:1});
+zdef('night',.5,.45,(P,c)=>{P.b(0,0,0,.5,.55,.45,c,1).b(0,.3,.23,.4,.02,.02,0x222222).gl(0,.55,0,.3,.04,.25,0xffe6b0).b(0,.56,0,.08,.3,.08,0x333333).gl(0,.86,0,.28,.24,.28,0xffe8b0)});
+zdef('dresser',1.4,.52,(P,c)=>{P.b(0,0,0,1.4,.9,.52,c,1);for(let i=0;i<3;i++){P.b(0,.1+i*.28,.27,1.3,.24,.02,0x00000022&0xffffff?0x2a1d12:0x2a1d12);P.b(0,.2+i*.28,.29,.2,.04,.02,0xd8c070)}P.b(0,.9,0,1.46,.04,.56,0xd8d0c0)},{art:1});
+zdef('wardrobe',1.3,.64,(P,c)=>{P.b(0,0,0,1.3,2.1,.62,c,1).b(0,0,.32,.02,2.0,.02,0x1d1710).b(-.15,1.0,.33,.04,.3,.02,0xd8c070).b(.15,1.0,.33,.04,.3,.02,0xd8c070)},{tall:1});
+zdef('sofa',2.3,.98,(P,c)=>{P.b(0,0,0,2.3,.42,.98,c,1).b(0,.42,-.38,2.3,.58,.2,c).b(-1.06,.42,.05,.2,.32,.93,c).b(1.06,.42,.05,.2,.32,.93,c).b(-.5,.42,.08,.9,.14,.7,c+0x0a0a0a).b(.5,.42,.08,.9,.14,.7,c+0x0a0a0a).b(-.9,.62,-.18,.4,.35,.14,0xd8d0c0)},{art:1});
+zdef('armchair',.95,.92,(P,c)=>{P.b(0,0,0,.95,.42,.92,c,1).b(0,.42,-.36,.95,.55,.18,c).b(-.38,.42,.04,.18,.28,.88,c).b(.38,.42,.04,.18,.28,.88,c)});
+zdef('coffee',1.1,.6,(P,c)=>{P.b(0,.36,0,1.1,.06,.6,c,1).b(-.48,0,-.24,.06,.36,.06,c).b(.48,0,-.24,.06,.36,.06,c).b(-.48,0,.24,.06,.36,.06,c).b(.48,0,.24,.06,.36,.06,c).b(.2,.42,.05,.22,.04,.16,0xe8e4da)});
+zdef('tvc',1.7,.46,(P,c)=>{P.b(0,0,0,1.7,.48,.46,c,1).b(0,.48,0,.4,.04,.2,0x111111).gl(0,.55,-.05,1.35,.78,.05,0x6fa8e0).b(0,.5,-.1,1.4,.04,.04,0x111111).b(.7,.5,.1,.2,.2,.2,0x2a2a2e)});
+zdef('bookshelf',1.2,.38,(P,c,r)=>{P.b(0,0,0,1.2,2.0,.38,c,1);for(let k=0;k<4;k++)for(let i=0;i<5;i++)P.b(-.46+i*.23,.18+k*.46,.04,.17,.3+r()*.1,.26,ZPR[(i*3+k*5)%ZPR.length])},{tall:1,art:0});
+zdef('lowshelf',1.0,.36,(P,c,r)=>{P.b(0,0,0,1.0,.8,.36,c,1);for(let i=0;i<4;i++)P.b(-.36+i*.24,.42,.04,.18,.3,.26,ZPR[(i*3+2)%ZPR.length]);P.b(0,.8,0,1.04,.03,.4,0xd8d0c0)});
+zdef('plant',.55,.55,(P,c)=>{P.b(0,0,0,.4,.38,.4,0x7a4a2e,1).b(0,.38,0,.12,.4,.12,0x3a5a28).b(0,.7,0,.6,.5,.6,0x3f8a3c).b(.1,1.15,.05,.4,.3,.4,0x4a9a44)});
+zdef('lamp',.4,.4,(P)=>{P.b(0,0,0,.28,.04,.28,0x222222,1).b(0,.04,0,.05,1.45,.05,0x222222).gl(0,1.4,0,.38,.32,.38,0xffe8b0)});
+zdef('side',.5,.5,(P,c)=>{P.b(0,0,0,.5,.55,.5,c,1).b(0,.55,0,.56,.04,.56,0xd8d0c0)});
+zdef('counter',.9,.64,(P,c)=>{P.b(0,0,0,.9,.9,.64,c,1).b(0,.9,.0,.92,.05,.68,0xd8d0c0).b(0,.4,.33,.5,.02,.02,0x333333)});
+zdef('sinkc',1.2,.64,(P,c)=>{P.b(0,0,0,1.2,.9,.64,c,1).b(0,.9,0,1.22,.05,.68,0xd8d0c0).b(0,.9,.04,.6,.04,.4,0x8a8d93).b(0,.95,-.2,.04,.3,.04,ZST)});
+zdef('stove',.8,.66,(P,c)=>{P.b(0,0,0,.8,.9,.66,0xb8bcc2,1);P.gl(0,.9,.34,.5,.02,.02,0x222222);for(const[a,b]of[[-.2,-.12],[.2,-.12],[-.2,.14],[.2,.14]])P.b(a,.9,b,.22,.03,.22,0x222222);P.b(0,.45,.34,.56,.34,.02,0x1a1a1e);P.gl(0,1.7,-.2,.5,.02,.3,0x555555);P.b(0,1.55,-.2,.78,.2,.4,ZST);P.b(0,1.75,-.28,.3,.6,.24,ZST)});
+zdef('fridge',.88,.8,(P)=>{P.b(0,0,0,.88,1.88,.8,0xd8dadd,1).b(0,1.0,.41,.88,.02,.02,0x666666).b(.34,1.35,.42,.04,.45,.03,0x555555).b(.34,.5,.42,.04,.5,.03,0x555555)},{tall:1});
+zdef('ucab',2.4,.35,(P,c)=>{P.b(0,1.5,0,2.4,.7,.35,c).b(-.6,1.5,.18,.02,.7,.02,0x1d1710).b(.6,1.5,.18,.02,.7,.02,0x1d1710)},{noMark:1});
+zdef('island',1.9,.85,(P,c)=>{P.b(0,0,0,1.9,.92,.85,c,1).b(0,.92,0,2.0,.05,.95,0xd8d0c0);for(const x of[-.5,.5])P.b(x,0,.7,.4,.7,.4,0x3a2c20)},{});
+zdef('toilet',.45,.72,(P)=>{P.b(0,0,-.2,.4,.75,.2,0xf2f2f0,1).b(0,0,.12,.38,.4,.5,0xf2f2f0).b(0,.4,.12,.42,.04,.52,0xe0e0dc)});
+zdef('vanity',.9,.52,(P,c)=>{P.b(0,0,0,.9,.82,.52,c,1).b(0,.82,0,.92,.05,.56,0xe8e4da).b(0,.84,.05,.4,.03,.3,0xf4f4f2).b(0,.86,-.18,.04,.2,.04,ZST).gl(0,1.25,-.25,.8,.9,.03,0xc8e0ec)});
+zdef('tub',1.75,.8,(P)=>{P.b(0,0,0,1.75,.55,.8,0xf4f4f2,1).b(0,.55,0,1.6,.02,.65,0xbfe0f2).b(.8,.55,-.3,.06,.5,.06,ZST).b(.8,1.0,-.34,.04,.04,.16,ZST)},{});
+zdef('shower',.95,.95,(P)=>{P.b(0,0,0,.95,.08,.95,0xe0e4e6,1).gl(.47,.08,0,.03,1.9,.95,0xc8e4f0).gl(0,.08,.47,.95,1.9,.03,0xc8e4f0).b(0,1.7,-.4,.18,.04,.18,ZST).b(0,0,-.45,.04,1.7,.04,ZST)},{tall:1});
+zdef('desk',1.45,1.45,(P,c)=>{P.b(0,.72,-.28,1.45,.05,.72,c,0).b(-.64,0,-.28,.06,.72,.62,c,1).b(.64,0,-.28,.06,.72,.62,c,1).b(0,.3,-.6,1.4,.4,.04,c).b(0,.77,-.35,.6,.04,.25,0x1a1a1e).b(0,.81,-.3,.5,.02,.18,0x333338).gl(0,1.1,-.5,.5,.32,.03,0x6fa8e0).b(0,.77,-.5,.1,.3,.08,0x222222).b(0,0,.45,.5,.05,.5,0x2a2a2e).b(0,.45,.45,.5,.06,.5,0x2a2a2e).b(0,.5,.68,.5,.5,.05,0x2a2a2e).b(0,0,.45,.06,.45,.06,0x111111)});
+zdef('deskwood',1.5,1.5,(P,c)=>{ZF.desk.fn(P,ZWD[0],()=>.5)},{});
+zdef('chair',.5,.5,(P,c)=>{P.b(0,.45,0,.45,.06,.45,c,1).b(0,0,0,.06,.45,.06,c).b(0,.5,-.22,.45,.5,.05,c)});
+zdef('filing',.5,.62,(P,c)=>{P.b(0,0,0,.5,1.3,.62,0x6a6e75,1);for(let i=0;i<3;i++)P.b(0,.1+i*.4,.32,.4,.3,.02,0x8a8e95).b(0,.25+i*.4,.34,.14,.03,.02,0xd8c070)});
+zdef('copier',.9,.75,(P)=>{P.b(0,0,0,.9,.95,.75,0xd8dadd,1).b(0,.95,0,.9,.08,.75,0x222226).gl(0,.9,.38,.3,.06,.02,0x6fa8e0)});
+zdef('cooler',.4,.4,(P)=>{P.b(0,0,0,.36,.9,.36,0xd8dadd,1).gl(0,.9,0,.3,.4,.3,0x9fd0ff)});
+zdef('whiteboard',1.8,.1,(P)=>{P.b(0,1.0,0,1.8,1.0,.05,0xf4f4f2).b(0,.98,0,1.9,.04,.08,0x888888).b(-.3,1.5,.03,.5,.02,.01,0x3a5ad8).b(.3,1.2,.03,.4,.02,.01,0xd83a3a)},{noMark:1});
+zdef('pod',2.9,1.95,(P,c,r)=>{for(const s of[-1,1]){P.b(s*.72,.72,0,1.3,.05,.7,c,0);P.b(s*.72,.3,0,1.3,.04,.05,c);P.gl(s*.72,1.05,-.1+s*0,.5,.32,.03,0x6fa8e0)}P.b(0,0,0,2.9,1.0,.05,0x8a9098,1).b(-1.45,0,0,.05,1.0,1.9,0x8a9098).b(1.45,0,0,.05,1.0,1.9,0x8a9098);P.b(0,0,.2,.5,.05,.5,0x2a2a2e).b(0,.45,.2,.5,.06,.5,0x2a2a2e)},{});
+zdef('rack',.75,.95,(P,c,r)=>{P.b(0,0,0,.75,2.0,.95,0x1c1d22,1);for(let i=0;i<9;i++){P.gl(-.2,.2+i*.2,.48,.08,.04,.02,[0x55ff88,0x55ff88,0xff5a36,0x6fa8e0][i%4]);P.b(.1,.2+i*.2,.48,.4,.06,.02,0x32343a)}},{tall:1});
+zdef('ac',1.0,.8,(P)=>{P.b(0,0,0,1.0,1.9,.8,0xd8dadd,1).b(0,1.2,.41,.7,.5,.02,0x666b72).gl(.36,1.7,.41,.06,.06,.02,0x55ff88)},{tall:1});
+zdef('lockers',1.2,.52,(P,c)=>{P.b(0,0,0,1.2,1.9,.52,c,1);for(let i=0;i<3;i++){P.b(-.4+i*.4,.0,.27,.02,1.9,.02,0x1d1d22);P.b(-.28+i*.4,1.2,.28,.05,.12,.02,ZST);P.b(-.2+i*.4,1.7,.28,.2,.04,.01,0x22262a)}},{tall:1});
+zdef('bench',1.5,.45,(P,c)=>{P.b(0,.42,0,1.5,.07,.45,c,1).b(-.65,0,0,.07,.42,.4,0x333333).b(.65,0,0,.07,.42,.4,0x333333)});
+zdef('gond',1.9,.62,(P,c,r)=>{P.b(0,0,0,1.9,1.55,.62,0x9a9ea6,1);for(let k=0;k<4;k++){P.b(0,.2+k*.38,0,1.86,.03,.6,0xc8ccd2);for(let i=0;i<7;i++){const cc=ZPR[(i*3+k*5+((c)|0))%ZPR.length];P.b(-.78+i*.26,.23+k*.38,.14,.2,.2+r()*.1,.14,cc);P.b(-.78+i*.26,.23+k*.38,-.14,.2,.2+r()*.1,.14,ZPR[(i*5+k*2)%ZPR.length])}}});
+zdef('wshelf',2.0,.4,(P,c,r)=>{P.b(0,0,0,2.0,2.1,.4,0x8a8e95,1);for(let k=0;k<5;k++){P.b(0,.1+k*.4,0,1.96,.03,.38,0xc8ccd2);for(let i=0;i<7;i++)P.b(-.8+i*.26,.13+k*.4,.04,.2,.22+r()*.1,.24,ZPR[(i*2+k*3)%ZPR.length])}},{tall:1});
+zdef('clothr',1.3,.55,(P,c,r)=>{P.b(-.62,0,0,.04,1.5,.04,ZST,1).b(.62,0,0,.04,1.5,.04,ZST).b(0,1.5,0,1.3,.04,.04,ZST);for(let i=0;i<9;i++)P.b(-.55+i*.14,.7,0,.05,.78,.34,ZPR[(i*3+(c|0))%ZPR.length])});
+zdef('ccounter',2.6,.85,(P,c)=>{P.b(0,0,0,2.6,1.0,.85,c,1).b(0,1.0,0,2.7,.06,.95,0xd8d0c0).b(.7,1.06,.0,.46,.3,.36,0x1c1d22).gl(.7,1.3,.2,.34,.12,.02,0x55ff88).b(-.7,1.06,.1,.3,.1,.3,0xd8d0c0)});
+zdef('fitting',1.5,1.5,(P,c)=>{P.b(0,0,-.74,1.5,2.2,.04,0x7a6a5a,1).b(-.74,0,0,.04,2.2,1.5,0x7a6a5a,1).b(.74,0,0,.04,2.2,1.5,0x7a6a5a,1).gl(0,1.1,-.7,.8,1.5,.02,0xc8e0ec).b(0,.4,-.35,.8,.06,.4,0x5a3e28).b(0,1.85,.74,1.5,.35,.04,0x7a2a3a)},{tall:1});
+zdef('treadmill',.85,1.8,(P,c)=>{P.b(0,.1,.15,.8,.18,1.5,0x2a2d33,1).b(0,.28,.15,.7,.03,1.4,0x111111).b(-.38,.1,-.62,.05,1.1,.05,0x2a2d33).b(.38,.1,-.62,.05,1.1,.05,0x2a2d33).b(0,1.1,-.62,.8,.2,.12,0x2a2d33).gl(0,1.15,-.55,.3,.1,.02,0x55ff88)});
+zdef('benchp',1.05,2.1,(P,c)=>{P.b(0,.4,.2,.45,.1,1.2,0x1c1d22,1).b(0,0,.4,.06,.4,.06,0x444).b(0,0,-.2,.06,.4,.06,0x444).b(-.5,.4,-.78,.06,1.0,.06,ZST).b(.5,.4,-.78,.06,1.0,.06,ZST).b(0,1.3,-.78,1.9,.05,.05,ZST).b(-.75,1.3,-.78,.28,.28,.06,0x2a2d33).b(.75,1.3,-.78,.28,.28,.06,0x2a2d33)});
+zdef('squat',1.4,1.4,(P)=>{for(const s of[-1,1])P.b(s*.62,0,-.5,.06,2.2,.06,ZST,1);P.b(0,1.5,-.5,1.3,.05,.05,ZST).b(0,0,-.5,1.3,.04,.04,0x2a2d33).b(-.6,1.55,-.5,.32,.32,.1,0x1c1d22).b(.6,1.55,-.5,.32,.32,.1,0x1c1d22)},{tall:1});
+zdef('dbrack',1.7,.55,(P,c,r)=>{P.b(0,0,0,1.7,.55,.55,0x2a2d33,1);P.b(0,.55,-.1,1.6,.04,.34,0x2a2d33);for(let i=0;i<6;i++){P.b(-.65+i*.26,.6,-.12,.16,.16,.16,0x1c1d22);P.b(-.65+i*.26,.3,.02,.2,.2,.2,0x1c1d22)}});
+zdef('mat',2.0,1.2,(P,c)=>{P.b(0,.01,0,2.0,.03,1.2,c)},{noMark:0,flat:1});
+zdef('washer',.72,.72,(P,c)=>{P.b(0,0,0,.72,.95,.72,c||0xeceef0,1).gl(0,.5,.37,.4,.4,.02,0x9fd0ff).b(0,.9,.37,.5,.08,.02,0x555a62)});
+zdef('dryer',.72,.72,(P,c)=>{P.b(0,0,0,.72,.95,.72,0xe4e6e8,1).b(0,.5,.37,.42,.42,.03,0x888d94).gl(0,.5,.385,.3,.3,.01,0xd8a640)});
+zdef('foldt',1.8,.8,(P,c)=>{P.b(0,.9,0,1.8,.05,.8,0xc8c4b8,1).b(-.8,0,0,.06,.9,.7,0x6a6e75).b(.8,0,0,.06,.9,.7,0x6a6e75).b(.2,.95,0,.4,.1,.3,0xe8d0d8)});
+zdef('bchair',.85,.95,(P,c)=>{P.b(0,0,.05,.85,.08,.85,0x1c1d22,1).b(0,.08,.05,.18,.4,.18,ZST).b(0,.48,.05,.7,.2,.7,0xa83a3a).b(0,.68,-.3,.7,.9,.15,0xa83a3a).b(0,.3,.55,.4,.04,.4,ZST).gl(0,1.35,-.45,1.6,1.0,.03,0xc8e0ec)},{tall:0});
+zdef('shampoo',.9,.7,(P)=>{P.b(0,0,0,.7,.85,.6,0xe8e4da,1).b(0,.85,0,.7,.1,.5,0xf4f4f2).b(0,1.0,-.2,.04,.4,.04,ZST)});
+zdef('cafet',1.0,1.9,(P,c)=>{P.b(0,.72,0,.8,.05,.8,c,1).b(0,0,0,.08,.72,.08,0x2a2d33);for(const s of[-1,1])P.b(0,0,s*.68,.44,.45,.44,0x6b4a2e).b(0,.45,s*.68+s*.2,.44,.45,.05,0x6b4a2e);P.b(.1,.77,.1,.14,.08,.14,0xf4f4f2)});
+zdef('dtbl',1.2,2.1,(P,c)=>{P.b(0,.74,0,1.0,.05,1.0,0xf0ece2,1).b(0,0,0,.1,.74,.1,c);for(const s of[-1,1])P.b(0,0,s*.75,.46,.46,.46,ZWD[1]).b(0,.46,s*.75+s*.2,.46,.5,.05,ZWD[1]);P.b(0,.8,0,.08,.14,.08,0xd8c070);P.gl(0,.8,0,.05,.05,.05,0xffd080)});
+zdef('booth',2.2,1.1,(P,c)=>{P.b(0,.72,0,.8,.05,.9,0x3a2c20,1).b(0,0,0,.1,.72,.1,0x222);for(const s of[-1,1]){P.b(s*.85,0,0,.5,.45,.95,c).b(s*.99,.45,0,.2,.6,.95,c)}P.gl(0,.8,0,.08,.08,.08,0xffd080)});
+zdef('host',1.0,.6,(P,c)=>{P.b(0,0,0,.9,1.05,.55,0x3a2c20,1).b(0,1.05,0,1.0,.05,.62,0x5a3e28).gl(0,1.2,.2,.3,.1,.05,0xffd080)});
+zdef('espresso',2.6,.85,(P,c)=>{P.b(0,0,0,2.6,1.0,.85,c,1).b(0,1.0,0,2.7,.06,.95,0xe8e0d0).b(-.6,1.06,-.1,.6,.4,.4,0x888d94).gl(-.6,1.3,.12,.1,.1,.02,0xff8a30).b(.5,1.06,.1,.5,.3,.3,0x8a4a2a).b(.6,1.06,-.2,.14,.25,.14,0x222)});
+zdef('pastry',1.5,.7,(P,c)=>{P.b(0,0,0,1.5,.9,.7,c,1).gl(0,1.05,0,1.4,.35,.6,0xcfeaff).b(-.4,.98,0,.3,.07,.3,0xd8a860).b(.1,.98,0,.3,.07,.3,0xe8c8d8).b(.5,.98,0,.3,.07,.3,0xc88a4a)});
+zdef('prep',1.8,.8,(P,c)=>{P.b(0,0,0,1.8,.92,.8,0xb8bcc2,1).b(0,.92,0,1.84,.04,.84,0xd0d4da).b(-.5,.96,0,.3,.1,.3,0xe8e0d0).b(.4,.96,.1,.5,.06,.3,0x6a6e75)});
+zdef('range',1.6,.9,(P,c)=>{P.b(0,0,0,1.6,.92,.9,0x9a9ea6,1);for(let i=0;i<4;i++)P.b(-.55+i*.36,.92,0,.28,.04,.28,0x222).b(0,1.9,-.1,1.7,.5,.7,0xb8bcc2).b(0,2.2,-.3,.5,.8,.4,0xb8bcc2);P.gl(0,.4,.46,1.2,.1,.02,0xff7a30)},{tall:1});
+zdef('crate',1.0,1.0,(P,c,r)=>{P.b(0,0,0,1.0,.6,1.0,c||0x9a7a52,1).b(0,.6,0,.96,.5,.96,(c||0x9a7a52)-0x0a0a0a);if(r()<.5)P.b(.1,1.1,.1,.6,.4,.6,0xb08a5a)});
+zdef('rack2',2.4,.95,(P,c,r)=>{for(const x of[-1.15,1.15])P.b(x,0,0,.08,3.2,.9,0xd8802a,1);for(let k=0;k<3;k++){P.b(0,.45+k*1.1,0,2.4,.08,.9,0x3a5a8a);for(let i=0;i<3;i++)if(r()<.8)P.b(-.75+i*.75,.53+k*1.1,0,.65,.6+r()*.2,.7,[0xb08a5a,0x9a7a52,0xc8a070][(i+k)%3])}},{tall:1});
+zdef('pallet',1.2,1.0,(P,c,r)=>{P.b(0,0,0,1.2,.14,1.0,0x8a6a42,1);const n=1+((r()*3)|0);for(let k=0;k<n;k++)P.b(0,.14+k*.45,0,1.05,.45,.9,[0xb08a5a,0xc8a070,0x9aa0a8][(k+((c|0)))%3])});
+zdef('boxes',1.0,.8,(P,c,r)=>{P.b(-.2,0,0,.55,.45,.5,0xb08a5a,1).b(.3,0,.1,.4,.35,.5,0xc8a070).b(0,.45,0,.5,.4,.45,0xa88050)});
+zdef('mop',.7,.6,(P)=>{P.b(0,0,0,.5,.4,.4,0x3a5a8a,1).b(.1,.4,0,.04,1.2,.04,0x8a6a42).b(.1,0,.05,.18,.18,.18,0xd8d0c0)});
+zdef('jsink',.7,.6,(P)=>{P.b(0,0,0,.7,.5,.6,0xd0d4d8,1).b(0,.5,-.2,.04,.5,.04,ZST)});
+zdef('mailbx',3.0,.2,(P,c,r)=>{P.b(0,.9,0,3.0,1.2,.2,0x9a9ea6,1);for(let i=0;i<10;i++)for(let k=0;k<4;k++){P.b(-1.3+i*.29,1.05+k*.28,.11,.24,.2,.02,0x6a6e75);P.gl(-1.3+i*.29,1.12+k*.28,.12,.1,.02,.01,0xd8c070)}},{noMark:0});
+zdef('elevd',2.4,.3,(P)=>{P.b(0,0,0,2.6,2.7,.3,0x8a8e95,1).b(-.6,0,.16,1.1,2.4,.03,0xb8bcc2).b(.6,0,.16,1.1,2.4,.03,0xb8bcc2).gl(0,2.5,.17,.6,.12,.02,0xff5a36).b(1.4,1.1,.17,.12,.3,.02,0x333);P.gl(1.4,1.25,.18,.05,.05,.01,0xffd24a)},{tall:1});
+zdef('secdesk',2.2,.9,(P,c)=>{P.b(0,0,0,2.2,1.0,.9,0x3a3d44,1).b(0,1.0,0,2.3,.06,1.0,0x6a6e75);for(let i=0;i<3;i++)P.gl(-.6+i*.6,1.3,-.3,.4,.3,.03,0x6fa8e0);P.b(0,1.05,-.3,.8,.04,.1,0x222)});
+zdef('recdesk',3.0,.9,(P,c)=>{P.b(0,0,0,3.0,1.05,.9,c,1).b(0,1.05,.1,3.1,.06,1.1,0xe8e4da).b(.5,1.1,-.2,.5,.3,.3,0x1c1d22).gl(.5,1.35,-.04,.4,.2,.02,0x6fa8e0)});
+zdef('couch2',1.9,.9,(P,c)=>{ZF.sofa.fn(P,c)},{});
+zdef('console',1.2,.4,(P,c)=>{P.b(0,.7,0,1.2,.05,.4,c,1).b(-.52,0,0,.05,.7,.35,c).b(.52,0,0,.05,.7,.35,c).b(0,.75,.0,.2,.18,.2,0xd8d0c0).gl(0,1.4,-.17,.7,.9,.03,0xc8e0ec)});
+zdef('coatr',.5,.5,(P)=>{P.b(0,0,0,.05,1.7,.05,0x3a2c20,1).b(0,0,0,.4,.04,.4,0x3a2c20).b(-.1,1.5,0,.2,.04,.04,0x3a2c20).b(.1,1.6,0,.2,.04,.04,0x3a2c20).b(0,1.0,.06,.3,.6,.1,0x4a3a5a)});
+zdef('shoes',.8,.3,(P)=>{P.b(0,0,0,.8,.3,.3,0x5a3e28,1).b(-.2,.3,0,.18,.08,.1,0x222).b(.2,.3,0,.18,.08,.1,0xa83a3a)});
+zdef('bin',.4,.4,(P)=>{P.b(0,0,0,.34,.5,.34,0x3a3d44,1)});
+zdef('ext',.3,.1,(P)=>{P.b(0,.9,0,.2,.4,.12,0xd83a3a)},{noMark:1});
+zdef('menu',1.4,.1,(P,c)=>{P.b(0,1.4,0,1.4,.8,.05,0x1c1d22).gl(0,1.4,.03,1.3,.7,.02,0x2a3a2a);for(let i=0;i<4;i++)P.gl(-.5,1.65-i*.18,.05,.6+(i%2)*.2,.03,.01,0xf0ece2)},{noMark:1});
+zdef('shelfS',1.4,.45,(P,c,r)=>{P.b(0,0,0,1.4,1.8,.45,0x8a8e95,1);for(let k=0;k<5;k++)for(let i=0;i<4;i++)if(r()<.8)P.b(-.5+i*.34,.1+k*.36,.02,.3,.28,.36,[0xb08a5a,0xc8a070,0x9aa0a8,0xd8802a][(i+k)%4])},{tall:1});
+zdef('stool',.45,.45,(P,c)=>{P.b(0,.62,0,.38,.06,.38,c,1).b(0,0,0,.05,.62,.05,0x222)});
+zdef('tvwall',1.5,.1,(P)=>{P.gl(0,1.3,0,1.4,.8,.04,0x6fa8e0).b(0,1.3,-.03,1.46,.86,.04,0x111)},{noMark:1});
+zdef('painting',1.0,.08,(P,c)=>{P.b(0,1.45,0,1.0,.7,.05,0x2a1f16).gl(0,1.45,.03,.86,.56,.02,c)},{noMark:1});
+// ---- placement helpers
+function zTr(cx,cz,rot){const a=rot*Math.PI/2,c=Math.round(Math.cos(a)),s=Math.round(Math.sin(a));return(x,z)=>[cx+x*c+z*s,cz-x*s+z*c]}
+function zProxy(R,cx,cz,rot){const tr=zTr(cx,cz,rot),odd=rot&1;return{
+  b(x,y,z,w,h,d,c,col){const[X,Z]=tr(x,z);R.b(X,y,Z,odd?d:w,h,odd?w:d,c,col&&h>.3);return this},
+  gl(x,y,z,w,h,d,c){const[X,Z]=tr(x,z);R.gl(X,y,Z,odd?d:w,h,odd?w:d,c);return this},
+  cyl(x,y,z,r,h,c){const[X,Z]=tr(x,z);R.cyl(X,y,Z,r,h,c);return this}}}
+function zFree(Z,it,x,z,rot,q,pad){const odd=rot&1,fw=(odd?it.d:it.w)+(pad||0),fd=(odd?it.w:it.d)+(pad||0);
+  if(q&&(x-fw/2<q.x0+.12||x+fw/2>q.x1-.12||z-fd/2<q.z0+.12||z+fd/2>q.z1-.12))return false;
+  if(it.tall)for(const wn of Z.windows){const dx=Math.abs(x-wn.x),dz=Math.abs(z-wn.z);if(wn.vert?(dx<fw/2+.3&&dz<fd/2+.8):(dx<fw/2+.8&&dz<fd/2+.3))return false}
+  return it.noMark||Z.isFree(x,z,fw,fd)}
+function zPutAt(Z,R,name,x,z,rot,c,q){const it=ZF[name];if(!it)return null;if(!zFree(Z,it,x,z,rot,q))return null;
+  const odd=rot&1;if(!it.noMark&&!it.flat)Z.mark(x,z,odd?it.d:it.w,odd?it.w:it.d);
+  const P=zProxy(R,x,z,rot);it.fn(P,c===undefined?ZFB[(Z.r()*ZFB.length)|0]:c,Z.r);
+  if(it.art&&Z.r()<.7){const pt=zTr(x,z,rot),ppos=pt(0,-it.d/2+.05);if(Z.windows.some(wn=>Math.hypot(wn.x-ppos[0],wn.z-ppos[1])<1.4))return{x,z,rot,it,tr:zTr(x,z,rot)};const px=zProxy(R,ppos[0],ppos[1],rot);ZF.painting.fn(px,[0x6fa8e0,0xe0a050,0x7ac08a,0xc86a8a,0xd8d0b0][(Z.r()*5)|0])}
+  return{x,z,rot,it,tr:zTr(x,z,rot)}}
+// wall-hugging placement: tries sides in the room, along the wall, from a random start
+function zWall(Z,R,q,name,o){o=o||{};const it=ZF[name];if(!it)return null;const sides=o.sides||['N','S','E','W'].sort(()=>Z.r()-.5);
+  const rot={N:0,E:3,S:2,W:1};const gap=o.gap||0;
+  for(const s of sides){const r=rot[s],odd=r&1,fw=odd?it.d:it.w,fd=odd?it.w:it.d;let lo,hi,fixed;
+    if(s==='N'||s==='S'){lo=q.x0+.15+fw/2;hi=q.x1-.15-fw/2;fixed=s==='N'?q.z0+.2+fd/2+gap:q.z1-.2-fd/2-gap}
+    else{lo=q.z0+.15+fw/2*0+fd/2;hi=q.z1-.15-fd/2;fixed=s==='W'?q.x0+.2+fw/2+gap:q.x1-.2-fw/2-gap}
+    if(hi<lo)continue;const n=Math.floor((hi-lo)/.25)+1,st=o.at!==undefined?0:((Z.r()*n)|0);
+    for(let k=0;k<n;k++){const p=o.at!==undefined?zClamp(o.at,lo,hi):lo+((st+k)%n)*.25;const x=(s==='N'||s==='S')?p:fixed,z=(s==='N'||s==='S')?fixed:p;
+      const res=zPutAt(Z,R,name,x,z,r,o.c,q);if(res)return res;if(o.at!==undefined)break}}
+  return null}
+function zFloorSpot(Z,R,q,name,o){o=o||{};const it=ZF[name];const m=o.margin||.7;for(let t=0;t<60;t++){const rot=o.rot!==undefined?o.rot:(Z.r()*4)|0,odd=rot&1,fw=odd?it.d:it.w,fd=odd?it.w:it.d;
+    const x0=q.x0+m+fw/2,x1=q.x1-m-fw/2,z0=q.z0+m+fd/2,z1=q.z1-m-fd/2;if(x1<x0||z1<z0)return null;
+    const x=zSnap(x0+Z.r()*(x1-x0),.25),z=zSnap(z0+Z.r()*(z1-z0),.25);const res=zPutAt(Z,R,name,x,z,rot,o.c,q);if(res)return res}return null}
+const zpk=(Z,a)=>a[(Z.r()*a.length)|0];
+function zLoot(Z,item,x,z,mn,mx,safe){Z.acts.push({kind:'loot',item,x:Z.ox+x,z:Z.oz+z,r:1.9,min:mn,max:mx,id:'zl'+Z.acts.length+'_'+item.slice(0,3),safe:!!safe})}
+function zNpc(Z,role,x,z,o){Z.npcs.push(Object.assign({role,x:Z.ox+x,z:Z.oz+z},o||{}))}
+function zCenter(q){return[(q.x0+q.x1)/2,(q.z0+q.z1)/2]}
+// ---- room furnishers
+const ZRM={};
+ZRM.bedroom=(Z,R,q)=>{const wc=zpk(Z,[0x6b4a2e,0x8a6a42,0x3a3a40,0xa89878]),bc=zpk(Z,ZFB);
+  const bed=zWall(Z,R,q,'bed',{c:bc,sides:['N','W','E','S'].sort(()=>Z.r()-.5)})||zFloorSpot(Z,R,q,'bed',{c:bc,rot:0});
+  if(bed){for(const s of[-1,1]){const[x,z]=bed.tr(s*(bed.it.w/2+.32),-bed.it.d/2+.25);zPutAt(Z,R,'night',x,z,bed.rot,wc,q)}
+    const[rx,rz]=bed.tr(0,.2);R.b(rx,.012,rz,(bed.rot&1?2.4:2.6),.02,(bed.rot&1?2.6:2.4),bc-0x101010);
+    if(bed.it){const[lx,lz]=bed.tr(0,bed.it.d/2+.5);}}
+  const dr=zWall(Z,R,q,'dresser',{c:wc});if(dr)zLoot(Z,'DRESSER',dr.x,dr.z,40,190);
+  zWall(Z,R,q,'wardrobe',{c:wc});
+  if((q.x1-q.x0)*(q.z1-q.z0)>16){zFloorSpot(Z,R,q,'armchair',{c:bc,margin:1.2});zWall(Z,R,q,'lamp');zWall(Z,R,q,'plant')}
+  if(Z.r()<.5&&bed){const jb=zWall(Z,R,q,'side',{c:wc});if(jb)zLoot(Z,'JEWELRY BOX',jb.x,jb.z,300,900)}
+  return bed};
+ZRM.living=(Z,R,q)=>{const wc=zpk(Z,ZWD),sc=zpk(Z,ZFB),rw=q.x1-q.x0,rd=q.z1-q.z0;
+  const tv=zWall(Z,R,q,'tvc',{c:wc});
+  if(tv){const[sx,sz]=tv.tr(0,tv.it.d/2+2.9),sofa=zPutAt(Z,R,'sofa',sx,sz,(tv.rot+2)&3,sc,q)||zWall(Z,R,q,'sofa',{c:sc});
+    const[cx,cz]=tv.tr(0,tv.it.d/2+1.6);const rr=tv.rot&1;R.b(cx,.012,cz,rr?3.4:3.0,.02,rr?3.0:3.4,sc-0x181818);zPutAt(Z,R,'coffee',cx,cz,tv.rot,wc,q);
+    if(tv.rot===0||tv.rot===2){for(const s of[-1,1]){const[ax,az]=tv.tr(s*2.1,tv.it.d/2+1.6);zPutAt(Z,R,'armchair',ax,az,(tv.rot+(s>0?3:1))&3,sc,q)}}}
+  else zWall(Z,R,q,'sofa',{c:sc});
+  const bs=zWall(Z,R,q,'bookshelf',{c:wc});zWall(Z,R,q,'plant');zWall(Z,R,q,'lamp');zWall(Z,R,q,'side',{c:wc});
+  if(rw*rd>30){zWall(Z,R,q,'bookshelf',{c:wc});zFloorSpot(Z,R,q,'armchair',{c:sc,margin:1.1})}
+  const sc2=zWall(Z,R,q,'console',{c:wc});if(sc2)zLoot(Z,'COUCH CUSHIONS',sc2.x,sc2.z,5,60);
+  return tv};
+ZRM.kitchen=(Z,R,q)=>{const cc=zpk(Z,[0x8a6a42,0xe8e4da,0x3a5a6a,0x6b4a2e]);
+  const fr=zWall(Z,R,q,'fridge',{sides:['N','W','E']});
+  let side=fr?(fr.rot===0?'N':fr.rot===1?'W':fr.rot===3?'E':'S'):'N';const runs=['sinkc','counter','stove','counter','counter'];
+  let ok=0;if(fr){for(let i=0;i<runs.length;i++){const sgn=1,off=fr.it.w/2+(i===0?.62:0)}}
+  // continuous counter run along the same wall: fill positions next to the fridge
+  const rot=fr?fr.rot:0;const adj=(k)=>fr.tr(fr.it.w/2+.45+k*.9,fr.it.d/2-.32);let placed=[];
+  if(fr){let k=0;const mk2=(name,w)=>{const[x,z]=fr.tr(fr.it.w/2+w/2+(placed.length?placed.reduce((a,b)=>a+b,0)-0:0),-fr.it.d/2+.32);const p=zPutAt(Z,R,name,x,z,rot,cc,q);if(p)placed.push(w);return p};
+    const sk=mk2('sinkc',1.2);mk2('counter',.9);const st=mk2('stove',.8);mk2('counter',.9);mk2('counter',.9);
+    if(st){}}
+  else{zWall(Z,R,q,'sinkc',{c:cc});zWall(Z,R,q,'stove',{c:cc});zWall(Z,R,q,'counter',{c:cc})}
+  if((q.x1-q.x0)*(q.z1-q.z0)>22)zFloorSpot(Z,R,q,'island',{c:cc,margin:1.3});
+  zWall(Z,R,q,'bin');zWall(Z,R,q,'plant');
+  const lc=zWall(Z,R,q,'side',{c:cc});if(lc)zLoot(Z,'COOKIE JAR',lc.x,lc.z,20,95);
+  return fr};
+ZRM.dining=(Z,R,q)=>{const wc=zpk(Z,ZWD),[cx,cz]=zCenter(q),rw=q.x1-q.x0,rd=q.z1-q.z0;
+  const vert=rd>=rw;const n=Math.max(1,Math.min(3,Math.floor((vert?rd:rw)/2.4)));
+  for(let i=0;i<n;i++){const off=(i-(n-1)/2)*2.1;const x=vert?cx:cx+off,z=vert?cz+off:cz;zPutAt(Z,R,'dtbl',zSnap(x,.25),zSnap(z,.25),vert?0:1,wc,q)}
+  R.b(cx,.012,cz,vert?3.2:Math.min(rw-.8,2.2*n+1),.02,vert?Math.min(rd-.8,2.2*n+1):3.2,0x8a3a3a);
+  zWall(Z,R,q,'dresser',{c:wc});zWall(Z,R,q,'plant');
+  iglow(R.g||Z.g,Z.ox+cx,Z.h-.5,Z.oz+cz,.9,.12,.9,0xffe0a0)};
+ZRM.bath=(Z,R,q)=>{zWall(Z,R,q,'toilet',{});const vn=zWall(Z,R,q,'vanity',{c:0xd8d0c0});
+  if((q.x1-q.x0)>2.6||(q.z1-q.z0)>2.6){if(Z.r()<.5)zWall(Z,R,q,'tub');else zWall(Z,R,q,'shower')}else zWall(Z,R,q,'shower');
+  zWall(Z,R,q,'bin');return vn};
+ZRM.study=(Z,R,q)=>{const wc=zpk(Z,ZWD);const d=zWall(Z,R,q,'deskwood',{c:wc});if(d)zLoot(Z,'LAPTOP',d.x,d.z,150,420);
+  zWall(Z,R,q,'bookshelf',{c:wc});zWall(Z,R,q,'bookshelf',{c:wc});zWall(Z,R,q,'armchair',{c:zpk(Z,ZFB)});zWall(Z,R,q,'lamp');zWall(Z,R,q,'filing');
+  if(Z.r()<.4){const s=zWall(Z,R,q,'lowshelf',{c:wc});if(s)zLoot(Z,'WALL SAFE',s.x,s.z,900,2800,true)}return d};
+ZRM.foyer=(Z,R,q)=>{const wc=zpk(Z,ZWD);const c=zWall(Z,R,q,'console',{c:wc,sides:['N','E','W']});if(c)zLoot(Z,'KEY BOWL',c.x,c.z,10,70);
+  zWall(Z,R,q,'coatr');zWall(Z,R,q,'shoes');zWall(Z,R,q,'plant');zWall(Z,R,q,'bench',{c:wc});zWall(Z,R,q,'lowshelf',{c:wc})};
+ZRM.hall=(Z,R,q)=>{const wc=zpk(Z,ZWD);zWall(Z,R,q,'console',{c:wc});zWall(Z,R,q,'plant');zWall(Z,R,q,'coatr');zWall(Z,R,q,'lamp')};
+ZRM.closet=(Z,R,q)=>{zWall(Z,R,q,'shelfS');zWall(Z,R,q,'shelfS');zWall(Z,R,q,'boxes');zWall(Z,R,q,'wardrobe',{c:0xd8d0c0});zWall(Z,R,q,'bin')};
+ZRM.corridor=(Z,R,q)=>{for(let i=0;i<3;i++)zWall(Z,R,q,'plant',{sides:['N','S']});zWall(Z,R,q,'ext',{sides:['N','S']});zWall(Z,R,q,'bench',{c:0x6b4a2e,sides:['N']});zWall(Z,R,q,'cooler',{sides:['N','S']});
+  for(let i=0;i<4;i++)zWall(Z,R,q,'painting',{sides:['N','S'],c:[0x6fa8e0,0xe0a050,0x7ac08a,0xc86a8a][i]})};
+ZRM.reception=(Z,R,q)=>{const d=zWall(Z,R,q,'recdesk',{c:0x4a4d54,sides:['N']});if(d)zLoot(Z,'RECEPTION DRAWER',d.x,d.z,60,210);
+  if(d)zNpc(Z,'clerk',d.x,d.z+1.1,{shirt:0x2a3a5a});zWall(Z,R,q,'couch2',{c:0x3a4a6a,sides:['W','E']});zWall(Z,R,q,'plant');zWall(Z,R,q,'plant');zWall(Z,R,q,'side',{c:0x4a4d54});zWall(Z,R,q,'menu',{sides:['W','E']})};
+ZRM.open=(Z,R,q)=>{const pc=zpk(Z,[0xc8c4b8,0xd8d0c0,0xb8c0c8]);const rw=q.x1-q.x0,rd=q.z1-q.z0,cols=Math.max(1,Math.floor((rw-1.6)/3.2)),rows=Math.max(1,Math.floor((rd-1.6)/2.6));let n=0;
+  const x0=q.x0+(rw-cols*3.2)/2+1.6,z0=q.z0+(rd-rows*2.6)/2+1.3;
+  for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){const p=zPutAt(Z,R,'pod',zSnap(x0+i*3.2,.25),zSnap(z0+j*2.6,.25),0,pc,q);if(p){n++;if(Z.r()<.5)zLoot(Z,'DESK DRAWER',p.x,p.z,30,160);if(Z.r()<.6)zNpc(Z,Z.r()<.5?'sit':'wander',p.x+.7,p.z+.4)}}
+  zWall(Z,R,q,'copier');zWall(Z,R,q,'cooler');zWall(Z,R,q,'filing');zWall(Z,R,q,'filing');zWall(Z,R,q,'plant');zWall(Z,R,q,'whiteboard',{sides:['N','W','E']});zWall(Z,R,q,'bin')};
+ZRM.meeting=(Z,R,q)=>{const[cx,cz]=zCenter(q),rw=q.x1-q.x0,rd=q.z1-q.z0,vert=rd>=rw,L=Math.max(2.2,Math.min(vert?rd:rw,5.4)-1.8),Wd=1.2;
+  const tw=vert?Wd:L,td=vert?L:Wd;R.b(cx,.74,cz,tw,.07,td,0x4a3424,0);R.b(cx,0,cz,tw-.4,.74,td-.4,0x3a2a1a,1);Z.mark(cx,cz,tw+.8,td+.8);
+  const nC=Math.max(2,Math.floor(L/.9));for(let i=0;i<nC;i++){const t=(i-(nC-1)/2)*.9;for(const s of[-1,1]){const px=vert?cx+s*(Wd/2+.45):cx+t,pz=vert?cz+t:cz+s*(Wd/2+.45);R.b(px,.45,pz,.46,.06,.46,0x2a2d33).b(px,0,pz,.06,.45,.06,0x111);R.b(px+(vert?s*.22:0),.5,pz+(vert?0:s*.22),vert?.05:.46,.5,vert?.46:.05,0x2a2d33)}}
+  R.gl(cx,.8,cz,.4,.03,.3,0x6fa8e0);zWall(Z,R,q,'tvwall',{sides:['N','W','E']});zWall(Z,R,q,'whiteboard',{sides:['N','W','E','S']});zWall(Z,R,q,'dresser',{c:0x4a4d54});zWall(Z,R,q,'plant')};
+ZRM.office=(Z,R,q)=>{const wc=zpk(Z,[0x4a3424,0x3a3a40,0x6b4a2e]);const d=zWall(Z,R,q,'deskwood',{c:wc,sides:['N','W','E']});if(d){zLoot(Z,'PETTY CASH',d.x,d.z,80,300);const[gx,gz]=d.tr(0,1.9);zPutAt(Z,R,'chair',gx-.5,gz,(d.rot+2)&3,0x3a3a40,q);zPutAt(Z,R,'chair',gx+.5,gz,(d.rot+2)&3,0x3a3a40,q);zNpc(Z,'sit',d.x,d.z+.6)}
+  zWall(Z,R,q,'bookshelf',{c:wc});zWall(Z,R,q,'filing');zWall(Z,R,q,'plant');zWall(Z,R,q,'lamp');if((q.x1-q.x0)*(q.z1-q.z0)>18)zWall(Z,R,q,'sofa',{c:0x3a4a6a})};
+ZRM.server=(Z,R,q)=>{for(let i=0;i<6;i++)zWall(Z,R,q,'rack');zWall(Z,R,q,'ac');const dk=zWall(Z,R,q,'filing');if(dk)zLoot(Z,'SERVER STASH',dk.x,dk.z,200,640);zWall(Z,R,q,'bin')};
+ZRM.restroom=(Z,R,q)=>{for(let i=0;i<4;i++){const t=zWall(Z,R,q,'toilet',{sides:['N','S']});if(t){const w=zProxy(R,t.x,t.z,t.rot);w.b(-.55,0,.05,.04,1.6,1.1,0xc8ccd2).b(.55,0,.05,.04,1.6,1.1,0xc8ccd2)}}
+  for(let i=0;i<2;i++)zWall(Z,R,q,'vanity',{c:0xd8d0c0,sides:['E','W','N','S']});zWall(Z,R,q,'bin')};
+ZRM.janitor=(Z,R,q)=>{zWall(Z,R,q,'jsink');zWall(Z,R,q,'mop');zWall(Z,R,q,'shelfS');zWall(Z,R,q,'shelfS');zWall(Z,R,q,'boxes');zWall(Z,R,q,'bin')};
+ZRM.storage=(Z,R,q)=>{for(let i=0;i<4;i++)zWall(Z,R,q,'shelfS');for(let i=0;i<3;i++)zWall(Z,R,q,'boxes');zFloorSpot(Z,R,q,'crate',{c:0x9a7a52,margin:1});zWall(Z,R,q,'bin')};
+ZRM.backroom=(Z,R,q)=>{for(let i=0;i<3;i++)zWall(Z,R,q,'shelfS');for(let i=0;i<3;i++)zWall(Z,R,q,'boxes');const dk=zWall(Z,R,q,'deskwood',{c:0x6b4a2e});if(dk)zLoot(Z,'CASH BOX',dk.x,dk.z,80,260);zWall(Z,R,q,'bin')};
+ZRM.fitting=(Z,R,q)=>{zWall(Z,R,q,'bench',{c:0x5a3e28});zWall(Z,R,q,'clothr',{c:2});zWall(Z,R,q,'plant')};
+ZRM.elev=(Z,R,q)=>{zWall(Z,R,q,'elevd',{sides:['N'],at:zCenter(q)[0]});zWall(Z,R,q,'bench',{c:0x5a3e28,sides:['S','E','W']});zWall(Z,R,q,'plant');zWall(Z,R,q,'plant');zWall(Z,R,q,'painting',{c:0xe0a050})};
+ZRM.mail=(Z,R,q)=>{zWall(Z,R,q,'mailbx',{sides:['N','W','E']});zWall(Z,R,q,'mailbx',{sides:['N','W','E','S']});const t=zWall(Z,R,q,'foldt',{});if(t)zLoot(Z,'PARCELS',t.x,t.z,40,210);zWall(Z,R,q,'bin');zWall(Z,R,q,'boxes')};
+ZRM.security=(Z,R,q)=>{const d=zWall(Z,R,q,'secdesk',{sides:['N','W','E']});if(d){zLoot(Z,'GUARD DESK CASH',d.x,d.z,60,250);zNpc(Z,'guard',d.x,d.z+1.1,{armed:false});zPutAt(Z,R,'chair',d.tr(0,1.2)[0],d.tr(0,1.2)[1],(d.rot+2)&3,0x2a2d33,q)}zWall(Z,R,q,'lockers',{c:0x4a5058});zWall(Z,R,q,'filing');zWall(Z,R,q,'bin')};
+ZRM.lobby=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;R.b((q.x0+q.x1)/2,.012,q.z0+rd*.4,Math.min(rw-3,12),.02,Math.min(rd*.4,4.5),0x6a5a3a);
+  const d=zWall(Z,R,q,'secdesk',{sides:['N'],at:-rw/4});if(d){zLoot(Z,'LOBBY DESK CASH',d.x,d.z,60,240);zNpc(Z,'clerk',d.x,d.z-0.9<q.z0+.5?d.z+1:d.z+1.1,{shirt:0x2a3a5a})}
+  zWall(Z,R,q,'elevd',{sides:['N'],at:rw/4});zWall(Z,R,q,'mailbx',{sides:['W','E']});
+  for(const s of[-1,1]){zFloorSpot(Z,R,q,'sofa',{c:0x3a4a6a,margin:1.2});}
+  zFloorSpot(Z,R,q,'coffee',{c:0x4a4d54,margin:1.6});for(let i=0;i<3;i++)zWall(Z,R,q,'plant');zWall(Z,R,q,'painting',{c:0xe0a050,sides:['W','E']});zNpc(Z,'guard',q.x0+2,q.z0+1.4,{armed:false});zNpc(Z,'wander',0,q.z0+rd*.45)};
+ZRM.shop=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0,cc=0x6a3a4a;
+  const cn=zWall(Z,R,q,'ccounter',{c:cc,sides:['N'],at:q.x1-2.6});if(cn){Z.acts.push({kind:'shop',item:'T-SHIRT & SNACK',price:14,heal:30,x:Z.ox+cn.x,z:Z.oz+cn.z+1.1,r:2.8},{kind:'rob',min:180,max:560,heat:2,x:Z.ox+cn.x,z:Z.oz+cn.z+1.1,r:2.8});zLoot(Z,'TILL CASH',cn.x,cn.z,80,260);zNpc(Z,'clerk',cn.x,cn.z-.8<q.z0?cn.z+1:cn.z-.7,{shirt:0x6a3a7a})}
+  zWall(Z,R,q,'wshelf',{sides:['W']});zWall(Z,R,q,'wshelf',{sides:['E']});zWall(Z,R,q,'wshelf',{sides:['W']});zWall(Z,R,q,'wshelf',{sides:['E']});
+  const rows=Math.max(1,Math.floor((rd-4)/2.4)),cols=Math.max(1,Math.floor((rw-4.5)/2.4));
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const x=q.x0+(rw-cols*2.4)/2+1.2+i*2.4,z=q.z0+(rd-rows*2.4)/2+1.5+j*2.4;if(Z.r()<.7)zPutAt(Z,R,'gond',zSnap(x,.25),zSnap(z,.25),0,j,q);else zPutAt(Z,R,'clothr',zSnap(x,.25),zSnap(z,.25),0,i+j*3,q)}
+  zNpc(Z,'wander',-2,rd*.1);if(Z.r()<.6)zNpc(Z,'wander',3,rd*.2)};
+ZRM.books=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0,cn=zWall(Z,R,q,'ccounter',{c:0x5a3e28,sides:['N'],at:q.x1-2.6});
+  if(cn){Z.acts.push({kind:'shop',item:'PAPERBACK & TEA',price:14,heal:30,x:Z.ox+cn.x,z:Z.oz+cn.z+1.1,r:2.8},{kind:'rob',min:180,max:560,heat:2,x:Z.ox+cn.x,z:Z.oz+cn.z+1.1,r:2.8});zLoot(Z,'CASH BOX',cn.x,cn.z,80,260);zNpc(Z,'clerk',cn.x,cn.z+1.1,{shirt:0x3a5a4a})}
+  for(let i=0;i<5;i++){zWall(Z,R,q,'bookshelf',{c:0x4a3424,sides:['W','E']})}for(let i=0;i<4;i++)zWall(Z,R,q,'bookshelf',{c:0x4a3424,sides:['S','N']});
+  const rows=Math.max(1,Math.floor((rd-5)/2.6)),cols=Math.max(1,Math.floor((rw-5)/3.0));
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++)zPutAt(Z,R,'bookshelf',zSnap(q.x0+(rw-cols*3)/2+1.5+i*3,.25),zSnap(q.z0+(rd-rows*2.6)/2+1.6+j*2.6,.25),0,0x4a3424,q);
+  zFloorSpot(Z,R,q,'armchair',{c:0x7a4a3a,margin:1.4});zFloorSpot(Z,R,q,'cafet',{c:0x5a3e28,margin:1.4});zWall(Z,R,q,'lamp');zWall(Z,R,q,'plant');zNpc(Z,'wander',-3,rd*.15)};
+ZRM.cafe=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;const cn=zWall(Z,R,q,'espresso',{c:0x5a3e28,sides:['N'],at:q.x1-3});
+  if(cn){Z.acts.push({kind:'shop',item:'COFFEE & PASTRY',price:9,heal:25,x:Z.ox+cn.x,z:Z.oz+cn.z+1.2,r:2.8},{kind:'rob',min:200,max:640,heat:2,x:Z.ox+cn.x,z:Z.oz+cn.z+1.2,r:2.8});zLoot(Z,'TIP JAR',cn.x+.9,cn.z,30,120);zNpc(Z,'clerk',cn.x,cn.z-.7<q.z0?cn.z+1:cn.z-.7,{shirt:0x7a4a2a});
+    const[px,pz]=[cn.x-2.4,cn.z];zPutAt(Z,R,'pastry',px,pz,0,0xe8e4da,q);for(let i=0;i<3;i++)zPutAt(Z,R,'stool',cn.x-1.2+i*1.2,cn.z+1.0,0,0x3a2c20,q)}
+  zWall(Z,R,q,'menu',{sides:['N']});const rows=Math.max(1,Math.floor((rd-3.6)/2.3)),cols=Math.max(1,Math.floor((rw-1.6)/2.2));
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const p=zPutAt(Z,R,'cafet',zSnap(q.x0+(rw-cols*2.2)/2+1.1+i*2.2,.25),zSnap(q.z0+(rd-rows*2.3)/2+1.5+j*2.3,.25),1,zpk(Z,[0xe8e4da,0xc8a070,0x6a8a9a]),q);if(p&&Z.r()<.5)zNpc(Z,'sit',p.x,p.z)}
+  zWall(Z,R,q,'plant',{});zWall(Z,R,q,'plant',{});zWall(Z,R,q,'painting',{c:0xe0a050,sides:['W','E']});zWall(Z,R,q,'bookshelf',{c:0x6b4a2e,sides:['W','E']})};
+ZRM.dining_r=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;const h=zWall(Z,R,q,'host',{sides:['S'],at:q.x1-2});
+  const cn=zWall(Z,R,q,'espresso',{c:0x2a1f16,sides:['N'],at:q.x1-3});if(cn){Z.acts.push({kind:'shop',item:'PASTA & WINE',price:24,heal:70,x:Z.ox+cn.x,z:Z.oz+cn.z+1.2,r:2.8},{kind:'rob',min:220,max:700,heat:2,x:Z.ox+cn.x,z:Z.oz+cn.z+1.2,r:2.8});zLoot(Z,'TIP JAR',cn.x+.9,cn.z,30,140);zNpc(Z,'clerk',cn.x,cn.z+1.1,{shirt:0xf0f0f0})}
+  const bc=zpk(Z,[0x7a2a30,0x2a4a3a,0x3a3a5a]);for(let i=0;i<4;i++)zWall(Z,R,q,'booth',{c:bc,sides:['W','E']});
+  const rows=Math.max(1,Math.floor((rd-3.6)/2.5)),cols=Math.max(1,Math.floor((rw-6)/2.6));for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const p=zPutAt(Z,R,'dtbl',zSnap(q.x0+(rw-cols*2.6)/2+1.3+i*2.6,.25),zSnap(q.z0+(rd-rows*2.5)/2+1.4+j*2.5,.25),1,0x3a2c20,q);if(p&&Z.r()<.5)zNpc(Z,'sit',p.x,p.z)}
+  zWall(Z,R,q,'plant');zWall(Z,R,q,'plant');zWall(Z,R,q,'painting',{c:0xd8a050,sides:['N','S']});zWall(Z,R,q,'menu',{sides:['S','N']})};
+ZRM.kitchen_c=(Z,R,q)=>{zWall(Z,R,q,'range',{sides:['N']});zWall(Z,R,q,'fridge',{sides:['W','E']});zWall(Z,R,q,'fridge',{sides:['W','E']});zWall(Z,R,q,'sinkc',{c:0xb8bcc2});zFloorSpot(Z,R,q,'prep',{margin:1.1});zWall(Z,R,q,'shelfS');zWall(Z,R,q,'bin');zNpc(Z,'wander',(q.x0+q.x1)/2,(q.z0+q.z1)/2+.4,{shirt:0xf0f0f0})};
+ZRM.gym=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;const cn=zWall(Z,R,q,'ccounter',{c:0x2a2d33,sides:['S'],at:q.x0+3});if(cn){Z.acts.push({kind:'shop',item:'PROTEIN SHAKE',price:8,heal:35,x:Z.ox+cn.x,z:Z.oz+cn.z-1.1,r:2.6});zLoot(Z,'FRONT DESK CASH',cn.x,cn.z,60,240);zNpc(Z,'clerk',cn.x,cn.z+.1<q.z1-.6?cn.z+.1:cn.z-1,{shirt:0xff5a36})}
+  for(let i=0;i<Math.floor(rw/1.3)&&i<8;i++)zWall(Z,R,q,'treadmill',{sides:['N']});zWall(Z,R,q,'dbrack',{sides:['W','E']});zWall(Z,R,q,'dbrack',{sides:['W','E']});
+  for(let i=0;i<3;i++)zFloorSpot(Z,R,q,'benchp',{margin:1.4,rot:0});for(let i=0;i<2;i++)zFloorSpot(Z,R,q,'squat',{margin:1.4});zFloorSpot(Z,R,q,'mat',{c:0x2a5a8a,margin:.6,rot:0});
+  for(const s of['W','E'])R.gl(s==='W'?q.x0+.06:q.x1-.06,1.4,(q.z0+q.z1)/2,.03,1.6,Math.min(rd-1,6),0xaed4f0);zNpc(Z,'wander',-2,0);zNpc(Z,'sit',rw/2-3,q.z0+2)};
+ZRM.locker=(Z,R,q)=>{for(let i=0;i<5;i++)zWall(Z,R,q,'lockers',{c:0x3a5a8a});zWall(Z,R,q,'bench',{c:0x5a3e28});zFloorSpot(Z,R,q,'bench',{c:0x5a3e28,margin:1.2});const lk=zWall(Z,R,q,'lockers',{c:0x5a3a3a});if(lk)zLoot(Z,'LOCKER',lk.x,lk.z,60,240);zWall(Z,R,q,'bin')};
+ZRM.barber=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;let n=0;for(let i=0;i<3;i++){if(zWall(Z,R,q,'bchair',{sides:['W','N','E']}))n++}
+  const cn=zWall(Z,R,q,'ccounter',{c:0x2a2d33,sides:['S'],at:q.x1-2});if(cn){Z.acts.push({kind:'shop',item:'QUICK TRIM',price:20,heal:15,x:Z.ox+cn.x,z:Z.oz+cn.z-1.1,r:3},{kind:'rob',min:120,max:380,heat:2,x:Z.ox+cn.x,z:Z.oz+cn.z-1.1,r:3});zLoot(Z,'CASH DRAWER',cn.x,cn.z,60,200);zNpc(Z,'clerk',cn.x,cn.z-1.1,{shirt:0xf0f0f0})}
+  zWall(Z,R,q,'shampoo',{sides:['E','W']});zWall(Z,R,q,'bench',{c:0x2a2d33,sides:['S','E','W']});zWall(Z,R,q,'plant');zWall(Z,R,q,'lowshelf',{c:0x2a2d33});zNpc(Z,'sit',-rw/2+1.6,rd/2-3)};
+ZRM.laundry=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;for(let i=0;i<Math.floor(rw/.8)&&i<9;i++)zWall(Z,R,q,i%2?'dryer':'washer',{sides:['N']});for(let i=0;i<3;i++)zWall(Z,R,q,'washer',{sides:['W','E']});for(let i=0;i<3;i++)zWall(Z,R,q,'dryer',{sides:['W','E']});
+  zFloorSpot(Z,R,q,'foldt',{margin:1.4,rot:0});zWall(Z,R,q,'bench',{c:0x5a3e28,sides:['S','W','E']});const v=zWall(Z,R,q,'filing',{sides:['S','E','W']});if(v){Z.acts.push({kind:'shop',item:'VENDING SNACK',price:6,heal:20,x:Z.ox+v.x,z:Z.oz+v.z-.8,r:2.4});zLoot(Z,'COIN BOX',v.x,v.z,60,200)}
+  zWall(Z,R,q,'plant');zNpc(Z,'wander',0,rd*.1);zNpc(Z,'sit',rw/2-3,rd/2-3)};
+ZRM.warehouse=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;const rows=Math.max(1,Math.floor((rd-6)/3.4));for(let j=0;j<rows;j++)for(let i=0;i<Math.floor((rw-3)/2.5);i++){if(Z.r()<.85)zPutAt(Z,R,'rack2',zSnap(q.x0+1.8+i*2.6,.25),zSnap(q.z0+2.4+j*3.4,.25),0,0,q)}
+  for(let i=0;i<7;i++)zFloorSpot(Z,R,q,'pallet',{c:i,margin:1.2});for(let i=0;i<4;i++)zFloorSpot(Z,R,q,'crate',{c:zpk(Z,[0x9a7a52,0x6a8a5a,0x8a5a4a]),margin:1.2});zWall(Z,R,q,'ext');zWall(Z,R,q,'cooler');
+  const lc=zFloorSpot(Z,R,q,'crate',{c:0x3a5a8a,margin:1.4});if(lc)zLoot(Z,'FREIGHT CRATE',lc.x,lc.z,120,520);zNpc(Z,'wander',-2,rd*.1,{shirt:0xd8802a});zNpc(Z,'wander',4,-rd*.2,{shirt:0xd8802a})};
+// ---- generic fallback so no room is ever empty
+const zRoomFill=(Z,R,q)=>{zWall(Z,R,q,'plant');zWall(Z,R,q,'bench',{c:0x5a3e28});zWall(Z,R,q,'bin')};
+// ---- main entry: called from ziBuilder
+function ziFurnish(g,ox,oz,Z){
+  Z.g=g;ZI.last=Z;const R=RB(g,ox,oz);R.ox=ox;R.oz=oz;R.g=g;
+  const roles=Z.rooms.slice().sort((a,b)=>{const pr=x=>x.role==='stairs'?0:(['bedroom','living','shop','cafe','dining_r','open','gym','warehouse','lobby','books','barber','laundry'].includes(x.role)?2:1);return pr(a)-pr(b)});
+  const arr=[];
+  for(const q of Z.rooms){if(q.role==='stairs'){stairBlock(R,Z.w,Z.d);Z.acts.push({kind:'stairs',dir:1,x:ox+Z.w/2-1.1,z:oz-Z.d/2+2.4,r:2.2})}}
+  // furnish the small/private rooms first so large rooms don't swallow wall space
+  const order=Z.rooms.filter(q=>q.role!=='stairs').sort((a,b)=>((a.x1-a.x0)*(a.z1-a.z0))-((b.x1-b.x0)*(b.z1-b.z0)));
+  for(const q of order){try{const f=ZRM[q.role]||zRoomFill;f(Z,R,q);if((ZRM[q.role]===undefined))zRoomFill(Z,R,q)}catch(e){console.error('furnish',q.role,e)}}
+  // curtains on windows
+  const cur=[0xe8d8c8,0xb8c8d8,0xd8b8b8,0xc8d8c0];const cc=cur[Z.P.seedN%cur.length];
+  for(const wn of Z.windows){if(Z.kind==='warehouse'||Z.kind==='gym')continue;const s=wn.vert?(wn.x<0?1:-1):1;
+    if(wn.vert){R.b(wn.x+s*.08,.15,wn.z-.95,.06,2.35,.3,cc).b(wn.x+s*.08,.15,wn.z+.95,.06,2.35,.3,cc).b(wn.x+s*.06,2.5,wn.z,.05,.05,2.3,0x3a2c20)}
+    else{const sz=wn.z<0?1:-1;R.b(wn.x-.95,.15,wn.z+sz*.08,.3,2.35,.06,cc).b(wn.x+.95,.15,wn.z+sz*.08,.3,2.35,.06,cc).b(wn.x,2.5,wn.z+sz*.06,2.3,.05,.05,0x3a2c20)}}
+  R.done();
+  // a hanging ceiling lamp over the heart of every habitable room
+  for(const q of Z.rooms){if(q.role==='stairs'||q.role==='closet'||q.role==='corridor')continue;const[cx,cz]=zCenter(q);iglow(g,ox+cx,Z.h-.12,oz+cz,.5,.08,.5,0xfff0d0)}
+  // occupants for homes / floors that do not already have staff
+  if(Z.kind==='house'||Z.kind==='bed'||Z.kind==='apt'){const bd=Z.rooms.find(q=>q.role==='bedroom');if(bd&&Z.r()<.4){const[cx,cz]=zCenter(bd);Z.npcs.push({role:'sleep',x:ox+cx,z:oz+cz,sleep:true,owner:true})}
+    const lv=Z.rooms.find(q=>q.role==='living'||q.role==='kitchen');if(lv){const[cx,cz]=zCenter(lv);if(Z.r()<.6)zNpc(Z,'wander',cx,cz+.6);if(Z.r()<.4)zNpc(Z,'sit',cx-.8,cz+1)}}
+  if(Z.kind==='office'&&Z.npcs.length<2){const q=Z.rooms.find(x=>x.role==='open')||Z.rooms[0],[cx,cz]=zCenter(q);zNpc(Z,'wander',cx,cz);zNpc(Z,'sit',cx+1,cz+.6)}
+  // keep NPCs off furniture/walls: snap each to the nearest free cell inside its own room
+  for(const n of Z.npcs){const lx=n.x-ox,lz=n.z-oz;if(Z.isFree(lx,lz,.5,.5))continue;let best=null;for(let t=0;t<40&&!best;t++){const a=t*2.4,rr=.4+t*.18,x=lx+Math.cos(a)*rr,z=lz+Math.sin(a)*rr;if(Math.abs(x)<Z.w/2-.4&&Math.abs(z)<Z.d/2-.4&&Z.isFree(x,z,.5,.5))best=[x,z]}if(best){n.x=ox+best[0];n.z=oz+best[1]}}
+  const res={w:Z.w,d:Z.d,h:Z.h,acts:Z.acts,npcs:Z.npcs};
+  try{dressDrawers(g,ox,oz,res,Z.kind)}catch(e){console.error('drawers',e)}
+  return res}
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
