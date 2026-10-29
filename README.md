@@ -12,7 +12,9 @@
 [![Reddit](https://img.shields.io/badge/Reddit-r%2F360Search-orange)](https://reddit.com/r/360search)
 [![YouTube](https://img.shields.io/badge/YouTube-@360Search-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@360Search)
 [![X](https://img.shields.io/badge/X-@_360Search-000000?logo=x&logoColor=white)](https://x.com/_360Search)
-[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat&logo=instagram&logoColor=white)](https://instagram.com/_360search)
+[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat&logo=instagram&logoColor=white)](https://instagram.com/_360search)z
+
+[![OctoCounts](https://api.octocounts.com/badge/360DigitalCo/360/branch/master)](https://octocounts.com/github/360DigitalCo/360/tree/master?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D)
 
 ### App Workflow Status: ![](https://img.shields.io/badge/build-passing-brightgreen)
 
