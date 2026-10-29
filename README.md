@@ -124,7 +124,7 @@ Or install GDebi:
 ```bash
 sudo apt install gdebi -y
 ```
-### updated steps for Linux, more specific unzipping instructions and macOS .dmg installation tutorial soon! (super busy, apologies)
+### Updated `Linux` and `macOS` installation guide coming soon!
 
 
 ### Android
@@ -140,11 +140,11 @@ Coming soon via the Samsung Galaxy Store.
 - [x] Linux desktop app
 - [X] Mac desktop app
 - [ ] Android app (Samsung Galaxy Store)
-- [x] Android APK (BETA)
+- [x] Android APK (Alpha Testing Stage [ATS])
 - [ ] Edge / Opera browser extension
 - [x] Progressive Web App improvements
 - [x] Official CLI 
--
+
 A native app may not come to any mobile OS store as they now all require an amount of money (directly & indirectly) past our funding. There will be other ways to download for mobile though, such as APK's provided and most likely an IPA for iOS devices as well.
 ---
 
