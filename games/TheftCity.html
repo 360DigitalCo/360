@@ -302,7 +302,7 @@ function heightFor(u,x,r){
 }
 const PAL_MID=[0x8d5a45,0x9a6a50,0xb08a6b,0xa7a39a,0x8f939b,0x6f757e,0xc9b79c,0x7b6757];
 // realistic NYC facade colours by height class and district (u: 0 = Battery ... north)
-const HSCALE=1.4;
+const HSCALE=1.9;
 function rcol(h,u,rnd){const q=rnd();
   const pk=(a)=>a[(rnd()*a.length)|0];
   if(h>110){ // towers: glass, steel, limestone
@@ -444,7 +444,7 @@ function buildCity(scene,progress){
           if(bx1-bx0<2.2||lz1-lz0<2.2)continue;
           const cxx=(bx0+bx1)/2,czz=(lz0+lz1)/2;
           if(landmarkAt(cxx,czz,Math.max(bx1-bx0,lz1-lz0)/2+4))continue;
-          const h=Math.min(430,Math.max(5,rb.h)*HSCALE),tall=h>75,col=rcol(h,cum,rnd),seed=rnd();
+          const h=Math.min(560,Math.max(5,rb.h)*HSCALE),tall=h>75,col=rcol(h,cum,rnd),seed=rnd();
           const tiers=h>150?3:h>80?2:1;let cx0=bx0,cx1=bx1,cz0=lz0,cz1=lz1,y=0;
           for(let t=0;t<tiers;t++){
             const th=t===tiers-1?h-y:h*(t===0?(tiers===3?.5:.62):.28);
@@ -467,7 +467,7 @@ function buildCity(scene,progress){
           const cxx=(bx0+bx1)/2,czz=(lz0+lz1)/2;
           if(nearBroadway(cxx,czz,16))continue;
           if(landmarkAt(cxx,czz,Math.max(w,lz1-lz0)/2+6))continue;
-          const h=Math.min(430,heightFor(cum,cxx,rnd)*HSCALE),tall=h>75,col=rcol(h,cum,rnd),seed=rnd();
+          const h=Math.min(560,heightFor(cum,cxx,rnd)*HSCALE),tall=h>75,col=rcol(h,cum,rnd),seed=rnd();
           const tiers=h>140?3:h>70?2:1;let cx0=bx0,cx1=bx1,cz0=lz0,cz1=lz1,y=0;
           for(let t=0;t<tiers;t++){
             const th=t===tiers-1?h-y:h*(t===0?(tiers===3?.5:.62):.28);
@@ -5000,6 +5000,10 @@ float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i
   // glass: fresnel, frames, blinds, sills & lintels
   f=f.replace("vec3 glass=mix(vec3(.07,.1,.15),uSky*.95,refl);",`vec3 Vv=normalize(cameraPosition-vW);float fres=pow(1.-max(dot(n,Vv),0.),3.);
     vec3 glass=mix(vec3(.07,.1,.15),uSky*.95,clamp(refl+fres*.55,0.,1.));
+    {vec3 Rv=reflect(-Vv,n);float up=clamp(Rv.y,-.2,1.);vec3 skyR=mix(uFog*1.05,uSky*1.1,smoothstep(0.,.7,up));
+     float cl=smoothstep(.5,.85,vn(Rv.xz/(Rv.y+.35)*2.2+vS));skyR=mix(skyR,vec3(1.)*(.55+.45*length(uSunCol)),cl*.35*step(0.,Rv.y));
+     float gl=pow(max(dot(Rv,normalize(uSun)),0.),48.);skyR+=uSunCol*gl*1.6;
+     glass=mix(glass,skyR*(1.-uNight*.8),clamp(fres*.9+refl*.25,0.,1.)*win);}
     float bl=h21(cell+21.);float blindAmt=step(.45,bl)*step(f.y,.82-h21(cell+5.)*.55);vec3 blindC=mix(vec3(.62,.58,.5),vec3(.34,.38,.46),h21(cell+27.));
     glass=mix(glass,mix(glass,blindC,.65),blindAmt*(1.-refl)*.8);
     float mull=(step(abs(f.x-.5),.018)+step(abs(f.y-.53),.014))*win;glass=mix(glass,vec3(.08,.08,.09),mull*.85);
@@ -5014,6 +5018,70 @@ const _buRX=busUpdate;busUpdate=function(dt){_buRX(dt);if(!G.started||INT.on||CI
   try{if(PL.mode==='foot'&&typeof pushOut==='function'){pushOut(PL.x,PL.z,.45,_po);if(_po.hit&&Math.hypot(_po.x-PL.x,_po.z-PL.z)>1.4){RXS.fails++;PL.x=_po.x;PL.z=_po.z}}
     if(!Number.isFinite(PL.x)||!Number.isFinite(PL.z)||!Number.isFinite(PL.y)){PL.x=0;PL.z=-2404;PL.y=groundY(0,-2404);PL.vy=0}
     for(const v of (PK.cars||[])){if(!Number.isFinite(v.x)||!Number.isFinite(v.z)){v.x=PL.x+20;v.z=PL.z;v.vx=v.vz=0}}}catch(e){}};
+// ---------- c11zn: building window rewrite — antialiased grid with distance LOD (no shimmer/speckle), parallax rooms behind lit glass, stable hashing
+(function(){
+const HEAD=`float zh(vec2 p){p=mod(p,vec2(251.));return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+float zbx(vec2 f,vec2 lo,vec2 hi,vec2 w){vec2 a=smoothstep(lo-w,lo+w,f)*(1.-smoothstep(hi-w,hi+w,f));return a.x*a.y;}
+vec3 zRoom(vec2 f,vec3 Vw,vec3 n,bool xf,vec2 cell,float sd){
+  float D=3.2+2.2*zh(cell+3.7);vec3 p=vec3((f.x-.5)*3.3,f.y*3.7,0.);
+  float sg=xf?1.:1.;vec3 d=vec3(xf?Vw.z:Vw.x,Vw.y,-dot(Vw,n));d=normalize(d);d.z=max(d.z,.05);
+  float tx=((d.x>0.?1.65:-1.65)-p.x)/(abs(d.x)<1e-4?1e-4:d.x);float ty=((d.y>0.?3.7:0.)-p.y)/(abs(d.y)<1e-4?1e-4:d.y);float tz=(D-p.z)/d.z;
+  float t=min(min(tx,ty),tz);vec3 h=p+d*t;
+  float hue=zh(cell+11.);vec3 wallC=mix(mix(vec3(.82,.74,.6),vec3(.62,.7,.78),hue),mix(vec3(.78,.55,.5),vec3(.6,.74,.6),hue),step(.5,zh(cell+2.)));
+  vec3 lamp=vec3((zh(cell+5.)-.5)*1.4,3.3,D*(.35+.3*zh(cell+8.)));float dl=length(h-lamp);float li=1.6/(1.+dl*dl*.16);
+  vec3 c;
+  if(t==tz){c=wallC;float couch=step(.12,zh(cell+17.))*zbx(vec2(h.x,h.y),vec2(-1.2+1.0*zh(cell+19.),0.),vec2(.6+.9*zh(cell+20.),.55+.5*zh(cell+21.)),vec2(.03));c=mix(c,c*.35+vec3(.04,.03,.03),couch);
+    float pic=zbx(vec2(h.x,h.y),vec2(-.4,1.4),vec2(.5,2.2),vec2(.03))*step(.55,zh(cell+31.));c=mix(c,vec3(.25,.3,.4),pic*.8);
+    float tv=zbx(vec2(h.x,h.y),vec2(.6,.9),vec2(1.4,1.45),vec2(.03))*step(.8,zh(cell+41.));c=mix(c,vec3(.35,.6,1.1),tv);}
+  else if(t==ty){c=d.y>0.?vec3(.88,.86,.82):vec3(.34,.26,.2);}else c=wallC*.85;
+  float lamps=smoothstep(.0,.4,.5-length(h.xy-lamp.xy)*.0);
+  return c*li*(.85+.3*sd);}
+`;
+function patch(f){
+  if(f.indexOf('float yy=y-4.7;')<0||f.indexOf('float roofEdge=')<0)return f;
+  f=f.replace('void main(){',HEAD+'void main(){');
+  const a=f.indexOf('float yy=y-4.7;'),eTag='float roofEdge=step(vSc.y-1.1,y);base=mix(base,base*1.2,roofEdge);',b=f.indexOf(eTag)+eTag.length;
+  const mid=`float yy=y-4.7;vec2 q=vec2(hc/3.3,yy/3.7);vec2 cell=floor(q);vec2 f=fract(q);vec2 fw=fwidth(q)*.8+1e-4;float lod=smoothstep(.1,.42,max(fw.x,fw.y));
+    float top=step(y,vSc.y-1.4)*inb;
+    float win=zbx(f,vec2(.2,.24),vec2(.8,.82),fw)*top;
+    float fr=zbx(f,vec2(.12,.16),vec2(.88,.88),fw)*inb*(1.-win);
+    float id=zh(cell+vec2(vS*91.,xf?13.:7.));
+    float refl=.28+.32*zh(cell+3.);
+    vec3 Vv=normalize(cameraPosition-vW);float fres=pow(1.-max(dot(n,Vv),0.),3.);
+    vec3 glass=mix(vec3(.07,.1,.15),uSky*.95,clamp(refl+fres*.55,0.,1.));
+    {vec3 Rv=reflect(-Vv,n);float up=clamp(Rv.y,-.2,1.);vec3 skyR=mix(uFog*1.05,uSky*1.1,smoothstep(0.,.7,up));
+     float cl=smoothstep(.5,.85,vn(Rv.xz/(Rv.y+.35)*2.2+vS));skyR=mix(skyR,vec3(1.)*(.55+.45*length(uSunCol)),cl*.35*step(0.,Rv.y));
+     float gl=pow(max(dot(Rv,normalize(uSun)),0.),48.);skyR+=uSunCol*gl*1.6;
+     glass=mix(glass,skyR*(1.-uNight*.8),clamp(fres*.9+refl*.25,0.,1.)*win);}
+    float bl=zh(cell+21.);float blindAmt=step(.45,bl)*step(f.y,.82-zh(cell+5.)*.55);vec3 blindC=mix(vec3(.62,.58,.5),vec3(.34,.38,.46),zh(cell+27.));
+    glass=mix(glass,mix(glass,blindC,.65),blindAmt*(1.-refl)*.8*(1.-lod));
+    float mull=(zbx(vec2(f.x,0.),vec2(.482,-1.),vec2(.518,1.),vec2(fw.x,1.))+zbx(vec2(0.,f.y),vec2(-1.,.516),vec2(1.,.544),vec2(1.,fw.y)))*win*(1.-lod);glass=mix(glass,vec3(.08,.08,.09),clamp(mull,0.,1.)*.85);
+    float sill=zbx(f,vec2(.2,.185),vec2(.8,.24),fw)*top;base=mix(base,base*1.22+.04,sill*.9*(1.-lod));
+    float lint=zbx(f,vec2(.14,.82),vec2(.86,.87),fw)*top;base=mix(base,base*1.12,lint*.8*(1.-lod));
+    float rimv=clamp(1.-zbx(f,vec2(.23,.27),vec2(.77,.79),fw),0.,1.);glass=mix(glass,glass*.5,rimv*win*.7*(1.-lod));
+    base=mix(base,base*.74,fr*(1.-lod*.5));
+    float winM=mix(win,.3*top,lod);
+    base=mix(base,mix(glass,vec3(.09,.11,.15)+uSky*.1,lod),winM*.92);
+    float litv=mix(step(.52,id),.5,lod)*uNight;
+    vec3 Vw=normalize(vW-cameraPosition);
+    vec3 room=zRoom(f,Vw,n,xf,cell,fract(id*7.));
+    vec3 warm=mix(vec3(1.,.8,.5),vec3(.72,.86,1.),zh(cell+9.));
+    vec3 glow=mix(room*warm*1.25,warm*.55,lod);
+    em=winM*litv*glow;
+    // unlit rooms: faint dark interior seen through the glass
+    base=mix(base,base+room*.05*(1.-fres),win*(1.-step(.52,id))*(1.-lod)*(1.-uNight*.5));
+    gloss=win*(1.-litv);
+    float fl=floor(yy/3.7);float cor=step(.86,f.y)*step(.5,fract(fl/8.))*step(fract(fl/8.),.2);
+    base=mix(base,base*1.18,cor);
+    float roofEdge=step(vSc.y-1.1,y);base=mix(base,base*1.2,roofEdge);`;
+  f=f.slice(0,a)+mid+f.slice(b);
+  // storefronts: antialiased shop glass with mullions and a soft interior glow
+  f=f.replace('float shopWin=step(.5,y)*step(y,3.2)*step(.12,fu)*step(fu,.88)*inb;','vec2 sq=vec2(u,y);vec2 sfw=fwidth(sq)*.8+1e-4;float slod=smoothstep(.06,.3,sfw.x);float shopWin=zbx(vec2(fu,y),vec2(.12,.5),vec2(.88,3.2),vec2(sfw.x,sfw.y))*inb;');
+  f=f.replace('em=shopWin*uNight*open*vec3(1.,.82,.55)*.85+sign*uNight*neon*1.1;','float sgrad=.55+.45*smoothstep(.5,3.2,y);float smul=1.-.8*zbx(vec2(fract(u*2.),0.),vec2(.48,-1.),vec2(.52,1.),vec2(sfw.x*2.,1.))*(1.-slod);em=shopWin*uNight*open*vec3(1.,.82,.55)*.62*sgrad*smul+sign*uNight*neon*.9;');
+  return f}
+const _mz=makeBuildingMaterial;
+makeBuildingMaterial=function(uni){const m=_mz(uni);try{m.fragmentShader=patch(m.fragmentShader);m.extensions=Object.assign({},m.extensions,{derivatives:true})}catch(e){console.error('zn',e)}return m};
+})();
 // ---------- c11y: MANHUNT mode (lobby vote, cops vs runners), cop-role voice/story fixes, cop-hit reactions
 const MH={want:false,state:'off',cfg:{runners:2,cops:1,time:300,bots:false},votes:{},names:{},roles:{},caught:{},me:null,t0:0,hs:20,el:null,hud:null,bc:[],spec:false,cx:0,cz:0,lastHB:0,res:null,hinted:false,placed:false,old:null};
 function mhInGame(){return MH.state==='head'||MH.state==='play'}
@@ -5200,7 +5268,7 @@ function hxKnitTex(){if(HX.knit)return HX.knit;const S=64,c=hxCanvas(S,S),g=c.ge
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(10,3);return HX.knit=t}
 // face texture (planar projection: u=.5+x/.19, v=.5+y/.25 in head space)
 function hxFace(L){const key=[L.skin,L.eye,L.brow,L.fem?1:0,L.beard?1:0,L.hair,L.age||0].join('|');let t=HX.faces.get(key);if(t)return t;
-  const S=384,c=hxCanvas(S,S),g=c.getContext('2d'),R=hxRand((L.skin*31+L.eye*7+L.hair)|0);const X=x=>(.5+x/.19)*S,Y=y=>(1-(.5+y/.25))*S,sx=S/.19,sy=S/.25;
+  const S=768,c=hxCanvas(S,S),g=c.getContext('2d'),R=hxRand((L.skin*31+L.eye*7+L.hair)|0);const X=x=>(.5+x/.19)*S,Y=y=>(1-(.5+y/.25))*S,sx=S/.19,sy=S/.25;
   const sk=hxCol.set(L.skin),r0=sk.r*255,g0=sk.g*255,b0=sk.b*255,rgb=(k,a)=>'rgba('+Math.min(255,r0*k)+','+Math.min(255,g0*k*.97)+','+Math.min(255,b0*k*.93)+','+(a==null?1:a)+')';
   g.fillStyle=rgb(1);g.fillRect(0,0,S,S);
   const blob=(x,y,rx,ry,col,a)=>{g.save();g.translate(X(x),Y(y));g.scale(rx*sx,ry*sy);const gr=g.createRadialGradient(0,0,0,0,0,1);gr.addColorStop(0,col.replace('A',a));gr.addColorStop(1,col.replace('A',0));g.fillStyle=gr;g.beginPath();g.arc(0,0,1,0,7);g.fill();g.restore()};
@@ -5419,7 +5487,7 @@ makePerson=function(shirt,o){
   const legL=new THREE.Group(),legR=new THREE.Group(),armL=new THREE.Group(),armR=new THREE.Group(),head=new THREE.Group(),torso=new THREE.Group();
   legL.position.set(-.1,.88,0);legR.position.set(.1,.88,0);armL.position.set(-.255*(fem?.94:1),1.46,0);armR.position.set(.255*(fem?.94:1),1.46,0);head.position.set(0,1.73,0);torso.position.set(0,1.2,0);
   legL.add(mesh(e.legL));legR.add(mesh(e.legR));armL.add(mesh(e.armL));armR.add(mesh(e.armR));torso.add(mesh(e.torso));
-  const fm=new THREE.MeshLambertMaterial({map:e.faceTex,vertexColors:true});head.add(mesh(e.head,fm));head.add(mesh(e.ears,M.plain));
+  const fm=new THREE.MeshPhysicalMaterial({map:e.faceTex,vertexColors:true,roughness:.5,metalness:0,envMapIntensity:.8,sheen:new THREE.Color(.35,.28,.25),clearcoat:.06,clearcoatRoughness:.45});head.add(mesh(e.head,fm));head.add(mesh(e.ears,M.plain));
   if(e.hair)head.add(mesh(e.hair,M.hair));if(e.beard){const bm=new THREE.MeshLambertMaterial({vertexColors:true,map:hxHairTex(),polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});head.add(mesh(e.beard,bm))}
   if(e.hat)head.add(mesh(e.hat,L.hatKind===1?HX.mats.knit:M.plain));if(e.glasses)head.add(mesh(e.glasses,M.plain));
   g.add(legL,legR,armL,armR,torso,head);
@@ -5913,7 +5981,7 @@ const _buEV=busUpdate;busUpdate=function(dt){_buEV(dt);if(!G.started)return;
   try{const h=G.lock!=null?G.lock:G.hour;EV.t+=dt;if(!EV.cube||Math.abs(h-EV.last)>.35||(EV.t>40)){EV.t=0;evUpdate()}
     scene.environment=INT.on?EV.rtI.texture:(EV.rt?EV.rt.texture:null);
     // wet-look roads (stronger at night)
-    if(CITY&&CITY.parts&&CITY.parts.ground){const rm=CITY.parts.ground.material,wet=.28+(G.night||0)*.42;rm.roughness=1-wet*.6;rm.envMapIntensity=.18+wet*.45}
+    if(CITY&&CITY.parts&&CITY.parts.ground){const rm=CITY.parts.ground.material;if(!rm.userData.asph){rm.userData.asph=1;rm.onBeforeCompile=function(sh){sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(position,1.)).xyz;');sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;float aH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5);}float aN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(aH(i),aH(i+vec2(1,0)),f.x),mix(aH(i+vec2(0,1)),aH(i+vec2(1,1)),f.x),f.y);}').replace('#include <map_fragment>','#include <map_fragment>\n{float g1=aH(floor(vWP.xz*14.));float pat=aN(vWP.xz*.7)*.5+aN(vWP.xz*3.1)*.3+aN(vWP.xz*11.)*.2;float crk=smoothstep(.02,0.,abs(aN(vWP.xz*.45)-.5));diffuseColor.rgb*=(.82+.3*pat)*(.93+.14*g1)*(1.-.35*crk);}').replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(roughnessFactor*(.8+.4*aN(vWP.xz*.9))+.0,.2,1.);');};rm.needsUpdate=true}const wet=.28+(G.night||0)*.42;rm.roughness=1-wet*.6;rm.envMapIntensity=.18+wet*.45}
     // camera motion for blur + sun position on screen
     const cp=camera.position;if(EV.hasPrev){const v=cp.distanceTo(EV.prevPos)/Math.max(dt,.001);EV.mb=Math.min(1,Math.max(0,(v-10)/55))*(CINE.on?.6:1)*(INT.on?.5:1)}EV.prevPos.copy(cp);EV.hasPrev=true;
     const sd=skyU.sunDir.value,v3=new THREE.Vector3(sd.x,sd.y,sd.z).multiplyScalar(1000).add(cp).project(camera);const front=v3.z<1;EV.sunUV.set(v3.x*.5+.5,v3.y*.5+.5);
@@ -5984,6 +6052,13 @@ addEventListener('keydown',e=>{if(e.code==='KeyB'&&G.started&&!e.repeat&&!overla
 const _buGX=busUpdate;busUpdate=function(dt){_buGX(dt);if(!G.started)return;gxHook();
   // adaptive quality: step down after sustained low FPS, never back up automatically
   if(GX.on&&!G.qLock){if(G.fps&&G.fps<24){GX.slow+=dt;if(GX.slow>4){GX.slow=0;if(GX.q>0){GX.q--;toast(GX.q?'GRAPHICS · AO OFF (SMOOTHER)':'GRAPHICS · BASIC (SMOOTHER)',1500)}}}else GX.slow=Math.max(0,GX.slow-dt*.5)}};
+// ---------- c11zo: street-scale proportions — people and cars read smaller against the taller city (interiors keep 1:1 so furniture still fits)
+const WS={ppl:.86,car:.86};
+{const _mp=makePerson;makePerson=function(s,o){const g=_mp(s,o);try{if(!INT.on&&!(o&&o.noScale))g.scale.multiplyScalar(WS.ppl)}catch(e){}return g}}
+{const _mc2=makeCarMesh;makeCarMesh=function(t,c){const g=_mc2(t,c);try{g.scale.multiplyScalar(WS.car)}catch(e){}return g}}
+// skin: physically based body shading (pores via bump, sheen for soft edge light, env reflections), hair a touch glossier
+{const _hm=hxMats;hxMats=function(){const m=_hm();if(!m.__pbr){m.__pbr=1;try{const b=m.body;const nb=new THREE.MeshPhysicalMaterial({vertexColors:true,map:b.map,bumpMap:b.map,bumpScale:.7,roughness:.58,metalness:0,envMapIntensity:.8,sheen:new THREE.Color(.35,.28,.25),clearcoat:.04,clearcoatRoughness:.5});m.body=nb;
+  m.hair.roughness=.42;m.hair.envMapIntensity=1;}catch(e){console.error('skin',e)}}return m}}
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
