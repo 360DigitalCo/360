@@ -47,15 +47,24 @@
     drawer?.setAttribute("aria-hidden", String(!open));
     historyTrigger?.setAttribute("aria-expanded", String(open));
   }
+  const PCACHE = "ai_profile_cache_v1";
+  function readCache() { try { return JSON.parse(localStorage.getItem(PCACHE) || "null"); } catch (_) { return null; } }
   async function updateProfile(user) {
     let name = user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.username || (user?.email ? user.email.split("@")[0] : "Guest");
     let avatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || "";
+    const cached = readCache();
+    if (user?.id && cached && cached.id === user.id) { name = cached.name || name; avatar = cached.avatar || avatar; }
+    renderProfile(user, name, avatar);   // paint immediately, don't wait for the database
     if (client && user?.id) {
       try {
         const { data } = await client.from("profiles").select("username,avatar_url").eq("id", user.id).maybeSingle();
         if (data) { name = data.username || name; avatar = data.avatar_url || avatar; }
+        try { localStorage.setItem(PCACHE, JSON.stringify({ id: user.id, name, avatar })); } catch (_) {}
+        renderProfile(user, name, avatar);
       } catch (_) {}
     }
+  }
+  function renderProfile(user, name, avatar) {
     const initial = String(name || "G").trim().slice(0, 1).toUpperCase() || "G";
     [$("ai-profile-name"), $("ai-profile-menu-name")].forEach(el => { if (el) el.textContent = name; });
     const subtitle = $("ai-profile-subtitle"); if (subtitle) subtitle.textContent = user ? "AI preferences" : "Guest session";
