@@ -5501,10 +5501,14 @@ function ziBsp(rect,n,minW,minD,r,walls){const L=[rect];
   return L}
 // pick door positions on each wall, avoiding T-junctions
 function ziDoors(walls,doorW){for(const wl of walls){const J=[];for(const o of walls){if(o===wl||o.v===wl.v)continue;if(Math.abs(o.a-wl.p)<.05||Math.abs(o.b-wl.p)<.05){if(o.p>wl.a+.01&&o.p<wl.b-.01)J.push(o.p)}}
-    J.sort((a,b)=>a-b);const pts=[wl.a].concat(J,[wl.b]);let best=null,bl=0;for(let i=0;i<pts.length-1;i++){const l=pts[i+1]-pts[i];if(l>bl){bl=l;best=i}}
-    wl.doors=[];if(best==null)continue;const lo=pts[best],hi=pts[best+1],dw=Math.min(doorW,Math.max(.9,hi-lo-.5));wl.doors.push({c:(lo+hi)/2+((hi-lo)>7?((wl.p*13)%1-.5)*(hi-lo)*.3:0),w:dw});
-    // long walls get a second doorway into the neighbouring room
-    if(bl>8.5){const lo2=lo,hi2=hi,c2=wl.doors[0].c;const alt=c2>(lo2+hi2)/2?lo2+(c2-lo2)*.35:hi2-(hi2-c2)*.35;if(Math.abs(alt-c2)>2.6)wl.doors.push({c:alt,w:dw})}}}
+    J.sort((a,b)=>a-b);const pts=[wl.a].concat(J,[wl.b]);wl.doors=[];if(wl.nd)continue;
+    const segs=[];for(let i=0;i<pts.length-1;i++)segs.push([pts[i],pts[i+1]]);
+    const addDoor=(lo,hi)=>{const l=hi-lo;if(l<1.2)return;const dw=Math.min(doorW,Math.max(.9,l-.5));wl.doors.push({c:(lo+hi)/2+(l>7?((wl.p*13)%1-.5)*l*.3:0),w:dw});
+      if(l>8.5){const c2=wl.doors[wl.doors.length-1].c,alt=c2>(lo+hi)/2?lo+(c2-lo)*.35:hi-(hi-c2)*.35;if(Math.abs(alt-c2)>2.6)wl.doors.push({c:alt,w:dw})}};
+    if(wl.units){for(let u=0;u<wl.units.length-1;u++){const u0=wl.units[u],u1=wl.units[u+1];let best=null,bl=0;for(const sg of segs){const lo=Math.max(sg[0],u0),hi=Math.min(sg[1],u1);if(hi-lo>bl){bl=hi-lo;best=[lo,hi]}}if(best)addDoor(best[0],best[1])}continue}
+    // every segment between junctions gets a doorway, so each pair of neighbouring rooms is connected
+    let any=false;for(const sg of segs)if(sg[1]-sg[0]>=2.6){addDoor(sg[0],sg[1]);any=true}
+    if(!any){let best=null,bl=0;for(const sg of segs)if(sg[1]-sg[0]>bl){bl=sg[1]-sg[0];best=sg}if(best)addDoor(best[0],best[1])}}}
 function ziBuildWalls(g,ox,oz,h,walls,wallColOf,Z){
   const seg=(vert,p,a,b,thick)=>{ // solid segment a..b along wall line p
     if(b-a<.04)return;const L=b-a,c=(a+b)/2;
@@ -5554,8 +5558,8 @@ function ziLayout(P){const {kind,r,w,d,floor,top}=P,walls=[],rooms=[];const R=(x
   if(kind==='house'){const f=R(-hw,hd-foyerDepth,hw,hd,'foyer');walls.push({v:false,p:hd-foyerDepth,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-foyerDepth},6,['living','kitchen','dining','study','bath','closet'])}
   else if(kind==='bed'){const f=R(-hw,hd-3.2,hw,hd,'hall');walls.push({v:false,p:hd-3.2,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-3.2},5,['bedroom','bedroom','bath','bedroom','study','closet'])}
   else if(kind==='apt'){const corr=w>26;
-    if(corr){const cd=2.8;R(-hw,hd-cd,hw,hd,'corridor');walls.push({v:false,p:hd-cd,a:-hw,b:hw});const n=Math.max(2,Math.floor((w-(stair?3.4:0))/10.5)),uw=(w-(stair?3.4:0))/n;
-      for(let i=0;i<n;i++){const ux0=-hw+i*uw,ux1=ux0+uw;if(i>0)walls.push({v:true,p:ux0,a:-hd,b:hd-cd});
+    if(corr){const cd=2.8;R(-hw,hd-cd,hw,hd,'corridor');const n=Math.max(2,Math.floor((w-(stair?3.4:0))/10.5)),uw=(w-(stair?3.4:0))/n;const cwall={v:false,p:hd-cd,a:-hw,b:hw,units:Array.from({length:n+1},(_,i)=>-hw+i*uw)};walls.push(cwall);
+      for(let i=0;i<n;i++){const ux0=-hw+i*uw,ux1=ux0+uw;if(i>0)walls.push({v:true,p:ux0,a:-hd,b:hd-cd,nd:1});
         const sub=ziBsp({x0:ux0,x1:ux1,z0:-hd,z1:hd-cd},4,3.2,3.2,r,walls);leavesTo(sub,['living','bedroom','kitchen','bath'])}
       if(stair)walls.push({v:true,p:hw-3.4,a:-hd,b:hd-cd})}
     else{R(-hw,hd-foyerDepth,hw,hd,'foyer');walls.push({v:false,p:hd-foyerDepth,a:-hw,b:hw});bspRegions({x0:-hw,x1:hw,z0:-hd,z1:hd-foyerDepth},5,['living','bedroom','kitchen','bath','closet'])}}
@@ -5605,7 +5609,7 @@ enterBuilding=function(nb,floor){
   try{const key=ziKey(nb,floor),top=nb.info.floors;
     if(!ROOMDEF[key]){const i=NEXT_X.n++;ROOMDEF[key]={b:ziBuilder(nb,floor,top),ox:31000+(i%16)*76,oz:30100+Math.floor(i/16)*56,n:nb.info.name}}
     const type=nb.info.kind;ROOMDEF[key].n=(nb.info.kind==='lobby2'||nb.info.kind==='house'||floor>1?nb.info.name+' · FLOOR '+floor:nb.info.name);
-    BLD.cur={nb,floor};enterRoom(key,nb.ret);INT.exitT=.25;INT.lights.forEach(L=>{L.intensity=.62;L.distance=Math.max(L.distance,16)});
+    BLD.cur={nb,floor};enterRoom(key,nb.ret);INT.exitT=.25;INT.lights.forEach(L=>{L.intensity=.5;L.distance=Math.max(L.distance,16)});
     setTimeout(()=>{for(const o of INT.npcs)if(o.sleep){o.g.rotation.set(-Math.PI/2,0,0);o.g.position.set(o.x,.78,o.z+.9)}},50)
   }catch(e){console.error('zi enter',e);return _ebZI(nb,floor)}};
 // ---------- c11zj: furnishing for the per-building floor plans (c11zi). Every room is furnished by its purpose; placement uses the occupancy grid so nothing overlaps or blocks a doorway
@@ -5845,6 +5849,16 @@ ZRM.warehouse=(Z,R,q)=>{const rw=q.x1-q.x0,rd=q.z1-q.z0;const rows=Math.max(1,Ma
   const lc=zFloorSpot(Z,R,q,'crate',{c:0x3a5a8a,margin:1.4});if(lc)zLoot(Z,'FREIGHT CRATE',lc.x,lc.z,120,520);zNpc(Z,'wander',-2,rd*.1,{shirt:0xd8802a});zNpc(Z,'wander',4,-rd*.2,{shirt:0xd8802a})};
 // ---- generic fallback so no room is ever empty
 const zRoomFill=(Z,R,q)=>{zWall(Z,R,q,'plant');zWall(Z,R,q,'bench',{c:0x5a3e28});zWall(Z,R,q,'bin')};
+// drop loot that furniture has boxed in (flood fill over the occupancy grid with walls and doorways)
+function ziPrune(Z){const cw=Z.cw,ch=Math.ceil(Z.d/.25),g=Z.occ.slice(),cell=(x,z)=>[Math.floor((x+Z.w/2)/.25),Math.floor((z+Z.d/2)/.25)];
+  const clr=(x,z,sw,sd)=>{const a=cell(x-sw/2,z-sd/2),b=cell(x+sw/2,z+sd/2);for(let i=a[0];i<=b[0];i++)for(let j=a[1];j<=b[1];j++)if(i>=0&&j>=0&&i<cw&&j<ch)g[j*cw+i]=0};
+  for(const p of Z.doorPts){if(p.v)clr(p.x,p.z,1.9,p.w+.9);else clr(p.x,p.z,p.w+.9,1.9)}clr(0,Z.d/2-1.8,4.4,3.6);
+  for(const wl of Z.walls){const ds=(wl.doors||[]).map(d=>[d.c-d.w/2-.05,d.c+d.w/2+.05]);for(let t=wl.a;t<=wl.b;t+=.1){if(ds.some(d=>t>d[0]&&t<d[1]))continue;const c=wl.v?cell(wl.p,t):cell(t,wl.p);if(c[0]>=0&&c[1]>=0&&c[0]<cw&&c[1]<ch)g[c[1]*cw+c[0]]=2}}
+  const g0=g.slice();for(let j=0;j<ch;j++)for(let i=0;i<cw;i++){if(g0[j*cw+i])continue;for(let dj=-1;dj<=1&&!g[j*cw+i];dj++)for(let di=-1;di<=1;di++){const ni=i+di,nj=j+dj;if(ni<0||nj<0||ni>=cw||nj>=ch||g0[nj*cw+ni]){g[j*cw+i]=3;break}}}
+  const st=cell(0,Z.d/2-2.4),seen=new Uint8Array(cw*ch),qu=[st[1]*cw+st[0]];seen[qu[0]]=1;g[qu[0]]=0;
+  while(qu.length){const c=qu.pop(),ci=c%cw,cj=(c/cw)|0;for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){const ni=ci+dx,nj=cj+dz;if(ni<0||nj<0||ni>=cw||nj>=ch)continue;const n=nj*cw+ni;if(seen[n]||g[n])continue;seen[n]=1;qu.push(n)}}
+  // furniture cells themselves are occupied, so test for any reachable cell within interaction range
+  Z.acts=Z.acts.filter(a=>{if(a.kind!=='loot')return true;const c=cell(a.x-Z.ox,a.z-Z.oz);for(let dj=-6;dj<=6;dj++)for(let di=-6;di<=6;di++){if(di*di+dj*dj>30)continue;const i=c[0]+di,j=c[1]+dj;if(i>=0&&j>=0&&i<cw&&j<ch&&seen[j*cw+i])return true}return false})}
 // ---- main entry: called from ziBuilder
 function ziFurnish(g,ox,oz,Z){
   Z.g=g;ZI.last=Z;const R=RB(g,ox,oz);R.ox=ox;R.oz=oz;R.g=g;
@@ -5868,6 +5882,7 @@ function ziFurnish(g,ox,oz,Z){
   if(Z.kind==='office'&&Z.npcs.length<2){const q=Z.rooms.find(x=>x.role==='open')||Z.rooms[0],[cx,cz]=zCenter(q);zNpc(Z,'wander',cx,cz);zNpc(Z,'sit',cx+1,cz+.6)}
   // keep NPCs off furniture/walls: snap each to the nearest free cell inside its own room
   for(const n of Z.npcs){const lx=n.x-ox,lz=n.z-oz;if(Z.isFree(lx,lz,.5,.5))continue;let best=null;for(let t=0;t<40&&!best;t++){const a=t*2.4,rr=.4+t*.18,x=lx+Math.cos(a)*rr,z=lz+Math.sin(a)*rr;if(Math.abs(x)<Z.w/2-.4&&Math.abs(z)<Z.d/2-.4&&Z.isFree(x,z,.5,.5))best=[x,z]}if(best){n.x=ox+best[0];n.z=oz+best[1]}}
+  try{ziPrune(Z)}catch(e){console.error('prune',e)}
   const res={w:Z.w,d:Z.d,h:Z.h,acts:Z.acts,npcs:Z.npcs};
   try{dressDrawers(g,ox,oz,res,Z.kind)}catch(e){console.error('drawers',e)}
   return res}
@@ -5881,7 +5896,7 @@ function evInit(){
   EV.cube=new THREE.WebGLCubeRenderTarget(128,{generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter});EV.cam=new THREE.CubeCamera(1,9000,EV.cube);
   EV.pm=new THREE.PMREMGenerator(renderer);
   // dim neutral environment for interiors
-  const ic=new THREE.Scene();ic.background=new THREE.Color(0x6a655c);EV.rtI=EV.pm.fromScene(ic,0,.1,100)}
+  const ic=new THREE.Scene();ic.background=new THREE.Color(0x24211e);EV.rtI=EV.pm.fromScene(ic,0,.1,100)}
 function evUpdate(){
   if(!EV.cube)evInit();const h=G.lock!=null?G.lock:G.hour;
   EV.ground.material.color.copy(skyU.hor.value).multiplyScalar(.45);
@@ -5893,7 +5908,7 @@ function evUpdate(){
 // clear-coat paint
 function paintMat(c){let m=PAINT.get(c);if(!m||!m.isMeshPhysicalMaterial){m=new THREE.MeshPhysicalMaterial({color:c,metalness:.6,roughness:.32,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:1.25});PAINT.set(c,m)}return m}
 // hemisphere light is partly replaced by the sky environment
-const _usEV=updateSky;updateSky=function(){_usEV();try{hemi.intensity*=.5}catch(e){}};
+const _usEV=updateSky;updateSky=function(){_usEV();try{hemi.intensity*=.5;if(INT.on){sun.intensity=0;hemi.intensity=.5}}catch(e){}};
 const _buEV=busUpdate;busUpdate=function(dt){_buEV(dt);if(!G.started)return;
   try{const h=G.lock!=null?G.lock:G.hour;EV.t+=dt;if(!EV.cube||Math.abs(h-EV.last)>.35||(EV.t>40)){EV.t=0;evUpdate()}
     scene.environment=INT.on?EV.rtI.texture:(EV.rt?EV.rt.texture:null);
