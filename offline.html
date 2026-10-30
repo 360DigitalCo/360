@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -8,18 +7,156 @@
 <meta content="noindex, nofollow" name="robots"/>
 <style>
     :root { color-scheme: dark; }
-    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:system-ui,sans-serif; background:#0b0b0d; color:#f5f5f7; }
-    main { max-width:520px; padding:32px; text-align:center; }
-    a { color:inherit; }
-  </style>
-<meta content="You're offline — part of the 360 web platform." name="description"/><meta content="website" property="og:type"/><meta content="You're offline — 360" property="og:title"/><meta content="You're offline — part of the 360 web platform." property="og:description"/><meta content="https://360-search.com/offline.html" property="og:url"/><meta content="360" property="og:site_name"/><meta content="summary" name="twitter:card"/><meta content="You're offline — 360" name="twitter:title"/><meta content="You're offline — part of the 360 web platform." name="twitter:description"/><link href="https://360-search.com/offline.html" rel="canonical"/><link rel="stylesheet" href="/assets/css/mobile-nav.css">
+    
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; opacity: 1 !important; transform: none !important; }
+    }
+    
+    body { 
+        margin:0; 
+        min-height:100vh; 
+        display:grid; 
+        place-items:center; 
+        font-family:system-ui,sans-serif; 
+        background:#000; 
+        color:#fff; 
+    }
+    
+    main { 
+        max-width:520px; 
+        padding:32px 24px; 
+        text-align:center; 
+    }
+    
+    h1 {
+        font-size: clamp(1.75rem, 5vw, 2.5rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 12px;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+    }
+    
+    p {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        color: #888;
+        margin: 0 0 28px;
+        max-width: 420px;
+        margin-left: auto;
+        margin-right: auto;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+        opacity: 0;
+    }
+    
+    .retry-link {
+        display: inline-block;
+        padding: 14px 28px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        color: #fff;
+        font-weight: 500;
+        font-size: 1rem;
+        text-decoration: none;
+        background: transparent;
+        transition: border-color 0.2s, background 0.2s;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+        opacity: 0;
+    }
+    
+    .retry-link:hover,
+    .retry-link:focus {
+        border-color: #fff;
+        background: #111;
+    }
+    
+    .retry-link:active {
+        background: #222;
+    }
+    
+    .retry-link:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+    
+    .checking {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 16px;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+        opacity: 0;
+    }
+</style>
 </head>
 <body>
 <main>
-<h1>You're offline</h1>
-<p>360 couldn't reach the network. Check your connection and try again.</p>
-<p><a href="/">Try again</a></p>
+    <h1>You're offline</h1>
+    <p>360 couldn't reach the network. Check your connection and try again.</p>
+    <a href="/" class="retry-link" id="retryLink">Try again</a>
+    <p class="checking" id="checkingText">Checking connection…</p>
 </main>
-<script src="/assets/js/mobile-nav.js" defer></script>
+<script>
+    // Capture the original destination (referrer or current page if navigated directly)
+    const originalUrl = document.referrer && new URL(document.referrer).origin === location.origin
+        ? document.referrer
+        : sessionStorage.getItem('360:lastPage') || '/';
+    
+    // Update retry link to go to original destination
+    const retryLink = document.getElementById('retryLink');
+    retryLink.href = originalUrl;
+    
+    const checkingText = document.getElementById('checkingText');
+    let checkCount = 0;
+    const maxChecks = 60; // Stop after ~3 minutes
+    
+    async function checkOnline() {
+        try {
+            // Use a lightweight HEAD request to the origin
+            await fetch('/', { method: 'HEAD', cache: 'no-cache', mode: 'no-cors' });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+    
+    async function poll() {
+        if (checkCount >= maxChecks) {
+            checkingText.textContent = 'Still offline. Click "Try again" when ready.';
+            checkingText.style.color = '#888';
+            return;
+        }
+        
+        checkCount++;
+        const online = await checkOnline();
+        
+        if (online) {
+            checkingText.textContent = 'Back online. Redirecting…';
+            checkingText.style.color = '#888';
+            // Small delay so user sees the message
+            setTimeout(() => {
+                location.href = originalUrl;
+            }, 500);
+        } else {
+            // Exponential backoff: 2s, 3s, 5s, 8s, 10s...
+            const delays = [2000, 3000, 5000, 8000, 10000];
+            const delay = delays[Math.min(checkCount - 1, delays.length - 1)];
+            setTimeout(poll, delay);
+        }
+    }
+    
+    // Start checking immediately
+    poll();
+    
+    // Also listen for online event as backup
+    window.addEventListener('online', () => {
+        checkingText.textContent = 'Back online. Redirecting…';
+        setTimeout(() => location.href = originalUrl, 500);
+    });
+</script>
 </body>
 </html>
