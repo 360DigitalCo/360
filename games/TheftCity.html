@@ -266,7 +266,7 @@ const WX=x=>_pw(x,AVE_OLD,AVE_NEWX),IWX=x=>_pw(x,AVE_NEWX,AVE_OLD),WU=u=>u*2;
 const U_MIN=-1200,U_MAX=19900;
 const _b=[0,0];
 const BRIDGES=[
-  {n:'BROOKLYN BRIDGE',la:40.7061,lo:-73.9969,h:15,w:19,tw:true},
+  {n:'BROOKLYN BRIDGE',la:40.7061,lo:-73.9969,h:26,w:24,tw:true,sp:true},
   {n:'MANHATTAN BRIDGE',la:40.7075,lo:-73.9908,h:15,w:21,tw:true},
   {n:'WILLIAMSBURG BRIDGE',la:40.7137,lo:-73.9728,h:16,w:21,tw:true},
   {n:'QUEENSBORO BRIDGE',la:40.7570,lo:-73.9544,h:14,w:21,tw:false},
@@ -869,7 +869,7 @@ function buildBridges(scene,city){
     const m=new THREE.Mesh(g,lam({side:THREE.DoubleSide}));scene.add(m);
     // towers + cables
     const tw=[];
-    if(b.tw){
+    if(b.tw&&!b.sp){
       const mid=[.36,.64];
       for(const tt of mid){const x=lerp(b.xa,b.xb,tt),y0=b.h;
         for(const s of [-1,1])P.push({g:BX(2.6,70,2.6),m:MX(x,35,b.z+s*(b.w/2+1.4)),c:steel});
@@ -889,7 +889,7 @@ function buildBridges(scene,city){
         P.push({g:BX(L,.5,.5),m:MX((A[0]+B[0])/2,(A[1]+B[1])/2,A[2],0,0,Math.atan2(B[1]-A[1],B[0]-A[0])),c:0x6c7078});
         if(i%2===0)P.push({g:BX(.2,A[1]-b.h-.5,.2),m:MX(A[0],(A[1]+b.h+.5)/2,A[2]),c:0x6c7078});
       }
-    }else{ // truss arches for the girder bridges
+    }else if(!b.sp){ // truss arches for the girder bridges
       for(let i=0;i<=8;i++){const t=lerp(.3,.7,i/8),x=lerp(b.xa,b.xb,t);for(const s of [-1,1])P.push({g:BX(1.2,12,1.2),m:MX(x,b.h+6,b.z+s*(b.w/2+.8)),c:steel})}
       for(const s of [-1,1])P.push({g:BX(b.len*.4,1.2,1.2),m:MX(lerp(b.xa,b.xb,.5),b.h+12,b.z+s*(b.w/2+.8)),c:steel});
     }
@@ -1005,6 +1005,69 @@ function finishCity(scene,ctx){
   dressGround(city,city.parts.side,city.parkMesh);
   return city;
 }
+// ---------- Brooklyn Bridge: granite Gothic towers, main cables, suspenders, diagonal stays, Warren trusses, wooden promenade
+(function(){
+const _bb=buildBridges;
+buildBridges=function(scene,city){
+  _bb(scene,city);
+  try{
+    const b=BRIDGES.find(q=>q.sp);if(!b)return;
+    const P=[],gr=0xa69c8b,gr2=0x948a7a,steel=0x5d4a3c,cab=0x4a3f36,wood=0x8a6a45,tr=0x6e5a48;
+    const L=b.len,S=Math.min(486,L*.6),t1=(L-S)/2/L,xt=[lerp(b.xa,b.xb,t1),lerp(b.xa,b.xb,1-t1)];
+    const Y=x=>bridgeProfile((x-b.xa)/(b.xb-b.xa),b)+.04,TOP=82,W=b.w/2;
+    const seg=(x0,y0,z0,x1,y1,z1,th,c)=>{const dx=x1-x0,dy=y1-y0,dz=z1-z0,l=Math.hypot(dx,dy,dz)||.01;
+      // box along x, rotated: yaw about y for dz, then pitch about z for dy
+      const ry=-Math.atan2(dz,Math.hypot(dx,dy)>.0001?dx:.0001),rz=Math.atan2(dy,Math.hypot(dx,dz));
+      P.push({g:BX(l,th,th),m:MX((x0+x1)/2,(y0+y1)/2,(z0+z1)/2,0,Math.abs(dz)>.01?ry:0,rz),c})};
+    // ---- towers
+    for(const x of xt){
+      for(const s of [-1,1]){const z=b.z+s*(W+3.6);
+        P.push({g:BX(13,TOP,8),m:MX(x,TOP/2-4,z),c:gr});                    // main pier
+        P.push({g:BX(14.4,2.4,9.4),m:MX(x,Y(x)-1.2+26,z),c:gr2});             // string course above deck
+        P.push({g:BX(14.4,2.4,9.4),m:MX(x,TOP-14,z),c:gr2});
+        P.push({g:BX(14.4,2.6,9.6),m:MX(x,TOP-.6,z),c:gr2});
+        P.push({g:new THREE.ConeGeometry(5.2,9,4),m:MX(x,TOP+4.2,z,0,Math.PI/4,0),c:gr2});  // cap
+        addCol(x-6.5,x+6.5,z-4,z+4,TOP)}
+      // pointed arches (lower, through which the roadway passes, and upper)
+      for(const [yb,ya,hw0] of [[Y(x)+2,Y(x)+30,W+3.6-4],[TOP-30,TOP-6,W+3.6-4]]){
+        const apex=ya+8;
+        for(const s of [-1,1]){seg(x,ya,b.z+s*(hw0),x,apex,b.z+s*1.2,2.6,gr);}
+        P.push({g:BX(12,2.2,2*(W+3.6)),m:MX(x,yb+(ya-yb)*.62,b.z),c:gr2})}
+      P.push({g:BX(11,3,2*(W+3.6)+8),m:MX(x,Y(x)-2.4,b.z),c:gr2});
+    }
+    // ---- main cables (4): parabola in the main span, shallow catenary to the anchorages
+    const cz=[-(W+2.6),-(W+1.2),W+1.2,W+2.6],NS=44;
+    const spanY=(x)=>{ // cable height along the whole bridge
+      const xa=xt[0],xb=xt[1],dir=Math.sign(xb-xa),u=(x-xa)/(xb-xa);
+      if(u>=0&&u<=1){const v=(u-.5)*2;return (Y((xa+xb)/2)+5)+(TOP-4-(Y((xa+xb)/2)+5))*v*v}
+      const end=u<0?b.xa:b.xb,tt=u<0?(x-end)/(xa-end):(x-end)/(xb-end);   // 0 at anchorage, 1 at tower
+      return 16+(TOP-4-16)*Math.pow(tt,1.15)}
+    for(const z0 of cz){
+      const pts=[];for(let i=0;i<=NS*3;i++){const x=lerp(b.xa,b.xb,i/(NS*3));pts.push([x,spanY(x)])}
+      for(let i=0;i<pts.length-1;i++)seg(pts[i][0],pts[i][1],b.z+z0,pts[i+1][0],pts[i+1][1],b.z+z0,.55,cab)}
+    // ---- vertical suspenders
+    for(let x=Math.min(b.xa,b.xb)+30;x<Math.max(b.xa,b.xb)-30;x+=11){const yc=spanY(x),yd=Y(x);if(yc-yd<3)continue;
+      for(const z0 of [-(W+1.9),W+1.9])P.push({g:BX(.14,yc-yd,.14),m:MX(x,(yc+yd)/2,b.z+z0),c:steel})}
+    // ---- diagonal stays fanning from each tower top (the signature web)
+    for(const x of xt){for(const dir of [-1,1])for(let k=1;k<=16;k++){const xe=x+dir*k*14,xe2=xe;if((xe-b.xa)*(xe-b.xb)>0)continue;
+      for(const z0 of [-(W+1.9),W+1.9])seg(x,TOP-6-k*.4,b.z+z0*.98,xe2,Y(xe2)+1.5,b.z+z0,.12,steel)}}
+    // ---- Warren trusses at the deck edges + railing
+    for(const s of [-1,1]){const z=b.z+s*(W+.3),st=7;
+      const x0=Math.min(b.xa,b.xb),x1=Math.max(b.xa,b.xb);
+      for(let x=x0;x<x1-st;x+=st){const ya=Y(x),yb=Y(x+st),h=6.2;
+        seg(x,ya+h,z,x+st,yb+h,z,.5,tr);seg(x,ya-1.2,z,x+st,yb-1.2,z,.5,tr);
+        const up=(Math.round((x-x0)/st)%2===0);seg(x,up?ya-1.2:ya+h,z,x+st,up?yb+h:yb-1.2,z,.3,tr)}}
+    // ---- wooden promenade above the roadway centre, on slender steel posts
+    for(let x=Math.min(b.xa,b.xb)+20;x<Math.max(b.xa,b.xb)-20;x+=6){const yy=Y(x);P.push({g:BX(6.2,.35,6.2),m:MX(x+3,yy+5.4,b.z),c:wood});
+      if(Math.round(x/6)%2===0)for(const z0 of [-3.6,3.6])P.push({g:BX(.4,5.2,.4),m:MX(x,yy+2.7,b.z+z0),c:steel})}
+    for(const z0 of [-3.2,3.2])for(let x=Math.min(b.xa,b.xb)+20;x<Math.max(b.xa,b.xb)-26;x+=6)seg(x,Y(x)+6.2,b.z+z0,x+6,Y(x+6)+6.2,b.z+z0,.18,steel);
+    // ---- stone approach buttresses (anchorage masses)
+    for(const e of [b.xa,b.xb]){const sgn=Math.sign(b.xb-b.xa)*(e===b.xa?1:-1);P.push({g:BX(24,14,2*(W+7)),m:MX(e+sgn*6,7,b.z),c:gr2});addCol(Math.min(e,e+sgn*18),Math.max(e,e+sgn*18),b.z-W-7,b.z+W+7,14)}
+    const mesh=new THREE.Mesh(mergeParts(P),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.05}));mesh.castShadow=true;mesh.frustumCulled=false;scene.add(mesh);
+    window.BB_MESH=mesh;
+  }catch(e){console.warn('bb',e)}
+};
+})();
 // ---------- collision helpers
 const _hit={nx:0,nz:0,hit:false};
 function pushOut(x,z,r,out){
@@ -6284,8 +6347,9 @@ function obLoad(ci,cj){
         const cs=Math.abs(Math.cos(ry)),sn=Math.abs(Math.sin(ry)),hx=(cs*w+sn*d)/2*.9,hz=(sn*w+cs*d)/2*.9;addCol(cx-hx,cx+hx,cz-hz,cz+hz,h)}}
   }
   const mk=(pos,col,mat,ro)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.computeVertexNormals();const m=new THREE.Mesh(g,mat);m.receiveShadow=true;m.frustumCulled=false;if(ro)m.renderOrder=ro;OB.group.add(m);ch.meshes.push(m);return m};
-  if(apos.length)mk(apos,acol,OB.slabMat);
-  if(spos.length)mk(spos,scol,OB.slabMat);
+  const RM=OB.roadMat||(OB.roadMat=(()=>{const m=OB.slabMat.clone();m.side=THREE.DoubleSide;return m})());
+  if(apos.length)mk(apos,acol,RM);
+  if(spos.length)mk(spos,scol,RM);
   if(ppos.length){const m=mk(ppos,pcol,OB.paintMat,1);m.position.y=.04;m.userData.noSV=true}
   if(bl.length){const n=bl.length,col=new Float32Array(n*3),sd=new Float32Array(n),geo=OB.geo0.clone(),mesh=new THREE.InstancedMesh(geo,OB.mat,n),m4=new THREE.Matrix4(),cc=new THREE.Color(),qt=new THREE.Quaternion(),ps=new THREE.Vector3(),sc=new THREE.Vector3(),ax=new THREE.Vector3(0,1,0);let hm=0;
     bl.forEach((b,i)=>{qt.setFromAxisAngle(ax,b.ry);ps.set(b.x,b.y,b.z);sc.set(b.w,b.h,b.d);m4.compose(ps,qt,sc);m4.toArray(mesh.instanceMatrix.array,i*16);cc.set(b.c);col[i*3]=cc.r;col[i*3+1]=cc.g;col[i*3+2]=cc.b;sd[i]=b.s;hm=Math.max(hm,b.y+b.h)});
@@ -6385,6 +6449,63 @@ updateGore=function(dt){
     if(c.ov>0)c.ov-=dt;
   }
 };
+})();
+// ---------- Manhattan: true diagonals, curves and waterfront highways from real centrelines
+(function(){
+const MN={chunks:new Map(),segs:null,t:0};
+
+const TRACE=[
+ [1,[[40.7047,-74.0134],[40.7074,-74.0113],[40.7101,-74.0089],[40.7127,-74.0079],[40.7160,-74.0058],[40.7195,-74.0020],[40.7253,-73.9965],[40.7305,-73.9925],[40.7357,-73.9905],[40.7420,-73.9890],[40.7497,-73.9877],[40.7580,-73.9855],[40.7640,-73.9828],[40.7681,-73.9819],[40.7732,-73.9821],[40.7787,-73.9812],[40.7836,-73.9790],[40.7884,-73.9765],[40.7940,-73.9722],[40.8017,-73.9660],[40.8157,-73.9573],[40.8267,-73.9508],[40.8403,-73.9400],[40.8511,-73.9358],[40.8620,-73.9265],[40.8700,-73.9180]]],
+ [2,[[40.7060,-74.0165],[40.7127,-74.0153],[40.7200,-74.0125],[40.7253,-74.0108],[40.7340,-74.0100],[40.7420,-74.0079],[40.7530,-74.0045],[40.7640,-74.0007],[40.7740,-73.9960],[40.7890,-73.9895],[40.8010,-73.9930],[40.8150,-73.9560]]],
+ [2,[[40.7030,-74.0095],[40.7075,-73.9990],[40.7100,-73.9920],[40.7140,-73.9745],[40.7300,-73.9735],[40.7490,-73.9685],[40.7590,-73.9590],[40.7700,-73.9500],[40.7840,-73.9430],[40.7960,-73.9350],[40.8030,-73.9330]]]
+];
+function chaikin(p,n){for(let k=0;k<n;k++){const q=[p[0]];for(let i=0;i<p.length-1;i++){q.push([p[i][0]*.75+p[i+1][0]*.25,p[i][1]*.75+p[i+1][1]*.25],[p[i][0]*.25+p[i+1][0]*.75,p[i][1]*.25+p[i+1][1]*.75])}q.push(p[p.length-1]);p=q}return p}
+function gridDist(x,u,horiz){let best=1e9;
+  for(const g of [GRIDS.up,GRIDS.dn]){const arr=horiz?g.zs:g.xs;for(const l of arr){const d=Math.abs((horiz?u:x)-l.p)-l.hw;if(d<best)best=d}}return best}
+function prep(){MN.segs=new Map();const C=600;
+  for(const s of RD.segs){const mx=(s.ax+s.bx)/2,mu=(s.au+s.bu)/2;if(landClass(mx,mu)!==1&&!(s.c===2&&landClass(mx,mu)!==0))continue;
+    if(landClass(mx,mu)===0)continue;
+    const horiz=Math.abs(s.du)<.2,vert=Math.abs(s.dx)<.2;
+    if(horiz||vert){ // already a grid street?
+      const d=Math.max(gridDist(s.ax,s.au,horiz),gridDist(s.bx,s.bu,horiz),gridDist(mx,mu,horiz));
+      if(d<18)continue;}
+    const k=Math.floor((mx-LAND.X0)/C)+','+Math.floor((mu-LAND.U0)/C);let a=MN.segs.get(k);if(!a){a=[];MN.segs.set(k,a)}a.push(s)}
+  for(const [c,pts] of TRACE){const p=chaikin(pts.map(q=>geo(q[0],q[1])),2);for(let i=0;i<p.length-1;i++){const dx=p[i+1][0]-p[i][0],du=p[i+1][1]-p[i][1],L=Math.hypot(dx,du);if(L<.5)continue;
+    const mx=(p[i][0]+p[i+1][0])/2,mu=(p[i][1]+p[i+1][1])/2;if(landClass(mx,mu)===0)continue;
+    const s={ax:p[i][0],au:p[i][1],bx:p[i+1][0],bu:p[i+1][1],L,c,dx:dx/L,du:du/L};const k=Math.floor((mx-LAND.X0)/C)+','+Math.floor((mu-LAND.U0)/C);let a=MN.segs.get(k);if(!a){a=[];MN.segs.set(k,a)}a.push(s)}}}
+function load(key){
+  const list=MN.segs.get(key);if(!list||MN.chunks.has(key))return;
+  const ch={meshes:[]};MN.chunks.set(key,ch);
+  const apos=[],acol=[],ppos=[],pcol=[],asph=new THREE.Color(0x2a2c31),yl=new THREE.Color(0xe8b923),wl=new THREE.Color(0xf1eee8),sd=new THREE.Color(0x9b9ea6);
+  const strip=(arr,carr,ax,az,bx,bz,off,hw,y,c,ext)=>{const dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,tx=dx/L,tz=dz/L,nx=-tz,nz=tx;
+    const sx=ax-tx*ext+nx*off,sz=az-tz*ext+nz*off,ex=bx+tx*ext+nx*off,ez=bz+tz*ext+nz*off;
+    arr.push(sx+nx*hw,y,sz+nz*hw,sx-nx*hw,y,sz-nz*hw,ex+nx*hw,y,ez+nz*hw,sx-nx*hw,y,sz-nz*hw,ex-nx*hw,y,ez-nz*hw,ex+nx*hw,y,ez+nz*hw);for(let k=0;k<6;k++)carr.push(c.r,c.g,c.b)};
+  const near=(x,z)=>{let n=null,bd=34;for(const g of [NODES.up,NODES.dn])for(const q of g){const d=Math.abs(q.x-x)+Math.abs(q.z-z);if(d<bd){bd=d;n=q}}return n};
+  for(const s of list){const hw=s.c===2?12:s.c===1?9:s.c===3?5:7,ax=s.ax,az=-s.au,bx=s.bx,bz=-s.bu;
+    strip(apos,acol,ax,az,bx,bz,0,hw+1.4,.215,sd,hw*.4);          // sidewalk skirt
+    strip(apos,acol,ax,az,bx,bz,0,hw,.23,asph,hw*.4);
+    if(s.c>=1&&s.c!==3)for(const q of [-.35,.35])strip(ppos,pcol,ax,az,bx,bz,q,.07,.24,yl,0);
+    else if(s.L>14)for(let t=4;t<s.L-4;t+=9)strip(ppos,pcol,ax+(bx-ax)*t/s.L,az+(bz-az)*t/s.L,ax+(bx-ax)*(t+4)/s.L,az+(bz-az)*(t+4)/s.L,0,.06,.24,wl,0);
+    const st=Math.max(1,Math.ceil(s.L/45));let prev=obRNode(s.ax,s.au);
+    if(prev.e.length===0){const m=near(ax,az);if(m){prev.e.push({to:m,w:hw*2});m.e.push({to:prev,w:hw*2})}}
+    for(let t=1;t<=st;t++){const n=obRNode(s.ax+(s.bx-s.ax)*t/st,s.au+(s.bu-s.au)*t/st);
+      if(n!==prev&&!prev.e.some(q=>q.to===n)){prev.e.push({to:n,w:hw*2});n.e.push({to:prev,w:hw*2})}prev=n}
+    if(prev.e.length<2){const m=near(bx,bz);if(m&&!prev.e.some(q=>q.to===m)){prev.e.push({to:m,w:hw*2});m.e.push({to:prev,w:hw*2})}}}
+  const mk=(pos,col,mat,ro)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.computeVertexNormals();const m=new THREE.Mesh(g,mat);m.receiveShadow=true;m.frustumCulled=false;if(ro)m.renderOrder=ro;OB.group.add(m);ch.meshes.push(m);return m};
+  const RM=OB.roadMat||(OB.roadMat=(()=>{const m=OB.slabMat.clone();m.side=THREE.DoubleSide;return m})());
+  if(apos.length)mk(apos,acol,RM);
+  if(ppos.length){const m=mk(ppos,pcol,OB.paintMat,2);m.userData.noSV=true}
+}
+function unload(key){const ch=MN.chunks.get(key);if(!ch)return;for(const m of ch.meshes){OB.group.remove(m);m.geometry.dispose()}MN.chunks.delete(key)}
+const _b=busUpdate;busUpdate=function(dt){_b(dt);
+  try{if(!OB.ready||!RD.ready)return;if(!MN.segs)prep();
+    MN.t-=dt;if(MN.t>0)return;MN.t=.4;const C=600;
+    const ci=Math.floor((PL.x-LAND.X0)/C),cj=Math.floor((-PL.z-LAND.U0)/C);
+    const w=[];for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const k=(ci+a)+','+(cj+b);if(MN.segs.has(k)&&!MN.chunks.has(k))w.push([a*a+b*b,k])}
+    if(w.length){w.sort((p,q)=>p[0]-q[0]);load(w[0][1]);if(w[1])load(w[1][1]);return}
+    for(const k of [...MN.chunks.keys()]){const [i,j]=k.split(',').map(Number);if(Math.abs(i-ci)>3||Math.abs(j-cj)>3)unload(k)}
+  }catch(e){console.warn('man',e)}};
+window.MN=MN;
 })();
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
