@@ -6666,11 +6666,12 @@ function doors(ch){
 const LINES=[
  {n:'7',c:0xb933ad,p:[[40.7508,-73.9402],[40.7447,-73.9308],[40.7439,-73.9210],[40.7455,-73.9030],[40.7469,-73.8912],[40.7487,-73.8761],[40.7497,-73.8627],[40.7546,-73.8456],[40.7596,-73.8300]]},
  {n:'J',c:0x996633,p:[[40.7083,-73.9577],[40.7068,-73.9535],[40.7040,-73.9474],[40.7004,-73.9411],[40.6972,-73.9358],[40.6934,-73.9288],[40.6895,-73.9220],[40.6862,-73.9167],[40.6828,-73.9105],[40.6786,-73.9047],[40.6768,-73.8984]]},
+ {n:'N',c:0xfccc0a,p:[[40.7508,-73.9402],[40.7527,-73.9327],[40.7568,-73.9297],[40.7617,-73.9257],[40.7669,-73.9214],[40.7703,-73.9179],[40.7750,-73.9120]]},
  {n:'4',c:0x00933c,p:[[40.8279,-73.9254],[40.8354,-73.9211],[40.8480,-73.9120],[40.8680,-73.9010],[40.8860,-73.8780]]}
 ];
 let built=false;const ELS=[];
 function build(){
-  const H=11.5,seg=[],pil=[];
+  const H=11.5,seg=[],pil=[],plat=[];
   for(const ln of LINES){const raw=ln.p.map(q=>{const g=geo(q[0],q[1]);return [g[0],-g[1]]});
     // resample every 12 m, snap to the nearest matching real road, then smooth
     const rs=[];for(let i=1;i<raw.length;i++){const a=raw[i-1],b=raw[i],l=Math.hypot(b[0]-a[0],b[1]-a[1]),dx=(b[0]-a[0])/l,dz=(b[1]-a[1])/l;for(let t=0;t<l;t+=12)rs.push([a[0]+dx*t,a[1]+dz*t,dx,dz])}
@@ -6685,7 +6686,9 @@ function build(){
     for(let s=0;s<L;s+=12){const a=at(s),b=at(Math.min(L,s+12)),x=(a[0]+b[0])/2,z=(a[1]+b[1])/2,yaw=Math.atan2(b[0]-a[0],b[1]-a[1]),len=Math.hypot(b[0]-a[0],b[1]-a[1])+.2;
       if(!obOuter(x,-z)&&landKind(x,z)===0)continue;seg.push([x,z,yaw,len]);
       if(Math.round(s/12)%2===0)for(const o of [-3.6,3.6]){pil.push([x+Math.cos(yaw)*o,z-Math.sin(yaw)*o]);}}
-    ELS.push({ln,pts,cum,L,at,s:Math.random()*L,dir:1,tr:null})}
+    const st=[];for(const r of raw){let bi=0,bd=1e18;for(let i=0;i<pts.length;i++){const d=(pts[i][0]-r[0])**2+(pts[i][1]-r[1])**2;if(d<bd){bd=d;bi=i}}st.push(cum[bi])}
+    for(const sp of st){const a=at(sp),yaw=a[2],c=Math.cos(yaw),s2=Math.sin(yaw);plat.push([a[0],a[1],yaw]);}
+    ELS.push({ln,pts,cum,L,at,st,s:Math.random()*L,dir:1,tr:null,sp:0,dwell:0,last:-1})}
   const deck=new THREE.InstancedMesh(BX(9.6,1.1,1),new THREE.MeshStandardMaterial({color:0x3f4a42,roughness:.8,metalness:.4}),seg.length),
         rails=new THREE.InstancedMesh(BX(.25,.3,1),new THREE.MeshStandardMaterial({color:0x1d1f22,roughness:.5,metalness:.7}),seg.length*2),
         guard=new THREE.InstancedMesh(BX(.4,1.1,1),new THREE.MeshStandardMaterial({color:0x4b574d}),seg.length*2),
@@ -6696,6 +6699,15 @@ function build(){
     for(const [k,o] of [[0,-4.5],[1,4.5]])guard.setMatrixAt(i*2+k,MX(x+c*o,H+.8,z-s*o,0,yaw,0,1,1,len))});
   pil.forEach((q,i)=>{col.setMatrixAt(i,MX(q[0],H/2,q[1]));addCol(q[0]-.5,q[0]+.5,q[1]-.5,q[1]+.5,H)});
   for(const m of [deck,rails,guard,col]){m.frustumCulled=false;m.castShadow=true;m.receiveShadow=true;scene.add(m)}
+  // stations: side platforms, canopy, posts, street stairs
+  if(plat.length){const n=plat.length,pm=new THREE.InstancedMesh(BX(3.2,.5,46),new THREE.MeshStandardMaterial({color:0x9a9ea3,roughness:.9}),n*2),cm=new THREE.InstancedMesh(BX(10.5,.3,44),new THREE.MeshStandardMaterial({color:0x2f6b4a,roughness:.7}),n),
+      po=new THREE.InstancedMesh(BX(.3,3.8,.3),new THREE.MeshStandardMaterial({color:0x3f4a42}),n*8),stm=new THREE.InstancedMesh(BX(2.2,.3,16),new THREE.MeshStandardMaterial({color:0x6e7378}),n);
+    plat.forEach((p,i)=>{const [x,z,yaw]=p,c=Math.cos(yaw),s2=Math.sin(yaw);
+      for(const [k,o] of [[0,-3.7],[1,3.7]])pm.setMatrixAt(i*2+k,MX(x+c*o,H+.75,z-s2*o,0,yaw,0));
+      cm.setMatrixAt(i,MX(x,H+4.9,z,0,yaw,0));
+      let q=0;for(const o of [-4.4,4.4])for(const l of [-18,-6,6,18]){po.setMatrixAt(i*8+q++,MX(x+c*o+s2*l,H+2.9,z-s2*o+c*l,0,yaw,0))}
+      stm.setMatrixAt(i,MX(x+c*5.8+s2*28,H*.5+.3,z-s2*5.8+c*28,Math.atan2(H,16),yaw,0))});
+    for(const m of [pm,cm,po,stm]){m.frustumCulled=false;m.castShadow=false;scene.add(m)}}
   // trains
   for(const e of ELS){const g=new THREE.Group(),bodyM=new THREE.MeshStandardMaterial({color:0xaeb4ba,roughness:.4,metalness:.6}),glow=new THREE.MeshBasicMaterial({color:0xfff2c2}),stripe=new THREE.MeshBasicMaterial({color:e.ln.c});
     for(let k=0;k<8;k++){const car=new THREE.Group();const b=new THREE.Mesh(BX(2.9,3.1,15.5),bodyM);b.position.y=1.8;car.add(b);
@@ -6705,7 +6717,12 @@ function build(){
 const _b=busUpdate;busUpdate=function(dt){_b(dt);
   try{if(!built&&G.started&&OB.ready&&RD.ready){built=true;build()}
     if(!built)return;
-    for(const e of ELS){e.s+=e.dir*22*dt;if(e.s>e.L+140){e.dir=-1}else if(e.s<-140){e.dir=1}
+    for(const e of ELS){
+      // stop at stations: brake into the nearest one ahead, dwell, then go
+      let ahead=1e9,ai=-1;e.st.forEach((q,i)=>{const d=(q-e.s)*e.dir;if(d>-1&&d<ahead){ahead=d;ai=i}});
+      if(e.dwell>0){e.dwell-=dt;e.sp=0}else{const tgt=ai>=0&&ai!==e.last?Math.min(22,Math.sqrt(Math.max(0,2*2.6*ahead))+.6):22;e.sp+=Math.sign(tgt-e.sp)*Math.min(Math.abs(tgt-e.sp),3.2*dt);
+        if(ai>=0&&ai!==e.last&&ahead<1.2){e.dwell=6;e.last=ai;e.sp=0}}
+      e.s+=e.dir*e.sp*dt;if(e.s>e.L+140){e.dir=-1;e.last=-1;e.sp=8}else if(e.s<-140){e.dir=1;e.last=-1;e.sp=8}
       const hd=at2(e,e.s);for(const car of e.tr.children){const s2=e.s-e.dir*car.userData.k*16.2;const p=at2(e,s2);car.position.set(p[0],H0,p[1]);car.rotation.y=p[2]+(e.dir<0?0:0)}
       e.tr.position.set(0,0,0);e.tr.rotation.set(0,0,0);e.tr.visible=Math.hypot((e.pts[0][0]+e.pts[e.pts.length-1][0])/2-PL.x,(e.pts[0][1]+e.pts[e.pts.length-1][1])/2-PL.z)<9000}
   }catch(er){console.warn('el',er)}};
