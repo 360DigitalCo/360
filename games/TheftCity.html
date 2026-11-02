@@ -1063,7 +1063,7 @@ buildBridges=function(scene,city){
     for(const z0 of [-3.2,3.2])for(let x=Math.min(b.xa,b.xb)+20;x<Math.max(b.xa,b.xb)-26;x+=6)seg(x,Y(x)+6.2,b.z+z0,x+6,Y(x+6)+6.2,b.z+z0,.18,steel);
     // ---- stone approach buttresses (anchorage masses)
     for(const e of [b.xa,b.xb]){const sgn=Math.sign(b.xb-b.xa)*(e===b.xa?1:-1);P.push({g:BX(24,14,2*(W+7)),m:MX(e+sgn*6,7,b.z),c:gr2});addCol(Math.min(e,e+sgn*18),Math.max(e,e+sgn*18),b.z-W-7,b.z+W+7,14)}
-    const mesh=new THREE.Mesh(mergeParts(P),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.05}));mesh.castShadow=true;mesh.frustumCulled=false;scene.add(mesh);
+    const mesh=new THREE.Mesh(mergeParts(P),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.05}));mesh.castShadow=false;mesh.frustumCulled=false;scene.add(mesh);
     window.BB_MESH=mesh;
   }catch(e){console.warn('bb',e)}
 };
@@ -6559,7 +6559,7 @@ function build(){
   {const g=geo(40.7505,-73.9934);cy(g[0],0,-g[1],62,66,38,0x4a4f58,28);cy(g[0],38,-g[1],58,62,4,0x8a9099,28);addCol(g[0]-65,g[0]+65,-g[1]-65,-g[1]+65,38)}
   {const g=geo(40.6738,-73.9702);bx(g[0]-9,0,-g[1],6,24,7,0xdcd5c4);bx(g[0]+9,0,-g[1],6,24,7,0xdcd5c4);bx(g[0],16,-g[1],24,8,7,0xdcd5c4);bx(g[0],24,-g[1],26,2,8,0xcfc8b8);addCol(g[0]-12,g[0]+12,-g[1]-4,-g[1]+4,24)}
   {const g=geo(40.7500,-73.8458);ring(P,g[0],-g[1],70,24,0x9fa6ae,24,6);ring(P,g[0],-g[1],58,12,0x6a7078,24,4)}
-  const m=new THREE.Mesh(mergeParts(P),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,metalness:.1}));m.castShadow=true;m.frustumCulled=false;scene.add(m);window.XB_MESH=m;
+  const m=new THREE.Mesh(mergeParts(P),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,metalness:.1}));m.castShadow=false;m.frustumCulled=false;scene.add(m);window.XB_MESH=m;
   // ---- Brooklyn Bridge night lights
   const b=BRIDGES.find(q=>q.sp);if(b&&window.BB_MESH){
     const W=b.w/2,L2=b.len,S=Math.min(486,L2*.6),t1=(L2-S)/2/L2,xt=[lerp(b.xa,b.xb,t1),lerp(b.xa,b.xb,1-t1)],TOP=82;
@@ -6584,9 +6584,13 @@ function build(){
   }
 }
 const nightK=h=>{h=((h%24)+24)%24;return h>=19.5||h<5?1:h>=18?(h-18)/1.5:h<6.5?1-(h-5)/1.5:0};
-let acc=0,fr=0,base=null,cool=0;
+let frz=0,farSet=false;
+function freeze(root){root.traverse(m=>{if(!m.isMesh||m.isInstancedMesh||m.matrixAutoUpdate===false||m.userData.dyn)return;const g=m.geometry;if(!g||!g.attributes.color||!m.material||m.material.side===THREE.BackSide||m.material.depthWrite===false)return;
+  if(m.position.lengthSq()>1e-6&&m.parent===scene)return;m.updateMatrix();m.matrixAutoUpdate=false})}
 const _b=busUpdate;busUpdate=function(dt){_b(dt);
   try{if(!built&&G.started&&window.BB_MESH){built=true;build()}
+    if(!farSet&&G.started){farSet=true;camera.far=4800;camera.updateProjectionMatrix()}
+    frz-=dt;if(frz<=0&&G.started){frz=8;for(const c of scene.children)if(c.isMesh)freeze(c);if(OB.group)freeze(OB.group)}
     const nk=nightK(G.lock!=null?G.lock:G.hour);
     if(window.BB_LIGHTS){BB_LIGHTS.mat.opacity=nk*.95;BB_LIGHTS.flood.opacity=nk*.28;BB_LIGHTS.pts.visible=nk>.02;if(window.BB_EXTRA)for(const e of BB_EXTRA)e.visible=nk>.02;
       const em=window.BB_MESH.material.emissive;em.setRGB(.2*nk,.14*nk,.07*nk)}
@@ -6657,6 +6661,57 @@ function doors(ch){
   keep.forEach((d,i)=>{gm.setMatrixAt(i,MX(d.x+d.nx*.12,1.55,d.z+d.nz*.12,0,d.ry,0));fm.setMatrixAt(i,MX(d.x,1.68,d.z,0,d.ry,0));am.setMatrixAt(i,MX(d.x+d.nx*.9,3.55,d.z+d.nz*.9,0,d.ry,0));am.setColorAt(i,_c.set(DOOR_COL[d.type]))});
   for(const m of [gm,fm,am]){m.frustumCulled=false;OB.group.add(m);ch.meshes.push(m)}}
 (function(){const _ou=obUnload;obUnload=function(key){const ch=OB.chunks.get(key);if(ch&&ch.dobj)for(const d of ch.dobj){d.x=d.z=1e9}_ou(key)}})();
+// ---------- elevated subway: 7 (Queens), J/Z (Brooklyn), 4 (Bronx) with pillars, rails, stations and running trains
+(function(){
+const LINES=[
+ {n:'7',c:0xb933ad,p:[[40.7508,-73.9402],[40.7447,-73.9308],[40.7439,-73.9210],[40.7455,-73.9030],[40.7469,-73.8912],[40.7487,-73.8761],[40.7497,-73.8627],[40.7546,-73.8456],[40.7596,-73.8300]]},
+ {n:'J',c:0x996633,p:[[40.7083,-73.9577],[40.7068,-73.9535],[40.7040,-73.9474],[40.7004,-73.9411],[40.6972,-73.9358],[40.6934,-73.9288],[40.6895,-73.9220],[40.6862,-73.9167],[40.6828,-73.9105],[40.6786,-73.9047],[40.6768,-73.8984]]},
+ {n:'4',c:0x00933c,p:[[40.8279,-73.9254],[40.8354,-73.9211],[40.8480,-73.9120],[40.8680,-73.9010],[40.8860,-73.8780]]}
+];
+let built=false;const ELS=[];
+function build(){
+  const H=11.5,seg=[],pil=[];
+  for(const ln of LINES){const raw=ln.p.map(q=>{const g=geo(q[0],q[1]);return [g[0],-g[1]]});
+    // resample every 12 m, snap to the nearest matching real road, then smooth
+    const rs=[];for(let i=1;i<raw.length;i++){const a=raw[i-1],b=raw[i],l=Math.hypot(b[0]-a[0],b[1]-a[1]),dx=(b[0]-a[0])/l,dz=(b[1]-a[1])/l;for(let t=0;t<l;t+=12)rs.push([a[0]+dx*t,a[1]+dz*t,dx,dz])}
+    rs.push([raw[raw.length-1][0],raw[raw.length-1][1],rs[rs.length-1][2],rs[rs.length-1][3]]);
+    const sn=rs.map(p=>{let best=null,bd=48;const H=40;for(let a=Math.floor((p[0]-48)/H);a<=Math.floor((p[0]+48)/H);a++)for(let b=Math.floor((-p[1]-48)/H);b<=Math.floor((-p[1]+48)/H);b++){const q=RD.hash.get(a+','+b);if(!q)continue;
+      for(const i of q){const g=RD.segs[i];if(g.c>1)continue;const cr=Math.abs(g.dx*p[3]*-1-g.du*p[2]*0+(-g.du*-1)*0);const dot=Math.abs(g.dx*p[2]+(-g.du)*p[3]);if(dot<.9)continue;
+        let t=((p[0]-g.ax)*g.dx+(-p[1]-g.au)*g.du);t=Math.max(0,Math.min(g.L,t));const x=g.ax+g.dx*t,z=-(g.au+g.du*t),d=Math.hypot(x-p[0],z-p[1])-(g.c===1?6:0);if(d<bd){bd=d;best=[x,z]}}}
+      return best||[p[0],p[1]]});
+    const pts=sn.map((p,i)=>{let sx=0,sz=0,n=0;for(let k=-6;k<=6;k++){const q=sn[i+k];if(q){sx+=q[0];sz+=q[1];n++}}return [sx/n,sz/n]}),cum=[0];
+    for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+    const L=cum[cum.length-1],at=s=>{let i=1;while(i<pts.length-1&&cum[i]<s)i++;const t=(s-cum[i-1])/(cum[i]-cum[i-1]||1),a=pts[i-1],b=pts[i];return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,Math.atan2(b[0]-a[0],b[1]-a[1])]};
+    for(let s=0;s<L;s+=12){const a=at(s),b=at(Math.min(L,s+12)),x=(a[0]+b[0])/2,z=(a[1]+b[1])/2,yaw=Math.atan2(b[0]-a[0],b[1]-a[1]),len=Math.hypot(b[0]-a[0],b[1]-a[1])+.2;
+      if(!obOuter(x,-z)&&landKind(x,z)===0)continue;seg.push([x,z,yaw,len]);
+      if(Math.round(s/12)%2===0)for(const o of [-3.6,3.6]){pil.push([x+Math.cos(yaw)*o,z-Math.sin(yaw)*o]);}}
+    ELS.push({ln,pts,cum,L,at,s:Math.random()*L,dir:1,tr:null})}
+  const deck=new THREE.InstancedMesh(BX(9.6,1.1,1),new THREE.MeshStandardMaterial({color:0x3f4a42,roughness:.8,metalness:.4}),seg.length),
+        rails=new THREE.InstancedMesh(BX(.25,.3,1),new THREE.MeshStandardMaterial({color:0x1d1f22,roughness:.5,metalness:.7}),seg.length*2),
+        guard=new THREE.InstancedMesh(BX(.4,1.1,1),new THREE.MeshStandardMaterial({color:0x4b574d}),seg.length*2),
+        col=new THREE.InstancedMesh(BX(.9,H,.9),new THREE.MeshStandardMaterial({color:0x3f4a42,roughness:.8,metalness:.4}),pil.length);
+  seg.forEach((q,i)=>{const [x,z,yaw,len]=q,c=Math.cos(yaw),s=Math.sin(yaw);
+    deck.setMatrixAt(i,MX(x,H,z,0,yaw,0,1,1,len));
+    for(const [k,o] of [[0,-1.8],[1,1.8]])rails.setMatrixAt(i*2+k,MX(x+c*o,H+.7,z-s*o,0,yaw,0,1,1,len));
+    for(const [k,o] of [[0,-4.5],[1,4.5]])guard.setMatrixAt(i*2+k,MX(x+c*o,H+.8,z-s*o,0,yaw,0,1,1,len))});
+  pil.forEach((q,i)=>{col.setMatrixAt(i,MX(q[0],H/2,q[1]));addCol(q[0]-.5,q[0]+.5,q[1]-.5,q[1]+.5,H)});
+  for(const m of [deck,rails,guard,col]){m.frustumCulled=false;m.castShadow=true;m.receiveShadow=true;scene.add(m)}
+  // trains
+  for(const e of ELS){const g=new THREE.Group(),bodyM=new THREE.MeshStandardMaterial({color:0xaeb4ba,roughness:.4,metalness:.6}),glow=new THREE.MeshBasicMaterial({color:0xfff2c2}),stripe=new THREE.MeshBasicMaterial({color:e.ln.c});
+    for(let k=0;k<8;k++){const car=new THREE.Group();const b=new THREE.Mesh(BX(2.9,3.1,15.5),bodyM);b.position.y=1.8;car.add(b);
+      const w=new THREE.Mesh(BX(2.96,.9,13.5),glow);w.position.y=2.4;car.add(w);const st=new THREE.Mesh(BX(2.98,.25,15.5),stripe);st.position.y=1.5;car.add(st);car.position.z=-k*16.2;g.add(car);car.userData.k=k}
+    g.castShadow=true;scene.add(g);e.tr=g}
+}
+const _b=busUpdate;busUpdate=function(dt){_b(dt);
+  try{if(!built&&G.started&&OB.ready&&RD.ready){built=true;build()}
+    if(!built)return;
+    for(const e of ELS){e.s+=e.dir*22*dt;if(e.s>e.L+140){e.dir=-1}else if(e.s<-140){e.dir=1}
+      const hd=at2(e,e.s);for(const car of e.tr.children){const s2=e.s-e.dir*car.userData.k*16.2;const p=at2(e,s2);car.position.set(p[0],H0,p[1]);car.rotation.y=p[2]+(e.dir<0?0:0)}
+      e.tr.position.set(0,0,0);e.tr.rotation.set(0,0,0);e.tr.visible=Math.hypot((e.pts[0][0]+e.pts[e.pts.length-1][0])/2-PL.x,(e.pts[0][1]+e.pts[e.pts.length-1][1])/2-PL.z)<9000}
+  }catch(er){console.warn('el',er)}};
+const H0=12.1;
+function at2(e,s){s=Math.max(0,Math.min(e.L,s));return e.at(s)}
+})();
 // ---------- renderer & scene
 const renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);
