@@ -167,9 +167,9 @@
       '<div class="pv-media" id="pv-media"><div class="pv-skel pv-sk-a"></div><div class="pv-skel pv-sk-b"></div><div class="pv-skel pv-sk-c"></div></div>' +
       '<div class="pv-cols">' +
       '<section class="pv-block" id="pv-stories"><h3 class="pv-h">Top stories</h3><div class="pv-story-grid" id="pv-story-grid"><div class="pv-skel pv-sk-story"></div><div class="pv-skel pv-sk-story"></div></div><div class="pv-headlines" id="pv-headlines"></div></section>' +
-      '<section class="pv-block" id="pv-overview"><h3 class="pv-h">Overview</h3><p class="pv-over"></p><div class="pv-facts" id="pv-facts"></div></section>' +
       '<section class="pv-block" id="pv-said" hidden><h3 class="pv-h">What people are saying</h3><div class="pv-said-row" id="pv-said-row"></div></section>' +
       '<section class="pv-block" id="pv-profiles" hidden><h3 class="pv-h">Profiles</h3><div class="pv-profiles" id="pv-profile-row"></div></section>' +
+      '<section class="pv-block" id="pv-overview"><h3 class="pv-h">Overview</h3><p class="pv-over"></p><div class="pv-facts" id="pv-facts"></div></section>' +
       '<section class="pv-block" id="pv-related"><h3 class="pv-h">People also search for</h3><div class="pv-rel-grid" id="pv-rel-grid"><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div></div><button type="button" class="pv-more" id="pv-more" hidden>See more</button></section>' +
       '</div></section>';
   }
@@ -243,16 +243,29 @@
     block.hidden = false;
   }
 
+  function postText(s) {
+    var t = String(s.snippet || s.description || s.desc || '').replace(/\s+/g, ' ').trim();
+    var ttl = String(s.title || '').replace(/\s+/g, ' ').trim();
+    var junk = /^(post on|posts? by|instagram|x |twitter|facebook|tiktok|youtube)/i.test(ttl) || ttl.length < 12;
+    return { head: junk && t ? t.slice(0, 90) : ttl.slice(0, 90), body: t.slice(0, 260) };
+  }
+
   function renderSaid(root, items) {
     var block = root.querySelector('#pv-said');
+    var seen = {};
+    items = items.filter(function (s) { if (!s || !s.url || seen[s.url]) return false; seen[s.url] = 1; return true; });
     if (!items.length) { block.hidden = true; return; }
     root.querySelector('#pv-said-row').innerHTML = items.map(function (s) {
       var host = hostOf(s.url);
-      var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host;
+      var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : /threads/.test(host) ? 'Threads' : host;
       var thumb = s.thumb || s.thumbnail || s.image || '';
+      var tx = postText(s);
+      var when = String(ago(s) || '');
       return '<a class="pv-said" href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' +
         (/^https?:/.test(thumb) ? '<img src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<span class="pv-said-fill"></span>') +
-        '<span class="pv-said-ttl">' + esc((s.title || '').slice(0, 90)) + '</span><span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + '</span></a>';
+        '<span class="pv-said-txt"><span class="pv-said-ttl">' + esc(tx.head) + '</span>' +
+        (tx.body && tx.body !== tx.head ? '<span class="pv-said-desc">' + esc(tx.body) + '</span>' : '') + '</span>' +
+        '<span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + (when ? ' · ' + esc(when) : '') + '</span></a>';
     }).join('');
     block.hidden = false;
   }
