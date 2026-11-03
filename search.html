@@ -5897,52 +5897,57 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       }
     }
 
+    function withTimeout(promise, ms) {
+      return Promise.race([promise, new Promise(resolve => setTimeout(() => resolve([]), ms))]);
+    }
+
     async function runForumsSearch(query) {
       showLoading();
       const topic = detectForumTopic(query);
-      const providerTargets = [...FORUM_BASE_PROVIDERS,
-        { label: 'Stack Overflow', domain: 'stackoverflow.com', domains: ['stackoverflow.com'] },
-        { label: 'Hacker News', domain: 'news.ycombinator.com', domains: ['news.ycombinator.com'] }
-      ];
-      const tasks = [
-        fetchForumQuery(query, null),
-        fetchForumQuery(`${query} forum discussion community questions answers`, null),
-        fetchForumQuery(`${query} online discussions`, null),
-        ...providerTargets.map(provider => fetchForumQuery(`${query} ${provider.label} discussion`, provider.domains))
-      ];
-
-      if (topic) {
-        const topicDomains = [...new Set(topic.domains || [])];
-        tasks.push(fetchForumQuery(`${query} ${topic.name} forum discussion`, topicDomains.length ? topicDomains : null));
-      }
-
+      const topicName = topic ? topic.name : 'community';
+      const topicDomains = topic ? [...new Set(topic.domains || [])] : [];
       const topicIsTech = topic && ['technology and development', 'business and marketing'].includes(topic.name);
       const stackSiteByTopic = {
         'school and homework': 'math',
         'science and research': 'physics',
         'gaming': 'gaming',
         'cooking and food': 'cooking',
-        'travel': 'travel',
-        'audio and hi-fi': 'stackoverflow',
-        'technology and development': 'stackoverflow'
+        'travel': 'travel'
       };
-      tasks.push(fetchRedditForumResults(query));
-      if (topicIsTech || !topic) tasks.push(fetchHackerNewsForumResults(query));
-      tasks.push(fetchStackExchangeForumResults(query, stackSiteByTopic[topic?.name] || 'stackoverflow'));
 
-      const batches = await Promise.all(tasks);
-      if (state.tab !== 'forums' || state.query !== query) return;
+      const tasks = [
+        fetchForumQuery(`${query} forum discussion`, null),
+        fetchForumQuery(`${query} reddit OR quora OR stackexchange`, null),
+        fetchRedditForumResults(query),
+        fetchStackExchangeForumResults(query, stackSiteByTopic[topic?.name] || 'stackoverflow')
+      ];
+      if (topicDomains.length) tasks.push(fetchForumQuery(`${query} ${topic.name} forum`, topicDomains));
+      if (topicIsTech || !topic) tasks.push(fetchHackerNewsForumResults(query));
 
       const seen = new Set();
       const merged = [];
-      for (const item of batches.flat()) {
-        if (!item?.url || !item?.title) continue;
-        const key = newsUrlKey(item.url);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        merged.push(item);
-      }
-      cacheRender('forums', query, 1, renderForumResults, [merged, topic ? topic.name : 'community']);
+      let finished = 0;
+      let paintTimer = null;
+      const paint = () => {
+        paintTimer = null;
+        if (state.tab !== 'forums' || state.query !== query) return;
+        if (!merged.length && finished < tasks.length) return;
+        cacheRender('forums', query, 1, renderForumResults, [merged.slice(), topicName]);
+      };
+
+      await Promise.all(tasks.map(task => withTimeout(task, 9000).catch(() => []).then(items => {
+        finished++;
+        if (state.tab !== 'forums' || state.query !== query) return;
+        for (const item of Array.isArray(items) ? items : []) {
+          if (!item?.url || !item?.title) continue;
+          const key = newsUrlKey(item.url);
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(item);
+        }
+        if (finished === tasks.length) { clearTimeout(paintTimer); paint(); }
+        else if (merged.length && !paintTimer) paintTimer = setTimeout(paint, 350);
+      })));
     }
 
     function renderForumResults(items, topicName) {
