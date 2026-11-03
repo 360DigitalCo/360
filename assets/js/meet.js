@@ -400,8 +400,8 @@ window.Meet = (function () {
 
     try {
       localStream = await navigator.mediaDevices.getUserMedia({
-        video: withVideo ? { width: 640, height: 400 } : false,
-        audio: true
+        video: withVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
     } catch (e) {
       const msg = mediaErrorMessage(e);
@@ -777,8 +777,12 @@ window.Meet = (function () {
       screenTransceiver: null
     };
 
+    // Dedicated sendrecv audio transceiver (always present, fixed order:
+    // audio, camera, screen) so audio flows BOTH ways even after offer glare.
+    const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
+    peers[peerId].audioTransceiver = audioTransceiver;
     const audioTrack = localStream?.getAudioTracks()[0];
-    if (audioTrack) pc.addTrack(audioTrack, localStream);
+    if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack).catch(() => {});
 
     // Camera and screen each get their own dedicated, always-present
     // sendonly video slot, reserved up front (with no track attached
@@ -787,12 +791,12 @@ window.Meet = (function () {
     // apart from "this is their screen share" (see ontrack below),
     // regardless of whether the meeting is voice-only, or the camera
     // gets turned on/off or acquired later mid-call.
-    const camTransceiver = pc.addTransceiver('video', { direction: 'sendonly' });
+    const camTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
     peers[peerId].camTransceiver = camTransceiver;
     const camTrack = localStream?.getVideoTracks()[0];
     if (camTrack) camTransceiver.sender.replaceTrack(camTrack);
 
-    peers[peerId].screenTransceiver = pc.addTransceiver('video', { direction: 'sendonly' });
+    peers[peerId].screenTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
 
     // If I know (from my own join-response) that this specific peer is
     // the current screen sharer, mark it immediately rather than waiting
@@ -811,13 +815,8 @@ window.Meet = (function () {
     // computeScreenViewers() only ran once at share-start.
     if (localScreenSharing && screenStream) {
       const screenTrack = screenStream.getVideoTracks()[0];
-      if (allowedScreenViewers && allowedScreenViewers.size < 2) {
-        allowedScreenViewers.add(peerId);
-        peers[peerId].screenTransceiver.sender.replaceTrack(screenTrack);
-        channel?.send({ type: 'broadcast', event: 'screen-viewers', payload: { sharer: myPeerId, viewers: [...allowedScreenViewers] } });
-      } else {
-        peers[peerId].screenTransceiver.sender.replaceTrack(getBlackTrack());
-      }
+      allowedScreenViewers?.add(peerId);
+      pushScreenTrack(peerId, screenTrack);
     }
 
     pc.onicecandidate = ({ candidate }) => { if (candidate) sendSignal(peerId, 'ice', candidate); };
@@ -832,22 +831,17 @@ window.Meet = (function () {
     pc.ontrack = (e) => {
       const entry = peers[peerId];
       if (!entry) return;
-      if (e.track.kind === 'audio') {
+      // Identify the track by WHICH local transceiver it arrived on —
+      // never by arrival order (renegotiation/rollback re-fires ontrack).
+      if (e.transceiver === entry.audioTransceiver || (e.track.kind === 'audio')) {
         entry.audioTrack = e.track;
         rebuildCombinedStream(entry);
-      } else if (e.track.kind === 'video') {
-        entry.videoOrdinal += 1;
-        if (entry.videoOrdinal === 1) {
-          // The first video m-line negotiated for this connection is
-          // always the reserved camera slot (see above) — always
-          // present even if empty/muted, so this is reliable in every
-          // mode, not just when a camera happens to already be on.
-          entry.camTrack = e.track;
-          rebuildCombinedStream(entry);
-        } else {
-          // Anything after that is the reserved screen slot.
-          entry.screenStream = e.streams[0] || new MediaStream([e.track]);
-        }
+        attachRemoteAudio(peerId);
+      } else if (e.transceiver === entry.camTransceiver) {
+        entry.camTrack = e.track;
+        rebuildCombinedStream(entry);
+      } else if (e.transceiver === entry.screenTransceiver) {
+        entry.screenStream = new MediaStream([e.track]);
       }
       renderStage();
     };
@@ -878,8 +872,9 @@ window.Meet = (function () {
         // Try to self-heal with an ICE restart before giving up — this is
         // what fixes most "random disconnects" caused by brief network
         // blips, without needing a TURN server.
-        if (pc.iceConnectionState === 'failed' && typeof pc.restartIce === 'function') {
-          try { pc.restartIce(); } catch (e) {}
+        if (typeof pc.restartIce === 'function') {
+          const st = pc.iceConnectionState;
+          setTimeout(() => { if (peers[peerId] && pc.iceConnectionState === st) { try { pc.restartIce(); } catch (e) {} } }, st === 'failed' ? 0 : 3000);
         }
         setTimeout(() => {
           const stillBad = ['failed', 'disconnected', 'closed'].includes(pc.iceConnectionState);
@@ -896,7 +891,7 @@ window.Meet = (function () {
   const signalChains = {};
   function handleSignal(fromId, type, payload) {
     if (!inCall) return;
-    if (!peers[fromId] && type === 'offer') {
+    if (!peers[fromId]) {
       const meta = (channel && channel.presenceState()[fromId] || [])[0] || {};
       createPeerConnection(fromId, meta);
     }
@@ -936,7 +931,7 @@ window.Meet = (function () {
         }
       } catch (e) { console.error('Meet signal error', e); }
     } else if (type === 'ice') {
-      if (!pc.remoteDescription) {
+      if (!pc.remoteDescription || !pc.remoteDescription.type) {
         (entry.pendingIce = entry.pendingIce || []).push(payload);
         return;
       }
@@ -956,6 +951,8 @@ window.Meet = (function () {
     if (!entry) return;
     try { entry.pc.close(); } catch (e) {}
     stopAudioMeter(peerId);
+    const ael = document.getElementById('meet-audio-' + peerId);
+    if (ael) { ael.srcObject = null; ael.remove(); }
     delete peers[peerId];
     delete signalChains[peerId];
     renderStage();
@@ -1012,12 +1009,39 @@ window.Meet = (function () {
     return Object.keys(peers).find(k => peers[k].screenSharing) || null;
   }
 
+  // Remote audio is played by ONE persistent <audio> element per peer,
+  // independent of tiles, so re-rendering the stage can never cut it off.
+  function attachRemoteAudio(peerId) {
+    const entry = peers[peerId];
+    if (!entry || !entry.audioTrack) return;
+    let el = document.getElementById('meet-audio-' + peerId);
+    if (!el) {
+      el = document.createElement('audio');
+      el.id = 'meet-audio-' + peerId;
+      el.autoplay = true;
+      el.style.display = 'none';
+      document.body.appendChild(el);
+    }
+    if (!el.srcObject || el.srcObject.getAudioTracks()[0] !== entry.audioTrack) {
+      el.srcObject = new MediaStream([entry.audioTrack]);
+    }
+    const tryPlay = () => el.play().catch(() => {
+      // Autoplay blocked: resume on the next user interaction.
+      const resume = () => { el.play().catch(() => {}); document.removeEventListener('click', resume); document.removeEventListener('keydown', resume); };
+      document.addEventListener('click', resume); document.addEventListener('keydown', resume);
+    });
+    tryPlay();
+  }
+  function resumeAllAudio() {
+    document.querySelectorAll('audio[id^="meet-audio-"]').forEach(a => { if (a.paused) a.play().catch(() => {}); });
+  }
+
   function tileHtml(opts) {
     const { key, name, avatarUrl, host, isLocal, hasVideoTrack, mic, size, screen, kickable } = opts;
     const cls = ['meet-tile', size === 'main' ? 'meet-tile-main' : 'meet-tile-side', isLocal ? 'local' : '', screen ? 'screen' : ''].filter(Boolean).join(' ');
     return `
       <div class="${cls}" id="meet-tile-${key}">
-        <video autoplay playsinline ${isLocal && !screen ? 'muted' : ''}></video>
+        <video autoplay playsinline muted></video>
         <div class="meet-tile-avatar" style="display:${hasVideoTrack ? 'none' : 'flex'}"><div class="avatar-circle">${avatarHtml(name, avatarUrl)}</div></div>
         <div class="meet-tile-meter" id="meet-meter-${key}"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="meet-tile-actions">
@@ -1029,8 +1053,19 @@ window.Meet = (function () {
       </div>`;
   }
 
+  let renderQueued = false;
   function renderStage() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => { renderQueued = false; doRenderStage(); });
+  }
+  function doRenderStage() {
     if (!inCall) return;
+    // Remember live <video> elements by tile id; reuse after rebuild.
+    const keptVideos = {};
+    document.querySelectorAll('#meet-stage-main video, #meet-stage-side video').forEach(v => {
+      const t = v.closest('.meet-tile'); if (t) keptVideos[t.id] = v;
+    });
     const main = $('#meet-stage-main');
     const side = $('#meet-stage-side');
     const hostId = currentHostId();
@@ -1098,6 +1133,17 @@ window.Meet = (function () {
     const localVids = document.querySelectorAll(`[id$="-${myPeerId}"] video, #meet-tile-${myPeerId} video`);
     localVids.forEach(v => { if (localStream && v.srcObject !== localStream && !v.closest('.screen')) v.srcObject = localStream; });
 
+    // Swap preserved video elements back in (no re-creation => no flicker).
+    document.querySelectorAll('#meet-stage-main .meet-tile, #meet-stage-side .meet-tile').forEach(t => {
+      const nv = t.querySelector('video'); const ov = keptVideos[t.id];
+      if (!nv) return;
+      const want = nv.srcObject;
+      if (ov && (!want || ov.srcObject === want)) { nv.replaceWith(ov); }
+      else if (ov && want) { ov.srcObject = want; nv.replaceWith(ov); }
+      const v = t.querySelector('video');
+      if (v) { v.muted = true; if (v.paused && v.srcObject) v.play().catch(() => {}); }
+    });
+    resumeAllAudio();
     wireTileExtras(tileRegistry);
   }
 
@@ -1386,29 +1432,34 @@ window.Meet = (function () {
 
   async function startScreenShare() {
     try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30, max: 30 } }, audio: false });
     } catch (e) { return; }
     localScreenSharing = true;
     const screenTrack = screenStream.getVideoTracks()[0];
-    const viewers = computeScreenViewers();
-    allowedScreenViewers = new Set(viewers);
+    try { screenTrack.contentHint = 'detail'; } catch (e) {}
+    allowedScreenViewers = new Set([myPeerId, ...Object.keys(peers)]);
 
-    Object.keys(peers).forEach(pid => {
-      const t = peers[pid].screenTransceiver;
-      if (!t) return;
-      t.sender.replaceTrack(allowedScreenViewers.has(pid) ? screenTrack : getBlackTrack());
-    });
+    Object.keys(peers).forEach(pid => pushScreenTrack(pid, screenTrack));
 
-    channel?.send({ type: 'broadcast', event: 'screen-viewers', payload: { sharer: myPeerId, viewers } });
+    channel?.send({ type: 'broadcast', event: 'screen-viewers', payload: { sharer: myPeerId, viewers: [...allowedScreenViewers] } });
     $('#meet-screen-btn').classList.add('active-toggle');
     broadcastMeta();
     renderStage();
-
-    const others = viewers.filter(v => v !== myPeerId);
-    const otherName = others.length ? (peers[others[0]]?.name || (others[0] === currentHostId() ? 'the host' : 'them')) : null;
-    toast(otherName ? `Sharing your screen — visible to you and ${otherName} only.` : 'Sharing your screen.');
-
+    toast('Sharing your screen with everyone.');
     screenTrack.onended = () => stopScreenShare();
+  }
+  function pushScreenTrack(pid, track) {
+    const t = peers[pid]?.screenTransceiver;
+    if (!t) return;
+    t.sender.replaceTrack(track).then(() => {
+      try {
+        const params = t.sender.getParameters();
+        if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 2500000;
+        params.degradationPreference = 'maintain-resolution';
+        t.sender.setParameters(params).catch(() => {});
+      } catch (e) {}
+    }).catch(() => {});
   }
 
   function stopScreenShare() {
