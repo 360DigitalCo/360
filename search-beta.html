@@ -1340,6 +1340,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
   </style>
   <script src="assets/js/octicons.js"></script>
 <link rel="stylesheet" href="/assets/css/mobile-nav.css">
+<link rel="stylesheet" href="/assets/css/person-view.css?v=1">
+<script src="/assets/js/person-view.js?v=1"></script>
   <style id="beta-standard-serp">
     #view-mode-toggle {
       display: flex !important;
@@ -3010,6 +3012,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     if (resultsLayout && aiPanel && aiPanel.parentElement !== resultsLayout) {
       resultsLayout.appendChild(aiPanel);
     }
+    const personViewHost = document.createElement('div');
+    personViewHost.id = 'person-view';
+    if (resultsLayout && resultsLayout.parentNode) resultsLayout.parentNode.insertBefore(personViewHost, resultsLayout);
     const classicPersonExtras = document.createElement('div');
     classicPersonExtras.id = 'classic-person-extras';
     classicPersonExtras.setAttribute('aria-live', 'polite');
@@ -3018,6 +3023,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     function syncClassicPersonSections() {
+      if (window.PersonView) PersonView.sync(state.tab);
       if (!classicPersonExtras || !knowledgePanel) return;
       const extra = knowledgePanel.querySelector('#kp-person-extra');
       const gallery = document.getElementById('kp-gallery-section');
@@ -3699,6 +3705,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     async function loadKnowledgePanel(q) {
       const myToken = ++kpToken; // guards against a slow earlier request clobbering a newer one
+      if (window.PersonView) PersonView.clear();
       classicPersonExtras.replaceChildren();
       classicPersonExtras.classList.remove('visible');
       if (!q?.trim()) { knowledgePanel.classList.remove('active'); knowledgePanel.innerHTML = ''; return; }
@@ -3873,6 +3880,16 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
           }
           const personFactLabels = new Set(['Born', 'Died', 'Born in', 'Citizenship', 'Occupation', 'Spouse', 'Employer', 'Education', 'Awards', 'Age']);
           const isPerson = facts.some(f => personFactLabels.has(f.label));
+          if (isPerson && bestTitle && window.PersonView) {
+            PersonView.mount({
+              host: personViewHost, title: bestTitle, wiki, q,
+              isValid: () => myToken === kpToken,
+              getTab: () => state.tab,
+              fetchStories: t => fetchPersonLatestStories(t, myToken),
+              fetchSocial: t => fetchPersonSocialResults(t, myToken),
+              search: name => { hideSuggestions(); doSearch(name); }
+            });
+          }
           if (isPerson && bestTitle && !knowledgePanel.querySelector('#kp-person-extra')) {
             knowledgePanel.insertAdjacentHTML('beforeend', `<div class="kp-person-extra" id="kp-person-extra">
               <section class="kp-person-section" id="kp-gallery-section"><div class="kp-related-label">Photo gallery</div><div class="kp-gallery" id="kp-person-gallery"><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div><div class="kp-gallery-skeleton"></div></div></section>
@@ -5140,6 +5157,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
       function render() {
         document.body.classList.toggle('classic-results', classicMode);
+        if (window.PersonView) PersonView.sync(state.tab);
         label.textContent = classicMode ? 'Normal view' : 'Classic view';
         btn.classList.remove('off');
         btn.title = classicMode ? 'Switch to normal card view' : 'Switch to classic web results';
@@ -5975,52 +5993,57 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       }
     }
 
+    function withTimeout(promise, ms) {
+      return Promise.race([promise, new Promise(resolve => setTimeout(() => resolve([]), ms))]);
+    }
+
     async function runForumsSearch(query) {
       showLoading();
       const topic = detectForumTopic(query);
-      const providerTargets = [...FORUM_BASE_PROVIDERS,
-        { label: 'Stack Overflow', domain: 'stackoverflow.com', domains: ['stackoverflow.com'] },
-        { label: 'Hacker News', domain: 'news.ycombinator.com', domains: ['news.ycombinator.com'] }
-      ];
-      const tasks = [
-        fetchForumQuery(query, null),
-        fetchForumQuery(`${query} forum discussion community questions answers`, null),
-        fetchForumQuery(`${query} online discussions`, null),
-        ...providerTargets.map(provider => fetchForumQuery(`${query} ${provider.label} discussion`, provider.domains))
-      ];
-
-      if (topic) {
-        const topicDomains = [...new Set(topic.domains || [])];
-        tasks.push(fetchForumQuery(`${query} ${topic.name} forum discussion`, topicDomains.length ? topicDomains : null));
-      }
-
+      const topicName = topic ? topic.name : 'community';
+      const topicDomains = topic ? [...new Set(topic.domains || [])] : [];
       const topicIsTech = topic && ['technology and development', 'business and marketing'].includes(topic.name);
       const stackSiteByTopic = {
         'school and homework': 'math',
         'science and research': 'physics',
         'gaming': 'gaming',
         'cooking and food': 'cooking',
-        'travel': 'travel',
-        'audio and hi-fi': 'stackoverflow',
-        'technology and development': 'stackoverflow'
+        'travel': 'travel'
       };
-      tasks.push(fetchRedditForumResults(query));
-      if (topicIsTech || !topic) tasks.push(fetchHackerNewsForumResults(query));
-      tasks.push(fetchStackExchangeForumResults(query, stackSiteByTopic[topic?.name] || 'stackoverflow'));
 
-      const batches = await Promise.all(tasks);
-      if (state.tab !== 'forums' || state.query !== query) return;
+      const tasks = [
+        fetchForumQuery(`${query} forum discussion`, null),
+        fetchForumQuery(`${query} reddit OR quora OR stackexchange`, null),
+        fetchRedditForumResults(query),
+        fetchStackExchangeForumResults(query, stackSiteByTopic[topic?.name] || 'stackoverflow')
+      ];
+      if (topicDomains.length) tasks.push(fetchForumQuery(`${query} ${topic.name} forum`, topicDomains));
+      if (topicIsTech || !topic) tasks.push(fetchHackerNewsForumResults(query));
 
       const seen = new Set();
       const merged = [];
-      for (const item of batches.flat()) {
-        if (!item?.url || !item?.title) continue;
-        const key = newsUrlKey(item.url);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        merged.push(item);
-      }
-      cacheRender('forums', query, 1, renderForumResults, [merged, topic ? topic.name : 'community']);
+      let finished = 0;
+      let paintTimer = null;
+      const paint = () => {
+        paintTimer = null;
+        if (state.tab !== 'forums' || state.query !== query) return;
+        if (!merged.length && finished < tasks.length) return;
+        cacheRender('forums', query, 1, renderForumResults, [merged.slice(), topicName]);
+      };
+
+      await Promise.all(tasks.map(task => withTimeout(task, 9000).catch(() => []).then(items => {
+        finished++;
+        if (state.tab !== 'forums' || state.query !== query) return;
+        for (const item of Array.isArray(items) ? items : []) {
+          if (!item?.url || !item?.title) continue;
+          const key = newsUrlKey(item.url);
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(item);
+        }
+        if (finished === tasks.length) { clearTimeout(paintTimer); paint(); }
+        else if (merged.length && !paintTimer) paintTimer = setTimeout(paint, 350);
+      })));
     }
 
     function renderForumResults(items, topicName) {

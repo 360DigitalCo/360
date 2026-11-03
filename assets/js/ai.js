@@ -306,7 +306,9 @@
     if (!sb || !currentUserId || !currentConvId) return;
     const title = (currentTitle || "Untitled chat").slice(0, 80);
     try {
-      await sb.from("ai_conversations").update({ title }).eq("id", currentConvId);
+      const sealed = await ChatCrypto.sealTitle(sb, currentUserId, title);
+      if (!sealed) return;
+      await sb.from("ai_conversations").update({ title: sealed }).eq("id", currentConvId);
       updateSidebarTitle(currentConvId, title);
     } catch (_) {}
   }
@@ -1116,10 +1118,16 @@
     if (!userMsgs.length) return;
 
     const title = (currentTitle || (userMsgs[0] ? userMsgs[0].content : "") || "Chat").slice(0, 80);
+    const sealedTitle = await ChatCrypto.sealTitle(sb, currentUserId, title);
+    const sealedMessages = await ChatCrypto.sealMessages(sb, currentUserId, history);
+    if (!sealedTitle || !sealedMessages) {
+      if (!silent) showToast("Save failed: could not encrypt chat");
+      return;
+    }
     const payload = {
       user_id: currentUserId,
-      title,
-      messages: history,
+      title: sealedTitle,
+      messages: sealedMessages,
       updated_at: new Date().toISOString(),
     };
 
@@ -1244,7 +1252,9 @@
     if (name === null) return;
     const title = name.trim().slice(0, 80) || "Untitled chat";
 
-    await sb.from("ai_conversations").update({ title }).eq("id", conv.id);
+    const sealedName = await ChatCrypto.sealTitle(sb, currentUserId, title);
+    if (!sealedName) return;
+    await sb.from("ai_conversations").update({ title: sealedName }).eq("id", conv.id);
     updateSidebarTitle(conv.id, title);
     if (conv.id === currentConvId) setTitle(title);
   }
@@ -1254,10 +1264,15 @@
     const { data } = await sb.from("ai_conversations").select("*").eq("id", conv.id).single();
     if (!data) return;
 
+    const plainTitle = await ChatCrypto.openTitle(sb, currentUserId, data.title || "Chat");
+    const plainMsgs = await ChatCrypto.openMessages(sb, currentUserId, data.messages);
+    const copyTitle = await ChatCrypto.sealTitle(sb, currentUserId, plainTitle + " (copy)");
+    const copyMsgs = await ChatCrypto.sealMessages(sb, currentUserId, plainMsgs);
+    if (!copyTitle || !copyMsgs) return;
     await sb.from("ai_conversations").insert({
       user_id: currentUserId,
-      title: (data.title || "Chat") + " (copy)",
-      messages: data.messages,
+      title: copyTitle,
+      messages: copyMsgs,
       updated_at: new Date().toISOString(),
     });
 
@@ -1278,6 +1293,10 @@
       .eq("user_id", currentUserId)
       .order("updated_at", { ascending: false })
       .limit(60);
+
+    if (data && data.length) {
+      await Promise.all(data.map(async c => { c.title = await ChatCrypto.openTitle(sb, currentUserId, c.title); }));
+    }
 
     // Build the new list off-DOM first, then swap it in in one go.
     // Clearing convList before this network request resolves (the old
@@ -1310,7 +1329,10 @@
     if (!data) return;
 
     currentConvId = data.id;
-    history = Array.isArray(data.messages) ? data.messages : [];
+    const wasPlain = !ChatCrypto.isEncrypted(data.messages) && Array.isArray(data.messages);
+    data.title = await ChatCrypto.openTitle(sb, currentUserId, data.title);
+    history = await ChatCrypto.openMessages(sb, currentUserId, data.messages);
+    if (wasPlain && history.length) setTimeout(() => saveConversation(true), 400);
     setTitle(data.title || null);
 
     clearMessages();
