@@ -20,7 +20,20 @@
   }
 
   function jget(url) {
-    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 7000);
+    return fetch(url, { signal: ctl.signal })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (v) { clearTimeout(timer); return v; });
+  }
+
+  function limit(promise, ms, fallback) {
+    return Promise.race([promise, new Promise(function (resolve) { setTimeout(function () { resolve(fallback); }, ms); })]);
+  }
+
+  function sized(url, w) {
+    return String(url || '').replace(/\/(\d+)px-/, '/' + w + 'px-');
   }
 
   function claimValue(claims, pid) {
@@ -82,17 +95,16 @@
     var labels = {};
     var partyLogo = null;
     var idList = Object.keys(ids);
-    if (idList.length) {
-      var lab = await jget(WD + '?action=wbgetentities&ids=' + idList.join('|') + '&props=labels&languages=en&format=json&origin=*');
-      Object.keys((lab && lab.entities) || {}).forEach(function (q) { labels[q] = lab.entities[q].labels && lab.entities[q].labels.en ? lab.entities[q].labels.en.value : q; });
-    }
     var partyId = currentParty && currentParty.mainsnak.datavalue ? currentParty.mainsnak.datavalue.value.id : null;
-    if (partyId) {
-      var pe = await jget(WD + '?action=wbgetentities&ids=' + partyId + '&props=claims&format=json&origin=*');
-      var pc = pe && pe.entities && pe.entities[partyId] && pe.entities[partyId].claims;
-      var logo = pc && pc.P154 && pc.P154[0] && pc.P154[0].mainsnak.datavalue ? pc.P154[0].mainsnak.datavalue.value : null;
-      if (logo) partyLogo = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(logo) + '?width=160';
-    }
+    var both = await Promise.all([
+      idList.length ? jget(WD + '?action=wbgetentities&ids=' + idList.join('|') + '&props=labels&languages=en&format=json&origin=*') : null,
+      partyId ? jget(WD + '?action=wbgetentities&ids=' + partyId + '&props=claims&format=json&origin=*') : null
+    ]);
+    var lab = both[0], pe = both[1];
+    Object.keys((lab && lab.entities) || {}).forEach(function (q) { labels[q] = lab.entities[q].labels && lab.entities[q].labels.en ? lab.entities[q].labels.en.value : q; });
+    var pc = pe && pe.entities && pe.entities[partyId] && pe.entities[partyId].claims;
+    var logo = pc && pc.P154 && pc.P154[0] && pc.P154[0].mainsnak.datavalue ? pc.P154[0].mainsnak.datavalue.value : null;
+    if (logo) partyLogo = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(logo) + '?width=160';
 
     function lbl(c) { var v = c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value; return v && v.id ? (labels[v.id] || null) : null; }
     function str(pid) { var c = claimValue(cl, pid)[0]; var v = c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value; return typeof v === 'string' ? v : null; }
@@ -152,16 +164,16 @@
     return '' +
       '<section class="pv">' +
       '<header class="pv-head"><h2 class="pv-name"></h2><p class="pv-sub"></p></header>' +
-      '<div class="pv-media" id="pv-media"></div>' +
+      '<div class="pv-media" id="pv-media"><div class="pv-skel pv-sk-a"></div><div class="pv-skel pv-sk-b"></div><div class="pv-skel pv-sk-c"></div></div>' +
       '<div class="pv-cols">' +
       '<div class="pv-main">' +
-      '<section class="pv-block" id="pv-stories" hidden><h3 class="pv-h">Top stories</h3><div class="pv-story-grid" id="pv-story-grid"></div><div class="pv-headlines" id="pv-headlines"></div></section>' +
+      '<section class="pv-block" id="pv-stories"><h3 class="pv-h">Top stories</h3><div class="pv-story-grid" id="pv-story-grid"><div class="pv-skel pv-sk-story"></div><div class="pv-skel pv-sk-story"></div></div><div class="pv-headlines" id="pv-headlines"></div></section>' +
       '<section class="pv-block" id="pv-said" hidden><h3 class="pv-h">What people are saying</h3><div class="pv-said-row" id="pv-said-row"></div></section>' +
       '</div>' +
       '<aside class="pv-side">' +
       '<section class="pv-block" id="pv-overview"><h3 class="pv-h">Overview</h3><p class="pv-over"></p><div class="pv-facts" id="pv-facts"></div></section>' +
       '<section class="pv-block" id="pv-profiles" hidden><h3 class="pv-h">Profiles</h3><div class="pv-profiles" id="pv-profile-row"></div></section>' +
-      '<section class="pv-block" id="pv-related" hidden><h3 class="pv-h">People also search for</h3><div class="pv-rel-grid" id="pv-rel-grid"></div><button type="button" class="pv-more" id="pv-more" hidden>See more</button></section>' +
+      '<section class="pv-block" id="pv-related"><h3 class="pv-h">People also search for</h3><div class="pv-rel-grid" id="pv-rel-grid"><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div></div><button type="button" class="pv-more" id="pv-more" hidden>See more</button></section>' +
       '</aside>' +
       '</div></section>';
   }
@@ -178,7 +190,7 @@
 
   function renderMedia(root, wiki, ent, commons, social) {
     var media = root.querySelector('#pv-media');
-    var hero = (wiki.originalimage && wiki.originalimage.source) || (wiki.thumbnail && wiki.thumbnail.source) || '';
+    var hero = sized(wiki.thumbnail && wiki.thumbnail.source, 800) || '';
     var cells = [];
     if (hero || commons.length) {
       var side = commons.map(function (p) {
@@ -207,7 +219,6 @@
     }
     if (stats || site) cells.push('<div class="pv-statcol"><div class="pv-statrow">' + stats + '</div>' + site + '</div>');
     media.innerHTML = cells.join('');
-    media.hidden = !cells.length;
   }
 
   function renderStories(root, stories) {
@@ -267,7 +278,7 @@
 
   function renderRelated(root, list, search) {
     var block = root.querySelector('#pv-related');
-    if (!list.length) return;
+    if (!list.length) { block.hidden = true; return; }
     var grid = root.querySelector('#pv-rel-grid');
     var more = root.querySelector('#pv-more');
     var shown = 4;
@@ -308,28 +319,33 @@
       var title = opts.title;
       var ok = function () { return my === state.token && opts.isValid(); };
 
-      var ent = await loadEntity(title);
-      if (!ent || !ok()) return false;
+      var entityP = limit(loadEntity(title), 9000, null);
+      var hero = sized(wiki.thumbnail && wiki.thumbnail.source, 800);
+      var commonsP = limit(loadCommons(title, hero), 8000, []);
+      var storiesP = limit(opts.fetchStories(title).catch(function () { return []; }), 12000, []);
+      var socialP = limit(opts.fetchSocial(title).catch(function () { return []; }), 12000, []);
+      var relatedP = limit(loadRelated(title), 8000, []);
 
       host.innerHTML = shell();
       var root = host;
       root.querySelector('.pv-name').textContent = wiki.title || title;
       root.querySelector('.pv-sub').textContent = wiki.description || '';
-      var hero = (wiki.originalimage && wiki.originalimage.source) || (wiki.thumbnail && wiki.thumbnail.source) || '';
-      var commonsP = loadCommons(title, hero);
-      var storiesP = opts.fetchStories(title).catch(function () { return []; });
-      var socialP = opts.fetchSocial(title).catch(function () { return []; });
-      var relatedP = loadRelated(title);
-
-      renderSide(root, wiki, ent, opts.search);
-      renderMedia(root, wiki, ent, [], null);
+      root.querySelector('.pv-over').innerHTML = esc(wiki.extract || '');
       PersonView.sync(opts.getTab());
 
-      var results = await Promise.all([commonsP, socialP]);
-      if (!ok()) return true;
-      renderMedia(root, wiki, ent, results[0], results[1][0] || null);
-      renderSaid(root, results[1].slice(0, 4));
-      storiesP.then(function (s) { if (ok()) renderStories(root, s); });
+      var ent = await entityP;
+      if (!ok()) return false;
+      if (!ent) { PersonView.clear(); return false; }
+      renderSide(root, wiki, ent, opts.search);
+
+      var state2 = { commons: [], social: [] };
+      var paint = function () { if (ok()) renderMedia(root, wiki, ent, state2.commons, state2.social[0] || null); };
+      commonsP.then(function (c) { state2.commons = c; });
+      socialP.then(function (sr) { state2.social = sr; if (ok()) renderSaid(root, sr.slice(0, 4)); });
+      await limit(Promise.all([commonsP, socialP]), 2500, null);
+      paint();
+      Promise.all([commonsP, socialP]).then(paint);
+      storiesP.then(function (st) { if (ok()) renderStories(root, st); });
       relatedP.then(function (r) { if (ok()) renderRelated(root, r, opts.search); });
       return true;
     }
