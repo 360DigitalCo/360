@@ -1323,19 +1323,9 @@ async function editMsg(msgId, currentText, isDm){
 }
 async function deleteMsg(msgId){
   if(!confirm('Delete this message?')) return;
-  if(activeRoom.type==='dm'){
-    const{error}=await sb.from('dm_messages').delete().eq('id',msgId);
-    if(error){showToast('❌ '+error.message);return;}
-    removeMsgAndRegroup(String(msgId));
-  } else {
-    const{error}=await sb.from('messages').update({deleted_at:new Date().toISOString()}).eq('id',msgId);
-    if(error){
-      // Fallback: try hard delete (owner-only)
-      const{error:e2}=await sb.from('messages').delete().eq('id',msgId).eq('user_id',currentUserId);
-      if(e2){showToast('❌ Cannot delete: '+e2.message);return;}
-    }
-    removeMsgAndRegroup(String(msgId));
-  }
+  const{error}=await sb.rpc('delete_message',{p_id:msgId,p_dm:activeRoom.type==='dm'});
+  if(error){showToast('❌ Cannot delete: '+error.message);return;}
+  removeMsgAndRegroup(String(msgId));
 }
 
 /* ══════════════════════════════════════════════════════
