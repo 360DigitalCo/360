@@ -1676,7 +1676,10 @@ document.getElementById('reply-cancel-btn').onclick=()=>{replyingTo=null;documen
 /* ══════════════════════════════════════════════════════
    FILE UPLOAD
 ══════════════════════════════════════════════════════ */
-document.getElementById('attachBtn').onclick=()=>document.getElementById('fileInput').click();
+const UPLOAD_ALLOWED=new Set(['776cedd9-a9e9-468a-bbf4-da459b52754d','1bd06a13-a75f-456c-8899-e8ac94ccaa15','b78d93e5-2985-4862-ab4d-216173a94fd7','0ec54d56-73d1-4d68-bf5f-f4462727d814','3c05e61f-43ed-44f6-b79a-5a0316df166b','343ac18d-b408-4502-b258-8c603ba644ac']);
+function applyUploadAccess(){const b=document.getElementById('attachBtn');if(b)b.style.display=UPLOAD_ALLOWED.has(currentUserId)?'':'none';}
+applyUploadAccess();
+document.getElementById('attachBtn').onclick=()=>{if(UPLOAD_ALLOWED.has(currentUserId))document.getElementById('fileInput').click();};
 document.getElementById('fileInput').onchange=e=>{
   const f=e.target.files[0]; if(!f) return;
   if(f.size>10*1024*1024){showToast('❌ Max file size is 10 MB');return;}
@@ -2805,7 +2808,7 @@ function updateUserChip(){
 (async()=>{
   try{
     const{data:{session}}=await sb.auth.getSession();
-    currentUserId=session?.user?.id||null; window.currentUserId=currentUserId;
+    currentUserId=session?.user?.id||null; window.currentUserId=currentUserId; applyUploadAccess();
     if(currentUserId) currentProfile=await getProfile(currentUserId); window.currentProfile=currentProfile;
     if(currentUserId) window.dispatchEvent(new Event('voice-auth-ready'));
     if(currentUserId) initGlobalDMWatcher();
@@ -2840,7 +2843,7 @@ function updateUserChip(){
     }
     if (new URLSearchParams(location.search).get('create') === '1') { history.replaceState(null,'','/chat'); openServerModal(null); }
     sb.auth.onAuthStateChange(async(_,session)=>{
-      currentUserId=session?.user?.id||null; window.currentUserId=currentUserId;
+      currentUserId=session?.user?.id||null; window.currentUserId=currentUserId; applyUploadAccess();
       currentProfile=currentUserId?await getProfile(currentUserId):null; window.currentProfile=currentProfile;
       if(currentUserId) profileCache[currentUserId]=currentProfile;
       updateUserChip();
