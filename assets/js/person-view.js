@@ -190,24 +190,28 @@
     var cells = [];
     if (hero || commons.length) {
       var side = commons.map(function (p) {
-        return '<a class="pv-ph" href="https://commons.wikimedia.org/wiki/' + esc(p.title.replace(/ /g, '_')) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(p.url) + '" alt="" loading="lazy" onerror="this.parentNode.remove()"></a>';
+        return '<a class="pv-ph" href="https://commons.wikimedia.org/wiki/' + esc(p.title.replace(/ /g, '_')) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(p.url) + '" alt="" loading="lazy" onerror="PersonView.fb(this,1)"></a>';
       }).join('');
       cells.push('<div class="pv-photos' + (side ? '' : ' solo') + '">' +
-        (hero ? '<a class="pv-ph pv-hero" href="' + esc((wiki.content_urls && wiki.content_urls.desktop && wiki.content_urls.desktop.page) || '#') + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(hero) + '" alt="' + esc(wiki.title || '') + '" onerror="this.parentNode.remove()"></a>' : '') +
+        (hero ? '<a class="pv-ph pv-hero" href="' + esc((wiki.content_urls && wiki.content_urls.desktop && wiki.content_urls.desktop.page) || '#') + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(hero) + '" alt="' + esc(wiki.title || '') + '" onerror="PersonView.fb(this,1)"></a>' : '') +
         (side ? '<div class="pv-stack">' + side + '</div>' : '') + '</div>');
+    }
+    if (!social && ent && ent.social && ent.social.length) {
+      var pick = ent.social.filter(function (x) { return /^(X|Instagram)$/.test(x.label); })[0] || ent.social[0];
+      social = { url: pick.url, title: 'Posts by ' + (wiki.title || '') + (pick.handle ? ' (' + pick.handle + ')' : ''), snippet: 'Open the ' + pick.label + ' profile for the latest posts.' };
     }
     if (social) {
       var thumb = social.thumb || social.thumbnail || social.image || '';
       var host = hostOf(social.url);
       var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host;
       cells.push('<a class="pv-post" href="' + esc(social.url) + '" target="_blank" rel="noopener noreferrer">' +
-        (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" onerror="this.remove()">' : '<div class="pv-post-text">' + esc((social.snippet || social.desc || social.title || '').slice(0, 160)) + '</div>') +
+        (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<div class="pv-post-text">' + esc((social.snippet || social.desc || social.title || '').slice(0, 160)) + '</div>') +
         '<div class="pv-post-meta"><span class="pv-ico">' + (ICONS[plat] || '') + '</span><span><b>' + esc(plat) + '</b><br>' + esc(String(ago(social) || '')) + '</span></div></a>');
     }
     var stats = '';
     if (ent && ent.age != null) stats += '<div class="pv-stat"><span class="pv-stat-l">Age</span><span class="pv-stat-big">' + ent.age + ' years</span><span class="pv-stat-s">' + esc(ent.bornLabel || '') + '</span></div>';
     else if (ent && ent.bornLabel) stats += '<div class="pv-stat"><span class="pv-stat-l">Born</span><span class="pv-stat-big">' + esc(ent.bornLabel) + '</span></div>';
-    if (ent && ent.party) stats += '<div class="pv-stat pv-party"><span class="pv-stat-l">Party</span><span class="pv-stat-mid">' + esc(ent.party) + '</span>' + (ent.partyLogo ? '<img class="pv-party-logo" src="' + esc(ent.partyLogo) + '" alt="" onerror="this.remove()">' : '') + '</div>';
+    if (ent && ent.party) stats += '<div class="pv-stat pv-party"><span class="pv-stat-l">Party</span><span class="pv-stat-mid">' + esc(ent.party) + '</span>' + (ent.partyLogo ? '<img class="pv-party-logo" src="' + esc(ent.partyLogo) + '" alt="" onerror="PersonView.fb(this)">' : '') + '</div>';
     else if (ent && ent.occupation) stats += '<div class="pv-stat pv-party"><span class="pv-stat-l">Occupation</span><span class="pv-stat-mid">' + esc(ent.occupation) + '</span></div>';
     var site = '';
     if (ent && ent.website) {
@@ -227,10 +231,10 @@
     var tail = rest.filter(function (s) { return small.indexOf(s) < 0; });
     function meta(s) { return esc([s.source, s.age].filter(Boolean).join(' · ')); }
     var html = '<a class="pv-lead" href="' + esc(lead.url) + '" target="_blank" rel="noopener noreferrer">' +
-      (lead.thumb ? '<img src="' + esc(lead.thumb) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
+      (lead.thumb ? '<img src="' + esc(lead.thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '') +
       '<span class="pv-src">' + esc(lead.source || hostOf(lead.url)) + '</span><span class="pv-ttl">' + esc(lead.title) + '</span><span class="pv-age">' + esc(lead.age || '') + '</span></a>';
     html += '<div class="pv-smalls">' + small.map(function (s) {
-      return '<a class="pv-small" href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer"><span class="pv-small-t"><span class="pv-src">' + esc(s.source || hostOf(s.url)) + '</span><span class="pv-ttl">' + esc(s.title) + '</span><span class="pv-age">' + esc(s.age || '') + '</span></span><img src="' + esc(s.thumb) + '" alt="" loading="lazy" onerror="this.remove()"></a>';
+      return '<a class="pv-small" href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer"><span class="pv-small-t"><span class="pv-src">' + esc(s.source || hostOf(s.url)) + '</span><span class="pv-ttl">' + esc(s.title) + '</span><span class="pv-age">' + esc(s.age || '') + '</span></span><img src="' + esc(s.thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)"></a>';
     }).join('') + '</div>';
     root.querySelector('#pv-story-grid').innerHTML = html;
     root.querySelector('#pv-headlines').innerHTML = tail.slice(0, 4).map(function (s) {
@@ -247,7 +251,7 @@
       var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host;
       var thumb = s.thumb || s.thumbnail || s.image || '';
       return '<a class="pv-said" href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' +
-        (/^https?:/.test(thumb) ? '<img src="' + esc(thumb) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="pv-said-fill"></span>') +
+        (/^https?:/.test(thumb) ? '<img src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<span class="pv-said-fill"></span>') +
         '<span class="pv-said-ttl">' + esc((s.title || '').slice(0, 90)) + '</span><span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + '</span></a>';
     }).join('');
     block.hidden = false;
@@ -280,7 +284,7 @@
     var shown = 4;
     function paint() {
       grid.innerHTML = list.slice(0, shown).map(function (p, i) {
-        return '<button type="button" class="pv-rel" data-i="' + i + '"><img src="' + esc(p.img) + '" alt="" loading="lazy" onerror="this.remove()"><span class="pv-rel-n">' + esc(p.name) + '</span><span class="pv-rel-s">' + esc(p.sub.length > 26 ? p.sub.slice(0, 24) + '…' : p.sub) + '</span></button>';
+        return '<button type="button" class="pv-rel" data-i="' + i + '"><img src="' + esc(p.img) + '" alt="" loading="lazy" onerror="PersonView.fb(this)"><span class="pv-rel-n">' + esc(p.name) + '</span><span class="pv-rel-s">' + esc(p.sub.length > 26 ? p.sub.slice(0, 24) + '…' : p.sub) + '</span></button>';
       }).join('');
       more.hidden = shown >= list.length;
     }
@@ -294,6 +298,17 @@
   }
 
   var PersonView = {
+    fb: function (img, up) {
+      var src = img.getAttribute('src') || '';
+      if (!img.dataset.fb && /^https?:/.test(src) && src.indexOf('wsrv.nl') < 0) {
+        img.dataset.fb = '1';
+        img.referrerPolicy = 'no-referrer';
+        img.src = 'https://wsrv.nl/?w=900&url=' + encodeURIComponent(src);
+        return;
+      }
+      (up ? img.parentNode : img).remove();
+    },
+
     clear: function () {
       state.token++;
       if (state.host) { state.host.innerHTML = ''; state.host.classList.remove('pv-on'); }

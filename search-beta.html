@@ -3548,13 +3548,15 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 
     async function fetchPersonSocialResults(title, token) {
       try {
-        const res = await fetch(EDGE_SEARCH, {
+        const run = q => fetch(EDGE_SEARCH, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-          body: JSON.stringify({ q: `${title} latest social posts`, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
-        });
-        if (!res.ok || token !== kpToken) return [];
-        const data = await res.json();
+          body: JSON.stringify({ q, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+        }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+        const parts = await Promise.all([`${title} latest social posts`, `${title} instagram`, `${title} x.com`].map(run));
+        if (token !== kpToken) return [];
+        const seen = new Set();
+        const data = { web: parts.flatMap(d => d.web || []).filter(i => i && i.url && !seen.has(i.url) && seen.add(i.url)) };
         const socialHost = /(^|\.)(x\.com|twitter\.com|instagram\.com|threads\.net|facebook\.com|tiktok\.com|linkedin\.com|youtube\.com)$/i;
         const items = (data.web || []).filter(item => {
           try { return item && /^https?:$/i.test(new URL(item.url).protocol) && socialHost.test(new URL(item.url).hostname.replace(/^www\./i, '')); }
