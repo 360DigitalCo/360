@@ -4,17 +4,17 @@ body.pv-active #classic-person-extras,
 body.classic-results.pv-active #knowledge-panel { display: none !important; }
 
 #person-view {
-  --pv-card: #f1f3f4;
+  --pv-card: color-mix(in srgb, var(--a, #3b82f6) 5%, #fff);
   --pv-ink: #202124;
-  --pv-mut: #5f6368;
-  --pv-link: #1a0dab;
+  --pv-mut: #5b6475;
+  --pv-link: var(--a, #2563eb);
   --pv-line: rgba(0, 0, 0, .1);
 }
 body.dark #person-view {
-  --pv-card: #2d2e30;
+  --pv-card: color-mix(in srgb, var(--a, #3b82f6) 8%, #1b2030);
   --pv-ink: #e8eaed;
-  --pv-mut: #9aa0a6;
-  --pv-link: #8ab4f8;
+  --pv-mut: #9aa3b5;
+  --pv-link: color-mix(in srgb, var(--a, #3b82f6) 60%, #fff);
   --pv-line: rgba(255, 255, 255, .12);
 }
 
@@ -26,14 +26,14 @@ body.dark #person-view {
 
 .pv-media { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 12px; height: 300px; margin-bottom: 26px; }
 .pv-media[hidden] { display: none; }
-.pv-photos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2px; border-radius: 24px; overflow: hidden; min-height: 0; }
+.pv-photos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2px; border-radius: 12px; overflow: hidden; min-height: 0; }
 .pv-photos.solo { grid-template-columns: 1fr; }
 .pv-ph { display: block; overflow: hidden; background: var(--pv-card); min-height: 0; }
 .pv-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pv-stack { display: grid; grid-template-rows: 1fr 1fr; gap: 2px; min-height: 0; }
 .pv-hero { height: 100%; }
 
-.pv-post { display: flex; flex-direction: column; border-radius: 24px; background: var(--pv-card); overflow: hidden; min-height: 0; }
+.pv-post { display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--pv-line); background: var(--pv-card); overflow: hidden; min-height: 0; }
 .pv-post-img { flex: 1; min-height: 0; width: 100%; object-fit: cover; }
 .pv-post-text { flex: 1; padding: 18px; font-size: 15px; line-height: 1.5; overflow: hidden; }
 .pv-post-meta { display: flex; gap: 10px; align-items: center; padding: 12px 16px; font-size: 14px; line-height: 1.3; color: var(--pv-mut); }
@@ -43,20 +43,21 @@ body.dark #person-view {
 
 .pv-statcol { display: grid; grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; min-height: 0; }
 .pv-statrow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
-.pv-stat { display: flex; flex-direction: column; padding: 18px; border-radius: 24px; background: var(--pv-card); min-height: 0; overflow: hidden; }
-.pv-stat-l { font-size: 18px; color: var(--pv-ink); }
-.pv-stat-big { margin-top: auto; font-size: 26px; line-height: 1.15; }
-.pv-stat-mid { margin-top: 10px; font-size: 16px; color: var(--pv-mut); }
+.pv-stat { display: flex; flex-direction: column; padding: 14px 16px; border-radius: 10px; background: var(--pv-card); border: 1px solid var(--pv-line); border-top: 3px solid var(--a, #3b82f6); min-height: 0; overflow: hidden; }
+.pv-stat-l { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pv-mut); }
+.pv-stat-big { margin-top: auto; font-size: 24px; font-weight: 700; line-height: 1.15; }
+.pv-stat-mid { margin-top: 8px; font-size: 16px; font-weight: 600; color: var(--pv-ink); }
 .pv-stat-s { margin-top: 6px; font-size: 14px; color: var(--pv-mut); }
 .pv-party-logo { margin-top: auto; width: 56px; height: 56px; object-fit: contain; border-radius: 8px; background: #fff; padding: 4px; box-sizing: border-box; }
-.pv-site { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border-radius: 24px; background: var(--pv-card); overflow: hidden; }
+.pv-site { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--pv-card); border: 1px solid var(--pv-line); overflow: hidden; }
 .pv-site-top { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .pv-site-name { font-size: 18px; color: var(--pv-link); line-height: 1.3; }
 .pv-site-url { font-size: 13px; color: var(--pv-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.pv-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 480px); gap: 40px; align-items: start; border-top: 1px solid var(--pv-line); padding-top: 22px; }
+.pv-cols { display: block; columns: 2 380px; column-gap: 44px; border-top: 1px solid var(--pv-line); padding-top: 22px; }
 .pv-h { margin: 0 0 14px; font-size: 22px; font-weight: 400; background: none; -webkit-text-fill-color: currentColor; color: var(--pv-ink); }
-.pv-block { margin-bottom: 30px; }
+.pv-main, .pv-side { display: contents; }
+.pv-block { margin-bottom: 30px; break-inside: avoid; }
 .pv-block[hidden] { display: none; }
 
 .pv-story-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--pv-line); }
@@ -86,9 +87,9 @@ body.dark #person-view {
 
 .pv-over { margin: 0 0 14px; font-size: 18px; line-height: 1.55; }
 .pv-over a { color: var(--pv-link); }
-.pv-facts { display: flex; flex-direction: column; gap: 2px; border-radius: 22px; overflow: hidden; }
-.pv-fact { display: flex; gap: 24px; padding: 16px 18px; background: var(--pv-card); font-size: 17px; line-height: 1.45; }
-.pv-fl { flex: 0 0 120px; color: var(--pv-mut); }
+.pv-facts { display: flex; flex-direction: column; border-top: 1px solid var(--pv-line); }
+.pv-fact { display: flex; gap: 20px; padding: 11px 0; border-bottom: 1px solid var(--pv-line); font-size: 15px; line-height: 1.45; }
+.pv-fl { flex: 0 0 110px; font-weight: 600; color: var(--pv-mut); }
 .pv-fv { flex: 1; min-width: 0; }
 .pv-u { text-decoration: underline dotted; text-underline-offset: 3px; }
 
@@ -106,7 +107,7 @@ body.dark #person-view {
 .pv-more:hover { filter: brightness(1.08); }
 
 @media (max-width: 1100px) {
-  .pv-cols { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pv-cols { columns: 1; }
   .pv-media { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); height: auto; }
   .pv-photos { height: 280px; }
   .pv-post { height: 280px; }
@@ -123,7 +124,7 @@ body.dark #person-view {
   .pv-said { flex-basis: 240px; height: 240px; }
 }
 
-.pv-skel { border-radius: 24px; background: var(--pv-card); animation: pvPulse 1.2s ease-in-out infinite; }
+.pv-skel { border-radius: 12px; background: var(--pv-card); animation: pvPulse 1.2s ease-in-out infinite; }
 @keyframes pvPulse { 50% { opacity: .55; } }
 .pv-media { min-height: 300px; }
 .pv-media .pv-sk-a { grid-column: 1; }
