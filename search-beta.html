@@ -3546,41 +3546,70 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       }
     }
 
-    async function fetchPersonSocialResults(title, token) {
+    const socialMemo = {};
+    function fetchPersonSocialResults(title, token) {
+      const k = title + '|' + token;
+      if (!socialMemo[k]) { socialMemo[k] = fetchPersonSocialRaw(title, token); }
+      return socialMemo[k];
+    }
+    async function fetchPersonSocialRaw(title, token) {
+      const EDGE_PREVIEW = 'https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/social-preview';
+      const postLike = {
+        'x.com': /\/status\/\d+/, 'twitter.com': /\/status\/\d+/,
+        'instagram.com': /\/(p|reel|reels|tv)\//, 'tiktok.com': /\/(video|photo)\/\d+/,
+        'youtube.com': /\/(watch|shorts)/, 'youtu.be': /^\/[\w-]{6,}/,
+        'facebook.com': /\/(posts|videos|reel|watch|photo|permalink)/, 'threads.net': /\/post\//,
+        'reddit.com': /\/comments\//, 'bsky.app': /\/post\//
+      };
+      const run = q => fetch(EDGE_SEARCH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+        body: JSON.stringify({ q, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
+      }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
       try {
-        const run = q => fetch(EDGE_SEARCH, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-          body: JSON.stringify({ q, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
-        }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
-        const parts = await Promise.all([`${title} latest social posts`, `${title} instagram`, `${title} x.com`].map(run));
+        const queries = [`${title} latest social posts`].concat(
+          ['x.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'facebook.com', 'reddit.com', 'threads.net'].map(h => `${title} site:${h}`)
+        );
+        const parts = await Promise.all(queries.map(run));
         if (token !== kpToken) return [];
         const seen = new Set();
-        const data = { web: parts.flatMap(d => d.web || []).filter(i => i && i.url && !seen.has(i.url) && seen.add(i.url)) };
-        const socialHost = /(^|\.)(x\.com|twitter\.com|instagram\.com|threads\.net|facebook\.com|tiktok\.com|linkedin\.com|youtube\.com)$/i;
-        const items = (data.web || []).filter(item => {
-          try { return item && /^https?:$/i.test(new URL(item.url).protocol) && socialHost.test(new URL(item.url).hostname.replace(/^www\./i, '')); }
-          catch (e) { return false; }
+        const perHost = {};
+        const cands = [];
+        parts.flatMap(d => d.web || []).forEach(item => {
+          try {
+            if (!item || !item.url || seen.has(item.url)) return;
+            const u = new URL(item.url);
+            const host = u.hostname.replace(/^(www|m|mobile|old)\./i, '').toLowerCase();
+            const rule = postLike[host];
+            if (!rule || !rule.test(u.pathname)) return;
+            if ((perHost[host] || 0) >= 2) return;
+            perHost[host] = (perHost[host] || 0) + 1;
+            seen.add(item.url);
+            cands.push(item);
+          } catch (e) {}
         });
-        const publishedAt = item => {
-          const raw = item.publishedAt || item.published_at || item.publishedDate || item.published || item.datePublished || item.date || item.timestamp || item.age || '';
-          if (typeof raw === 'number' && Number.isFinite(raw)) return raw < 1e12 ? raw * 1000 : raw;
-          const parsed = Date.parse(String(raw));
-          if (Number.isFinite(parsed)) return parsed;
-          const relative = String(raw).match(/(\d+)\s+(minute|hour|day|week|month|year)s?\s+ago/i);
-          if (relative) {
-            const amount = Number(relative[1]);
-            const unit = relative[2].toLowerCase();
-            const ms = { minute: 60000, hour: 3600000, day: 86400000, week: 604800000, month: 2592000000, year: 31536000000 }[unit];
-            return Date.now() - amount * ms;
-          }
-          if (/just now|moments ago/i.test(String(raw))) return Date.now();
-          return null;
-        };
-        return items.map((item, index) => ({ item, index, time: publishedAt(item) }))
-          .sort((a, b) => a.time == null && b.time == null ? a.index - b.index : a.time == null ? 1 : b.time == null ? -1 : b.time - a.time)
-          .slice(0, 3)
-          .map(entry => entry.item);
+        if (!cands.length) return [];
+        const res = await fetch(EDGE_PREVIEW, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
+          body: JSON.stringify({ urls: cands.slice(0, 10).map(c => c.url) })
+        });
+        if (!res.ok || token !== kpToken) return [];
+        const data = await res.json();
+        const byUrl = {};
+        cands.forEach(c => { byUrl[c.url] = c; });
+        const junk = /log in|sign up|create an account|explore this post|^instagram$|^facebook$/i;
+        const dec = t => { const d = document.createElement('textarea'); d.innerHTML = String(t || ''); return d.value; };
+        return (data.previews || []).map(p => {
+          const src = byUrl[p.url] || {};
+          const text = dec(p.text).replace(/\s+/g, ' ').trim();
+          return {
+            url: p.url, platform: p.platform, author: dec(p.handle || p.author || ''),
+            title: text.slice(0, 90), snippet: text, thumb: p.image || '',
+            age: src.age || src.publishedAt || src.date || (p.date ? new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
+          };
+        }).filter(p => (p.snippet && !junk.test(p.snippet)) || p.thumb).filter(p => !junk.test(p.snippet || ''))
+          .sort((a, b) => (b.thumb ? 1 : 0) - (a.thumb ? 1 : 0)).slice(0, 6);
       } catch (e) {
         return [];
       }

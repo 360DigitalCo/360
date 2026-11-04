@@ -199,21 +199,16 @@
         (hero ? '<a class="pv-ph pv-hero" href="' + esc((wiki.content_urls && wiki.content_urls.desktop && wiki.content_urls.desktop.page) || '#') + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(hero) + '" data-alt="' + esc((wiki.originalimage && wiki.originalimage.source && wiki.thumbnail && wiki.thumbnail.source !== hero ? wiki.thumbnail.source : (wiki.originalimage && wiki.originalimage.source) || '')) + '" alt="' + esc(wiki.title || '') + '" onerror="PersonView.fb(this,1)"></a>' : '') +
         (side ? '<div class="pv-stack">' + side + '</div>' : '') + '</div>');
     }
-    if (!social && ent && ent.social && ent.social.length) {
-      var pick = ent.social.filter(function (x) { return /^(X|Instagram)$/.test(x.label); })[0] || ent.social[0];
-      social = { url: pick.url, profile: pick.label, handle: pick.handle || '', name: wiki.title || '' };
-    }
     if (social) {
       var thumb = social.thumb || social.thumbnail || social.image || '';
       var host = hostOf(social.url);
-      var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host;
-      if (social.profile) {
-        cells.push('<a class="pv-post pv-prof-card" href="' + esc(social.url) + '" target="_blank" rel="noopener noreferrer"><span class="pv-pc-ico">' + (ICONS[social.profile] || '') + '</span><span class="pv-pc-t">' + esc(social.name) + ' on ' + esc(social.profile) + '</span><span class="pv-pc-s">' + esc(social.handle || 'Official profile') + '</span><span class="pv-pc-go">Open profile</span></a>');
-      } else
+      var plat = social.platform || (/instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host);
+      var body = String(social.snippet || social.desc || social.title || '');
       cells.push('<a class="pv-post pv-fold" href="' + esc(social.url) + '" target="_blank" rel="noopener noreferrer">' +
-        (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<div class="pv-post-text">' + esc((social.snippet || social.desc || social.title || '').slice(0, 160)) + '</div>') +
-        '<div class="pv-post-meta"><span class="pv-ico">' + (ICONS[plat] || '') + '</span><span><b>' + esc(plat) + '</b><br>' + esc(String(ago(social) || '')) + '</span></div>' +
-        (social.snippet || social.desc || social.title ? '<div class="pv-fold-d pv-post-d">' + esc(String(social.snippet || social.desc || social.title).slice(0, 280)) + '</div>' : '') + '</a>');
+        (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="PersonView.fb(this)">' : '') +
+        '<div class="pv-post-cap' + (thumb ? '' : ' big') + '">' + esc(body.slice(0, thumb ? 110 : 260)) + '</div>' +
+        '<div class="pv-post-meta"><span class="pv-ico">' + (ICONS[plat] || '') + '</span><span><b>' + esc(plat) + '</b>' + (social.author ? ' · ' + esc(social.author) : '') + '<br>' + esc(String(ago(social) || '')) + '</span></div>' +
+        (thumb && body.length > 110 ? '<div class="pv-fold-d pv-post-d">' + esc(body.slice(0, 300)) + '</div>' : '') + '</a>');
     }
     function dl(rows) {
       rows = rows.filter(Boolean);
@@ -233,6 +228,7 @@
       site = '<a class="pv-site pv-fold" href="' + esc(ent.website) + '" target="_blank" rel="noopener noreferrer"><span class="pv-site-top"><img src="https://www.google.com/s2/favicons?sz=32&domain_url=' + encodeURIComponent(ent.website) + '" alt="" width="16" height="16" onerror="this.remove()"> ' + esc(hostOf(ent.website)) + '</span><span class="pv-site-name">' + esc(wiki.title || '') + ' official site</span><span class="pv-site-url">' + esc(ent.website.replace(/^https?:\/\//, '')) + '</span>' + dl([drow('About', esc((wiki.extract || '').slice(0, 170)) + ((wiki.extract || '').length > 170 ? '…' : '')), links ? '<span class="pv-dr pv-dr-ico">' + links + '</span>' : '']) + '</a>';
     }
     if (stats || site) cells.push('<div class="pv-statcol"><div class="pv-statrow">' + stats + '</div>' + site + '</div>');
+    media.className = 'pv-media c' + cells.length;
     media.innerHTML = cells.join('');
     Array.prototype.forEach.call(media.querySelectorAll('div.pv-fold'), function (el) {
       el.addEventListener('click', function () { el.classList.toggle('open'); });
@@ -284,7 +280,7 @@
         (/^https?:/.test(thumb) ? '<img src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<span class="pv-said-fill"></span>') +
         '<span class="pv-said-txt"><span class="pv-said-ttl">' + esc(tx.head) + '</span>' +
         (tx.body && tx.body !== tx.head ? '<span class="pv-said-desc">' + esc(tx.body) + '</span>' : '') + '</span>' +
-        '<span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + (when ? ' · ' + esc(when) : '') + '</span></a>';
+        '<span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + (s.author ? ' · ' + esc(s.author) : '') + (when ? ' · ' + esc(when) : '') + '</span></a>';
     }).join('');
     block.hidden = false;
   }
@@ -396,7 +392,7 @@
       var state2 = { commons: [], social: [] };
       var paint = function () { if (ok()) renderMedia(root, wiki, ent, state2.commons, state2.social[0] || null); };
       commonsP.then(function (c) { state2.commons = c; });
-      socialP.then(function (sr) { state2.social = sr; if (ok()) renderSaid(root, sr.slice(0, 4)); });
+      socialP.then(function (sr) { state2.social = sr; if (ok()) renderSaid(root, sr.slice(1, 5)); });
       await limit(Promise.all([commonsP, socialP]), 2500, null);
       paint();
       Promise.all([commonsP, socialP]).then(paint);
