@@ -168,9 +168,12 @@
       '<div class="pv-cols">' +
       '<section class="pv-block" id="pv-stories"><h3 class="pv-h">Top stories</h3><div class="pv-story-grid" id="pv-story-grid"><div class="pv-skel pv-sk-story"></div><div class="pv-skel pv-sk-story"></div></div><div class="pv-headlines" id="pv-headlines"></div></section>' +
       '<section class="pv-block" id="pv-said" hidden><h3 class="pv-h">What people are saying</h3><div class="pv-said-row" id="pv-said-row"></div></section>' +
-      '<section class="pv-block" id="pv-profiles" hidden><h3 class="pv-h">Profiles</h3><div class="pv-profiles" id="pv-profile-row"></div></section>' +
+      '<div class="pv-bottom"><div class="pv-bcol">' +
       '<section class="pv-block" id="pv-overview"><h3 class="pv-h">Overview</h3><p class="pv-over"></p><div class="pv-facts" id="pv-facts"></div></section>' +
+      '<section class="pv-block" id="pv-profiles" hidden><h3 class="pv-h">Profiles</h3><div class="pv-profiles" id="pv-profile-row"></div></section>' +
+      '</div><div class="pv-bcol">' +
       '<section class="pv-block" id="pv-related"><h3 class="pv-h">People also search for</h3><div class="pv-rel-grid" id="pv-rel-grid"><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div><div class="pv-skel pv-sk-rel"></div></div><button type="button" class="pv-more" id="pv-more" hidden>See more</button></section>' +
+      '</div></div>' +
       '</div></section>';
   }
 

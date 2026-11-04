@@ -54,9 +54,8 @@ body.dark #person-view {
 .pv-site-name { font-size: 15px; color: var(--pv-link); line-height: 1.3; }
 .pv-site-url { font-size: 13px; color: var(--pv-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.pv-cols { display: block; columns: 2 380px; column-gap: 44px; border-top: 1px solid var(--pv-line); padding-top: 22px; }
+.pv-cols { display: block; border-top: 1px solid var(--pv-line); padding-top: 22px; }
 .pv-h { margin: 0 0 10px; font-size: 17px; font-weight: 600; font-weight: 400; background: none; -webkit-text-fill-color: currentColor; color: var(--pv-ink); }
-.pv-main, .pv-side { display: contents; }
 .pv-block { margin-bottom: 24px; break-inside: avoid; }
 .pv-block[hidden] { display: none; }
 
@@ -107,7 +106,7 @@ body.dark #person-view {
 .pv-more:hover { filter: brightness(1.08); }
 
 @media (max-width: 1100px) {
-  .pv-cols { columns: 1; }
+  .pv-bottom { grid-template-columns: minmax(0, 1fr); }
   .pv-media { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); height: auto; }
   .pv-photos { height: 280px; }
   .pv-post { height: 280px; }
@@ -149,3 +148,14 @@ body.dark #person-view {
 .pv-said-desc { font-size: 12.5px; line-height: 1.45; color: rgba(255, 255, 255, .88); max-height: 0; opacity: 0; overflow: hidden; transition: max-height .3s ease, opacity .25s ease; }
 .pv-said:hover .pv-said-desc, .pv-said:focus-visible .pv-said-desc { max-height: 110px; opacity: 1; }
 @media (hover: none) { .pv-said-desc { max-height: 52px; opacity: 1; } }
+
+.pv-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+.pv-bcol { min-width: 0; }
+.pv-said-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; }
+.pv-said { flex: none; width: auto; }
+@media (max-width: 1100px) { .pv-said-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .pv-said-row { grid-template-columns: minmax(0, 1fr); } }
+.pv-lead img { aspect-ratio: auto; height: 190px; }
+.pv-story-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: start; }
+.pv-skel.pv-sk-story { height: 190px; }
+@media (max-width: 640px) { .pv-story-grid { grid-template-columns: minmax(0, 1fr); } }
