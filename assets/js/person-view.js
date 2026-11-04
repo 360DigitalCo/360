@@ -196,17 +196,20 @@
         return '<a class="pv-ph" href="https://commons.wikimedia.org/wiki/' + esc(p.title.replace(/ /g, '_')) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(p.url) + '" alt="" loading="lazy" onerror="PersonView.fb(this,1)"></a>';
       }).join('');
       cells.push('<div class="pv-photos' + (side ? '' : ' solo') + '">' +
-        (hero ? '<a class="pv-ph pv-hero" href="' + esc((wiki.content_urls && wiki.content_urls.desktop && wiki.content_urls.desktop.page) || '#') + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(hero) + '" alt="' + esc(wiki.title || '') + '" onerror="PersonView.fb(this,1)"></a>' : '') +
+        (hero ? '<a class="pv-ph pv-hero" href="' + esc((wiki.content_urls && wiki.content_urls.desktop && wiki.content_urls.desktop.page) || '#') + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(hero) + '" data-alt="' + esc((wiki.originalimage && wiki.originalimage.source && wiki.thumbnail && wiki.thumbnail.source !== hero ? wiki.thumbnail.source : (wiki.originalimage && wiki.originalimage.source) || '')) + '" alt="' + esc(wiki.title || '') + '" onerror="PersonView.fb(this,1)"></a>' : '') +
         (side ? '<div class="pv-stack">' + side + '</div>' : '') + '</div>');
     }
     if (!social && ent && ent.social && ent.social.length) {
       var pick = ent.social.filter(function (x) { return /^(X|Instagram)$/.test(x.label); })[0] || ent.social[0];
-      social = { url: pick.url, title: 'Posts by ' + (wiki.title || '') + (pick.handle ? ' (' + pick.handle + ')' : ''), snippet: 'Open the ' + pick.label + ' profile for the latest posts.' };
+      social = { url: pick.url, profile: pick.label, handle: pick.handle || '', name: wiki.title || '' };
     }
     if (social) {
       var thumb = social.thumb || social.thumbnail || social.image || '';
       var host = hostOf(social.url);
       var plat = /instagram/.test(host) ? 'Instagram' : /facebook/.test(host) ? 'Facebook' : /(^|\.)x\.com|twitter/.test(host) ? 'X' : /youtube/.test(host) ? 'YouTube' : /tiktok/.test(host) ? 'TikTok' : host;
+      if (social.profile) {
+        cells.push('<a class="pv-post pv-prof-card" href="' + esc(social.url) + '" target="_blank" rel="noopener noreferrer"><span class="pv-pc-ico">' + (ICONS[social.profile] || '') + '</span><span class="pv-pc-t">' + esc(social.name) + ' on ' + esc(social.profile) + '</span><span class="pv-pc-s">' + esc(social.handle || 'Official profile') + '</span><span class="pv-pc-go">Open profile</span></a>');
+      } else
       cells.push('<a class="pv-post pv-fold" href="' + esc(social.url) + '" target="_blank" rel="noopener noreferrer">' +
         (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<div class="pv-post-text">' + esc((social.snippet || social.desc || social.title || '').slice(0, 160)) + '</div>') +
         '<div class="pv-post-meta"><span class="pv-ico">' + (ICONS[plat] || '') + '</span><span><b>' + esc(plat) + '</b><br>' + esc(String(ago(social) || '')) + '</span></div>' +
@@ -329,13 +332,25 @@
   var PersonView = {
     fb: function (img, up) {
       var src = img.getAttribute('src') || '';
+      var alt = img.dataset.alt;
+      if (alt && !img.dataset.alted) {
+        img.dataset.alted = '1';
+        img.src = alt;
+        return;
+      }
       if (!img.dataset.fb && /^https?:/.test(src) && src.indexOf('wsrv.nl') < 0) {
         img.dataset.fb = '1';
         img.referrerPolicy = 'no-referrer';
         img.src = 'https://wsrv.nl/?w=900&url=' + encodeURIComponent(src);
         return;
       }
-      (up ? img.parentNode : img).remove();
+      var host = up ? img.parentNode : img;
+      var box = host.closest && host.closest('.pv-photos');
+      host.remove();
+      if (box) {
+        if (!box.querySelector('.pv-hero')) box.classList.add('nohero');
+        if (!box.querySelector('img')) box.remove();
+      }
     },
 
     clear: function () {
