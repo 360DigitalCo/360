@@ -1354,6 +1354,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 <link rel="stylesheet" href="/assets/css/mobile-nav.css">
 <link rel="stylesheet" href="/assets/css/person-view.css?v=1">
 <script src="/assets/js/person-view.js?v=1"></script>
+<link rel="stylesheet" href="/assets/css/movie-view.css?v=1">
+<script src="/assets/js/movie-view.js?v=1"></script>
   <style id="beta-standard-serp">
     #view-mode-toggle {
       display: flex !important;
@@ -3905,6 +3907,9 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
               fetchSocial: (t, h) => fetchPersonSocialResults(t, myToken, h),
               search: name => { hideSuggestions(); doSearch(name); }
             });
+          }
+          if (!isPerson && bestTitle && window.MovieView && /film|movie|miniseries|television series|TV series/i.test(wiki.description || '') && !knowledgePanel.querySelector('.mv-card')) {
+            MovieView.mount({ host: knowledgePanel, title: bestTitle, isValid: () => myToken === kpToken });
           }
           if (isPerson && bestTitle && !knowledgePanel.querySelector('#kp-person-extra')) {
             knowledgePanel.insertAdjacentHTML('beforeend', `<div class="kp-person-extra" id="kp-person-extra">
