@@ -758,6 +758,11 @@ async function enterServer(server){
     const{data:mem}=await sb.from('server_members').select('onboarding_done').eq('server_id',server.id).eq('user_id',currentUserId).maybeSingle();
     if(!mem?.onboarding_done){location.href='/onboarding?server='+encodeURIComponent(server.id);return;}
   }
+  if(currentUserId&&window.ChatTour&&joinedServerIds.has(server.id)){
+    sb.from('channels').select('name').eq('server_id',server.id).order('position').limit(6).then(({data})=>{
+      setTimeout(()=>window.ChatTour.server({id:server.id,name:server.name,description:server.description,welcome:server.onboarding_welcome_text,rules:server.onboarding_rules,channels:(data||[]).map(x=>x.name)}),700);
+    });
+  }
 }
 
 function showOnboardingModal(server){
@@ -2836,6 +2841,7 @@ function updateUserChip(){
       currentUserId=session?.user?.id||null; window.currentUserId=currentUserId; applyUploadAccess();
       currentProfile=currentUserId?await getProfile(currentUserId):null; window.currentProfile=currentProfile;
       if(currentUserId) profileCache[currentUserId]=currentProfile;
+      if(currentUserId) window.dispatchEvent(new Event('voice-auth-ready'));
       updateUserChip();
       initSocialEnhancements();
       if(currentUserId) await seedUnreadCounts();

@@ -11,6 +11,7 @@ window.Voice = (function () {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
   ];
 
   /* ── State ─────────────────────────────────────────── */
@@ -22,6 +23,9 @@ window.Voice = (function () {
   let isInCall        = false;
   let isMuted         = false;
   let pendingInvite   = null;
+  let invitees        = [];
+  let ringTimer       = null;
+  const iceBacklog    = {};
 
   let timerInterval   = null;
   let timerStart      = null;
@@ -31,40 +35,49 @@ window.Voice = (function () {
   function myId()  { return window.currentUserId; }
 
   /* ── Broadcast helpers ─────────────────────────────── */
-  function signal(toId, type, data) {
-    // Send on room channel (if in call) AND personal inbox of recipient
-    const msg = { type: 'broadcast', event: 'sig', payload: { from: myId(), to: toId, type, data } };
-    if (roomChan && roomChan.state === 'joined') roomChan.send(msg);
-    // Also reach their inbox directly for reliability
+  const sendChans = {};
+  function sendChannel(toId) {
     const sb = getSb();
-    if (!sb) return;
-    const key = `voice-inbox:${toId}`;
-    const tmp = sb.channel(key, { config: { broadcast: { self: false } } });
-    tmp.subscribe(s => {
-      if (s === 'SUBSCRIBED') {
-        tmp.send(msg);
-        setTimeout(() => { try { sb.removeChannel(tmp); } catch(e){} }, 3000);
+    let c = sendChans[toId];
+    if (c && c.chan.state !== 'closed' && c.chan.state !== 'errored') { c.last = Date.now(); return c; }
+    const chan = sb.channel(`voice-inbox:${toId}`, { config: { broadcast: { self: false } } });
+    c = { chan, last: Date.now(), ready: null };
+    c.ready = new Promise(res => {
+      chan.subscribe(st => { if (st === 'SUBSCRIBED') res(true); else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') res(false); });
+    });
+    sendChans[toId] = c;
+    return c;
+  }
+  setInterval(() => {
+    const sb = getSb();
+    Object.keys(sendChans).forEach(id => {
+      if (Date.now() - sendChans[id].last > 60000) {
+        try { sb.removeChannel(sendChans[id].chan); } catch (e) {}
+        delete sendChans[id];
       }
     });
+  }, 30000);
+
+  function signal(toId, type, data) {
+    const sb = getSb();
+    if (!sb || !toId) return;
+    const msg = { type: 'broadcast', event: 'sig', payload: { from: myId(), to: toId, type, data } };
+    const c = sendChannel(toId);
+    c.queue = (c.queue || Promise.resolve()).then(async () => {
+      if (await c.ready) await c.chan.send(msg);
+    }).catch(() => {});
   }
 
-  function joinRoomChannel(roomId) {
-    const sb = getSb();
-    if (!sb) return;
-    if (roomChan) sb.removeChannel(roomChan);
-    roomChan = sb.channel(`voice-room:${roomId}`, { config: { broadcast: { self: false } } });
-    roomChan.on('broadcast', { event: 'sig' }, ({ payload: p }) => {
-      if (p.to !== myId()) return;
-      handleSignal(p.from, p.type, p.data);
-    }).subscribe();
-  }
+  function joinRoomChannel() {}
 
   /* ── WebRTC peer creation ──────────────────────────── */
   async function createPeer(peerId, isCallerSide) {
     if (peers[peerId]) { peers[peerId].pc.close(); cleanupPeer(peerId); }
 
     const pc = new RTCPeerConnection({ iceServers: ICE });
-    peers[peerId] = { pc, audio: null };
+    peers[peerId] = { pc, audio: null, pending: [] };
+    (iceBacklog[peerId] || []).forEach(c => peers[peerId].pending.push(c));
+    delete iceBacklog[peerId];
 
     // ── CRITICAL: add local tracks BEFORE creating offer
     if (localStream) {
@@ -118,12 +131,25 @@ window.Voice = (function () {
     return pc;
   }
 
+  async function flushIce(peerId) {
+    const p = peers[peerId];
+    if (!p) return;
+    const q = p.pending.splice(0);
+    for (const c of q) { try { await p.pc.addIceCandidate(new RTCIceCandidate(c)); } catch (e) {} }
+  }
+
   /* ── Signal handling ───────────────────────────────── */
   async function handleSignal(fromId, type, data) {
     if (type === 'call-invite') {
-      if (isInCall) { signal(fromId, 'call-busy', {}); return; }
+      if (isInCall || (pendingInvite && pendingInvite.fromId !== fromId)) { signal(fromId, 'call-busy', {}); return; }
+      clearTimeout(ringTimer);
+      ringTimer = setTimeout(() => { if (pendingInvite) { hideIncomingUI(); pendingInvite = null; showToast('Missed call'); } }, 45000);
       pendingInvite = { fromId, roomId: data.room_id, callerName: data.caller_name || 'Someone', participants: data.participants || [] };
       showIncomingUI();
+      return;
+    }
+    if (type === 'call-cancel') {
+      if (pendingInvite && pendingInvite.fromId === fromId) { clearTimeout(ringTimer); hideIncomingUI(); pendingInvite = null; showToast('Missed call'); }
       return;
     }
     if (type === 'call-busy') {
@@ -146,6 +172,7 @@ window.Voice = (function () {
     }
     // call-accept: callee accepted, now create peer and offer as caller
     if (type === 'call-accept') {
+      clearTimeout(ringTimer);
       addParticipantUI(fromId, data.name || 'Friend');
       await createPeer(fromId, true); // isCallerSide=true → sends offer
       return;
@@ -155,6 +182,7 @@ window.Voice = (function () {
       // We're callee — create peer (don't send offer, wait for remote)
       const pc = await createPeer(fromId, false);
       await pc.setRemoteDescription(new RTCSessionDescription(data));
+      await flushIce(fromId);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       signal(fromId, 'answer', pc.localDescription.toJSON());
@@ -164,13 +192,14 @@ window.Voice = (function () {
       const p = peers[fromId];
       if (!p) return;
       if (p.pc.signalingState !== 'stable') {
-        try { await p.pc.setRemoteDescription(new RTCSessionDescription(data)); } catch(e) { console.warn('answer err', e); }
+        try { await p.pc.setRemoteDescription(new RTCSessionDescription(data)); await flushIce(fromId); } catch(e) { console.warn('answer err', e); }
       }
       return;
     }
     if (type === 'ice') {
       const p = peers[fromId];
-      if (!p || !p.pc.remoteDescription) return;
+      if (!p) { (iceBacklog[fromId] = iceBacklog[fromId] || []).push(data); return; }
+      if (!p.pc.remoteDescription) { p.pending.push(data); return; }
       try { await p.pc.addIceCandidate(new RTCIceCandidate(data)); } catch(e) { console.warn('ice err', e); }
       return;
     }
@@ -197,7 +226,8 @@ window.Voice = (function () {
     isInCall = true;
     callRoom  = [myId(), friendId].sort().join('_');
     joinRoomChannel(callRoom);
-    // Send invite
+    invitees = [friendId];
+    armNoAnswer();
     signal(friendId, 'call-invite', {
       room_id: callRoom,
       caller_name: window.currentProfile?.username || 'Someone',
@@ -223,6 +253,8 @@ window.Voice = (function () {
     callRoom  = 'group_' + [myId(), ...friendIds].sort().join('_');
     joinRoomChannel(callRoom);
     addParticipantUI(myId(), window.currentProfile?.username || 'You', true);
+    invitees = friendIds.slice();
+    armNoAnswer();
     friendIds.forEach((fid, i) => {
       signal(fid, 'call-invite', {
         room_id: callRoom,
@@ -234,9 +266,17 @@ window.Voice = (function () {
     showCallUI(friendIds.length === 1 ? (friendNames[0] || 'Friend') : `Group call (${friendIds.length + 1})`);
   }
 
+  function armNoAnswer() {
+    clearTimeout(ringTimer);
+    ringTimer = setTimeout(() => {
+      if (isInCall && Object.keys(peers).length === 0) { showToast('No answer'); endCall(); }
+    }, 40000);
+  }
+
   /* ── Accept incoming call ──────────────────────────── */
   async function acceptCall() {
     if (!pendingInvite) return;
+    clearTimeout(ringTimer);
     hideIncomingUI();
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -272,6 +312,7 @@ window.Voice = (function () {
   /* ── Decline incoming call ─────────────────────────── */
   function declineCall() {
     if (!pendingInvite) return;
+    clearTimeout(ringTimer);
     signal(pendingInvite.fromId, 'call-decline', { name: window.currentProfile?.username || 'You' });
     hideIncomingUI();
     const sb = getSb();
@@ -281,6 +322,9 @@ window.Voice = (function () {
 
   /* ── End call ──────────────────────────────────────── */
   function endCall() {
+    clearTimeout(ringTimer);
+    invitees.forEach(id => { if (!peers[id]) signal(id, 'call-cancel', {}); });
+    invitees = [];
     Object.keys(peers).forEach(pid => {
       try { signal(pid, 'call-end', {}); } catch(e) {}
       cleanupPeer(pid);
@@ -489,7 +533,8 @@ window.Voice = (function () {
     const sb = getSb();
     const uid = myId();
     if (!sb || !uid) return;
-    if (inboxChan) return; // already set up
+    if (inboxChan && inboxChan.topic === 'realtime:voice-inbox:' + uid) return;
+    if (inboxChan) { try { sb.removeChannel(inboxChan); } catch (e) {} inboxChan = null; }
     inboxChan = sb.channel(`voice-inbox:${uid}`, { config: { broadcast: { self: false } } });
     inboxChan.on('broadcast', { event: 'sig' }, ({ payload: p }) => {
       if (p.to !== uid) return;
@@ -503,7 +548,7 @@ window.Voice = (function () {
     const btn = document.getElementById('voice-note-btn');
     if (btn) btn.onclick = toggleVoiceNote;
     if (myId()) setupInbox();
-    window.addEventListener('voice-auth-ready', setupInbox, { once: true });
+    window.addEventListener('voice-auth-ready', setupInbox);
   }
 
   /* ── Public API ────────────────────────────────────── */
