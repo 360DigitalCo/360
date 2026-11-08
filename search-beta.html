@@ -653,6 +653,18 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     .kp-dict-defs li { font-size: 13.5px; line-height: 1.55; color: var(--txt); margin-bottom: 4px; }
     body.dark .kp-dict-defs li { color: var(--txtd); }
 
+    .spell-note { margin: 4px 0 14px; font-size: 18px; line-height: 1.4; color: var(--ink, inherit); }
+    .spell-note a { color: var(--a, #3b82f6); text-decoration: none; font-weight: 600; font-style: italic; }
+    .spell-note a:hover { text-decoration: underline; }
+    .spell-note span { font-size: 14px; color: var(--mut, #5f6368); }
+    body.dark .spell-note span { color: var(--mutd, #9aa0a6); }
+    .spell-note span a { font-style: normal; font-weight: 500; }
+    .result-missing { margin-top: 4px; font-size: 13px; color: var(--mut, #5f6368); }
+    body.dark .result-missing { color: var(--mutd, #9aa0a6); }
+    .result-missing s { text-decoration-thickness: 1px; }
+    .result-missing a { color: var(--a, #3b82f6); text-decoration: none; }
+    .result-missing a:hover { text-decoration: underline; }
+    .result-missing .rm-sep { margin: 0 4px; opacity: .6; }
     .results-info {
       font-size: 13px;
       color: var(--mut);
@@ -5541,7 +5553,57 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     /* ─────────────────────────────────
        DO SEARCH (main entry point)
     ───────────────────────────────── */
-    function doSearch(q) {
+    const SPELL_CACHE = {};
+    function editDistance(a, b) {
+      const m = a.length, n = b.length;
+      if (!m) return n;
+      if (!n) return m;
+      let prev = Array.from({ length: n + 1 }, (_, j) => j);
+      for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+          cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        prev = cur;
+      }
+      return prev[n];
+    }
+    async function suggestSpelling(q) {
+      const key = q.toLowerCase();
+      if (key in SPELL_CACHE) return SPELL_CACHE[key];
+      let out = '';
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 700);
+        const res = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srprop=&srinfo=suggestion&format=json&origin=*&srsearch=' + encodeURIComponent(q), { signal: ctl.signal });
+        clearTimeout(timer);
+        const data = await res.json();
+        const sug = (data && data.query && data.query.searchinfo && data.query.searchinfo.suggestion) || '';
+        const clean = sug.replace(/\s+/g, ' ').trim();
+        if (clean && clean.toLowerCase() !== key && editDistance(clean.toLowerCase(), key) <= Math.max(2, Math.round(key.length * 0.25))) out = clean;
+      } catch (e) {}
+      SPELL_CACHE[key] = out;
+      return out;
+    }
+    let searchSeq = 0;
+    function doSearch(q, opts) {
+      opts = opts || {};
+      const seq = ++searchSeq;
+      state.correction = null;
+      const eligible = !opts.exact && state.tab === 'web' && q && q.length >= 3 && !/["':]|\bsite\b|^https?:/i.test(q);
+      if (!eligible) { doSearchCore(q); return; }
+      suggestSpelling(q).then(fix => {
+        if (seq !== searchSeq) return;
+        if (fix) {
+          doSearchCore(fix);
+          state.correction = { from: q, to: fix };
+          return;
+        }
+        doSearchCore(q);
+      });
+    }
+
+    function doSearchCore(q) {
       // Offline check for web/images searches
       if (!navigator.onLine && state.tab !== 'ai') {
         resultsArea.innerHTML = `
@@ -6322,11 +6384,32 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       }
     }
 
+    const MISSING_STOP = new Set(['a','an','the','of','in','on','at','to','for','and','or','is','are','was','were','be','by','with','from','as','it','its','this','that','what','who','how','why','when','where','do','does','vs']);
+    function foldText(t) {
+      return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    function missingLineHtml(r, snippet) {
+      try {
+        if (state.tab !== 'web' || !state.query) return '';
+        const terms = Array.from(new Set(foldText(state.query).replace(/["']/g, ' ').split(/[^a-z0-9]+/).filter(w => w.length > 1 && !MISSING_STOP.has(w))));
+        if (terms.length < 2) return '';
+        const hay = foldText([r.title, snippet, r.displayUrl || r.href].join(' '));
+        const missing = terms.filter(w => hay.indexOf(w) === -1);
+        if (!missing.length || missing.length === terms.length) return '';
+        const gone = missing.map(w => `<s>${escHtml(w)}</s>`).join(' ');
+        const show = missing.map(w => `<a href="#" data-must="${escHtml(w)}">${escHtml(w)}</a>`).join(', ');
+        return `<div class="result-missing">Missing: ${gone} <span class="rm-sep">|</span> Must include: ${show}</div>`;
+      } catch (e) { return ''; }
+    }
+
     function renderWebResults(results, countText, currentPage, totalPages) {
       if (!results || !results.length) { renderNoResults(); return; }
 
       const visible = results;
       let html = '';
+      if (state.correction && state.correction.to === state.query) {
+        html += `<div class="spell-note">Showing results for <a href="#" data-spell-fix>${escHtml(state.correction.to)}</a><br><span>Search instead for <a href="#" data-spell-orig>${escHtml(state.correction.from)}</a></span></div>`;
+      }
       if (countText) html += `<div class="results-info">${escHtml(countText)}${safeElapsedSuffix()}</div>`;
 
       // People Also Ask is new/best-effort — never let a bug in it wipe out
@@ -6351,6 +6434,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
                 <div class="result-url">${escHtml(r.displayUrl || r.href)}</div>
                 <a class="result-title" href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${escHtml(r.title)}</a>
                 ${snippet ? `<div class="result-snippet">${escHtml(snippet)}</div>` : ''}
+                ${missingLineHtml(r, snippet)}
                 <div class="result-anon-row">
                   <button class="result-anon-link" data-anon-url="${escHtml(r.href)}">View anonymously</button>
                 </div>
@@ -6363,6 +6447,17 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       try { if (totalPages > 1) html += buildPagination(currentPage, totalPages); } catch (e) { console.error('buildPagination failed:', e); }
       html += `<div id="related-searches-box"></div>`;
       resultsArea.innerHTML = html;
+      const origLink = resultsArea.querySelector('[data-spell-orig]');
+      if (origLink) origLink.addEventListener('click', e => { e.preventDefault(); const from = state.correction.from; state.correction = null; doSearch(from, { exact: true }); });
+      const fixLink = resultsArea.querySelector('[data-spell-fix]');
+      if (fixLink) fixLink.addEventListener('click', e => e.preventDefault());
+      resultsArea.querySelectorAll('[data-must]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        const term = a.getAttribute('data-must');
+        const base = state.query;
+        const next = base.replace(new RegExp('(^|\\s)' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'i'), '$1"' + term + '"');
+        doSearch(next === base ? base + ' "' + term + '"' : next, { exact: true });
+      }));
       if (resultsArea.querySelector('.paa-box')) loadPeopleAlsoAsk(state.query);
       resultsArea.querySelectorAll('.page-btn[data-page]').forEach(btn => {
         btn.addEventListener('click', () => goToPage(parseInt(btn.getAttribute('data-page'))));
