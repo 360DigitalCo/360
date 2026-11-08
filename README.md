@@ -165,6 +165,11 @@ A native app may not come to any mobile OS store as they now all require an amou
 - Windows (.exe/.msi)
 - Linux (.deb)
 
+## V.3.6.0 - 3.6.2
+- Web
+- Windows (.exe)
+- Linux (.deb)
+
 ---
 
 ## Email Us
