@@ -25,6 +25,39 @@ function makeToken(botId: string) {
   return `360b_${botId.replace(/-/g, "")}_${body}`;
 }
 
+function blockedHost(host: string) {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".localhost")) return true;
+  if (h.includes(":") || h.startsWith("[")) return true;
+  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 10 || a === 127 || a === 0 || a >= 224) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+  return false;
+}
+
+function webhookUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const u = new URL(value.trim());
+    if (u.protocol !== "https:" || u.port || u.username || u.password || blockedHost(u.hostname)) return "invalid";
+    return u.toString();
+  } catch {
+    return "invalid";
+  }
+}
+
+function makeSecret() {
+  const raw = crypto.getRandomValues(new Uint8Array(24));
+  return "whsec_" + [...raw].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function cleanUrl(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
@@ -74,6 +107,7 @@ Deno.serve(async (req) => {
     const prefix = String(payload.prefix ?? "!").trim().slice(0, 3) || "!";
     const isPublic = payload.is_public !== false;
 
+    if (webhookUrl(payload.webhook_url) === "invalid") return json({ error: "Webhook URL must be a public https address" }, 400);
     if (name.length < 2 || name.length > 32) return json({ error: "Name must be 2 to 32 characters" }, 400);
     if (!/^[a-z0-9_]{3,24}$/.test(handle)) {
       return json({ error: "Handle must be 3 to 24 characters: letters, numbers, underscore" }, 400);
@@ -125,8 +159,15 @@ Deno.serve(async (req) => {
     }
 
     const token = makeToken(botId);
-    await admin.from("bot_credentials").insert({ bot_id: botId, token_hash: await sha256Hex(token) });
-    return json({ bot, token });
+    const hook = webhookUrl(payload.webhook_url);
+    const secret = hook && hook !== "invalid" ? makeSecret() : null;
+    await admin.from("bot_credentials").insert({
+      bot_id: botId,
+      token_hash: await sha256Hex(token),
+      webhook_url: hook && hook !== "invalid" ? hook : null,
+      webhook_secret: secret,
+    });
+    return json({ bot, token, webhook_secret: secret });
   }
 
   const botId = String(payload.bot_id ?? "");
@@ -144,6 +185,23 @@ Deno.serve(async (req) => {
       .upsert({ bot_id: bot.id, token_hash: await sha256Hex(token), rotated_at: new Date().toISOString() });
     if (error) return json({ error: "Could not rotate the token" }, 500);
     return json({ token });
+  }
+
+  if (action === "set_webhook") {
+    const hook = webhookUrl(payload.webhook_url);
+    if (hook === "invalid") return json({ error: "Webhook URL must be a public https address" }, 400);
+    const secret = hook ? makeSecret() : null;
+    const { error } = await admin
+      .from("bot_credentials")
+      .update({ webhook_url: hook, webhook_secret: secret })
+      .eq("bot_id", bot.id);
+    if (error) return json({ error: "Could not save the webhook" }, 500);
+    return json({ webhook_url: hook, webhook_secret: secret });
+  }
+
+  if (action === "get_webhook") {
+    const { data } = await admin.from("bot_credentials").select("webhook_url").eq("bot_id", bot.id).maybeSingle();
+    return json({ webhook_url: data?.webhook_url ?? null });
   }
 
   if (action === "delete") {

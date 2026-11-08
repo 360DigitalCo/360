@@ -195,3 +195,19 @@ body.dark #person-view {
 .pv-post-cap { padding: 10px 14px 0; font-size: 13.5px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pv-post-cap.big { flex: 1; font-size: 16px; line-height: 1.5; -webkit-line-clamp: 8; padding: 18px; }
 .pv-post-img { flex: 1 1 0; }
+
+.pv-fold-d { display: grid; grid-template-rows: 0fr; max-height: none; opacity: 0; margin-top: 0; overflow: hidden; gap: 0; transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1), opacity .3s ease, margin .42s cubic-bezier(.22, 1, .36, 1); }
+.pv-fold-i { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px; }
+.pv-stat.pv-fold:hover .pv-fold-d, .pv-stat.pv-fold:focus-visible .pv-fold-d, .pv-stat.pv-fold.open .pv-fold-d,
+.pv-site.pv-fold:hover .pv-fold-d, .pv-site.pv-fold:focus-visible .pv-fold-d { grid-template-rows: 1fr; max-height: none; opacity: 1; margin-top: 10px; transition-delay: .06s; }
+.pv-post.pv-fold:hover .pv-post-d, .pv-post.pv-fold:focus-visible .pv-post-d { grid-template-rows: 1fr; max-height: none; opacity: 1; margin: 0 0 12px; transition-delay: .06s; }
+@media (hover: none) { .pv-post-d { grid-template-rows: 1fr; opacity: 1; margin: 0 0 12px; } }
+.pv-stat.pv-fold, .pv-site.pv-fold { align-self: start; min-height: 100%; transition: box-shadow .35s ease, border-color .35s ease, background-color .35s ease; will-change: box-shadow; }
+.pv-stat.pv-fold:hover, .pv-stat.pv-fold:focus-visible, .pv-stat.pv-fold.open, .pv-site.pv-fold:hover, .pv-site.pv-fold:focus-visible { min-height: 100%; }
+.pv-said-desc { max-height: none; display: grid; grid-template-rows: 0fr; }
+.pv-said { transition: transform .35s cubic-bezier(.22, 1, .36, 1), box-shadow .35s ease; }
+.pv-said::after { transition: background .35s ease, opacity .35s ease; }
+.pv-said-desc { transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1), opacity .3s ease; }
+.pv-said:hover .pv-said-desc, .pv-said:focus-visible .pv-said-desc { grid-template-rows: 1fr; max-height: none; }
+.pv-said-desc > span { min-height: 0; overflow: hidden; display: block; }
+@media (prefers-reduced-motion: reduce) { .pv-fold-d, .pv-said-desc, .pv-said, .pv-stat.pv-fold, .pv-site.pv-fold { transition: none; } }

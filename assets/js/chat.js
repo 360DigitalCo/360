@@ -2354,7 +2354,7 @@ async function startDMWith(emailOrUsername){
 async function openDMWithProfile(profile){
   document.getElementById('dm-picker')?.remove();
   if(profile.id===currentUserId){document.getElementById('dm-err').textContent="That's you!";return;}
-  const{data:exRows}=await sb.from('direct_messages').select('id').or(`and(user_a.eq.${currentUserId},user_b.eq.${profile.id}),and(user_a.eq.${profile.id},user_b.eq.${currentUserId})`).order('created_at',{ascending:true}).limit(1);
+  const{data:exRows}=await sb.from('direct_messages').select('id').or(`and(user_a.eq.${currentUserId},user_b.eq.${profile.id}),and(user_a.eq.${profile.id},user_b.eq.${currentUserId})`).order('updated_at',{ascending:false}).limit(1);
   const ex=exRows?.[0];
   let dmId;
   if(ex){dmId=ex.id;}else{

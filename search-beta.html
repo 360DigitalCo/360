@@ -653,6 +653,18 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     .kp-dict-defs li { font-size: 13.5px; line-height: 1.55; color: var(--txt); margin-bottom: 4px; }
     body.dark .kp-dict-defs li { color: var(--txtd); }
 
+    .spell-note { margin: 4px 0 14px; font-size: 18px; line-height: 1.4; color: var(--ink, inherit); }
+    .spell-note a { color: var(--a, #3b82f6); text-decoration: none; font-weight: 600; font-style: italic; }
+    .spell-note a:hover { text-decoration: underline; }
+    .spell-note span { font-size: 14px; color: var(--mut, #5f6368); }
+    body.dark .spell-note span { color: var(--mutd, #9aa0a6); }
+    .spell-note span a { font-style: normal; font-weight: 500; }
+    .result-missing { margin-top: 4px; font-size: 13px; color: var(--mut, #5f6368); }
+    body.dark .result-missing { color: var(--mutd, #9aa0a6); }
+    .result-missing s { text-decoration-thickness: 1px; }
+    .result-missing a { color: var(--a, #3b82f6); text-decoration: none; }
+    .result-missing a:hover { text-decoration: underline; }
+    .result-missing .rm-sep { margin: 0 4px; opacity: .6; }
     .results-info {
       font-size: 13px;
       color: var(--mut);
@@ -1342,6 +1354,8 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
 <link rel="stylesheet" href="/assets/css/mobile-nav.css">
 <link rel="stylesheet" href="/assets/css/person-view.css?v=1">
 <script src="/assets/js/person-view.js?v=1"></script>
+<link rel="stylesheet" href="/assets/css/movie-view.css?v=1">
+<script src="/assets/js/movie-view.js?v=1"></script>
   <style id="beta-standard-serp">
     #view-mode-toggle {
       display: flex !important;
@@ -3547,69 +3561,42 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     }
 
     const socialMemo = {};
-    function fetchPersonSocialResults(title, token) {
-      const k = title + '|' + token;
-      if (!socialMemo[k]) { socialMemo[k] = fetchPersonSocialRaw(title, token); }
+    function fetchPersonSocialResults(title, token, handles) {
+      const k = title + '|' + token + '|' + JSON.stringify(handles || {});
+      if (!socialMemo[k]) { socialMemo[k] = fetchPersonSocialRaw(title, token, handles || {}); }
       return socialMemo[k];
     }
-    async function fetchPersonSocialRaw(title, token) {
-      const EDGE_PREVIEW = 'https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/social-preview';
-      const postLike = {
-        'x.com': /\/status\/\d+/, 'twitter.com': /\/status\/\d+/,
-        'instagram.com': /\/(p|reel|reels|tv)\//, 'tiktok.com': /\/(video|photo)\/\d+/,
-        'youtube.com': /\/(watch|shorts)/, 'youtu.be': /^\/[\w-]{6,}/,
-        'facebook.com': /\/(posts|videos|reel|watch|photo|permalink)/, 'threads.net': /\/post\//,
-        'reddit.com': /\/comments\//, 'bsky.app': /\/post\//
+    async function fetchPersonSocialRaw(title, token, handles) {
+      const EDGE_FIND = 'https://wiswfpfsjiowtrdyqpxy.supabase.co/functions/v1/social-find';
+      const rel = iso => {
+        const t = Date.parse(iso);
+        if (!t) return '';
+        const m = Math.max(1, Math.round((Date.now() - t) / 60000));
+        if (m < 60) return m + ' min ago';
+        if (m < 1440) return Math.round(m / 60) + ' hr ago';
+        if (m < 43200) return Math.round(m / 1440) + ' days ago';
+        return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
       };
-      const run = q => fetch(EDGE_SEARCH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-        body: JSON.stringify({ q, tab: 'web', safe: state.safeSearch ? 'moderate' : 'off' })
-      }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
       try {
-        const queries = [`${title} latest social posts`].concat(
-          ['x.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'facebook.com', 'reddit.com', 'threads.net'].map(h => `${title} site:${h}`)
-        );
-        const parts = await Promise.all(queries.map(run));
-        if (token !== kpToken) return [];
-        const seen = new Set();
-        const perHost = {};
-        const cands = [];
-        parts.flatMap(d => d.web || []).forEach(item => {
-          try {
-            if (!item || !item.url || seen.has(item.url)) return;
-            const u = new URL(item.url);
-            const host = u.hostname.replace(/^(www|m|mobile|old)\./i, '').toLowerCase();
-            const rule = postLike[host];
-            if (!rule || !rule.test(u.pathname)) return;
-            if ((perHost[host] || 0) >= 2) return;
-            perHost[host] = (perHost[host] || 0) + 1;
-            seen.add(item.url);
-            cands.push(item);
-          } catch (e) {}
-        });
-        if (!cands.length) return [];
-        const res = await fetch(EDGE_PREVIEW, {
+        const res = await fetch(EDGE_FIND, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...SUPABASE_FN_HEADERS },
-          body: JSON.stringify({ urls: cands.slice(0, 10).map(c => c.url) })
+          body: JSON.stringify({ name: title, handles })
         });
         if (!res.ok || token !== kpToken) return [];
         const data = await res.json();
-        const byUrl = {};
-        cands.forEach(c => { byUrl[c.url] = c; });
-        const junk = /log in|sign up|create an account|explore this post|^instagram$|^facebook$/i;
-        const dec = t => { const d = document.createElement('textarea'); d.innerHTML = String(t || ''); return d.value; };
-        return (data.previews || []).map(p => {
-          const src = byUrl[p.url] || {};
-          const text = dec(p.text).replace(/\s+/g, ' ').trim();
-          return {
-            url: p.url, platform: p.platform, author: dec(p.handle || p.author || ''),
-            title: text.slice(0, 90), snippet: text, thumb: p.image || '',
-            age: src.age || src.publishedAt || src.date || (p.date ? new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
-          };
-        }).filter(p => (p.snippet && !junk.test(p.snippet)) || p.thumb).filter(p => !junk.test(p.snippet || ''))
-          .sort((a, b) => (b.thumb ? 1 : 0) - (a.thumb ? 1 : 0)).slice(0, 6);
+        const own = String(handles.x || '').toLowerCase();
+        const items = (data.posts || []).map(p => ({
+          url: p.url, platform: p.platform, author: p.author || '', title: String(p.text || '').slice(0, 90),
+          snippet: p.text || '', thumb: p.image || '', age: rel(p.date), own: !!own && String(p.author || '').toLowerCase() === '@' + own
+        })).filter(p => p.snippet || p.thumb);
+        const byPlat = {};
+        items.forEach(p => { (byPlat[p.platform] = byPlat[p.platform] || []).push(p); });
+        const out = [];
+        const lists = Object.values(byPlat).map(l => l.sort((a, b) => (b.own - a.own) || ((b.thumb ? 1 : 0) - (a.thumb ? 1 : 0))));
+        lists.sort((a, b) => (b[0].own - a[0].own) || ((b[0].thumb ? 1 : 0) - (a[0].thumb ? 1 : 0)));
+        for (let i = 0; out.length < 6 && i < 4; i++) lists.forEach(l => { if (l[i] && out.length < 6) out.push(l[i]); });
+        return out;
       } catch (e) {
         return [];
       }
@@ -3917,9 +3904,12 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
               isValid: () => myToken === kpToken,
               getTab: () => state.tab,
               fetchStories: t => fetchPersonLatestStories(t, myToken),
-              fetchSocial: t => fetchPersonSocialResults(t, myToken),
+              fetchSocial: (t, h) => fetchPersonSocialResults(t, myToken, h),
               search: name => { hideSuggestions(); doSearch(name); }
             });
+          }
+          if (!isPerson && bestTitle && window.MovieView && /film|movie|miniseries|television series|TV series/i.test(wiki.description || '') && !knowledgePanel.querySelector('.mv-card')) {
+            MovieView.mount({ host: knowledgePanel, title: bestTitle, isValid: () => myToken === kpToken });
           }
           if (isPerson && bestTitle && !knowledgePanel.querySelector('#kp-person-extra')) {
             knowledgePanel.insertAdjacentHTML('beforeend', `<div class="kp-person-extra" id="kp-person-extra">
@@ -5541,7 +5531,57 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
     /* ─────────────────────────────────
        DO SEARCH (main entry point)
     ───────────────────────────────── */
-    function doSearch(q) {
+    const SPELL_CACHE = {};
+    function editDistance(a, b) {
+      const m = a.length, n = b.length;
+      if (!m) return n;
+      if (!n) return m;
+      let prev = Array.from({ length: n + 1 }, (_, j) => j);
+      for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+          cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        prev = cur;
+      }
+      return prev[n];
+    }
+    async function suggestSpelling(q) {
+      const key = q.toLowerCase();
+      if (key in SPELL_CACHE) return SPELL_CACHE[key];
+      let out = '';
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 700);
+        const res = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srprop=&srinfo=suggestion&format=json&origin=*&srsearch=' + encodeURIComponent(q), { signal: ctl.signal });
+        clearTimeout(timer);
+        const data = await res.json();
+        const sug = (data && data.query && data.query.searchinfo && data.query.searchinfo.suggestion) || '';
+        const clean = sug.replace(/\s+/g, ' ').trim();
+        if (clean && clean.toLowerCase() !== key && editDistance(clean.toLowerCase(), key) <= Math.max(2, Math.round(key.length * 0.25))) out = clean;
+      } catch (e) {}
+      SPELL_CACHE[key] = out;
+      return out;
+    }
+    let searchSeq = 0;
+    function doSearch(q, opts) {
+      opts = opts || {};
+      const seq = ++searchSeq;
+      state.correction = null;
+      const eligible = !opts.exact && state.tab === 'web' && q && q.length >= 3 && !/["':]|\bsite\b|^https?:/i.test(q);
+      if (!eligible) { doSearchCore(q); return; }
+      suggestSpelling(q).then(fix => {
+        if (seq !== searchSeq) return;
+        if (fix) {
+          doSearchCore(fix);
+          state.correction = { from: q, to: fix };
+          return;
+        }
+        doSearchCore(q);
+      });
+    }
+
+    function doSearchCore(q) {
       // Offline check for web/images searches
       if (!navigator.onLine && state.tab !== 'ai') {
         resultsArea.innerHTML = `
@@ -6322,11 +6362,32 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       }
     }
 
+    const MISSING_STOP = new Set(['a','an','the','of','in','on','at','to','for','and','or','is','are','was','were','be','by','with','from','as','it','its','this','that','what','who','how','why','when','where','do','does','vs']);
+    function foldText(t) {
+      return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    function missingLineHtml(r, snippet) {
+      try {
+        if (state.tab !== 'web' || !state.query) return '';
+        const terms = Array.from(new Set(foldText(state.query).replace(/["']/g, ' ').split(/[^a-z0-9]+/).filter(w => w.length > 1 && !MISSING_STOP.has(w))));
+        if (terms.length < 2) return '';
+        const hay = foldText([r.title, snippet, r.displayUrl || r.href].join(' '));
+        const missing = terms.filter(w => hay.indexOf(w) === -1);
+        if (!missing.length || missing.length === terms.length) return '';
+        const gone = missing.map(w => `<s>${escHtml(w)}</s>`).join(' ');
+        const show = missing.map(w => `<a href="#" data-must="${escHtml(w)}">${escHtml(w)}</a>`).join(', ');
+        return `<div class="result-missing">Missing: ${gone} <span class="rm-sep">|</span> Must include: ${show}</div>`;
+      } catch (e) { return ''; }
+    }
+
     function renderWebResults(results, countText, currentPage, totalPages) {
       if (!results || !results.length) { renderNoResults(); return; }
 
       const visible = results;
       let html = '';
+      if (state.correction && state.correction.to === state.query) {
+        html += `<div class="spell-note">Showing results for <a href="#" data-spell-fix>${escHtml(state.correction.to)}</a><br><span>Search instead for <a href="#" data-spell-orig>${escHtml(state.correction.from)}</a></span></div>`;
+      }
       if (countText) html += `<div class="results-info">${escHtml(countText)}${safeElapsedSuffix()}</div>`;
 
       // People Also Ask is new/best-effort — never let a bug in it wipe out
@@ -6351,6 +6412,7 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
                 <div class="result-url">${escHtml(r.displayUrl || r.href)}</div>
                 <a class="result-title" href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${escHtml(r.title)}</a>
                 ${snippet ? `<div class="result-snippet">${escHtml(snippet)}</div>` : ''}
+                ${missingLineHtml(r, snippet)}
                 <div class="result-anon-row">
                   <button class="result-anon-link" data-anon-url="${escHtml(r.href)}">View anonymously</button>
                 </div>
@@ -6363,6 +6425,17 @@ THIS PROGRAM IS NOT FULLY RELIANT ON GOOGLE'S CSE RESULTS! WE USE MULTIPLE API'S
       try { if (totalPages > 1) html += buildPagination(currentPage, totalPages); } catch (e) { console.error('buildPagination failed:', e); }
       html += `<div id="related-searches-box"></div>`;
       resultsArea.innerHTML = html;
+      const origLink = resultsArea.querySelector('[data-spell-orig]');
+      if (origLink) origLink.addEventListener('click', e => { e.preventDefault(); const from = state.correction.from; state.correction = null; doSearch(from, { exact: true }); });
+      const fixLink = resultsArea.querySelector('[data-spell-fix]');
+      if (fixLink) fixLink.addEventListener('click', e => e.preventDefault());
+      resultsArea.querySelectorAll('[data-must]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        const term = a.getAttribute('data-must');
+        const base = state.query;
+        const next = base.replace(new RegExp('(^|\\s)' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'i'), '$1"' + term + '"');
+        doSearch(next === base ? base + ' "' + term + '"' : next, { exact: true });
+      }));
       if (resultsArea.querySelector('.paa-box')) loadPeopleAlsoAsk(state.query);
       resultsArea.querySelectorAll('.page-btn[data-page]').forEach(btn => {
         btn.addEventListener('click', () => goToPage(parseInt(btn.getAttribute('data-page'))));

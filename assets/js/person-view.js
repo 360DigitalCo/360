@@ -119,7 +119,7 @@
     }).filter(Boolean);
 
     var social = [];
-    var x = str('P2002'), ig = str('P2003'), fb = str('P2013'), yt = str('P2397'), li = str('P6634'), tt = str('P7085');
+    var bs = str('P12361'), x = str('P2002'), ig = str('P2003'), fb = str('P2013'), yt = str('P2397'), li = str('P6634'), tt = str('P7085');
     if (x) social.push({ label: 'X', sub: 'X (Twitter)', url: 'https://x.com/' + encodeURIComponent(x.replace(/^@/, '')) });
     if (yt) social.push({ label: 'YouTube', sub: 'YouTube', url: 'https://www.youtube.com/channel/' + encodeURIComponent(yt) });
     if (fb) social.push({ label: 'Facebook', sub: 'Facebook', url: 'https://www.facebook.com/' + encodeURIComponent(fb) });
@@ -138,7 +138,8 @@
       spouses: spouseRows,
       children: children.map(lbl).filter(Boolean),
       website: str('P856'),
-      social: social
+      social: social,
+      handles: { x: x ? x.replace(/^@/, '') : '', youtube: yt || '', bluesky: bs || '' }
     };
   }
 
@@ -208,11 +209,11 @@
         (/^https?:/.test(thumb) ? '<img class="pv-post-img" src="' + esc(thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="PersonView.fb(this)">' : '') +
         '<div class="pv-post-cap' + (thumb ? '' : ' big') + '">' + esc(body.slice(0, thumb ? 110 : 260)) + '</div>' +
         '<div class="pv-post-meta"><span class="pv-ico">' + (ICONS[plat] || '') + '</span><span><b>' + esc(plat) + '</b>' + (social.author ? ' · ' + esc(social.author) : '') + '<br>' + esc(String(ago(social) || '')) + '</span></div>' +
-        (thumb && body.length > 110 ? '<div class="pv-fold-d pv-post-d">' + esc(body.slice(0, 300)) + '</div>' : '') + '</a>');
+        (thumb && body.length > 110 ? '<div class="pv-fold-d pv-post-d"><div class="pv-fold-i">' + esc(body.slice(0, 300)) + '</div></div>' : '') + '</a>');
     }
     function dl(rows) {
       rows = rows.filter(Boolean);
-      return rows.length ? '<div class="pv-fold-d">' + rows.join('') + '</div>' : '';
+      return rows.length ? '<div class="pv-fold-d"><div class="pv-fold-i">' + rows.join('') + '</div></div>' : '';
     }
     function drow(k, v) { return v ? '<span class="pv-dr"><b>' + esc(k) + '</b>' + v + '</span>' : ''; }
     var spouseTxt = ent && ent.spouses && ent.spouses.length ? ent.spouses.map(function (x) { return esc(x.name) + (x.span ? ' ' + esc(x.span) : ''); }).join(', ') : '';
@@ -279,7 +280,7 @@
       return '<a class="pv-said" href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' +
         (/^https?:/.test(thumb) ? '<img src="' + esc(thumb) + '" alt="" loading="lazy" onerror="PersonView.fb(this)">' : '<span class="pv-said-fill"></span>') +
         '<span class="pv-said-txt"><span class="pv-said-ttl">' + esc(tx.head) + '</span>' +
-        (tx.body && tx.body !== tx.head ? '<span class="pv-said-desc">' + esc(tx.body) + '</span>' : '') + '</span>' +
+        (tx.body && tx.body !== tx.head ? '<span class="pv-said-desc"><span>' + esc(tx.body) + '</span></span>' : '') + '</span>' +
         '<span class="pv-said-by"><span class="pv-ico">' + (ICONS[plat] || '') + '</span>' + esc(plat) + (s.author ? ' · ' + esc(s.author) : '') + (when ? ' · ' + esc(when) : '') + '</span></a>';
     }).join('');
     block.hidden = false;
@@ -374,7 +375,7 @@
       var hero = sized(wiki.thumbnail && wiki.thumbnail.source, 800);
       var commonsP = limit(loadCommons(title, hero), 8000, []);
       var storiesP = limit(opts.fetchStories(title).catch(function () { return []; }), 12000, []);
-      var socialP = limit(opts.fetchSocial(title).catch(function () { return []; }), 12000, []);
+      var socialP = limit(entityP.then(function (e) { return opts.fetchSocial(title, e && e.handles); }).catch(function () { return []; }), 16000, []);
       var relatedP = limit(loadRelated(title), 8000, []);
 
       host.innerHTML = shell();

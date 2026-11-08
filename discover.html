@@ -421,11 +421,19 @@
       '<div class="disc-field"><label for="bf-avatar">Avatar URL</label><input id="bf-avatar" placeholder="https://" value="' + esc(b.avatar_url || '') + '"></div>' +
       '<div class="disc-field"><label for="bf-site">Website or docs URL</label><input id="bf-site" placeholder="https://" value="' + esc(b.website_url || '') + '"></div>' +
       '<div class="disc-field"><label for="bf-prefix">Command prefix</label><input id="bf-prefix" maxlength="3" value="' + esc(b.prefix || '!') + '"></div>' +
+      '<div class="disc-field"><label for="bf-hook">Webhook URL (optional)</label><input id="bf-hook" placeholder="https://your-app.example/hook" value=""></div>' +
       '<label class="disc-check"><input type="checkbox" id="bf-public"' + (b.is_public === false ? '' : ' checked') + '> List in the bot marketplace</label>' +
       '<p class="disc-err" id="bf-err"></p>' +
       '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="bf-cancel">Cancel</button><button class="disc-primary" type="button" id="bf-save">' + (isEdit ? 'Save' : 'Create') + '</button></div>'
     );
     modal.querySelector('#bf-cancel').onclick = closeModal;
+    let hookBefore = '';
+    if (isEdit) {
+      sb.functions.invoke('bot-manage', { body: { action: 'get_webhook', bot_id: bot.id } }).then(({ data }) => {
+        hookBefore = (data && data.webhook_url) || '';
+        modal.querySelector('#bf-hook').value = hookBefore;
+      });
+    }
     modal.querySelector('#bf-save').onclick = async () => {
       const err = modal.querySelector('#bf-err');
       const values = {
@@ -437,22 +445,30 @@
         website_url: modal.querySelector('#bf-site').value.trim() || null,
         prefix: modal.querySelector('#bf-prefix').value.trim() || '!',
         is_public: modal.querySelector('#bf-public').checked,
+        webhook_url: modal.querySelector('#bf-hook').value.trim() || null,
       };
       if (values.name.length < 2) { err.textContent = 'Name must be at least 2 characters.'; return; }
       if (!isEdit && !/^[a-z0-9_]{3,24}$/.test(values.handle)) { err.textContent = 'Handle must be 3 to 24 characters: letters, numbers, underscore.'; return; }
       const urlOk = (u) => !u || /^https:\/\//i.test(u);
-      if (!urlOk(values.avatar_url) || !urlOk(values.website_url)) { err.textContent = 'URLs must start with https://'; return; }
+      if (!urlOk(values.avatar_url) || !urlOk(values.website_url) || !urlOk(values.webhook_url)) { err.textContent = 'URLs must start with https://'; return; }
       const saveBtn = modal.querySelector('#bf-save');
       saveBtn.disabled = true;
       if (isEdit) {
         const patch = { name: values.name, description: values.description || null, category: values.category, avatar_url: values.avatar_url, website_url: values.website_url, prefix: values.prefix, is_public: values.is_public };
         const { error } = await sb.from('bots').update(patch).eq('id', bot.id);
         if (error) { err.textContent = error.message; saveBtn.disabled = false; return; }
+        let secret = null;
+        if ((values.webhook_url || '') !== hookBefore) {
+          const r = await sb.functions.invoke('bot-manage', { body: { action: 'set_webhook', bot_id: bot.id, webhook_url: values.webhook_url } });
+          if (r.error) { err.textContent = await fnError(r.error); saveBtn.disabled = false; return; }
+          secret = r.data && r.data.webhook_secret;
+        }
         closeModal();
         await loadBots();
         renderBots();
         renderMine();
         toast('Bot saved');
+        if (secret) showToken(bot.name, null, secret);
         return;
       }
       const { data, error } = await sb.functions.invoke('bot-manage', { body: Object.assign({ action: 'create' }, values) });
@@ -460,21 +476,22 @@
       await loadBots();
       renderBots();
       renderMine();
-      showToken(data.bot.name, data.token);
+      showToken(data.bot.name, data.token, data.webhook_secret);
     };
   }
 
-  function showToken(name, token) {
+  function showToken(name, token, secret) {
+    const hookCode = secret ? '// Node handler for your webhook\nconst crypto = require("crypto");\nconst SECRET = "' + secret + '";\nmodule.exports = (req, res) => {\n  const raw = JSON.stringify(req.body);\n  const ts = req.headers["x-360-timestamp"];\n  const want = "sha256=" + crypto.createHmac("sha256", SECRET).update(ts + "." + raw).digest("hex");\n  if (req.headers["x-360-signature"] !== want) return res.status(401).end();\n  res.json({ content: "Hello from my bot" });\n};' : '';
     const usage = 'curl -X POST ' + SB_URL + '/functions/v1/bot-api/messages \\\n  -H "Authorization: Bot ' + token + '" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"channel_id":"CHANNEL_ID","content":"Hello"}\'' + '\n\n# poll for mentions and commands\ncurl "' + SB_URL + '/functions/v1/bot-api/events" \\\n  -H "Authorization: Bot ' + token + '"';
     const modal = openModal(
-      '<h2>' + esc(name) + ' token</h2><p>Copy this token now. It is only shown once. Anyone with it can post as your bot.</p>' +
-      '<div class="token-box disc-field"><input id="tk-input" readonly></div>' +
+      '<h2>' + esc(name) + (token ? ' token' : ' webhook') + '</h2><p>Copy this now. It is only shown once. Anyone with it can post as your bot.</p>' +
+      (token ? '<div class="token-box disc-field"><input id="tk-input" readonly></div>' : '') +
       '<div class="code-box" id="tk-usage"></div>' +
       '<div class="disc-modal-actions"><button class="disc-ghost" type="button" id="tk-copy">Copy token</button><button class="disc-primary" type="button" id="tk-done">Done</button></div>'
     );
-    modal.querySelector('#tk-input').value = token;
-    modal.querySelector('#tk-usage').textContent = usage;
-    modal.querySelector('#tk-copy').onclick = () => navigator.clipboard.writeText(token).then(() => toast('Token copied'), () => toast('Copy failed', true));
+    if (token) modal.querySelector('#tk-input').value = token;
+    modal.querySelector('#tk-usage').textContent = (token ? usage : '') + (token && hookCode ? '\n\n' : '') + hookCode;
+    modal.querySelector('#tk-copy').onclick = () => navigator.clipboard.writeText(token || secret).then(() => toast('Token copied'), () => toast('Copy failed', true));
     modal.querySelector('#tk-done').onclick = closeModal;
   }
 
