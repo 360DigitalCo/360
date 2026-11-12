@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ed">
+  <title>Rook Chess</title>
+  <style>
+    :root{color-scheme:light;--paper:#f5f3ed;--white:#fffefa;--ink:#24251f;--muted:#77786f;--line:#deddd4;--green:#55734b;--green-dark:#344c2d;--green-pale:#e7eddf;--red:#a64b42;--board-light:#eee7d8;--board-dark:#819278;--shadow:0 8px 28px #25251c0b}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.52}
+    .page{max-width:1180px;margin:0 auto;padding:0 24px 40px}
+    header{height:66px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);font-weight:750;letter-spacing:-.4px}
+    .brand-mark{width:29px;height:29px;border:1px solid #a8ad9d;border-radius:5px;display:grid;place-items:center;color:var(--green-dark);font:22px Georgia,serif}
+    .header-actions{display:flex;gap:10px;align-items:center}
+    .account-label{font-size:13px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    main{padding-top:24px}
+    .topline{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+    h1{font:600 24px/1.2 Georgia,"Times New Roman",serif;margin:0;letter-spacing:-.3px}
+    .tabs{display:flex;gap:3px;padding:3px;background:#eae8df;border-radius:7px}
+    .tab{border:0;background:transparent;color:#62635b;padding:8px 13px;border-radius:5px;font-size:13px}
+    .tab.active{background:var(--white);color:var(--ink);box-shadow:0 1px 3px #00000012}
+    .layout{display:grid;grid-template-columns:minmax(0,690px) minmax(270px,1fr);gap:24px;align-items:start}
+    .board-card,.panel{background:var(--white);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+    .board-card{padding:17px}
+    .player{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 1px 12px;min-height:48px}
+    .player-main{display:flex;align-items:center;gap:10px;min-width:0}
+    .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#ecebe4;color:#45463e;font-weight:650;font-size:13px;flex:0 0 auto;overflow:hidden}
+    .avatar.dark{background:#dedfd7}
+    .avatar img{width:100%;height:100%;object-fit:cover}
+    .player-name{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .player-sub{color:var(--muted);font-size:11px;margin-top:1px}
+    .player-rating{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+    .board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:100%;aspect-ratio:1;border:1px solid #a9a89e;overflow:hidden;user-select:none;touch-action:manipulation}
+    .square{position:relative;display:grid;place-items:center;border:0;padding:0;min-width:0;min-height:0;aspect-ratio:1;overflow:hidden}
+    .square.light{background:var(--board-light)}.square.dark{background:var(--board-dark)}
+    .square.last::after,.square.selected::after,.square.checked::after{content:"";position:absolute;inset:0;pointer-events:none}
+    .square.last::after{background:#e0d56a66}.square.selected::after{background:#d7dc7188}.square.checked::after{background:#d65d4d88}
+    .square.legal::before{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#273a2a75;z-index:2;pointer-events:none}
+    .square.legal.capture::before{width:86%;height:86%;background:transparent;border:4px solid #273a2a75}
+    .piece{z-index:1;position:relative;font-family:"Segoe UI Symbol","Noto Sans Symbols 2",serif;font-size:clamp(27px,5.3vw,59px);line-height:1;transform:translateY(-1px)}
+    .piece.white{color:#fffdf6;text-shadow:0 1px 1px #45453b,1px 0 #45453b,-1px 0 #45453b,0 -1px #45453b}
+    .piece.black{color:#20231d;text-shadow:0 1px 1px #ffffff55}
+    .coord{position:absolute;z-index:3;pointer-events:none;font-size:10px;line-height:1;opacity:.76}
+    .coord.rank{left:4px;top:4px}.coord.file{right:4px;bottom:3px}
+    .light .coord{color:#626457}.dark .coord{color:#fffdf4}
+    .board-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:13px}
+    .status{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:0 0 auto}.status-dot.wait{background:#b38b46}.status-dot.bad{background:var(--red)}
+    .button-row{display:flex;gap:7px;flex-wrap:wrap}
+    .btn{border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:5px;padding:8px 11px;font-size:12px;font-weight:600;min-height:35px}
+    .btn:hover:not(:disabled){border-color:#a8ac9d;background:#faf9f4}
+    .btn.primary{background:var(--green-dark);color:white;border-color:var(--green-dark)}.btn.primary:hover:not(:disabled){background:#415e38}
+    .btn.subtle{background:var(--green-pale);border-color:#d4deca;color:#33492e}
+    .btn.danger{color:var(--red);border-color:#e1c9c4;background:#fffafa}
+    .btn.block{width:100%;justify-content:center}
+    .btn.large{min-height:41px}
+    .controls{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+    .move-summary{font-size:12px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .panels{display:flex;flex-direction:column;gap:13px}
+    .panel{padding:16px}
+    .panel h2{font-size:14px;font-weight:650;margin:0 0 13px}
+    .field{display:block;margin:12px 0 6px;font-size:12px;color:#5e6056;font-weight:600}
+    .input,.select{width:100%;min-height:39px;padding:8px 10px;border:1px solid #d7d6cc;border-radius:5px;background:#fffefa;color:var(--ink);outline:none;font-size:13px}
+    .input:focus,.select:focus{border-color:#839677;box-shadow:0 0 0 2px #83967722}
+    .help{margin:9px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+    .message{margin-top:10px;padding:9px 10px;border-radius:5px;background:#f1f0e9;color:#54564c;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+    .message.error{background:#f8ece9;color:#8b382e}.message.good{background:#edf2e8;color:#3c5834}
+    .hidden{display:none!important}
+    .auth-switch{margin:12px 0 0;text-align:center;font-size:12px;color:var(--muted)}
+    .text-button{border:0;background:none;color:var(--green-dark);font-weight:650;padding:2px 0;font-size:12px}
+    .room-code{font:600 23px/1.3 ui-monospace,Consolas,monospace;letter-spacing:3px;margin:6px 0;color:var(--green-dark)}
+    .room-row{display:flex;gap:7px}.room-row .input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:2px}
+    .inline-between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    details{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+    summary{cursor:pointer;font-size:12px;font-weight:650;color:#4d5148}
+    .identity-state{font-size:11px;color:var(--muted)}
+    .profile-stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 12px}
+    .profile-stats strong{color:var(--ink);font-weight:650}
+    .moves{max-height:165px;overflow:auto;border-top:1px solid var(--line);margin-top:14px;padding-top:9px;font:12px/1.8 ui-monospace,Consolas,monospace;color:#55574e}
+    .move-row{display:grid;grid-template-columns:28px 1fr 1fr;gap:7px}.move-row .number{color:#9a9a8f}.move-row .latest{font-weight:750;color:var(--green-dark)}
+    .empty{font-size:12px;color:var(--muted);padding:4px 0}
+    .promotion{position:fixed;inset:0;background:#181a1688;display:grid;place-items:center;padding:20px;z-index:10}
+    .promotion-card{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:18px;width:min(310px,100%);box-shadow:0 15px 50px #0003}
+    .promotion-card h2{font:600 18px Georgia,serif;margin:0 0 13px}
+    .promotion-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .promotion-options button{font-size:35px;min-height:58px;border:1px solid var(--line);background:#f7f5ef;border-radius:5px}
+    .promotion-options button:hover{background:var(--green-pale);border-color:#b9c7ad}
+    .toast{position:fixed;bottom:18px;left:50%;transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:.18s;background:#22251f;color:#fff;padding:9px 13px;border-radius:5px;font-size:12px;z-index:20;max-width:calc(100vw - 30px)}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:850px){.page{padding-inline:15px}.layout{grid-template-columns:1fr;max-width:680px;margin:auto}.panels{display:grid;grid-template-columns:1fr 1fr}.panels .panel:first-child{grid-column:1/-1}}
+    @media(max-width:520px){header{height:58px}.page{padding-inline:10px}.topline{align-items:flex-start;flex-direction:column}.board-card{padding:10px}.piece{font-size:clamp(24px,8vw,45px)}.coord{font-size:8px}.panels{display:flex}.board-footer{align-items:flex-start;flex-direction:column}.controls{align-items:flex-start;flex-direction:column}.button-row{width:100%}.button-row .btn{flex:1}.player{padding-bottom:8px}.account-label{max-width:115px}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a class="brand" href="#"><span class="brand-mark">♜</span><span>Rook Chess</span></a>
+      <div class="header-actions"><span class="account-label" id="account-label">Not signed in</span><button class="btn" id="account-button" type="button">Account</button></div>
+    </header>
+    <main>
+      <div class="topline">
+        <h1>Chess</h1>
+        <div class="tabs" role="tablist" aria-label="Game mode">
+          <button class="tab active" data-mode="bot" type="button">Computer</button>
+          <button class="tab" data-mode="online" type="button">Online</button>
+        </div>
+      </div>
+      <div class="layout">
+        <section class="board-card" aria-label="Chess game">
+          <div class="player">
+            <div class="player-main"><div class="avatar dark" id="top-avatar">C</div><div><div class="player-name" id="top-name">Computer</div><div class="player-sub" id="top-sub">Black</div></div></div>
+            <span class="player-rating" id="top-rating">BOT</span>
+          </div>
+          <div class="board" id="board" aria-label="Chess board"></div>
+          <div class="player">
+            <div class="player-main"><div class="avatar" id="bottom-avatar">Y</div><div><div class="player-name" id="bottom-name">You</div><div class="player-sub" id="bottom-sub">White</div></div></div>
+            <span class="player-rating" id="bottom-rating">1200</span>
+          </div>
+          <div class="board-footer">
+            <div class="status"><span class="status-dot" id="status-dot"></span><span id="status-text">White to move</span></div>
+            <div class="button-row"><button class="btn" id="flip-board" type="button">Flip board</button><button class="btn" id="copy-pgn" type="button">Copy PGN</button></div>
+          </div>
+          <div class="controls">
+            <div class="move-summary" id="move-summary">No moves yet</div>
+            <div class="button-row"><button class="btn" id="undo" type="button" disabled>Undo</button><button class="btn primary" id="new-game" type="button">New game</button></div>
+          </div>
+          <div class="moves" id="moves"><div class="empty">Moves appear here.</div></div>
+          <div class="message hidden" id="game-message"></div>
+          <div class="promotion hidden" id="promotion-dialog" role="dialog" aria-modal="true" aria-label="Choose a promotion piece">
+            <div class="promotion-card"><h2>Promote pawn</h2><div class="promotion-options" id="promotion-options"></div><button class="btn block" id="cancel-promotion" type="button" style="margin-top:10px">Cancel</button></div>
+          </div>
+        </section>
+
+        <aside class="panels">
+          <section class="panel" id="computer-panel">
+            <h2>Computer game</h2>
+            <label class="field" for="difficulty">Difficulty</label>
+            <select class="select" id="difficulty"><option value="1">Easy</option><option value="2" selected>Medium</option><option value="3">Hard</option></select>
+            <label class="field" for="play-as">Play as</label>
+            <select class="select" id="play-as"><option value="w">White</option><option value="b">Black</option><option value="random">Random</option></select>
+          </section>
+
+          <section class="panel hidden" id="online-panel">
+            <h2>Online game</h2>
+            <div id="signed-out">
+              <form id="auth-form">
+                <div id="signup-name-wrap" class="hidden"><label class="field" for="auth-name">Chess username</label><input class="input" id="auth-name" maxlength="20" minlength="3" autocomplete="nickname"></div>
+                <label class="field" for="auth-email">Email</label><input class="input" id="auth-email" type="email" autocomplete="email" required>
+                <label class="field" for="auth-password">Password</label><input class="input" id="auth-password" type="password" minlength="6" autocomplete="current-password" required>
+                <button class="btn primary block large" id="auth-submit" type="submit" style="margin-top:13px">Sign in</button>
+              </form>
+              <p class="auth-switch"><span id="auth-switch-copy">New to Rook?</span> <button class="text-button" id="auth-switch" type="button">Create account</button></p>
+              <div class="message hidden" id="auth-message"></div>
+            </div>
+            <div id="signed-in" class="hidden">
+              <div class="profile-stats"><span>Rating <strong id="stat-rating">1200</strong></span><span>Wins <strong id="stat-wins">0</strong></span><span>Draws <strong id="stat-draws">0</strong></span></div>
+              <button class="btn primary block large" id="quick-match" type="button">Find opponent</button>
+              <button class="btn block large" id="create-room" type="button" style="margin-top:8px">Create private room</button>
+              <label class="field" for="join-code">Room code</label>
+              <div class="room-row"><input class="input" id="join-code" maxlength="6" autocomplete="off" placeholder="ABC123"><button class="btn" id="join-room" type="button">Join</button></div>
+              <div class="message hidden" id="room-info"></div>
+              <div class="hidden" id="online-actions" style="margin-top:12px">
+                <div class="button-row hidden" id="active-controls"><button class="btn subtle" id="offer-draw" type="button">Offer draw</button><button class="btn danger" id="resign" type="button">Resign</button></div>
+                <div class="button-row hidden" id="draw-response" style="margin-top:8px"><button class="btn primary" id="accept-draw" type="button">Accept draw</button><button class="btn" id="decline-draw" type="button">Decline</button></div>
+                <button class="btn block" id="close-match" type="button" style="margin-top:8px">Close match</button>
+              </div>
+              <div class="message hidden" id="online-message"></div>
+              <details id="account-details">
+                <summary><span id="identity-summary">Connect 360 account</span></summary>
+                <div id="identity-linked" class="hidden" style="margin-top:10px">
+                  <div class="inline-between"><span id="identity-name" style="font-size:13px;font-weight:650"></span><span class="identity-state">Connected</span></div>
+                  <button class="btn" id="unlink-360" type="button" style="margin-top:9px">Disconnect 360</button>
+                </div>
+                <form id="identity-form">
+                  <p class="help">Use your 360 sign-in to show your 360 name and public avatar to chess opponents. Your password is not stored by Rook.</p>
+                  <label class="field" for="identity-email">360 email</label><input class="input" id="identity-email" type="email" autocomplete="off" required>
+                  <label class="field" for="identity-password">360 password</label><input class="input" id="identity-password" type="password" autocomplete="new-password" required>
+                  <button class="btn block" id="link-360" type="submit" style="margin-top:10px">Connect 360</button>
+                </form>
+                <div class="message hidden" id="identity-message"></div>
+              </details>
+              <button class="text-button" id="signout" type="button" style="margin-top:13px">Sign out</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm';
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
+
+    const SUPABASE_URL = 'https://xcseqgpbwexfqbssfszq.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_C585ftZaW9iiIvrahjY3Ow_8jgDTXbt';
+    const SUPABASE_360_URL = 'https://wiswfpfsjiowtrdyqpxy.supabase.co';
+    const SUPABASE_360_KEY = 'sb_publishable_thiEv1nfaZ1ng1Wd1IG5Vw_r68ix0B9';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    const supabase360 = createClient(SUPABASE_360_URL, SUPABASE_360_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
+
+    const $ = id => document.getElementById(id);
+    const glyph = {wk:'♔',wq:'♕',wr:'♖',wb:'♗',wn:'♘',wp:'♙',bk:'♚',bq:'♛',br:'♜',bb:'♝',bn:'♞',bp:'♟'};
+    const pieceValue = {p:100,n:320,b:335,r:500,q:900,k:20000};
+    let chess = new Chess();
+    let mode = 'bot', orientation = 'w', humanColor = 'w', botLevel = 2;
+    let selected = null, promotionChoices = [], pendingPromotion = null, lastMove = null, busy = false;
+    let localMoves = [], localResult = '', botTimer = null;
+    let user = null, profile = null, onlineGame = null, onlineMoves = [], onlinePlayers = [], realtimeChannel = null;
+    let authMode = 'login', refreshTimer = null, refreshPromise = null, authRevision = 0;
+
+    function toast(message) {
+      const el = $('toast'); el.textContent = message; el.classList.add('show');
+      clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+    function message(id, text, kind = '') {
+      const el = $(id); el.textContent = text; el.classList.remove('hidden','error','good'); if (kind) el.classList.add(kind);
+    }
+    function clearMessage(id) { $(id).classList.add('hidden'); }
+    function playerFor(id) { return onlinePlayers.find(p => p.user_id === id) || null; }
+    function nameFor(id) {
+      const p = playerFor(id);
+      return p?.external_360_display_name || p?.external_360_username || p?.username || (id ? 'Opponent' : 'Waiting for player');
+    }
+    function avatarFor(id) { return playerFor(id)?.external_360_avatar_url || ''; }
+    function setAvatar(el, id, name) {
+      const url = avatarFor(id);
+      el.replaceChildren();
+      if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onerror = () => { el.textContent = (name || '?').slice(0,1).toUpperCase(); }; el.append(img); }
+      else el.textContent = (name || '?').slice(0,1).toUpperCase();
+    }
+    async function callApi(action, payload = {}) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Sign in to continue.');
+      let response;
+      try {
+        response = await fetch(`${SUPABASE_URL}/functions/v1/chess`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ action, ...payload })
+        });
+      } catch (error) {
+        throw new Error('Could not reach the chess server. Check your connection and try again.');
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error) throw new Error(data.error || `Chess server error (${response.status}).`);
+      return data;
+    }
+    function clearRealtime() {
+      if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+      if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    }
+    function setMode(next) {
+      mode = next;
+      document.querySelectorAll('[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+      $('computer-panel').classList.toggle('hidden', mode !== 'bot');
+      $('online-panel').classList.toggle('hidden', mode !== 'online');
+      if (mode === 'bot') {
+        clearRealtime();
+        gameRequestId++; refreshPromise=null; refreshingGameId=null;
+        startBot();
+      } else {
+        selected = null;
+        if (onlineGame) {
+          fetchOnlineGame(onlineGame.id).then(() => subscribeToGame(onlineGame.id)).catch(e => message('online-message', e.message, 'error'));
+        } else {
+          chess = new Chess(); localMoves = []; lastMove = null; localResult = '';
+          onlineMoves = []; onlinePlayers = []; orientation = 'w'; renderBoard();
+        }
+      }
+    }
+    function boardSquares() {
+      const squares = [];
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+        const rr = orientation === 'w' ? r : 7-r;
+        const cc = orientation === 'w' ? c : 7-c;
+        squares.push('abcdefgh'[cc] + (8-rr));
+      }
+      return squares;
+    }
+    function findKing(color) {
+      const board = chess.board();
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++) if (board[r][c]?.type === 'k' && board[r][c].color === color) return 'abcdefgh'[c] + (8-r);
+      return null;
+    }
+    function isOnlineTurn() {
+      if (!onlineGame || onlineGame.status !== 'active' || !user) return false;
+      return chess.turn() === (onlineGame.white_id === user.id ? 'w' : 'b');
+    }
+    function legalTargets(square) { return chess.moves({ square, verbose: true }); }
+    function renderBoard() {
+      const boardEl = $('board');
+      const targets = selected ? legalTargets(selected) : [];
+      const kingSquare = chess.isCheck() ? findKing(chess.turn()) : null;
+      const fragment = document.createDocumentFragment();
+      for (const square of boardSquares()) {
+        const file = 'abcdefgh'.indexOf(square[0]), rank = Number(square[1]);
+        const piece = chess.get(square);
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'square ' + (((file + (8-rank)) % 2 === 0) ? 'light' : 'dark');
+        el.dataset.square = square;
+        el.setAttribute('aria-label', square + (piece ? ` ${piece.color === 'w' ? 'white' : 'black'} ${piece.type}` : ' empty'));
+        if (lastMove && (square === lastMove.from || square === lastMove.to)) el.classList.add('last');
+        if (selected === square) el.classList.add('selected');
+        const target = targets.find(m => m.to === square);
+        if (target) el.classList.add('legal', target.captured ? 'capture' : '');
+        if (square === kingSquare) el.classList.add('checked');
+        if (piece) { const span = document.createElement('span'); span.className = 'piece ' + (piece.color === 'w' ? 'white' : 'black'); span.textContent = glyph[piece.color + piece.type]; el.append(span); }
+        if ((orientation === 'w' && file === 0) || (orientation === 'b' && file === 7)) { const co=document.createElement('span'); co.className='coord rank'; co.textContent=rank; el.append(co); }
+        if ((orientation === 'w' && rank === 1) || (orientation === 'b' && rank === 8)) { const co=document.createElement('span'); co.className='coord file'; co.textContent=square[0]; el.append(co); }
+        fragment.append(el);
+      }
+      boardEl.replaceChildren(fragment);
+      renderPlayers(); renderStatus(); renderMoves();
+    }
+    function renderPlayers() {
+      if (mode === 'bot') {
+        const topColor = orientation === 'w' ? 'b' : 'w';
+        const topName = topColor === humanColor ? 'You' : 'Computer';
+        const bottomName = topColor === humanColor ? 'Computer' : 'You';
+        $('top-name').textContent = topName; $('top-sub').textContent = topColor === 'w' ? 'White' : 'Black'; $('top-rating').textContent = topColor === humanColor ? String(profile?.rating ?? 1200) : 'BOT';
+        $('bottom-name').textContent = bottomName; $('bottom-sub').textContent = topColor === 'w' ? 'Black' : 'White'; $('bottom-rating').textContent = topColor !== humanColor ? String(profile?.rating ?? 1200) : 'BOT';
+        setAvatar($('top-avatar'), null, topName === 'You' ? 'Y' : 'C'); setAvatar($('bottom-avatar'), null, bottomName === 'You' ? 'Y' : 'C');
+      } else if (onlineGame) {
+        const topColor = orientation === 'w' ? 'b' : 'w';
+        const topId = topColor === 'w' ? onlineGame.white_id : onlineGame.black_id;
+        const bottomId = topColor === 'w' ? onlineGame.black_id : onlineGame.white_id;
+        const topPlayer = playerFor(topId), bottomPlayer = playerFor(bottomId);
+        const topName = topId === user?.id ? 'You' : nameFor(topId);
+        const bottomName = bottomId === user?.id ? 'You' : nameFor(bottomId);
+        $('top-name').textContent = topName; $('top-sub').textContent = topColor === 'w' ? 'White' : 'Black'; $('top-rating').textContent = topPlayer?.rating ?? (topId ? '—' : '');
+        $('bottom-name').textContent = bottomName; $('bottom-sub').textContent = bottomColorLabel(topColor); $('bottom-rating').textContent = bottomPlayer?.rating ?? '—';
+        setAvatar($('top-avatar'), topId, topName); setAvatar($('bottom-avatar'), bottomId, bottomName);
+      } else {
+        $('top-name').textContent='Opponent'; $('top-sub').textContent='Black'; $('top-rating').textContent='—';
+        $('bottom-name').textContent='You'; $('bottom-sub').textContent='White'; $('bottom-rating').textContent=String(profile?.rating ?? 1200);
+        setAvatar($('top-avatar'),null,'C');setAvatar($('bottom-avatar'),null,'Y');
+      }
+    }
+    function bottomColorLabel(topColor) { return topColor === 'w' ? 'Black' : 'White'; }
+    function terminalText() {
+      if (chess.isCheckmate()) return (chess.turn() === 'w' ? 'Black' : 'White') + ' wins by checkmate.';
+      if (chess.isStalemate()) return 'Draw by stalemate.';
+      if (chess.isThreefoldRepetition()) return 'Draw by repetition.';
+      if (chess.isInsufficientMaterial()) return 'Draw by insufficient material.';
+      if (chess.isDraw()) return 'Draw by the 50-move rule.';
+      return '';
+    }
+    function renderStatus() {
+      let text = '', wait = false, bad = false;
+      if (mode === 'online' && onlineGame) {
+        if (onlineGame.status === 'waiting') { text='Waiting for an opponent'; wait=true; }
+        else if (onlineGame.status === 'completed') { text=onlineGame.result === '1/2-1/2' ? 'Game drawn' : onlineGame.winner_id === user?.id ? 'You won' : 'You lost'; bad=onlineGame.winner_id && onlineGame.winner_id !== user?.id; }
+        else if (onlineGame.status === 'abandoned') text='Room closed';
+        else { const mine=isOnlineTurn(); text=chess.isCheck() ? (mine ? 'Your king is in check' : 'Opponent is in check') : (mine ? 'Your move' : "Opponent's move"); wait=!mine; bad=chess.isCheck(); }
+      } else if (mode === 'online') { text = user ? 'Create or join an online game' : 'Sign in to play online'; wait=true; }
+      else if (localResult) { text=localResult; bad=localResult.includes('wins'); }
+      else if (busy && chess.turn() !== humanColor) { text='Computer is thinking'; wait=true; }
+      else { text=chess.isCheck() ? (chess.turn()===humanColor ? 'Your king is in check' : 'Computer is in check') : chess.turn()===humanColor ? 'Your move' : 'Computer to move'; wait=chess.turn()!==humanColor; bad=chess.isCheck(); }
+      $('status-text').textContent=text;
+      $('status-dot').className='status-dot' + (wait?' wait':'') + (bad?' bad':'');
+      $('undo').disabled = mode !== 'bot' || localMoves.length === 0 || busy;
+      $('new-game').disabled = mode !== 'bot';
+      const active = mode === 'online' && onlineGame?.status === 'active';
+      const waiting = mode === 'online' && onlineGame?.status === 'waiting';
+      const openGame = active || waiting;
+      $('online-actions').classList.toggle('hidden', !openGame);
+      $('active-controls').classList.toggle('hidden', !active);
+      const offered = !!onlineGame?.draw_offer_by && onlineGame.draw_offer_by !== user?.id;
+      $('draw-response').classList.toggle('hidden', !active || !offered);
+      $('offer-draw').disabled = !!onlineGame?.draw_offer_by || !active;
+      $('resign').disabled = !active;
+      const canMatch = mode === 'online' && !openGame;
+      $('quick-match').disabled = !canMatch;
+      $('create-room').disabled = !canMatch;
+      $('join-room').disabled = !canMatch;
+      $('join-code').disabled = !canMatch;
+      const terminal = (mode === 'online' && onlineGame && ['completed','abandoned'].includes(onlineGame.status)) || (mode === 'bot' && !!localResult);
+      $('game-message').classList.toggle('hidden', !terminal);
+      if (terminal) $('game-message').textContent = mode === 'online' ? (onlineGame.result === '1/2-1/2' ? 'Draw.' : onlineGame.winner_id === user?.id ? 'You won this match.' : onlineGame.winner_id ? 'Your opponent won.' : 'This room was closed.') : localResult;
+    }
+    function currentSans() { return mode === 'online' ? onlineMoves.map(m => m.san) : localMoves.map(m => m.san); }
+    function renderMoves() {
+      const moves = currentSans();
+      $('move-summary').textContent = moves.length ? `Last move: ${moves[moves.length-1]}` : 'No moves yet';
+      if (!moves.length) { $('moves').innerHTML='<div class="empty">Moves appear here.</div>'; return; }
+      const rows=[];
+      for(let i=0;i<moves.length;i+=2){
+        const row=document.createElement('div');row.className='move-row';
+        const num=document.createElement('span');num.className='number';num.textContent=(Math.floor(i/2)+1)+'.';
+        const white=document.createElement('span');white.textContent=moves[i]||'';if(i===moves.length-1)white.className='latest';
+        const black=document.createElement('span');black.textContent=moves[i+1]||'';if(i+1===moves.length-1)black.className='latest';
+        row.append(num,white,black);rows.push(row);
+      }
+      $('moves').replaceChildren(...rows);$('moves').scrollTop=$('moves').scrollHeight;
+    }
+    function onSquare(square) {
+      if (busy || pendingPromotion) return;
+      if (mode === 'online') { if (!onlineGame || !isOnlineTurn()) return; }
+      else if (localResult || chess.turn() !== humanColor) return;
+      const piece=chess.get(square);
+      if (selected) {
+        const choices=legalTargets(selected).filter(m=>m.to===square);
+        if (choices.length > 1) { showPromotion(choices); return; }
+        if (choices.length === 1) { makeMove(choices[0]); return; }
+      }
+      selected = piece && piece.color === chess.turn() ? square : null;
+      renderBoard();
+    }
+    function showPromotion(choices) {
+      promotionChoices=choices;
+      $('promotion-options').replaceChildren();
+      for(const choice of choices){
+        const button=document.createElement('button');button.type='button';button.textContent=glyph[chess.turn()+choice.promotion];button.setAttribute('aria-label',({q:'Queen',r:'Rook',b:'Bishop',n:'Knight'})[choice.promotion]);
+        button.addEventListener('click',()=>{const move=choice;pendingPromotion=null;promotionChoices=[];$('promotion-dialog').classList.add('hidden');makeMove(move);});
+        $('promotion-options').append(button);
+      }
+      pendingPromotion=true;$('promotion-dialog').classList.remove('hidden');
+    }
+    async function makeMove(move) {
+      if (busy) return;
+      selected=null;busy=true;renderBoard();
+      try {
+        if (mode === 'online') {
+          await callApi('move',{gameId:onlineGame.id,from:move.from,to:move.to,...(move.promotion?{promotion:move.promotion}:{})});
+          await fetchOnlineGame(onlineGame.id);
+        } else {
+          const result=chess.move({from:move.from,to:move.to,...(move.promotion?{promotion:move.promotion}:{})});
+          if(!result) throw new Error('That move is not legal.');
+          localMoves.push(result);lastMove=result;localResult=terminalText();
+          if(!localResult && chess.turn()!==humanColor) botTimer=setTimeout(makeBotMove,180);
+        }
+      } catch(error) {
+        toast(error.message || 'Move failed.');
+        if(mode==='online' && onlineGame) { try { await fetchOnlineGame(onlineGame.id); } catch {} }
+      } finally { busy=false;renderBoard(); }
+    }
+    function evaluate(position) {
+      if(position.isCheckmate())return position.turn()==='w'?-100000:100000;
+      if(position.isDraw())return 0;
+      let score=0;const board=position.board();
+      for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+        const p=board[r][c];if(!p)continue;
+        const sign=p.color==='w'?1:-1;
+        const center=7-(Math.abs(3.5-c)+Math.abs(3.5-r));
+        let positional=0;
+        if(p.type==='p')positional=center*2+(p.color==='w'?(6-r):(r-1))*2.2;
+        else if(p.type==='n')positional=center*7;
+        else if(p.type==='b')positional=center*4;
+        else if(p.type==='q')positional=center*1.2;
+        else if(p.type==='k'&&!position.isGameOver())positional=-center*2;
+        score+=sign*(pieceValue[p.type]+positional);
+      }
+      return score;
+    }
+    function orderedMoves(position) {
+      return position.moves({verbose:true}).sort((a,b)=>{
+        const av=(a.captured?pieceValue[a.captured]:0)+(a.promotion?pieceValue[a.promotion]:0);
+        const bv=(b.captured?pieceValue[b.captured]:0)+(b.promotion?pieceValue[b.promotion]:0);
+        return bv-av;
+      });
+    }
+    let searchDeadline=0,searchNodes=0;
+    function search(position,depth,alpha,beta,ply) {
+      if(position.isGameOver())return position.isCheckmate()?(position.turn()==='w'?-100000+ply:100000-ply):0;
+      if(depth<=0 || searchNodes++>22000 || performance.now()>searchDeadline)return evaluate(position);
+      const maximizing=position.turn()==='w';let best=maximizing?-Infinity:Infinity;
+      for(const move of orderedMoves(position)){
+        position.move({from:move.from,to:move.to,...(move.promotion?{promotion:move.promotion}:{})});
+        const value=search(position,depth-1,alpha,beta,ply+1);position.undo();
+        if(maximizing){best=Math.max(best,value);alpha=Math.max(alpha,best);}else{best=Math.min(best,value);beta=Math.min(beta,best);}
+        if(beta<=alpha || performance.now()>searchDeadline)break;
+      }
+      return best;
+    }
+    function chooseBotMove() {
+      const moves=orderedMoves(chess);if(!moves.length)return null;
+      const depth=botLevel===1?1:botLevel===2?2:3;
+      searchDeadline=performance.now()+(botLevel===1?180:botLevel===2?450:850);searchNodes=0;
+      let best=-Infinity,candidates=[];
+      for(const move of moves){
+        chess.move({from:move.from,to:move.to,...(move.promotion?{promotion:move.promotion}:{})});
+        const score=search(chess,depth-1,-Infinity,Infinity,0);
+        chess.undo();
+        const botScore=chess.turn()==='w'?score:-score;
+        if(botScore>best){best=botScore;candidates=[move];}else if(botScore===best)candidates.push(move);
+        if(performance.now()>searchDeadline && candidates.length)break;
+      }
+      return candidates[Math.floor(Math.random()*candidates.length)] || moves[0];
+    }
+    function makeBotMove() {
+      if(mode!=='bot'||localResult||chess.turn()===humanColor||busy)return;
+      busy=true;renderBoard();
+      try {
+        const move=chooseBotMove();if(!move)return;
+        const result=chess.move({from:move.from,to:move.to,...(move.promotion?{promotion:move.promotion}:{})});
+        if(result){localMoves.push(result);lastMove=result;localResult=terminalText();}
+      } catch(error) { toast(error.message || 'Computer move failed.'); }
+      finally { busy=false;renderBoard(); }
+    }
+    function startBot() {
+      clearTimeout(botTimer);gameRequestId++;refreshPromise=null;refreshingGameId=null;mode='bot';selected=null;pendingPromotion=null;promotionChoices=[];$('promotion-dialog').classList.add('hidden');
+      busy=false;localResult='';localMoves=[];lastMove=null;botLevel=Number($('difficulty').value);
+      const side=$('play-as').value;humanColor=side==='random'?(Math.random()<.5?'w':'b'):side;orientation=humanColor;chess=new Chess();
+      $('computer-panel').classList.remove('hidden');$('online-panel').classList.add('hidden');
+      document.querySelectorAll('[data-mode]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode==='bot'));
+      clearMessage('game-message');renderBoard();
+      if(chess.turn()!==humanColor)botTimer=setTimeout(makeBotMove,180);
+    }
+    function updateAuthUI() {
+      const linked=!!profile?.external_360_user_id;
+      const accountName=profile?.external_360_display_name||profile?.external_360_username||profile?.username||user?.email?.split('@')[0]||'Not signed in';
+      $('account-label').textContent=user?accountName:'Not signed in';
+      $('signed-out').classList.toggle('hidden',!!user);$('signed-in').classList.toggle('hidden',!user);
+      $('identity-linked').classList.toggle('hidden',!linked);$('identity-form').classList.toggle('hidden',linked);
+      $('identity-summary').textContent=linked?'360 account connected':'Connect 360 account';
+      $('identity-name').textContent=profile?.external_360_display_name||profile?.external_360_username||'360 account';
+      $('stat-rating').textContent=profile?.rating ?? 1200;$('stat-wins').textContent=profile?.wins ?? 0;$('stat-draws').textContent=profile?.draws ?? 0;
+      if(linked)$('account-details').open=false;
+    }
+    async function refreshProfile() {
+      if(!user)return;
+      const rev=authRevision;
+      const {profile:next}=await callApi('profile');
+      if(rev!==authRevision || !user)return;
+      profile=next;updateAuthUI();
+    }
+    async function authChanged(session) {
+      const rev=++authRevision;
+      user=session?.user||null;profile=null;updateAuthUI();
+      if(user){
+        try { await refreshProfile(); }
+        catch(error) { if(rev===authRevision) message('online-message',error.message,'error'); }
+      } else {
+        gameRequestId++;refreshPromise=null;refreshingGameId=null;
+        onlineGame=null;onlineMoves=[];onlinePlayers=[];clearRealtime();
+        if(mode==='online')renderBoard();
+      }
+    }
+    async function authSubmit(event) {
+      event.preventDefault();clearMessage('auth-message');
+      const email=$('auth-email').value.trim(),password=$('auth-password').value;
+      const button=$('auth-submit');button.disabled=true;button.textContent=authMode==='login'?'Signing in…':'Creating…';
+      try {
+        if(authMode==='signup'){
+          const username=$('auth-name').value.trim();if(username.length<3)throw new Error('Username must be at least 3 characters.');
+          const {data,error}=await supabase.auth.signUp({email,password,options:{data:{username}}});if(error)throw error;
+          if(!data.session)message('auth-message','Check your email to confirm your account, then sign in.','good');
+          else toast('Account created.');
+        } else {
+          const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;toast('Signed in.');
+        }
+      } catch(error) { message('auth-message',error.message||'Sign in failed.','error'); }
+      finally { button.disabled=false;button.textContent=authMode==='login'?'Sign in':'Create account'; }
+    }
+    function switchAuth() {
+      authMode=authMode==='login'?'signup':'login';
+      $('signup-name-wrap').classList.toggle('hidden',authMode!=='signup');
+      $('auth-password').autocomplete=authMode==='login'?'current-password':'new-password';
+      $('auth-submit').textContent=authMode==='login'?'Sign in':'Create account';
+      $('auth-switch-copy').textContent=authMode==='login'?'New to Rook?':'Already have an account?';
+      $('auth-switch').textContent=authMode==='login'?'Create account':'Sign in';
+      clearMessage('auth-message');
+    }
+    async function openAccount() {
+      setMode('online');
+      if(!user){$('auth-email').focus();toast('Sign in to play online.');}
+    }
+    async function refreshProfileAndBoard() { await refreshProfile(); }
+    async function loadMatch(kind) {
+      if(!user){setMode('online');toast('Sign in to play online.');return;}
+      const buttons=[$('quick-match'),$('create-room'),$('join-room')];buttons.forEach(b=>b.disabled=true);
+      message('online-message',kind==='quick'?'Looking for an opponent…':'Creating a room…');
+      try {
+        const {game}=await callApi('match',{kind});
+        await openOnlineGame(game.id);
+        message('online-message',game.status==='waiting'?'Room created. Share the code with your opponent.':'Match found.');
+      } catch(error) { message('online-message',error.message,'error'); }
+      finally { buttons.forEach(b=>b.disabled=false); }
+    }
+    async function joinRoom() {
+      const roomCode=$('join-code').value.trim().toUpperCase();
+      if(roomCode.length!==6){message('online-message','Enter the six-character room code.','error');return;}
+      $('join-room').disabled=true;
+      try {
+        const {game}=await callApi('match',{kind:'join',roomCode});
+        await openOnlineGame(game.id);message('online-message','Joined the room.');
+      } catch(error) { message('online-message',error.message,'error'); }
+      finally { $('join-room').disabled=false; }
+    }
+    let gameRequestId = 0, refreshingGameId = null;
+    function subscribeToGame(id) {
+      if (mode !== 'online' || !onlineGame || onlineGame.id !== id || ['completed','abandoned'].includes(onlineGame.status)) return;
+      clearRealtime();
+      realtimeChannel=supabase.channel('chess-'+id)
+        .on('postgres_changes',{event:'*',schema:'public',table:'chess_games',filter:'id=eq.'+id},()=>fetchOnlineGame(id).catch(()=>{}))
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'chess_moves',filter:'game_id=eq.'+id},()=>fetchOnlineGame(id).catch(()=>{}))
+        .subscribe();
+      // Polling keeps rooms usable if a browser blocks WebSockets.
+      refreshTimer=setInterval(()=>fetchOnlineGame(id).catch(()=>{}),3500);
+    }
+    async function openOnlineGame(id) {
+      mode='online';selected=null;localResult='';clearRealtime();onlineGame=null;refreshPromise=null;refreshingGameId=null;
+      document.querySelectorAll('[data-mode]').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode==='online'));
+      $('computer-panel').classList.add('hidden');$('online-panel').classList.remove('hidden');
+      await fetchOnlineGame(id);
+      subscribeToGame(id);
+    }
+    async function fetchOnlineGame(id) {
+      if (mode !== 'online' || !user) return;
+      if (refreshPromise && refreshingGameId === id) { await refreshPromise; return; }
+      const requestId = ++gameRequestId;
+      refreshingGameId = id;
+      const task = (async()=>{
+        const previousStatus=onlineGame?.id===id?onlineGame.status:null;
+        const {game,moves,players}=await callApi('game',{gameId:id});
+        if (requestId !== gameRequestId || (onlineGame && onlineGame.id !== id)) return;
+        onlineGame=game;onlineMoves=moves||[];onlinePlayers=players||[];
+        orientation=game.white_id===user?.id?'w':'b';chess=new Chess(game.current_fen);
+        const uci=onlineMoves.at(-1)?.uci;
+        lastMove=uci?{from:uci.slice(0,2),to:uci.slice(2,4)}:null;
+        renderBoard();updateRoomInfo();
+        if(['completed','abandoned'].includes(game.status)) clearRealtime();
+        if(game.status==='completed'&&previousStatus!=='completed')refreshProfileAndBoard().catch(()=>{});
+      })();
+      refreshPromise=task;
+      try { await task; } finally { if (refreshPromise === task) { refreshPromise=null; refreshingGameId=null; } }
+    }
+    function updateRoomInfo() {
+      if(!onlineGame)return;
+      const box=$('room-info');box.classList.remove('hidden','error','good');box.replaceChildren();
+      if(onlineGame.status==='waiting'){
+        const label=document.createElement('div');label.textContent='ROOM CODE';
+        const code=document.createElement('div');code.className='room-code';code.textContent=onlineGame.room_code;
+        const copy=document.createElement('button');copy.type='button';copy.className='text-button';copy.textContent='Copy code';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(onlineGame.room_code);toast('Room code copied.');}catch{toast('Clipboard not available.');}});
+        const helper=document.createElement('div');helper.className='help';helper.textContent='Waiting for another player to join.';
+        box.append(label,code,copy,helper);
+      } else if(onlineGame.status==='active') {
+        box.textContent='Room '+onlineGame.room_code+' · Match in progress';
+      } else if(onlineGame.status==='completed') {
+        box.textContent='Room '+onlineGame.room_code+' · Match finished';
+      } else box.textContent='This room is closed.';
+    }
+    async function finishAction(action) {
+      if(!onlineGame)return;
+      const controls=[$('offer-draw'),$('resign'),$('accept-draw'),$('decline-draw')];controls.forEach(b=>b.disabled=true);
+      try {
+        await callApi('finish',{gameId:onlineGame.id,finishAction:action});
+        await fetchOnlineGame(onlineGame.id);
+        if(action==='resign')toast('You resigned.');
+        else if(action==='offer_draw')toast('Draw offered.');
+        else if(action==='agree_draw')toast('Draw accepted.');
+      } catch(error) { toast(error.message); }
+      finally { controls.forEach(b=>b.disabled=false);renderStatus(); }
+    }
+    async function closeMatch() {
+      if(!onlineGame)return;
+      const game=onlineGame;
+      if(game.status==='active' && !confirm('Close this match by resigning?'))return;
+      $('close-match').disabled=true;
+      try {
+        if(game.status==='waiting') await callApi('finish',{gameId:game.id,finishAction:'cancel_room'});
+        else if(game.status==='active') await callApi('finish',{gameId:game.id,finishAction:'resign'});
+      } catch(error) { toast(error.message);$('close-match').disabled=false;return; }
+      clearRealtime();onlineGame=null;onlineMoves=[];onlinePlayers=[];refreshPromise=null;refreshingGameId=null;
+      $('room-info').classList.add('hidden');$('online-actions').classList.add('hidden');
+      $('close-match').disabled=false;startBot();
+    }
+    async function link360Account(event) {
+      event.preventDefault();clearMessage('identity-message');
+      const email=$('identity-email').value.trim(),password=$('identity-password').value;
+      const button=$('link-360');button.disabled=true;button.textContent='Connecting…';
+      try {
+        const {data,error}=await supabase360.auth.signInWithPassword({email,password});
+        if(error)throw new Error(error.message||'360 sign-in failed.');
+        const token=data.session?.access_token;if(!token)throw new Error('360 did not return a session.');
+        const result=await callApi('link_360',{externalToken:token});profile=result.profile;
+        $('identity-password').value='';
+        await supabase360.auth.signOut();updateAuthUI();
+        if(onlineGame)await fetchOnlineGame(onlineGame.id);
+        message('identity-message','Your 360 account is connected.','good');toast('360 connected.');
+      } catch(error) {
+        try{await supabase360.auth.signOut();}catch{}
+        $('identity-password').value='';message('identity-message',error.message||'Could not connect the 360 account.','error');
+      } finally { button.disabled=false;button.textContent='Connect 360'; }
+    }
+    async function unlink360Account() {
+      const button=$('unlink-360');button.disabled=true;
+      try {
+        const result=await callApi('unlink_360');profile=result.profile;updateAuthUI();
+        if(onlineGame)await fetchOnlineGame(onlineGame.id);
+        message('identity-message','Your 360 account was disconnected.','good');
+      } catch(error) { message('identity-message',error.message||'Could not disconnect 360.','error'); }
+      finally { button.disabled=false; }
+    }
+    async function copyPgn() {
+      const text=mode==='online'?(onlineGame?.pgn||'*'):chess.pgn();
+      try { await navigator.clipboard.writeText(text);toast('PGN copied.'); }
+      catch { const field=document.createElement('textarea');field.value=text;document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();toast(copied?'PGN copied.':'Clipboard unavailable.'); }
+    }
+
+    $('board').addEventListener('click',event=>{const button=event.target.closest('[data-square]');if(button)onSquare(button.dataset.square);});
+    document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>setMode(button.dataset.mode)));
+    $('account-button').addEventListener('click',openAccount);
+    $('auth-form').addEventListener('submit',authSubmit);$('auth-switch').addEventListener('click',switchAuth);
+    $('identity-form').addEventListener('submit',link360Account);$('unlink-360').addEventListener('click',unlink360Account);
+    $('new-game').addEventListener('click',startBot);
+    $('difficulty').addEventListener('change',()=>{botLevel=Number($('difficulty').value);});
+    $('undo').addEventListener('click',()=>{
+      if(mode!=='bot'||!localMoves.length||busy)return;
+      chess.undo();localMoves.pop();
+      if(chess.turn()!==humanColor&&localMoves.length){chess.undo();localMoves.pop();}
+      localResult='';lastMove=localMoves.at(-1)||null;renderBoard();
+    });
+    $('flip-board').addEventListener('click',()=>{orientation=orientation==='w'?'b':'w';renderBoard();});
+    $('copy-pgn').addEventListener('click',copyPgn);
+    $('quick-match').addEventListener('click',()=>loadMatch('quick'));
+    $('create-room').addEventListener('click',()=>loadMatch('create'));
+    $('join-room').addEventListener('click',joinRoom);
+    $('join-code').addEventListener('input',event=>{event.target.value=event.target.value.replace(/[^a-z0-9]/gi,'').toUpperCase();});
+    $('offer-draw').addEventListener('click',()=>finishAction('offer_draw'));
+    $('accept-draw').addEventListener('click',()=>finishAction('agree_draw'));
+    $('decline-draw').addEventListener('click',()=>finishAction('decline_draw'));
+    $('resign').addEventListener('click',()=>{if(confirm('Resign this game?'))finishAction('resign');});
+    $('close-match').addEventListener('click',closeMatch);
+    $('signout').addEventListener('click',async()=>{const {error}=await supabase.auth.signOut();if(error)toast(error.message);else{toast('Signed out.');setMode('bot');}});
+    $('cancel-promotion').addEventListener('click',()=>{pendingPromotion=null;promotionChoices=[];$('promotion-dialog').classList.add('hidden');selected=null;renderBoard();});
+    $('promotion-dialog').addEventListener('click',event=>{if(event.target===$('promotion-dialog'))$('cancel-promotion').click();});
+
+    supabase.auth.onAuthStateChange((_event,session)=>{queueMicrotask(()=>authChanged(session));});
+    const {data:{session}}=await supabase.auth.getSession();
+    await authChanged(session);
+    startBot();
+  </script>
+</body>
+</html>
