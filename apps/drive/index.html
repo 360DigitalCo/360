@@ -3,31 +3,238 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="360 Drive. Your files, in one place.">
-  <title>Drive · 360</title>
+  <meta name="theme-color" content="#f8fafd">
+  <meta name="description" content="NAS by 360. Network Archive Space for your files.">
+  <title>NAS · 360</title>
   <link rel="icon" type="image/png" href="/favicon-32x32.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Existing 360 site styles: theme, menu, settings and cursor. -->
+  <!-- Shared 360 styles are retained for the global menu, appearance settings and cursor. -->
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/wide.css">
   <link rel="stylesheet" href="/assets/css/gallium.css">
   <link rel="stylesheet" href="/assets/css/cursor.css">
-  <link rel="stylesheet" href="/drive/drive.css">
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/360-settings.js"></script>
   <script>window.SKIP_AUTH_CHIP = true;</script>
+
+  <style>
+    :root {
+      --nas-accent: var(--a, #315be8);
+      --nas-bg: #f8fafd;
+      --nas-panel: #fff;
+      --nas-text: #202124;
+      --nas-muted: #5f6368;
+      --nas-line: #e3e7ed;
+      --nas-hover: #f1f3f4;
+      --nas-active: color-mix(in srgb, var(--nas-accent) 13%, white);
+      --nas-shadow: 0 1px 2px rgba(60,64,67,.12), 0 1px 3px 1px rgba(60,64,67,.08);
+    }
+    html { min-height: 100%; }
+    body.nas-page { margin: 0; min-width: 320px; min-height: 100vh; padding: 0; background: var(--nas-bg); color: var(--nas-text); font-family: "DM Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+    .nas-app, .nas-app * { box-sizing: border-box; }
+    .nas-app { display: flex; flex-direction: column; min-height: 100vh; width: 100%; color: var(--nas-text); background: var(--nas-bg); isolation: isolate; }
+    .nas-app button, .nas-app input { font: inherit; -webkit-tap-highlight-color: transparent; }
+    .nas-app button { appearance: none; cursor: pointer; }
+    .nas-app svg { display: block; }
+    .nas-app a { color: inherit; }
+    .nas-app [hidden] { display: none !important; }
+    .nas-app button:focus-visible, .nas-app a:focus-visible, .nas-app input:focus-visible { outline: 2px solid color-mix(in srgb, var(--nas-accent) 65%, transparent); outline-offset: 2px; }
+
+    /* Header */
+    .nas-header { position: relative; z-index: 10; display: grid; grid-template-columns: 248px minmax(220px, 1fr) 190px; align-items: center; gap: 22px; height: 68px; flex: 0 0 68px; padding: 0 24px 0 14px; border-bottom: 1px solid var(--nas-line); background: var(--nas-panel); }
+    .nas-brand-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .nas-menu-button { position: static !important; inset: auto !important; z-index: auto !important; display: grid !important; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: var(--nas-muted) !important; box-shadow: none !important; }
+    .nas-menu-button:hover { background: var(--nas-hover) !important; }
+    .nas-menu-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .nas-brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; }
+    .nas-brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--nas-accent); color: white; box-shadow: 0 2px 5px rgba(49,91,232,.2); }
+    .nas-brand-mark svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-brand-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1; }
+    .nas-brand-copy strong { color: #3c4043; font: 600 20px/1.05 "DM Sans",sans-serif; letter-spacing: -.55px; }
+    .nas-brand-copy small { color: #7b8188; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .nas-search { display: flex; align-items: center; width: min(100%, 720px); height: 46px; margin: 0 auto; padding: 0 7px 0 16px; border: 1px solid transparent; border-radius: 9px; background: #f1f3f4; color: var(--nas-muted); }
+    .nas-search:focus-within { border-color: #c8d9f4; background: #fff; box-shadow: 0 1px 3px rgba(60,64,67,.16); }
+    .nas-search > svg { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .nas-search input { width: 100%; min-width: 0; height: 100%; padding: 0 13px; border: 0 !important; outline: 0 !important; background: transparent !important; color: var(--nas-text) !important; box-shadow: none !important; font-size: 14px; }
+    .nas-search input::placeholder { color: #666d75; opacity: 1; }
+    .nas-search-options { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border: 0; border-radius: 50%; background: transparent; color: var(--nas-muted); }
+    .nas-search-options:hover { background: #e7e9eb; }
+    .nas-search-options svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+    .nas-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+    .nas-icon-button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--nas-muted); }
+    .nas-icon-button:hover { background: var(--nas-hover); }
+    .nas-icon-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-profile-wrap { position: relative; min-width: 0; }
+    .nas-profile-button { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 8px 4px 4px; border: 1px solid transparent; border-radius: 22px; background: transparent; color: #3c4043; text-align: left; }
+    .nas-profile-button:hover, .nas-profile-button[aria-expanded="true"] { background: var(--nas-hover); }
+    .nas-avatar { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; overflow: hidden; border-radius: 50%; background: var(--nas-accent); color: #fff; font-size: 14px; font-weight: 700; }
+    .nas-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .nas-profile-copy { display: flex; flex-direction: column; max-width: 100px; min-width: 0; line-height: 1.25; }
+    .nas-profile-copy strong { overflow: hidden; color: #3c4043; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .nas-profile-copy small { color: #777d83; font-size: 10px; }
+    .nas-profile-caret { width: 15px; height: 15px; flex: 0 0 15px; fill: none; stroke: #5f6368; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-profile-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; width: 248px; padding: 8px 0; border: 1px solid #e0e3e7; border-radius: 10px; background: #fff; box-shadow: 0 4px 18px rgba(60,64,67,.2); }
+    .nas-profile-menu-head { display: flex; align-items: center; gap: 11px; padding: 11px 15px 13px; border-bottom: 1px solid #eceff1; }
+    .nas-profile-menu-head > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+    .nas-profile-menu-head strong { overflow: hidden; color: #202124; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .nas-profile-menu-head small { overflow: hidden; color: #777d83; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .nas-profile-menu a, .nas-profile-menu button { display: block; width: 100%; padding: 10px 16px; border: 0; background: transparent; color: #3c4043; text-align: left; text-decoration: none; font-size: 12px; }
+    .nas-profile-menu a:hover, .nas-profile-menu button:hover { background: #f1f3f4; }
+    .nas-profile-menu .nas-avatar { width: 38px; height: 38px; flex-basis: 38px; }
+
+    /* Workspace */
+    .nas-shell { display: grid; grid-template-columns: 248px minmax(0,1fr); flex: 1 1 auto; min-height: calc(100vh - 68px); }
+    .nas-sidebar { position: sticky; top: 0; display: flex; flex-direction: column; align-self: start; width: 248px; height: calc(100vh - 68px); min-height: 440px; padding: 18px 12px 16px 8px; background: var(--nas-bg); }
+    .nas-new-wrap { position: relative; padding: 0 0 16px 8px; }
+    .nas-new-button { display: inline-flex; align-items: center; gap: 12px; min-width: 116px; height: 48px; padding: 0 16px; border: 1px solid #e5e7eb; border-radius: 16px; background: #fff; color: #3c4043; box-shadow: var(--nas-shadow); font-size: 13px; font-weight: 600; }
+    .nas-new-button:hover, .nas-new-button[aria-expanded="true"] { background: #f8faff; box-shadow: 0 2px 4px rgba(60,64,67,.16), 0 1px 3px 1px rgba(60,64,67,.1); }
+    .nas-new-button > svg:first-child { width: 21px; height: 21px; fill: none; stroke: var(--nas-accent); stroke-width: 1.8; stroke-linecap: round; }
+    .nas-new-caret { width: 14px; height: 14px; margin-left: auto; fill: none; stroke: #5f6368; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-new-menu { position: absolute; top: 54px; left: 8px; z-index: 100; width: 218px; padding: 7px 0; border: 1px solid #e3e6ea; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px rgba(60,64,67,.2); }
+    .nas-new-menu button { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 42px; padding: 0 15px; border: 0; background: transparent; color: #3c4043; text-align: left; font-size: 12px; }
+    .nas-new-menu button:hover { background: #f1f3f4; }
+    .nas-new-menu button svg { width: 19px; height: 19px; flex: 0 0 19px; fill: none; stroke: #5f6368; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-menu-divider { height: 1px; margin: 6px 0; background: #e8eaed; }
+    .nas-nav-list { display: flex; flex-direction: column; gap: 2px; }
+    .nas-nav-item { display: flex; align-items: center; gap: 16px; width: 100%; height: 40px; padding: 0 14px 0 17px; border: 0; border-radius: 0 22px 22px 0; background: transparent; color: #444746; text-align: left; font-size: 12px; font-weight: 500; }
+    .nas-nav-item:hover { background: #eef1f5; }
+    .nas-nav-item.active { background: var(--nas-active); color: color-mix(in srgb, var(--nas-accent) 80%, #174ea6); font-weight: 700; }
+    .nas-nav-item > svg { width: 19px; height: 19px; flex: 0 0 19px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-nav-chevron { width: 15px !important; height: 15px !important; margin-left: auto; opacity: .75; }
+    .nas-nav-separator { height: 1px; margin: 9px 8px 10px 17px; background: #e2e5e9; }
+    .nas-storage { margin: auto 14px 0 17px; padding-top: 18px; border-top: 1px solid #e2e5e9; }
+    .nas-storage-heading { display: flex; align-items: center; justify-content: space-between; gap: 7px; color: #5f6368; font-size: 11px; font-weight: 600; }
+    .nas-storage-state { color: #8a9096; font-size: 10px; font-weight: 400; }
+    .nas-storage-track { height: 4px; margin: 12px 0 9px; overflow: hidden; border-radius: 5px; background: #e2e5e9; }
+    .nas-storage-track span { display: block; width: 0; height: 100%; background: var(--nas-accent); }
+    .nas-storage p { margin: 0; color: #777d83; font-size: 10px; line-height: 1.45; }
+    .nas-content { position: relative; min-width: 0; min-height: calc(100vh - 84px); margin: 0 16px 0 0; padding: 0 0 24px; border-radius: 16px 16px 0 0; background: #fff; overflow: hidden; }
+    .nas-auth-banner { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 42px; padding: 8px 16px; border-bottom: 1px solid #d8e5fb; background: #f3f7ff; color: #34445a; font-size: 11px; }
+    .nas-auth-banner a { color: var(--nas-accent); font-weight: 700; text-decoration: none; }
+    .nas-auth-banner a:hover { text-decoration: underline; }
+    .nas-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 68px; padding: 0 24px; border-bottom: 1px solid #f0f1f2; }
+    .nas-location { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .nas-location h1 { overflow: hidden; margin: 0; color: #202124; font: 500 19px/1.3 "DM Sans",sans-serif; letter-spacing: -.35px; text-overflow: ellipsis; white-space: nowrap; }
+    .nas-content-actions { display: flex; align-items: center; gap: 5px; color: #5f6368; }
+    .nas-text-action { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: #5f6368; font-size: 11px; }
+    .nas-text-action:hover, .nas-view-button:hover { background: #f1f3f4; }
+    .nas-text-action svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-toolbar-divider { width: 1px; height: 23px; margin: 0 6px; background: #e3e6e8; }
+    .nas-view-button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: #5f6368; }
+    .nas-view-button.active { background: var(--nas-active); color: var(--nas-accent); }
+    .nas-view-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-table-wrap { width: 100%; padding: 0 23px; overflow-x: auto; }
+    .nas-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .nas-table thead { height: 47px; }
+    .nas-table th { padding: 0 10px; border-bottom: 1px solid #e8eaed; color: #5f6368; text-align: left; white-space: nowrap; font-size: 10px; font-weight: 600; }
+    .nas-table th:first-child { padding-left: 13px; }
+    .nas-table th:nth-child(2) { width: 19%; }
+    .nas-table th:nth-child(3) { width: 22%; }
+    .nas-table th:nth-child(4) { width: 13%; }
+    .nas-empty-row td { height: calc(100vh - 205px); min-height: 300px; padding: 0; }
+    .nas-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; padding: 34px 20px; color: #5f6368; text-align: center; }
+    .nas-empty-art { display: grid; place-items: center; width: 76px; height: 66px; margin-bottom: 16px; }
+    .nas-empty-art svg { width: 72px; height: 60px; fill: #e8f0fe; stroke: #8ab4f8; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+    .nas-empty-state h2 { margin: 0 0 7px; color: #3c4043; font: 500 15px/1.4 "DM Sans",sans-serif; }
+    .nas-empty-state p { max-width: 380px; margin: 0 0 18px; color: #70757a; font-size: 11px; line-height: 1.55; }
+    .nas-upload-button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid #dadce0; border-radius: 5px; background: #fff; color: #3c4043; font-size: 11px; font-weight: 600; }
+    .nas-upload-button:hover { background: #f8faff; border-color: #c7d7f5; }
+    .nas-upload-button svg { width: 17px; height: 17px; fill: none; stroke: var(--nas-accent); stroke-width: 1.7; stroke-linecap: round; }
+    .nas-toast { position: fixed; right: 24px; bottom: 22px; z-index: 9999; max-width: min(380px,calc(100vw - 32px)); padding: 12px 16px; border-radius: 7px; background: #323232; color: #fff; box-shadow: 0 3px 10px rgba(0,0,0,.2); font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .18s,transform .18s; }
+    .nas-toast.show { opacity: 1; transform: translateY(0); }
+
+    body.dark.nas-page { --nas-bg: #17191c; --nas-panel: #202124; --nas-text: #e8eaed; --nas-muted: #bdc1c6; --nas-line: #3c4043; --nas-hover: #303134; --nas-active: color-mix(in srgb, var(--nas-accent) 25%, #202124); background: #17191c; color: #e8eaed; }
+    body.dark .nas-app { background: #17191c; color: #e8eaed; }
+    body.dark .nas-header { border-color: #3c4043; background: #202124; }
+    body.dark .nas-brand-copy strong, body.dark .nas-location h1 { color: #e8eaed; }
+    body.dark .nas-brand-copy small, body.dark .nas-profile-copy small { color: #bdc1c6; }
+    body.dark .nas-search { background: #303134; color: #e8eaed; }
+    body.dark .nas-search:focus-within { border-color: #526987; background: #292a2d; }
+    body.dark .nas-search input { color: #e8eaed !important; }
+    body.dark .nas-search input::placeholder { color: #bdc1c6; }
+    body.dark .nas-search-options:hover { background: #3c4043; }
+    body.dark .nas-menu-button, body.dark .nas-icon-button, body.dark .nas-profile-caret { color: #e8eaed !important; }
+    body.dark .nas-menu-button:hover, body.dark .nas-icon-button:hover, body.dark .nas-profile-button:hover { background: #303134 !important; }
+    body.dark .nas-profile-copy strong { color: #e8eaed; }
+    body.dark .nas-profile-menu { border-color: #3c4043; background: #292a2d; }
+    body.dark .nas-profile-menu-head { border-color: #3c4043; }
+    body.dark .nas-profile-menu-head strong, body.dark .nas-profile-menu a, body.dark .nas-profile-menu button { color: #e8eaed; }
+    body.dark .nas-profile-menu-head small { color: #bdc1c6; }
+    body.dark .nas-profile-menu a:hover, body.dark .nas-profile-menu button:hover { background: #35363a; }
+    body.dark .nas-sidebar { background: #17191c; }
+    body.dark .nas-new-button, body.dark .nas-new-menu { border-color: #3c4043; background: #292a2d; color: #e8eaed; }
+    body.dark .nas-new-button:hover, body.dark .nas-new-menu button:hover { background: #35363a; }
+    body.dark .nas-new-menu button { color: #e8eaed; }
+    body.dark .nas-new-menu button svg { stroke: #bdc1c6; }
+    body.dark .nas-menu-divider, body.dark .nas-nav-separator { background: #3c4043; }
+    body.dark .nas-nav-item { color: #bdc1c6; }
+    body.dark .nas-nav-item:hover { background: #303134; }
+    body.dark .nas-nav-item.active { color: #d3e3fd; }
+    body.dark .nas-storage { border-color: #3c4043; }
+    body.dark .nas-storage-heading, body.dark .nas-storage p, body.dark .nas-storage-state { color: #bdc1c6; }
+    body.dark .nas-storage-track { background: #3c4043; }
+    body.dark .nas-content { background: #202124; }
+    body.dark .nas-auth-banner { border-color: #33465e; background: #26364b; color: #e8eaed; }
+    body.dark .nas-toolbar, body.dark .nas-table th { border-color: #3c4043; }
+    body.dark .nas-content-actions, body.dark .nas-text-action, body.dark .nas-view-button { color: #bdc1c6; }
+    body.dark .nas-text-action:hover, body.dark .nas-view-button:hover { background: #303134; }
+    body.dark .nas-view-button.active { background: var(--nas-active); color: #d3e3fd; }
+    body.dark .nas-table th { color: #bdc1c6; }
+    body.dark .nas-empty-state h2 { color: #e8eaed; }
+    body.dark .nas-empty-state p { color: #9aa0a6; }
+    body.dark .nas-empty-art svg { fill: #29394f; stroke: #789ac7; }
+    body.dark .nas-upload-button { border-color: #5f6368; background: #292a2d; color: #e8eaed; }
+    body.dark .nas-upload-button:hover { background: #35363a; }
+
+    @media (max-width: 930px) {
+      .nas-header { grid-template-columns: 205px minmax(150px,1fr) 155px; gap: 12px; padding-right: 12px; }
+      .nas-shell { grid-template-columns: 218px minmax(0,1fr); }
+      .nas-sidebar { width: 218px; }
+      .nas-content { margin-right: 10px; }
+      .nas-toolbar { padding: 0 17px; }
+      .nas-table-wrap { padding: 0 15px; }
+    }
+    @media (max-width: 680px) {
+      .nas-header { grid-template-columns: minmax(0,1fr) auto; gap: 7px 10px; height: auto; min-height: 62px; flex-basis: auto; padding: 7px 10px 9px; }
+      .nas-brand-group { gap: 6px; }
+      .nas-menu-button { width: 38px; height: 38px; flex-basis: 38px; }
+      .nas-brand-mark { width: 30px; height: 30px; }
+      .nas-brand-copy strong { font-size: 18px; }
+      .nas-search { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 42px; }
+      .nas-header-actions { grid-column: 2; grid-row: 1; }
+      .nas-profile-copy, .nas-icon-button { display: none; }
+      .nas-shell { display: flex; min-height: calc(100vh - 111px); flex-direction: column; }
+      .nas-sidebar { position: static; width: auto; height: auto; min-height: 0; padding: 9px 8px 6px; }
+      .nas-new-wrap { padding: 0 0 8px 2px; }
+      .nas-new-button { height: 39px; border-radius: 13px; }
+      .nas-new-menu { top: 43px; left: 2px; }
+      .nas-nav-list { display: flex; flex-direction: row; gap: 3px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: none; }
+      .nas-nav-list::-webkit-scrollbar { display: none; }
+      .nas-nav-item { flex: 0 0 auto; width: auto; height: 36px; gap: 7px; padding: 0 11px; border-radius: 18px; white-space: nowrap; font-size: 10px; }
+      .nas-nav-item > svg { width: 16px; height: 16px; flex-basis: 16px; }
+      .nas-nav-chevron, .nas-nav-separator, .nas-storage { display: none; }
+      .nas-content { min-height: 420px; margin: 0 7px; border-radius: 12px 12px 0 0; }
+      .nas-toolbar { min-height: 58px; padding: 0 12px; }
+      .nas-location h1 { font-size: 17px; }
+      .nas-text-action span, .nas-text-action .nas-sort-caret { display: none; }
+      .nas-text-action { width: 30px; justify-content: center; padding: 0; }
+      .nas-toolbar-divider { margin: 0 2px; }
+      .nas-table-wrap { padding: 0 9px; overflow-x: auto; }
+      .nas-table { min-width: 540px; }
+      .nas-empty-row td { height: 350px; }
+      .nas-auth-banner { justify-content: space-between; gap: 10px; font-size: 10px; }
+    }
+    @media (max-width: 390px) { .nas-content-actions { gap: 1px; } .nas-toolbar { gap: 7px; } }
+  </style>
 </head>
-<body class="drive-page">
-  <!-- The regular 360 navigation is rendered here by the shared main.js. -->
+<body class="nas-page">
+  <!-- This is the normal 360 site menu, populated by the shared main.js. -->
   <aside class="sidebar" id="sidebar" aria-label="360 navigation"><span id="sidebar-slot"></span></aside>
   <div class="overlay" id="overlay"></div>
-
   <div class="settings-panel" id="settingsPanel">
     <h3>Appearance</h3>
     <div class="settings-label">Theme</div>
@@ -39,9 +246,9 @@
       <div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
       <div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
     </div>
-    <div class="settings-label drive-settings-spacer">Mode</div>
-    <label class="drive-mode-toggle"><span>Dark mode</span><input id="darkToggle" type="checkbox"></label>
-    <h3>Cursor</h3>
+    <div class="settings-label" style="margin-top:20px">Mode</div>
+    <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer"><span style="font-size:14px">Dark mode</span><input id="darkToggle" type="checkbox"></label>
+    <h3 style="margin-top:20px">Cursor</h3>
     <div class="settings-label">Style</div>
     <div class="cursor-options">
       <div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
@@ -54,119 +261,199 @@
     <div class="cursor-color-row"><label for="cursorColorPicker">Cursor color</label><input id="cursorColorPicker" type="color" value="#3b82f6"><button id="cursorColorReset" type="button">Reset</button></div>
   </div>
 
-  <header class="drive-header">
-    <div class="drive-header-brand">
-      <button class="sidebar-toggle drive-menu-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="360 menu" aria-controls="sidebar" aria-expanded="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
-      </button>
-      <a class="drive-brand" href="/drive/" aria-label="360 Drive home">
-        <img src="/favicon-32x32.png" alt="">
-        <span>Drive</span>
-      </a>
-    </div>
-
-    <div class="drive-search-wrap" role="search">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
-      <input id="drive-search" type="search" placeholder="Search in Drive" aria-label="Search in Drive" autocomplete="off" spellcheck="false">
-      <button class="drive-search-options" id="drive-search-options" type="button" aria-label="Search options" title="Search options">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4M8 5v4M16 10v4M12 15v4"></path></svg>
-      </button>
-    </div>
-
-    <div class="drive-header-actions">
-      <button class="drive-header-icon" id="drive-help" type="button" aria-label="Help" title="Help">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 4.5 1.2c-.8 1.1-2.2 1.3-2.2 3M12 16.8v.1"></path></svg>
-      </button>
-      <div class="drive-profile-wrap">
-        <button class="drive-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="360 account menu">
-          <span class="drive-avatar" id="desk-profile-avatar">G</span>
-          <span class="drive-profile-copy"><strong id="desk-profile-name">Guest</strong><small id="desk-profile-subtitle">360 account</small></span>
-          <svg class="drive-profile-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+  <div class="nas-app">
+    <header class="nas-header">
+      <div class="nas-brand-group">
+        <button class="sidebar-toggle nas-menu-button" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="360 menu" aria-controls="sidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
-        <div class="drive-profile-menu" id="desk-profile-menu" role="menu" hidden>
-          <div class="drive-profile-menu-head"><span class="drive-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Guest</strong><small id="desk-menu-email">Not signed in</small></span></div>
-          <a role="menuitem" href="/account.html">My account</a>
-          <a role="menuitem" href="/settings">Settings</a>
-          <button role="menuitem" type="button" id="desk-auth-action">Sign in</button>
+        <a class="nas-brand" href="/drive/" aria-label="NAS home">
+          <span class="nas-brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5-8 4.6-8-4.6Z"></path><path d="M4 12.2 12 17l8-4.8M4 16.5 12 21l8-4.5"></path></svg></span>
+          <span class="nas-brand-copy"><strong>NAS</strong><small>Network Archive Space</small></span>
+        </a>
+      </div>
+      <label class="nas-search" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+        <input id="nas-search" type="search" placeholder="Search in NAS" aria-label="Search in NAS" autocomplete="off" spellcheck="false">
+        <button class="nas-search-options" id="nas-search-options" type="button" aria-label="Search options" title="Search options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4M8 5v4M16 10v4M12 15v4"></path></svg></button>
+      </label>
+      <div class="nas-header-actions">
+        <button class="nas-icon-button" id="nas-help" type="button" aria-label="Help" title="Help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 4.5 1.2c-.8 1.1-2.2 1.3-2.2 3M12 16.8v.1"></path></svg></button>
+        <div class="nas-profile-wrap">
+          <button class="nas-profile-button" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="360 account menu">
+            <span class="nas-avatar" id="desk-profile-avatar">G</span>
+            <span class="nas-profile-copy"><strong id="desk-profile-name">Guest</strong><small id="desk-profile-subtitle">360 account</small></span>
+            <svg class="nas-profile-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+          </button>
+          <div class="nas-profile-menu" id="desk-profile-menu" role="menu" hidden>
+            <div class="nas-profile-menu-head"><span class="nas-avatar" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Guest</strong><small id="desk-menu-email">Not signed in</small></span></div>
+            <a role="menuitem" href="/account.html">My account</a>
+            <a role="menuitem" href="/settings">Settings</a>
+            <button role="menuitem" type="button" id="desk-auth-action">Sign in</button>
+          </div>
         </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="drive-shell">
-    <aside class="drive-sidebar" aria-label="Drive navigation">
-      <div class="drive-new-wrap">
-        <button class="drive-new-button" id="drive-new" type="button" aria-expanded="false" aria-controls="drive-new-menu">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
-          <span>New</span>
-          <svg class="drive-new-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
-        </button>
-        <div class="drive-new-menu" id="drive-new-menu" hidden>
-          <button type="button" data-new-action="folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path><path d="M12 10v6M9 13h6"></path></svg>New folder</button>
-          <div class="drive-new-divider"></div>
-          <button type="button" data-new-action="upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>File upload</button>
-          <button type="button" data-new-action="folder-upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 10v6m-3-3h6"></path></svg>Folder upload</button>
+    <main class="nas-shell">
+      <aside class="nas-sidebar" aria-label="NAS navigation">
+        <div class="nas-new-wrap">
+          <button class="nas-new-button" id="nas-new" type="button" aria-expanded="false" aria-controls="nas-new-menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>New</span><svg class="nas-new-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+          </button>
+          <div class="nas-new-menu" id="nas-new-menu" hidden>
+            <button type="button" data-nas-action="folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path><path d="M12 10v6M9 13h6"></path></svg>New folder</button>
+            <div class="nas-menu-divider"></div>
+            <button type="button" data-nas-action="upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>File upload</button>
+            <button type="button" data-nas-action="folder-upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 10v6m-3-3h6"></path></svg>Folder upload</button>
+          </div>
         </div>
-      </div>
+        <nav class="nas-nav-list" aria-label="NAS views">
+          <button class="nas-nav-item active" type="button" data-nas-view="files" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h5l2 2h7A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg><span>My files</span><svg class="nas-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+          <button class="nas-nav-item" type="button" data-nas-view="shared"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1 2.2a5 5 0 0 1 3.5 4.8V19h-4"></path></svg><span>Shared with me</span></button>
+          <button class="nas-nav-item" type="button" data-nas-view="recent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3.5 2"></path></svg><span>Recent</span></button>
+          <button class="nas-nav-item" type="button" data-nas-view="starred"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg><span>Starred</span></button>
+          <div class="nas-nav-separator"></div>
+          <button class="nas-nav-item" type="button" data-nas-view="trash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7m-9 0 1 13h10l1-13M10 11v5m4-5v5"></path></svg><span>Trash</span></button>
+        </nav>
+        <div class="nas-storage"><div class="nas-storage-heading"><span>Storage</span><span class="nas-storage-state">Not connected</span></div><div class="nas-storage-track"><span></span></div><p>Storage information will appear when NAS storage is connected.</p></div>
+      </aside>
 
-      <nav class="drive-nav-list" aria-label="Drive views">
-        <button class="drive-nav-item active" type="button" data-view="my-drive" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h5l2 2h7A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg><span>My Drive</span><svg class="drive-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
-        <button class="drive-nav-item" type="button" data-view="computers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="12" rx="1.5"></rect><path d="M8 20h8m-4-3.5V20"></path></svg><span>Computers</span></button>
-        <button class="drive-nav-item" type="button" data-view="shared"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1 2.2a5 5 0 0 1 3.5 4.8V19h-4"></path></svg><span>Shared with me</span></button>
-        <button class="drive-nav-item" type="button" data-view="recent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3.5 2"></path></svg><span>Recent</span></button>
-        <button class="drive-nav-item" type="button" data-view="starred"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg><span>Starred</span></button>
-        <div class="drive-nav-separator"></div>
-        <button class="drive-nav-item" type="button" data-view="spam"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6m0 4v.1"></path></svg><span>Spam</span></button>
-        <button class="drive-nav-item" type="button" data-view="trash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7m-9 0 1 13h10l1-13M10 11v5m4-5v5"></path></svg><span>Trash</span></button>
-      </nav>
-
-      <div class="drive-sidebar-bottom">
-        <div class="drive-storage-heading"><span>Storage</span><span class="drive-storage-pending">Not connected</span></div>
-        <div class="drive-storage-track"><span></span></div>
-        <p>Storage details will appear here.</p>
-      </div>
-    </aside>
-
-    <section class="drive-content" id="drive-app">
-      <div class="drive-auth-banner" id="drive-auth-banner" hidden>
-        <span>Sign in with your existing 360 account to use Drive.</span>
-        <a href="/signin?from=%2Fdrive%2F">Sign in</a>
-      </div>
-      <div class="drive-content-toolbar">
-        <div class="drive-location">
-          <h1 id="drive-view-title">My Drive</h1>
-          <button type="button" id="drive-location-menu" class="drive-location-menu" aria-label="Drive options" title="Drive options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+      <section class="nas-content" aria-label="NAS files">
+        <div class="nas-auth-banner" id="nas-auth-banner" hidden><span>Sign in with your existing 360 account to use NAS.</span><a href="/signin?from=%2Fdrive%2F">Sign in</a></div>
+        <div class="nas-toolbar">
+          <div class="nas-location"><h1 id="nas-view-title">My files</h1></div>
+          <div class="nas-content-actions">
+            <button class="nas-text-action" id="nas-sort" type="button" title="Sort by name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 12h8M4 17h5m8-9 3-3 3 3m-3-3v14"></path></svg><span>Name</span></button>
+            <span class="nas-toolbar-divider"></span>
+            <button class="nas-view-button active" id="nas-list-view" type="button" aria-label="List view" title="List view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1"></path></svg></button>
+            <button class="nas-view-button" id="nas-grid-view" type="button" aria-label="Grid view" title="Grid view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg></button>
+          </div>
         </div>
-        <div class="drive-content-actions">
-          <button class="drive-text-action" id="drive-sort" type="button" title="Sort by name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 12h8M4 17h5m8-9 3-3 3 3m-3-3v14"></path></svg><span>Name</span><svg class="drive-sort-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
-          <span class="drive-toolbar-divider"></span>
-          <button class="drive-icon-action active" id="drive-list-view" type="button" aria-label="List view" title="List view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1"></path></svg></button>
-          <button class="drive-icon-action" id="drive-grid-view" type="button" aria-label="Grid view" title="Grid view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg></button>
-          <span class="drive-toolbar-divider"></span>
-          <button class="drive-icon-action" id="drive-details" type="button" aria-label="Show details" title="Show details"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5m0-8v.1"></path></svg></button>
+        <div class="nas-table-wrap">
+          <table class="nas-table" aria-label="Files in NAS">
+            <thead><tr><th scope="col">Name <span aria-hidden="true">↑</span></th><th scope="col">Owner</th><th scope="col">Last modified</th><th scope="col">File size</th></tr></thead>
+            <tbody><tr class="nas-empty-row"><td colspan="4"><div class="nas-empty-state"><div class="nas-empty-art"><svg viewBox="0 0 72 60" aria-hidden="true"><path d="M7 13.5A5.5 5.5 0 0 1 12.5 8H29l7 7h23.5a5.5 5.5 0 0 1 5.5 5.5v26a5.5 5.5 0 0 1-5.5 5.5h-47A5.5 5.5 0 0 1 7 46.5z"></path><path d="M7 24h58"></path></svg></div><h2 id="nas-empty-title">Your space is empty</h2><p id="nas-empty-description">Files and folders you add to NAS will appear here.</p><button class="nas-upload-button" id="nas-empty-upload" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>Upload files</button></div></td></tr></tbody>
+          </table>
         </div>
-      </div>
+        <input id="nas-file-input" type="file" multiple hidden>
+        <input id="nas-folder-input" type="file" webkitdirectory directory multiple hidden>
+      </section>
+    </main>
+    <div class="nas-toast" id="nas-toast" role="status" aria-live="polite"></div>
+  </div>
 
-      <div class="drive-file-table-wrap">
-        <table class="drive-file-table" aria-label="Files in Drive">
-          <thead><tr><th scope="col" class="drive-name-column">Name <span class="drive-up-sort">↑</span></th><th scope="col">Owner</th><th scope="col">Last modified</th><th scope="col" class="drive-size-column">File size</th><th scope="col" class="drive-row-menu-column"></th></tr></thead>
-          <tbody id="drive-file-list">
-            <tr class="drive-empty-row"><td colspan="5"><div class="drive-empty-state"><div class="drive-empty-icon"><svg viewBox="0 0 72 60" aria-hidden="true"><path d="M7 13.5A5.5 5.5 0 0 1 12.5 8H29l7 7h23.5a5.5 5.5 0 0 1 5.5 5.5v26a5.5 5.5 0 0 1-5.5 5.5h-47A5.5 5.5 0 0 1 7 46.5z"></path><path d="M7 24h58"></path></svg></div><h2 id="drive-empty-title">Your Drive is empty</h2><p id="drive-empty-description">Drop files here or use the New button to add something to your Drive.</p><button class="drive-empty-upload" id="drive-empty-upload" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>Upload files</button></div></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <input id="drive-file-input" type="file" multiple hidden>
-      <input id="drive-folder-input" type="file" webkitdirectory directory multiple hidden>
-      <div class="drive-toast" id="drive-toast" role="status" aria-live="polite"></div>
-    </section>
-  </main>
-
+  <!-- Shared 360 navigation and identity use the existing site scripts/client. -->
   <script src="/assets/js/main.js"></script>
   <script src="/assets/js/wide.js"></script>
   <script src="/assets/js/gallium.js"></script>
   <script src="/assets/js/cursor.js"></script>
   <script src="/assets/js/workspace-shell.js"></script>
-  <script src="/drive/drive.js"></script>
+  <script>
+    (() => {
+      "use strict";
+      const byId = id => document.getElementById(id);
+      const client = typeof supabaseClient !== "undefined" ? supabaseClient : null;
+      const messages = {
+        files: ["My files", "Your space is empty", "Files and folders you add to NAS will appear here."],
+        shared: ["Shared with me", "Nothing shared with you yet", "Items shared with your 360 account will appear here."],
+        recent: ["Recent", "No recent files", "Files you open or work on will appear here."],
+        starred: ["Starred", "No starred files", "Starred items will appear here."],
+        trash: ["Trash", "Trash is empty", "Items moved to Trash will appear here."]
+      };
+      let toastTimer = 0;
+      function toast(message) {
+        const el = byId("nas-toast");
+        if (!el) return;
+        el.textContent = message;
+        el.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+      }
+      function updateAuth(isSignedIn) {
+        const banner = byId("nas-auth-banner");
+        if (banner) banner.hidden = !!isSignedIn;
+        const action = byId("desk-auth-action");
+        if (action) action.textContent = isSignedIn ? "Sign out" : "Sign in";
+      }
+      function setView(button) {
+        const details = messages[button.dataset.nasView] || messages.files;
+        document.querySelectorAll(".nas-nav-item[data-nas-view]").forEach(item => {
+          const active = item === button;
+          item.classList.toggle("active", active);
+          if (active) item.setAttribute("aria-current", "page");
+          else item.removeAttribute("aria-current");
+        });
+        byId("nas-view-title").textContent = details[0];
+        byId("nas-empty-title").textContent = details[1];
+        byId("nas-empty-description").textContent = details[2];
+      }
+      function init() {
+        const trigger = byId("nas-new"), menu = byId("nas-new-menu");
+        const fileInput = byId("nas-file-input"), folderInput = byId("nas-folder-input");
+        trigger?.addEventListener("click", event => {
+          event.stopPropagation();
+          const opening = menu.hidden;
+          menu.hidden = !opening;
+          trigger.setAttribute("aria-expanded", String(opening));
+        });
+        function closeMenu() {
+          if (menu) menu.hidden = true;
+          trigger?.setAttribute("aria-expanded", "false");
+        }
+        menu?.addEventListener("click", event => {
+          const action = event.target.closest("[data-nas-action]")?.dataset.nasAction;
+          if (!action) return;
+          closeMenu();
+          if (action === "upload") fileInput?.click();
+          else if (action === "folder-upload") folderInput?.click();
+          else toast("Folder creation will be enabled when NAS storage is connected.");
+        });
+        document.addEventListener("click", event => {
+          if (!event.target.closest(".nas-new-wrap")) closeMenu();
+        });
+        document.addEventListener("keydown", event => { if (event.key === "Escape") closeMenu(); });
+        byId("nas-empty-upload")?.addEventListener("click", () => fileInput?.click());
+        const selected = input => {
+          const files = Array.from(input.files || []);
+          if (!files.length) return;
+          toast(`${files.length} ${files.length === 1 ? "file" : "files"} selected. Upload is not connected yet, so nothing was sent.`);
+          input.value = "";
+        };
+        fileInput?.addEventListener("change", () => selected(fileInput));
+        folderInput?.addEventListener("change", () => selected(folderInput));
+        document.querySelectorAll(".nas-nav-item[data-nas-view]").forEach(button => button.addEventListener("click", () => setView(button)));
+        byId("nas-search")?.addEventListener("keydown", event => {
+          if (event.key === "Enter" && event.currentTarget.value.trim()) toast("Search will be available when NAS storage is connected.");
+        });
+        byId("nas-search-options")?.addEventListener("click", () => toast("Search filters will be available when NAS storage is connected."));
+        byId("nas-sort")?.addEventListener("click", () => toast("Sorting will be available when files are connected."));
+        byId("nas-help")?.addEventListener("click", () => toast("NAS help will be available with the storage release."));
+        const list = byId("nas-list-view"), grid = byId("nas-grid-view");
+        const setLayout = isList => {
+          list.classList.toggle("active", isList); grid.classList.toggle("active", !isList);
+          list.setAttribute("aria-pressed", String(isList)); grid.setAttribute("aria-pressed", String(!isList));
+        };
+        list?.addEventListener("click", () => setLayout(true));
+        grid?.addEventListener("click", () => setLayout(false));
+        async function checkSession() {
+          if (!client?.auth) { updateAuth(false); return; }
+          try {
+            const { data, error } = await client.auth.getSession();
+            if (error) throw error;
+            updateAuth(!!data?.session?.user);
+            client.auth.onAuthStateChange((_event, session) => updateAuth(!!session?.user));
+          } catch (error) {
+            console.error("NAS account check failed:", error);
+            updateAuth(false);
+          }
+        }
+        checkSession();
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+      else init();
+    })();
+  </script>
   <script src="/assets/js/mobile-nav.js" defer></script>
 </body>
 </html>
