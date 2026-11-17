@@ -4,24 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="Store and organise your files with 360 Drive.">
+  <meta name="description" content="360 Drive. Your files, in one place.">
   <title>Drive · 360</title>
   <link rel="icon" type="image/png" href="/favicon-32x32.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Existing 360 site styles: theme, menu, settings and cursor. -->
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/wide.css">
   <link rel="stylesheet" href="/assets/css/gallium.css">
   <link rel="stylesheet" href="/assets/css/cursor.css">
-  <link rel="stylesheet" href="/assets/css/workspace-tools.css">
   <link rel="stylesheet" href="/drive/drive.css">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/assets/js/360-settings.js"></script>
   <script>window.SKIP_AUTH_CHIP = true;</script>
 </head>
-<body class="desk-body workspace-page drive-page">
+<body class="drive-page">
+  <!-- The regular 360 navigation is rendered here by the shared main.js. -->
   <aside class="sidebar" id="sidebar" aria-label="360 navigation"><span id="sidebar-slot"></span></aside>
   <div class="overlay" id="overlay"></div>
 
@@ -36,9 +39,9 @@
       <div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
       <div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
     </div>
-    <div class="settings-label" style="margin-top:20px">Mode</div>
+    <div class="settings-label drive-settings-spacer">Mode</div>
     <label class="drive-mode-toggle"><span>Dark mode</span><input id="darkToggle" type="checkbox"></label>
-    <h3 style="margin-top:20px">Cursor</h3>
+    <h3>Cursor</h3>
     <div class="settings-label">Style</div>
     <div class="cursor-options">
       <div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
@@ -48,116 +51,113 @@
       <div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
       <div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
     </div>
-    <div class="cursor-color-row"><label>Cursor color</label><input id="cursorColorPicker" type="color" value="#3b82f6"><button id="cursorColorReset" type="button">Reset</button></div>
+    <div class="cursor-color-row"><label for="cursorColorPicker">Cursor color</label><input id="cursorColorPicker" type="color" value="#3b82f6"><button id="cursorColorReset" type="button">Reset</button></div>
   </div>
 
   <header class="drive-header">
     <div class="drive-header-brand">
-      <button class="sidebar-toggle drive-menu-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="Menu" aria-controls="sidebar" aria-expanded="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <button class="sidebar-toggle drive-menu-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="360 menu" aria-controls="sidebar" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
       </button>
-      <a class="drive-brand" href="/drive/" aria-label="360 Drive">
+      <a class="drive-brand" href="/drive/" aria-label="360 Drive home">
         <img src="/favicon-32x32.png" alt="">
         <span>Drive</span>
       </a>
     </div>
 
-    <label class="drive-search" for="drive-search">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg>
-      <input id="drive-search" type="search" placeholder="Search in Drive" autocomplete="off" spellcheck="false">
+    <div class="drive-search-wrap" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+      <input id="drive-search" type="search" placeholder="Search in Drive" aria-label="Search in Drive" autocomplete="off" spellcheck="false">
       <button class="drive-search-options" id="drive-search-options" type="button" aria-label="Search options" title="Search options">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/><path d="M8 5v4M16 10v4M12 15v4"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4M8 5v4M16 10v4M12 15v4"></path></svg>
       </button>
-    </label>
+    </div>
 
     <div class="drive-header-actions">
-      <button class="drive-header-icon" type="button" id="drive-help" aria-label="Help" title="Help">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 4.5 1.2c-.8 1.1-2.2 1.3-2.2 3M12 16.8v.1"/></svg>
+      <button class="drive-header-icon" id="drive-help" type="button" aria-label="Help" title="Help">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 4.5 1.2c-.8 1.1-2.2 1.3-2.2 3M12 16.8v.1"></path></svg>
       </button>
-      <div class="desk-profile-wrap drive-profile-wrap">
-        <button class="desk-profile-btn drive-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="360 account menu">
-          <span class="desk-avatar" id="desk-profile-avatar">G</span>
-          <span class="drive-profile-caret" aria-hidden="true">⌄</span>
+      <div class="drive-profile-wrap">
+        <button class="drive-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="360 account menu">
+          <span class="drive-avatar" id="desk-profile-avatar">G</span>
+          <span class="drive-profile-copy"><strong id="desk-profile-name">Guest</strong><small id="desk-profile-subtitle">360 account</small></span>
+          <svg class="drive-profile-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
         </button>
-        <div class="desk-profile-menu" id="desk-profile-menu" role="menu" hidden>
-          <div class="desk-profile-menu-head"><span class="desk-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Account</strong><small id="desk-menu-email">Loading…</small></span></div>
+        <div class="drive-profile-menu" id="desk-profile-menu" role="menu" hidden>
+          <div class="drive-profile-menu-head"><span class="drive-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Guest</strong><small id="desk-menu-email">Not signed in</small></span></div>
           <a role="menuitem" href="/account.html">My account</a>
           <a role="menuitem" href="/settings">Settings</a>
-          <button role="menuitem" type="button" id="desk-auth-action">Sign out</button>
+          <button role="menuitem" type="button" id="desk-auth-action">Sign in</button>
         </div>
       </div>
     </div>
   </header>
 
   <main class="drive-shell">
-    <aside class="drive-sidebar" aria-label="Drive navigation" id="drive-sidebar">
+    <aside class="drive-sidebar" aria-label="Drive navigation">
       <div class="drive-new-wrap">
         <button class="drive-new-button" id="drive-new" type="button" aria-expanded="false" aria-controls="drive-new-menu">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
           <span>New</span>
-          <svg class="drive-new-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+          <svg class="drive-new-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
         </button>
         <div class="drive-new-menu" id="drive-new-menu" hidden>
-          <button type="button" data-new-action="folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M12 10v6M9 13h6"/></svg>New folder</button>
+          <button type="button" data-new-action="folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path><path d="M12 10v6M9 13h6"></path></svg>New folder</button>
           <div class="drive-new-divider"></div>
-          <button type="button" data-new-action="upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>File upload</button>
-          <button type="button" data-new-action="folder-upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6m-3-3h6"/></svg>Folder upload</button>
+          <button type="button" data-new-action="upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>File upload</button>
+          <button type="button" data-new-action="folder-upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 10v6m-3-3h6"></path></svg>Folder upload</button>
         </div>
       </div>
 
-      <nav class="drive-nav-list">
-        <button class="drive-nav-item active" type="button" data-view="my-drive" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h5l2 2h7A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/></svg><span>My Drive</span><svg class="drive-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-        <button class="drive-nav-item" type="button" data-view="computers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="12" rx="1.5"/><path d="M8 20h8m-4-3.5V20"/></svg><span>Computers</span></button>
-        <button class="drive-nav-item" type="button" data-view="shared"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1 2.2a5 5 0 0 1 3.5 4.8V19h-4"/></svg><span>Shared with me</span></button>
-        <button class="drive-nav-item" type="button" data-view="recent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg><span>Recent</span></button>
-        <button class="drive-nav-item" type="button" data-view="starred"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>Starred</span></button>
+      <nav class="drive-nav-list" aria-label="Drive views">
+        <button class="drive-nav-item active" type="button" data-view="my-drive" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h5l2 2h7A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg><span>My Drive</span><svg class="drive-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+        <button class="drive-nav-item" type="button" data-view="computers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="12" rx="1.5"></rect><path d="M8 20h8m-4-3.5V20"></path></svg><span>Computers</span></button>
+        <button class="drive-nav-item" type="button" data-view="shared"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1 2.2a5 5 0 0 1 3.5 4.8V19h-4"></path></svg><span>Shared with me</span></button>
+        <button class="drive-nav-item" type="button" data-view="recent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3.5 2"></path></svg><span>Recent</span></button>
+        <button class="drive-nav-item" type="button" data-view="starred"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg><span>Starred</span></button>
         <div class="drive-nav-separator"></div>
-        <button class="drive-nav-item" type="button" data-view="spam"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4v.1"/></svg><span>Spam</span></button>
-        <button class="drive-nav-item" type="button" data-view="trash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7m-9 0 1 13h10l1-13M10 11v5m4-5v5"/></svg><span>Trash</span></button>
+        <button class="drive-nav-item" type="button" data-view="spam"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6m0 4v.1"></path></svg><span>Spam</span></button>
+        <button class="drive-nav-item" type="button" data-view="trash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7m-9 0 1 13h10l1-13M10 11v5m4-5v5"></path></svg><span>Trash</span></button>
       </nav>
 
       <div class="drive-sidebar-bottom">
-        <div class="drive-storage-heading"><span>Storage</span><button type="button" id="drive-storage-info" aria-label="Storage information" title="Storage information"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8v.1"/></svg></button></div>
+        <div class="drive-storage-heading"><span>Storage</span><span class="drive-storage-pending">Not connected</span></div>
         <div class="drive-storage-track"><span></span></div>
         <p>Storage details will appear here.</p>
       </div>
     </aside>
 
-    <section class="drive-content" id="drive-app" hidden>
+    <section class="drive-content" id="drive-app">
+      <div class="drive-auth-banner" id="drive-auth-banner" hidden>
+        <span>Sign in with your existing 360 account to use Drive.</span>
+        <a href="/signin?from=%2Fdrive%2F">Sign in</a>
+      </div>
       <div class="drive-content-toolbar">
         <div class="drive-location">
           <h1 id="drive-view-title">My Drive</h1>
-          <button type="button" id="drive-location-menu" class="drive-location-menu" aria-label="Drive options" title="Drive options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button type="button" id="drive-location-menu" class="drive-location-menu" aria-label="Drive options" title="Drive options"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
         </div>
         <div class="drive-content-actions">
-          <button class="drive-text-action" id="drive-sort" type="button" title="Sort by name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 12h8M4 17h5m8-9 3-3 3 3m-3-3v14"/></svg><span>Name</span><svg class="drive-sort-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="drive-text-action" id="drive-sort" type="button" title="Sort by name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11M4 12h8M4 17h5m8-9 3-3 3 3m-3-3v14"></path></svg><span>Name</span><svg class="drive-sort-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
           <span class="drive-toolbar-divider"></span>
-          <button class="drive-icon-action active" id="drive-list-view" type="button" aria-label="List view" title="List view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1"/></svg></button>
-          <button class="drive-icon-action" id="drive-grid-view" type="button" aria-label="Grid view" title="Grid view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+          <button class="drive-icon-action active" id="drive-list-view" type="button" aria-label="List view" title="List view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1"></path></svg></button>
+          <button class="drive-icon-action" id="drive-grid-view" type="button" aria-label="Grid view" title="Grid view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg></button>
           <span class="drive-toolbar-divider"></span>
-          <button class="drive-icon-action" id="drive-details" type="button" aria-label="Show details" title="Show details"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8v.1"/></svg></button>
+          <button class="drive-icon-action" id="drive-details" type="button" aria-label="Show details" title="Show details"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5m0-8v.1"></path></svg></button>
         </div>
       </div>
 
-      <div class="drive-file-table-wrap" id="drive-file-table-wrap">
+      <div class="drive-file-table-wrap">
         <table class="drive-file-table" aria-label="Files in Drive">
           <thead><tr><th scope="col" class="drive-name-column">Name <span class="drive-up-sort">↑</span></th><th scope="col">Owner</th><th scope="col">Last modified</th><th scope="col" class="drive-size-column">File size</th><th scope="col" class="drive-row-menu-column"></th></tr></thead>
           <tbody id="drive-file-list">
-            <tr class="drive-empty-row"><td colspan="5"><div class="drive-empty-state"><div class="drive-empty-icon"><svg viewBox="0 0 72 60" aria-hidden="true"><path d="M7 13.5A5.5 5.5 0 0 1 12.5 8H29l7 7h23.5a5.5 5.5 0 0 1 5.5 5.5v26a5.5 5.5 0 0 1-5.5 5.5h-47A5.5 5.5 0 0 1 7 46.5z"/><path d="M7 24h58"/></svg></div><h2 id="drive-empty-title">Your Drive is empty</h2><p id="drive-empty-description">Drop files here or use the New button to add something to your Drive.</p><button class="drive-empty-upload" id="drive-empty-upload" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>Upload files</button></div></td></tr>
+            <tr class="drive-empty-row"><td colspan="5"><div class="drive-empty-state"><div class="drive-empty-icon"><svg viewBox="0 0 72 60" aria-hidden="true"><path d="M7 13.5A5.5 5.5 0 0 1 12.5 8H29l7 7h23.5a5.5 5.5 0 0 1 5.5 5.5v26a5.5 5.5 0 0 1-5.5 5.5h-47A5.5 5.5 0 0 1 7 46.5z"></path><path d="M7 24h58"></path></svg></div><h2 id="drive-empty-title">Your Drive is empty</h2><p id="drive-empty-description">Drop files here or use the New button to add something to your Drive.</p><button class="drive-empty-upload" id="drive-empty-upload" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path></svg>Upload files</button></div></td></tr>
           </tbody>
         </table>
       </div>
       <input id="drive-file-input" type="file" multiple hidden>
       <input id="drive-folder-input" type="file" webkitdirectory directory multiple hidden>
       <div class="drive-toast" id="drive-toast" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="drive-auth-wait" id="drive-auth-wait"><span class="drive-spinner" aria-hidden="true"></span><p>Connecting your 360 account…</p></section>
-    <section class="drive-auth-error" id="drive-auth-error" hidden>
-      <div class="drive-auth-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6H10l2 2h6.5A1.5 1.5 0 0 1 20 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/></svg></div>
-      <h2>Sign in to 360 Drive</h2>
-      <p>Use your existing 360 account to access Drive. You do not need a separate account.</p>
-      <a class="drive-signin-button" href="/signin?from=%2Fdrive%2F">Continue to sign in</a>
     </section>
   </main>
 
@@ -167,5 +167,6 @@
   <script src="/assets/js/cursor.js"></script>
   <script src="/assets/js/workspace-shell.js"></script>
   <script src="/drive/drive.js"></script>
+  <script src="/assets/js/mobile-nav.js" defer></script>
 </body>
 </html>
