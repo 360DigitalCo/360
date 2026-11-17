@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f9fc">
+  <meta name="description" content="Your files, in one place. 360 Drive is part of the 360 platform.">
+  <title>Drive · 360</title>
+  <link rel="icon" href="/favicon-32x32.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/wide.css">
+  <link rel="stylesheet" href="/assets/css/gallium.css">
+  <link rel="stylesheet" href="/assets/css/cursor.css">
+  <link rel="stylesheet" href="/assets/css/workspace-tools.css">
+  <link rel="stylesheet" href="/assets/css/workspace-360.css?v=1">
+  <link rel="stylesheet" href="/drive/drive.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/assets/js/360-settings.js"></script>
+  <script>window.SKIP_AUTH_CHIP = true;</script>
+</head>
+<body class="desk-body workspace-page drive-page">
+  <div class="desk-layout">
+    <aside class="sidebar" id="sidebar" aria-label="360 navigation"><span id="sidebar-slot"></span></aside>
+    <div class="overlay" id="overlay"></div>
+    <div class="settings-panel" id="settingsPanel">
+      <h3>Appearance</h3><div class="settings-label">Theme</div>
+      <div class="theme-swatches">
+        <div class="theme-option"><div class="swatch" data-theme="ocean"></div><span>Ocean</span></div>
+        <div class="theme-option"><div class="swatch" data-theme="midnight"></div><span>Midnight</span></div>
+        <div class="theme-option"><div class="swatch" data-theme="sunset"></div><span>Sunset</span></div>
+        <div class="theme-option"><div class="swatch" data-theme="mint"></div><span>Mint</span></div>
+        <div class="theme-option"><div class="swatch" data-theme="neon"></div><span>Neon</span></div>
+        <div class="theme-option"><div class="swatch" data-theme="mono"></div><span>Mono</span></div>
+      </div>
+      <div class="settings-label" style="margin-top:20px">Mode</div>
+      <label class="drive-mode-toggle"><span>Dark mode</span><input id="darkToggle" type="checkbox"></label>
+      <h3 style="margin-top:20px">Cursor</h3><div class="settings-label">Style</div>
+      <div class="cursor-options">
+        <div class="cursor-option active" data-cursor="default"><div class="cursor-preview preview-default"></div>Default</div>
+        <div class="cursor-option" data-cursor="dot"><div class="cursor-preview preview-dot"></div>Dot</div>
+        <div class="cursor-option" data-cursor="ring"><div class="cursor-preview preview-ring"></div>Ring</div>
+        <div class="cursor-option" data-cursor="crosshair"><div class="cursor-preview preview-crosshair"></div>Crosshair</div>
+        <div class="cursor-option" data-cursor="blob"><div class="cursor-preview preview-blob"></div>Blob</div>
+        <div class="cursor-option" data-cursor="system"><div class="cursor-preview preview-system"></div>System</div>
+      </div>
+      <div class="cursor-color-row"><label>Cursor color</label><input id="cursorColorPicker" type="color" value="#3b82f6"><button id="cursorColorReset">Reset</button></div>
+    </div>
+
+    <aside class="desk-rail" aria-label="360 workspace">
+      <button class="desk-menu-trigger sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open 360 menu" title="Menu" aria-controls="sidebar" aria-expanded="false">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="desk-rail-rule"></div>
+      <nav class="desk-rail-nav">
+        <a class="desk-rail-link" href="/ai/" title="AI"><span class="drive-rail-icon">✳</span><span>AI</span></a>
+        <a class="desk-rail-link" href="/library/" title="Library"><span class="drive-rail-icon">▤</span><span>Library</span></a>
+        <a class="desk-rail-link active" href="/drive/" title="Drive"><span class="drive-rail-icon">▣</span><span>Drive</span></a>
+        <a class="desk-rail-link" href="/scholar/" title="Scholar"><span class="drive-rail-icon">⌂</span><span>Scholar</span></a>
+        <a class="desk-rail-link" href="/health/" title="Health"><span class="drive-rail-icon">⌁</span><span>Health</span></a>
+        <a class="desk-rail-link" href="/plugins/" title="Plugins"><span class="drive-rail-icon">⌘</span><span>Plugins</span></a>
+      </nav>
+    </aside>
+
+    <div class="desk-main">
+      <header class="desk-topbar">
+        <div class="desk-topbar-heading"><h1>Drive</h1><p>Your files, in one place.</p></div>
+        <div class="desk-topbar-actions">
+          <div class="desk-profile-wrap">
+            <button class="desk-profile-btn" id="desk-profile-trigger" type="button" aria-expanded="false" aria-haspopup="menu">
+              <span class="desk-avatar" id="desk-profile-avatar">G</span>
+              <span class="desk-profile-copy"><strong id="desk-profile-name">Loading account…</strong><small id="desk-profile-subtitle">360 account</small></span>
+              <span class="desk-profile-caret">⌄</span>
+            </button>
+            <div class="desk-profile-menu" id="desk-profile-menu" role="menu" hidden>
+              <div class="desk-profile-menu-head"><span class="desk-avatar large" id="desk-menu-avatar">G</span><span><strong id="desk-menu-name">Account</strong><small id="desk-menu-email">Loading…</small></span></div>
+              <a role="menuitem" href="/account">My account</a>
+              <a role="menuitem" href="/settings">Settings</a>
+              <button role="menuitem" type="button" id="desk-auth-action">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace-content drive-content" id="drive-app" hidden>
+        <section class="drive-welcome">
+          <div><div class="drive-eyebrow">360 WORKSPACE</div><h2>Your space.<br><span>Your files.</span></h2><p>Keep the things you use together, without leaving 360.</p></div>
+          <div class="drive-art" aria-hidden="true"><div class="drive-art-back"></div><div class="drive-art-folder"><span></span><i></i></div><div class="drive-art-file"></div></div>
+        </section>
+
+        <div class="drive-toolbar">
+          <label class="drive-search"><span>⌕</span><input id="drive-search" type="search" placeholder="Search your files" autocomplete="off"><kbd>/</kbd></label>
+          <div class="drive-toolbar-actions">
+            <button class="drive-button secondary" id="drive-new-folder" type="button"><span>＋</span> New folder</button>
+            <button class="drive-button primary" id="drive-upload" type="button"><span>↑</span> Upload files</button>
+            <input id="drive-file-input" type="file" multiple hidden>
+          </div>
+        </div>
+
+        <div class="drive-layout">
+          <aside class="drive-nav">
+            <div class="drive-nav-label">YOUR DRIVE</div>
+            <button class="drive-nav-item active" data-view="files" type="button"><span>▣</span> My files</button>
+            <button class="drive-nav-item" data-view="recent" type="button"><span>◷</span> Recent</button>
+            <button class="drive-nav-item" data-view="starred" type="button"><span>☆</span> Starred</button>
+            <div class="drive-nav-divider"></div>
+            <div class="drive-nav-label">COLLECTIONS</div>
+            <button class="drive-nav-item" data-view="shared" type="button"><span>♧</span> Shared with me</button>
+            <button class="drive-nav-item" data-view="trash" type="button"><span>⌫</span> Trash</button>
+            <div class="drive-storage-card"><div class="drive-storage-icon">▤</div><strong>Storage</strong><span>Storage connection is being prepared.</span><div class="drive-storage-track"><i></i></div><small>Not connected</small></div>
+          </aside>
+
+          <section class="drive-files">
+            <div class="drive-section-head">
+              <div><div class="drive-eyebrow" id="drive-view-label">YOUR SPACE</div><h3 id="drive-view-title">My files</h3></div>
+              <div class="drive-view-tools"><span id="drive-count">0 items</span><button id="drive-view-toggle" type="button" aria-label="Toggle layout" title="Toggle layout">▦</button></div>
+            </div>
+            <div class="drive-status" id="drive-status" role="status" aria-live="polite">Checking your 360 account…</div>
+            <div class="drive-file-grid" id="drive-file-grid">
+              <div class="drive-empty">
+                <div class="drive-empty-graphic"><span>▤</span><i>＋</i></div>
+                <h4>Your Drive is ready for its first file</h4>
+                <p>The file manager is set up. Storage uploads will be connected in a later step.</p>
+                <button class="drive-button secondary" id="drive-empty-upload" type="button">Choose files</button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="drive-toast" id="drive-toast" role="status" aria-live="polite"></div>
+      </main>
+
+      <section class="drive-auth-wait" id="drive-auth-wait"><div class="drive-spinner"></div><p>Connecting your 360 account…</p></section>
+      <section class="drive-auth-error" id="drive-auth-error" hidden>
+        <div class="drive-error-mark">!</div><h2>Sign in to 360</h2>
+        <p>Drive is part of your existing 360 account. You don't need a separate account.</p>
+        <a class="drive-button primary" href="/signin?from=%2Fdrive%2F">Continue to sign in</a>
+      </section>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/wide.js"></script>
+  <script src="/assets/js/gallium.js"></script>
+  <script src="/assets/js/cursor.js"></script>
+  <script src="/assets/js/workspace-shell.js"></script>
+  <script src="/drive/drive.js"></script>
+</body>
+</html>
