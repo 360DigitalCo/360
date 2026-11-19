@@ -172,7 +172,7 @@ A native app may not come to any mobile OS store as they now all require an amou
 
 ---
 
-## Email Us
+## Email Us!
 
 📧 **Help:** <help@360-search.com>
 
@@ -222,5 +222,4 @@ The rest is for you to find out. :)
 ```
 
 
-<img width="1280" height="720" alt="octocounts-360DigitalCo-360-growth" src="https://github.com/user-attachments/assets/67161bcd-42c6-46a6-b25c-6da979915a75" />
-
+<img width="1280" height="720" alt="octocounts-360DigitalCo-360-growth" src="https://github.com/user-attachments/assets/d80da546-81bc-4054-aedb-38795458a99b" />
