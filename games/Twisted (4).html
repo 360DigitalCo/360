@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Twisted</title>
+<style>
+:root{--bg:#1c2a26;--ink:#eef3ee;--dim:#9fb3aa;--hud:rgba(10,18,16,.78);--acc:#e8c44a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c2a26;--ink:#eef3ee}}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;overflow:hidden;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;gap:6px;justify-content:space-between;pointer-events:none;font-size:14px;flex-wrap:wrap}
+#hud div{background:var(--hud);padding:6px 10px;border-radius:8px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);top:70px;background:var(--hud);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;color:var(--acc)}
+#eb{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:72px;height:72px;border-radius:50%;font-size:26px;padding:0;margin:0;background:var(--acc);color:#222;border:0}
+#msg{position:fixed;inset:0;display:flex;background:rgba(8,14,12,.88);overflow:auto;padding:16px;box-sizing:border-box}
+#in{margin:auto;max-width:680px;text-align:center}
+#in h1{font-size:42px;margin:0 0 6px}
+#in h2{font-size:16px;margin:16px 0 6px;color:var(--acc)}
+#in p{color:var(--dim);margin:0 auto;line-height:1.5}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;text-align:left}
+.card{display:flex;flex-direction:column;gap:3px;background:var(--hud);color:var(--ink);border:2px solid transparent;border-radius:8px;padding:8px 10px;font:inherit;font-size:14px;cursor:pointer;margin:0}
+.card span{color:var(--dim);font-size:12.5px;line-height:1.35}
+.card.sel{border-color:var(--acc)}
+#fb{position:fixed;right:98px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:72px;height:72px;border-radius:50%;font-size:26px;padding:0;margin:0;background:var(--hud);color:var(--ink);border:2px solid var(--acc)}
+#tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px}.tab{font:inherit;font-size:14px;padding:6px 12px;border-radius:8px;border:2px solid transparent;background:var(--hud);color:var(--ink);cursor:pointer;margin:0}.tab.sel{border-color:var(--acc)}.card.lock{opacity:.6}.card.cur{border-color:var(--acc);background:rgba(232,196,74,.15)}.card em{color:var(--acc);font-style:normal;font-size:13px}#cash{color:var(--acc);font-size:20px}#mm{min-height:20px;margin-top:8px}
+#dv{position:fixed;left:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));padding:4px 10px;font:12px sans-serif;background:var(--hud);color:var(--dim);border:1px solid var(--dim);border-radius:6px;margin:0;opacity:.7;z-index:20;cursor:pointer}#dp{position:fixed;left:8px;bottom:calc(44px + env(safe-area-inset-bottom,0px));width:220px;max-height:70%;overflow:auto;background:var(--hud);border:1px solid var(--acc);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:5px;font-size:13px;z-index:20}#dp[hidden]{display:none}#dp button{font:inherit;font-size:13px;padding:5px 8px;border-radius:6px;border:0;background:#2c3a35;color:var(--ink);cursor:pointer;margin:0;text-align:left}#dp label,#dr{color:var(--dim)}
+#ms{position:fixed;inset:0;z-index:40;background:#0d1512;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;box-sizing:border-box;overflow:auto}#ms[hidden]{display:none}#ms h1{margin:0;font-size:28px}#mc{width:min(720px,92vw,calc(100vh - 220px));height:auto;aspect-ratio:1;border-radius:8px;cursor:pointer;touch-action:none}#mt{margin:0;color:var(--acc);text-align:center}#mb{font:inherit;font-size:18px;padding:10px 28px;border:0;border-radius:8px;background:var(--acc);color:#222;cursor:pointer;margin:0}
+#ld{position:fixed;inset:0;z-index:50;background:#0d1512;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .6s;color:var(--ink)}#ld h1{font-size:44px;margin:0;letter-spacing:2px}#ld p{margin:0;color:var(--dim);min-height:20px}.fn{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:6px}.fn i{display:block;height:8px;border-radius:50%;background:#8a949c;animation:sw 1.1s ease-in-out infinite alternate}@keyframes sw{from{transform:translateX(-9px)}to{transform:translateX(9px)}}.lg{width:132px;height:132px;border-radius:28px;margin-bottom:6px}#lg2{width:72px;height:72px;border-radius:16px;display:block;margin:0 auto 8px}#lbw{width:220px;height:6px;background:#26332e;border-radius:3px;overflow:hidden}#lb{height:100%;width:0;background:var(--acc)}@media (prefers-reduced-motion:reduce){.fn i{animation:none}}
+[hidden]{display:none!important}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+#go{font:inherit;font-size:18px;padding:10px 28px;border:0;border-radius:8px;background:var(--acc);color:#222;cursor:pointer;margin-top:16px}
+#c{position:fixed;left:0;top:0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ld"><img id="lg" class="lg" src="data:image/jpeg;base64,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" alt="Twisted logo"><h1>Twisted</h1><div id="lbw"><div id="lb"></div></div><p id="lt">Reading radar…</p></div>
+<div id="hud"><div>Data <b id="sc">0</b></div><div id="hp">Hull 100%</div><div id="sp"></div><div>Time <b id="tm">0</b></div></div>
+<div id="toast"></div>
+<button id="eb" hidden>E</button><button id="fb" hidden>F</button>
+<div id="msg"><div id="in">
+<img id="lg2" alt="Twisted logo"><h1>Twisted</h1>
+<p id="mp">A tornado is on the ground. You are an amateur storm chaser with a dream and a questionable old hatchback. Sell the data you collect to buy better vehicles, support trucks and upgrades. Get close enough to collect data, stay alive, and use your support vehicle. Drive with W for gas, S for brake and reverse, and A and D to steer (arrows or dragging also work). Camera: right-drag or J, L, I, K to orbit, scroll or Z and X to zoom, V to switch views (on touch, two fingers to orbit and pinch to zoom). E uses your support vehicle. Press F to get out on foot, then E places a probe by hand at full value. Press F near your vehicle to get back in. Beware: on foot, the wind will take you in a heartbeat. Fuel burns as you drive and refills in towns for cash. Weather changes over time. Kits (Kits tab) are equipment and buffs for your vehicle; equip up to 4. Press Q to photograph the storm for data (better framing and a closer storm pay more; repeat shots pay less). On foot, press E next to a placed probe to pick it up again. Controls: H horn, G headlights, Y/U signals, T hazards, N cruise, P parking brake, O switch radar site. Service your vehicle in the garage menu.</p>
+<h2 id="cash">Cash $0</h2><div id="tabs"></div><div class="row" id="vs"></div>
+
+<p id="mm"></p>
+<button id="sb" class="tab" style="margin-top:12px">Change spawn</button><br><button id="go">Start chase</button>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var DEVON=false;try{DEVON=localStorage.getItem("twisted-dev")=="1"}catch(e){}
+const cv=document.getElementById("c"),g=cv.getContext("2d");
+let W,H;function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener("resize",rs);
+const $=id=>document.getElementById(id);
+const WS=16000,TYPES={tree:{req:3,w:16,h:16},car:{req:6,w:14,h:6},house:{req:14,w:38,h:30},barn:{req:26,w:58,h:40},tower:{req:48,w:54,h:54}};
+const CARS=["#d94a3a","#3a7bd9","#e3c23a","#e8e8e8","#7a5bd9"];
+const VEH0=[
+{n:"Old hatchback",d:"Fast and fragile. Great for sightseeing, terrible for survival.",spd:275,arm:0,m:8,c:"#d94a3a",w:38,h:20},
+{n:"Family SUV",d:"Balanced. A sensible first chase car.",spd:235,arm:.15,m:14,c:"#3a7bd9",w:42,h:22},
+{n:"Pickup truck",d:"Sturdy with decent weight.",spd:220,arm:.25,m:20,c:"#e3c23a",w:46,h:23},
+{n:"Armored pickup",d:"Interceptor: roll cage and steel plates. Bonus data when close.",spd:195,arm:.5,m:38,c:"#5a6a5a",w:48,h:26,int:1.5},
+{n:"Tornado interceptor",d:"Armored TIV. Slow and heavy, built to drive into the funnel. Big close-range bonus.",spd:160,arm:.7,m:60,c:"#2e3338",w:56,h:30,int:2.2}];
+const SUP0=[
+{n:"DOW radar truck",d:"E deploys or stows it. Deployed, it scans the storm within 900 m for steady data and reads the EF rating.",m:30,c:"#e8e8e8",k:"dow"},
+{n:"Probe truck",d:"Carries +6 probes. E restocks you to full when you are near it.",m:16,c:"#e87a2a",k:"probe"},
+{n:"Drone van",d:"E launches a drone for 12 s that circles the storm collecting data.",m:12,c:"#7a5bd9",k:"drone"}];
+const NEWV=[
+{n:"Compact hatch",d:"Nimble and cheap. Paper-thin.",spd:290,arm:0,m:6,c:"#8fd9a0",w:34,h:19},
+{n:"Sports coupe",d:"Outruns anything. Do not get close.",spd:320,arm:0,m:7,c:"#d9a02a",w:40,h:19},
+{n:"Muscle car",d:"Fast with a little weight.",spd:300,arm:.05,m:10,c:"#b02a2a",w:44,h:21},
+{n:"Rally wagon",d:"Quick and grippy.",spd:285,arm:.05,m:9,c:"#2a8fd9",w:40,h:21},
+{n:"Jeep",d:"Light off-roader with decent speed.",spd:245,arm:.15,m:15,c:"#6a8a3a",w:40,h:22},
+{n:"Minivan",d:"Carries +3 probes. Soft target.",spd:225,arm:.1,m:13,c:"#a0a8d9",w:46,h:23,px:3},
+{n:"Camper van",d:"Carries +5 probes. Barely protects you.",spd:200,arm:.1,m:18,c:"#e8e0c0",w:52,h:24,px:5},
+{n:"Box truck",d:"Carries +6 probes. Heavy and slow.",spd:190,arm:.2,m:28,c:"#cfcfcf",w:60,h:26,px:6},
+{n:"Heavy-duty truck",d:"One-ton workhorse.",spd:205,arm:.3,m:26,c:"#7a4a2a",w:54,h:26},
+{n:"Armored SUV",d:"Interceptor. Light armor, still quick.",spd:215,arm:.45,m:32,c:"#4a5a6a",w:46,h:24,int:1.3},
+{n:"Military humvee",d:"Interceptor. Tough and fast for its weight.",spd:215,arm:.55,m:42,c:"#6a6a3a",w:50,h:27,int:1.6},
+{n:"Riot truck",d:"Interceptor. Plated and ugly.",spd:185,arm:.6,m:50,c:"#3a4a5a",w:54,h:28,int:1.8},
+];
+const VRSRC=[
+["Sedan","c","Everyday car. Cheap and nimble, terrible in the core.",410,50,.75,1,"#4fc3f7"],
+["Hatchback","c","Zippy commuter car. Great on roads, useless in a vortex.",425,58,.7,1.3,"#64d8cb"],
+["SUV","c","Room for gear and a slightly stiffer frame.",365,95,1.15,2,"#7c8a3e"],
+["Chaser Van","c","Lots of probe space, still no real anchors.",340,110,1.3,2.4,"#9b6fd1"],
+["Interceptor Prototype","i","A first-generation homebrew intercept rig. Cheap steel, basic anchors.",260,110,1.2,3.5,"#90a4ae"],
+["Rapid Interceptor","i","A refined second-gen prototype with better anchors.",280,130,1.35,4.8,"#78909c"],
+["TIV","i","The original Tornado Intercept Vehicle. Armored, weighted, spike-anchored.",300,150,1.5,6,"#b0b0b0"],
+["Dominator 1","i","Reed Timmer's original armored Chevy Tahoe, with an external roll cage. No anchors.",340,165,1.6,7,"#1b1e22"],
+["Vortex Ranger","i","Custom chassis with a lightweight titanium anchor frame.",480,259,2.48,11.9,"#4dd0e1"],
+["Cyclone Sentinel","i","Reinforced belly plate and dual-stage anchors.",510,279,2.66,12.8,"#7986cb"],
+["Dominator 2","i","A rebuilt, reinforced Dominator with a deeper anchor array.",525,300,2.9,14,"#8b0a1e"],
+["Maelstrom Warden","i","Wide-set hydraulic anchor spread.",555,328,3.12,15.1,"#66bb6a"],
+["Tempest Juggernaut","i","Near-flagship build, one step short of the Dominator 3.",585,354,3.36,16.3,"#ab47bc"],
+["Dominator 3","i","The flagship of the fleet, with a rotating turret dome.",600,380,3.6,17.5,"#ffd700"],
+["TIV2","i","The tank-like successor to the TIV.",715,495,4.35,23.5,"#8f9a9e"],
+["TIV3","a","Third-generation TIV. Dev panel exclusive.",625,410,3.8,19,"#7fa0ae"],
+["Dominator 4","a","Dominator 2 with a lightning bolt across the sides and 4 WARN on it. Dev panel exclusive.",650,440,4,20.5,"#8b0a1e"],
+["Joker","a","Experimental wildcard rig. Dev panel exclusive.",685,465,4.15,22,"#8e24aa"],
+["Joker 2","a","The most powerful interceptor in existence. Dev panel exclusive.",760,530,4.6,25.5,"#ff2fd6"]];
+const VRV=VRSRC.map(([n,t,d,sp,hp,ms,an,c])=>{const ch=t=="c";return{n,d,spd:Math.round(ch?230+(sp-340)*.7:150+(sp-260)*.34),arm:Math.min(.85,ch?(hp-50)/300:.35+(an-3.5)/22*.5),m:Math.round(ms*17),c,int:ch?undefined:Math.min(3.2,Math.round((1+an*.09)*10)/10),admin:t=="a"}});
+const VX=[
+["City Runabout",0,"hatch",250,0,6,"#f2b134",3.4,1.6,1.45,0,"Tiny, cheap and zippy around town."],
+["Family Sedan",0,"wagon",255,.05,11,"#9fb4c7",4.7,1.8,1.45,0,"Dependable and dull."],
+["Station Wagon",0,"wagon",240,.06,12,"#b78f5a",4.9,1.85,1.5,0,"All the cargo space."],
+["Hot Hatch",0,"hatch",300,0,8,"#e23b3b",3.9,1.75,1.45,200,"A tiny rocket."],
+["Compact Crossover",1,"suv",245,.1,13,"#c97c4b",4.3,1.8,1.65,0,"A little taller than a hatch."],
+["Midsize SUV",1,"suv",240,.14,16,"#5f7a52",4.8,1.95,1.75,0,"Family hauler."],
+["Full-size SUV",1,"suv",230,.2,22,"#3d4650",5.4,2.05,1.9,200,"Big, heavy and safe."],
+["Sport SUV",1,"suv",285,.12,18,"#c0392b",4.8,1.95,1.7,400,"Tall but quick."],
+["Crew Cab Pickup",2,"pickup",225,.22,22,"#4c6f8f",5.6,2,1.9,0,"Four doors and a bed."],
+["Long-bed Pickup",2,"pickup",215,.25,24,"#a0522d",6,2.05,1.95,0,"Hauls anything."],
+["Cargo Van",2,"van",215,.12,20,"#e6e6e6",5.3,2,2.3,0,"Boxy and practical."],
+["Passenger Van",2,"van",220,.1,18,"#c9d4e8",5.2,2,2.2,0,"Fits the whole team."],
+["Delivery Van",2,"box",200,.15,26,"#f3f3f3",6.2,2.1,2.7,0,"Tall rear box."],
+["Food Truck",2,"box",190,.15,28,"#ffb347",6.6,2.3,3,100,"Tacos, then tornadoes."],
+["Shuttle Bus",2,"box",185,.18,34,"#f2c200",7.8,2.4,3.1,150,"Heavy and slow."],
+["Tow Truck",2,"pickup",220,.3,30,"#d9822b",6.2,2.1,2.2,200,"Pulls anything out."],
+["Roadster",3,"coupe",310,0,6,"#e8b923",3.9,1.75,1.2,500,"Open top, open road."],
+["Muscle Coupe",3,"muscle",305,.04,12,"#a02020",4.9,1.9,1.35,300,"Loud and fast."],
+["Pony Car",3,"muscle",300,.03,11,"#2d6cdf",4.8,1.85,1.35,250,"Classic V8 energy."],
+["Super Coupe",3,"coupe",325,0,7,"#f0f0f0",4.5,1.9,1.25,900,"Very fast and very fragile."],
+["Grand Tourer",3,"coupe",315,.05,11,"#3b2f2f",4.8,1.9,1.3,900,"Long-distance rocket."],
+["Hot Rod",3,"muscle",300,0,10,"#ff6a00",4.3,1.9,1.35,350,"Flames optional."],
+["Drift Coupe",3,"coupe",295,0,8,"#7b2fbf",4.5,1.8,1.3,300,"Sideways everywhere."],
+["Rally Hatch",3,"hatch",305,.02,9,"#2255d6",3.9,1.75,1.5,350,"Gravel-tuned screamer."],
+["Trail Jeep",4,"jeep",245,.15,16,"#5e7d3a",4.1,1.85,1.9,100,"Doors off, mud on."],
+["Rock Crawler",4,"jeep",215,.25,22,"#6b4e2e",4.3,1.95,2.1,300,"Slow but unstoppable."],
+["Dune Buggy",4,"jeep",290,0,7,"#f2d21b",3.4,1.9,1.5,200,"Open frame fun."],
+["Safari Wagon",4,"suv",235,.2,22,"#c2b280",5,2,2,250,"Roof rack and spare tires."],
+["Expedition Truck",4,"pickup",215,.3,30,"#4f5d3a",5.9,2.2,2.3,400,"Overland rig with real weight."],
+["Mud Truck",4,"pickup",225,.2,24,"#6b3b1a",5.7,2.2,2.5,300,"Giant tires, big noise."],
+["Trail SUV",4,"suv",235,.2,20,"#7a8a3e",4.7,1.95,1.9,250,"Lifted and rugged."],
+["Limousine",5,"wagon",250,.1,24,"#101010",7.2,2,1.5,600,"A stretch of comfort."],
+["Luxury Sedan",5,"wagon",285,.1,16,"#4a4f5a",5.1,1.9,1.45,500,"Quiet and plush."],
+["Luxury SUV",5,"suv",265,.18,22,"#1f2630",5.1,2,1.8,800,"Leather and horsepower."],
+["Exotic Supercar",5,"coupe",335,0,7,"#ffd60a",4.5,1.95,1.2,1500,"Looks like a spaceship."],
+["Hypercar",5,"coupe",340,0,8,"#e6e6f2",4.7,2,1.2,2500,"The fastest thing around."],
+["Classic Coupe",6,"coupe",250,.03,10,"#b91c1c",4.5,1.75,1.3,200,"Chrome and character."],
+["Retro Wagon",6,"wagon",225,.08,14,"#7aa6a1",5,1.85,1.5,100,"Woodgrain family car."],
+["Vintage Pickup",6,"pickup",205,.2,20,"#c5764a",5.2,1.95,1.85,100,"Old but stubborn."],
+["Woodie Wagon",6,"wagon",215,.06,13,"#a5764b",4.8,1.9,1.5,150,"Surf's up."],
+["Lowrider",6,"muscle",235,.04,13,"#8a2be2",5,1.95,1.3,300,"Low and slow."],
+["Classic Van",6,"van",190,.1,17,"#e8c070",4.6,1.9,2.1,100,"Flower power not included."],
+["Beach Cruiser",6,"coupe",240,.02,9,"#40c4c4",4.4,1.8,1.3,150,"Convertible vibes."],
+["Microcar",7,"hatch",215,0,5,"#ff9ecb",2.8,1.5,1.4,0,"Smaller than most trailers."],
+["Eco Hatch",7,"hatch",235,0,7,"#7ad07a",3.7,1.65,1.5,0,"Sips fuel. Barely a car."],
+["Hybrid Sedan",7,"wagon",245,.02,10,"#c5d6de",4.7,1.8,1.45,100,"Quiet and efficient."],
+["Electric Compact",7,"hatch",260,.02,9,"#6fd3ff",3.9,1.7,1.5,150,"Instant torque."],
+["Electric Sedan",7,"wagon",275,.04,12,"#2e7bd6",4.9,1.9,1.45,300,"Fast and futuristic."],
+["Electric SUV",7,"suv",250,.1,16,"#4a8c70",4.8,1.95,1.7,300,"Roomy electric crossover."],
+["Electric Pickup",7,"pickup",235,.15,22,"#d0d4d8",5.6,2,1.9,350,"Quiet workhorse."]].map(([n,cat,st,spd,arm,m,c,L,W,H,pm,d])=>({n,cat,st,spd,arm,m,c,pm,d,w:L*3,h:W*3}));
+const VEH=[...VEH0,...NEWV,...VRV,...VX].map(v=>v.int?{...v,admin:true,icp:1}:v).sort((a,b)=>a.m-b.m),SUP=[...SUP0,
+{n:"Mesonet truck",d:"E deploys it. Scans within 550 m for strong data and shows wind speed.",m:18,c:"#4ac4a0",k:"mes"},
+{n:"Camera truck",d:"E shoots footage: big data if you are within 600 m. Short cooldown.",m:12,c:"#e8508a",k:"cam"},
+{n:"Medic van",d:"E patches 40% of your hull if it is parked near you. Long cooldown.",m:14,c:"#f0f0f0",k:"med"},
+{n:"TOTO Recovery Truck",d:"Passive: +6% data near storms.",m:16,c:"#ffca28",k:"toto",dm:.06,p:600},
+{n:"StickNet Deployer",d:"E drops a free StickNet probe (10 s cooldown). Passive: +4% data.",m:20,c:"#8bc34a",k:"stick",dm:.04,p:1300},
+{n:"Command & Comms Vehicle",d:"Passive: +12% money when you sell data.",m:22,c:"#ffb74d",k:"cmd",sm:.12,p:1900},
+{n:"Fuel & Repair Tanker",d:"Passive: repairs your hull slowly while you chase.",m:30,c:"#e57373",k:"tank",rg:1.4,p:1450},
+{n:"DOW7",d:"Next-gen Doppler on Wheels. E deploys it: scans within 1,300 m for strong data.",m:34,c:"#3f6fd1",k:"dow",big:1,p:5500}];
+const UP=[
+{n:"Auto-placer",d:"Drops probes on the storm’s predicted path while you drive. Auto probes pay 70%."},
+{n:"Probe racks",d:"Carry 4 more probes."},
+{n:"Turbo engine",d:"12% more speed."},
+{n:"Armor plating",d:"15% less damage taken."},
+{n:"Hardened probes",d:"Probe readings pay 1.5×."},
+{n:"Mobile Mesonet",d:"Kit: a roof-mounted mesonet reads the wind around you and pays cash when it passes 80 mph.",kit:1,p:2200,k:"mes",e:{}},
+{n:"Roof Camera Rig",d:"Kit: a roof camera shoots the storm every 20 s while it is in frame (pays 60% of a photo).",kit:1,p:1600,k:"cam",e:{}},
+{n:"Portable Radar",d:"Kit: a compact radar dish scans the storm within 1,000 m for steady data.",kit:1,p:3000,k:"rad",e:{}},
+{n:"Drone Launcher",d:"Kit: a roof drone surveys the storm every 30 s while it is within range.",kit:1,p:2600,k:"drn",e:{}},
+{n:"Hail Guard",d:"Kit: roof netting and plating make you nearly immune to hail damage.",kit:1,p:1300,k:"hg",e:{}},
+{n:"Spare Fuel Cans",d:"Kit: portable fuel cans add 40% to your tank.",kit:1,p:1000,k:"fc",e:{}},
+{n:"Long-range Tank",d:"Kit: a bigger tank adds 50% range.",kit:1,p:1600,e:{fc2:.5}},
+{n:"Fuel Saver",d:"Kit: tuned injectors cut fuel use by 25%.",kit:1,p:1200,e:{fb:.25}},
+{n:"Probe Case",d:"Kit: carry 4 extra probes.",kit:1,p:1400,e:{px:4}},
+{n:"Probe Rack XL",d:"Kit: carry 8 extra probes.",kit:1,p:2400,e:{px:8}},
+{n:"StickNet Case",d:"Kit: 3 extra probes and 5% more data.",kit:1,p:1800,e:{px:3,dm:.05}},
+{n:"Field Lab",d:"Kit: onboard analysis pays 20% more data.",kit:1,p:2000,e:{dm:.2}},
+{n:"Satellite Uplink",d:"Kit: sell your data for 15% more.",kit:1,p:1900,e:{sm:.15}},
+{n:"Weather Computer",d:"Kit: earn 30% more XP.",kit:1,p:1700,e:{xp:.3}},
+{n:"Telephoto Lens",d:"Kit: photos pay 75% more.",kit:1,p:1500,e:{ph:.75}},
+{n:"Spotter Binoculars",d:"Kit: photos pay 40% more and the camera recharges 30% faster.",kit:1,p:900,e:{ph:.4,pc:.3}},
+{n:"Reinforced Windshield",d:"Kit: 10% less damage taken.",kit:1,p:1100,e:{ar:.1}},
+{n:"Roll Cage",d:"Kit: 20% less damage taken.",kit:1,p:1900,e:{ar:.2}},
+{n:"Bull Bar",d:"Kit: 8% less damage taken.",kit:1,p:900,e:{ar:.08}},
+{n:"Off-road Tires",d:"Kit: 8% more speed.",kit:1,p:1300,e:{sp:.08}},
+{n:"Turbo Kit",d:"Kit: 12% more speed.",kit:1,p:2300,e:{sp:.12}},
+{n:"Med Kit",d:"Kit: your hull slowly repairs itself.",kit:1,p:1500,e:{rg:.5}},
+{n:"Insurance Plan",d:"Kit: keep 85% of your data if your vehicle is destroyed.",kit:1,p:2000,k:"ins",e:{}},
+{n:"Tow Contract",d:"Kit: out-of-fuel tows arrive in 2 s with no data penalty.",kit:1,p:1400,k:"tow",e:{}},
+{n:"Engine Tuning",d:"Upgrade: 5% more speed.",p:900,e:{sp:.05}},
+{n:"Overdrive",d:"Upgrade: 10% more speed.",p:2200,e:{sp:.1}},
+{n:"Performance Brakes",d:"Upgrade: much stronger braking.",p:800,e:{br:.6}},
+{n:"Quick Gearbox",d:"Upgrade: quicker acceleration response.",p:1000,e:{ac:.3}},
+{n:"Sport Suspension",d:"Upgrade: 15% sharper steering.",p:1100,e:{st:.15}},
+{n:"Better Tires",d:"Upgrade: 3% more speed and 8% sharper steering.",p:700,e:{sp:.03,st:.08}},
+{n:"Lightweight Panels",d:"Upgrade: 4% more speed and 10% less fuel use.",p:1300,e:{sp:.04,fb:.1}},
+{n:"Efficient Engine",d:"Upgrade: 20% less fuel use.",p:1000,e:{fb:.2}},
+{n:"Bigger Tank",d:"Upgrade: 30% more tank.",p:900,e:{fc2:.3}},
+{n:"Reinforced Frame",d:"Upgrade: 12% less damage taken.",p:1400,e:{ar:.12}},
+{n:"Data Logger",d:"Upgrade: 10% more data.",p:1200,e:{dm:.1}},
+{n:"Satellite Phone",d:"Upgrade: sell data for 8% more.",p:800,e:{sm:.08}},
+{n:"Auto-repair Module",d:"Upgrade: your hull slowly repairs itself.",p:1600,e:{rg:.3}},
+{n:"Extra Probe Slots",d:"Upgrade: carry 2 extra probes.",p:700,e:{px:2}},
+{n:"Doppler Radar",d:"Kit: a Doppler dish reads the storm's rotation within 1,600 m. Pays more the stronger it gets, and shows wind speed on the HUD.",kit:1,p:4200,k:"dop",e:{}}];
+function hasKit(k){return up.some(i=>UP[i]&&UP[i].k===k)}
+function kit(f){let s=0;for(const i of up)if(UP[i]&&UP[i].e&&UP[i].e[f])s+=UP[i].e[f];return s}
+const DIM={"Old hatchback":[3.8,1.7,1.45],"Compact hatch":[3.6,1.65,1.45],"Sports coupe":[4.5,1.85,1.3],"Muscle car":[4.9,1.9,1.35],"Rally wagon":[4.4,1.8,1.5],"Family SUV":[4.7,1.9,1.7],"Jeep":[4.2,1.85,1.9],"Pickup truck":[5.5,2,1.9],"Heavy-duty truck":[6,2.1,2.1],"Box truck":[7.5,2.4,3.2],"Minivan":[5,1.95,1.8],"Camper van":[6,2.1,2.9],"Armored pickup":[5.8,2.1,2.1],"Armored SUV":[5.2,2,2],"Military humvee":[4.9,2.2,1.85],"Riot truck":[6.5,2.4,2.8],"Tornado interceptor":[5.8,2.3,2.2],"Dominator TIV":[6.5,2.5,2.4],"Sedan":[4.6,1.8,1.45],"Hatchback":[3.9,1.7,1.5],"SUV":[4.8,1.95,1.75],"Chaser Van":[5.2,2,2.2],"Interceptor Prototype":[5.4,2.1,2],"Rapid Interceptor":[5.5,2.1,2],"TIV":[5.8,2.3,2.2],"Dominator 1":[5.4,2.1,2.15],"Dominator":[6,2.3,2.2],"Vortex Ranger":[6,2.3,2.2],"Cyclone Sentinel":[6.2,2.4,2.3],"Dominator 2":[6.3,2.4,2.3],"Maelstrom Warden":[6.4,2.4,2.4],"Tempest Juggernaut":[6.5,2.5,2.4],"Dominator 3":[6.6,2.5,2.5],"TIV2":[6.8,2.6,2.5],"TIV3":[7,2.6,2.6],"Dominator 4":[6.3,2.4,2.3],"Joker":[7,2.6,2.5],"Joker 2":[7.2,2.7,2.6]};VX.forEach(x=>DIM[x.n]=[x.w/3,x.h/3,({box:3,van:2.2,jeep:1.9,suv:1.75,pickup:1.9}[x.st]||1.4)]);
+VEH.forEach(v=>{const d=DIM[v.n]||[4.8,1.9,1.6];v.w=d[0]*3;v.h=d[1]*3;v.ht=d[2]*3;v.box=/Box truck|Camper|Riot/.test(v.n)});
+const SDIM={dow:[7.5,2.5,3.6],probe:[6,2.2,2.6],drone:[5.5,2.1,2.4],mes:[5.5,2.1,2.3],cam:[5.5,2.1,2.4],med:[5.5,2.1,2.6],toto:[5.5,2.1,2.4],stick:[5.5,2.1,2.4],cmd:[6,2.2,2.8],tank:[7,2.4,3]};
+let sv=VEH.findIndex(v=>v.n=="Old hatchback"),ss=0,up=[];
+function cards(id,arr,cur,set){const el=$(id);el.innerHTML="";arr.forEach((a,i)=>{const b=document.createElement("button");b.className="card"+(i==cur?" sel":"");b.innerHTML="<b>"+a.n+"</b><span>"+a.d+"</span>";b.onclick=()=>{set(i);build()};el.appendChild(b)})}
+const CATS={"Old hatchback":0,"Compact hatch":0,"Sports coupe":0,"Muscle car":0,"Rally wagon":0,"Family SUV":1,"Jeep":1,"Pickup truck":2,"Heavy-duty truck":2,"Box truck":2,"Minivan":2,"Camper van":2,"Sedan":0,"Hatchback":0,"SUV":1,"Chaser Van":2,"Sports coupe":3,"Muscle car":3,"Jeep":4};
+VEH.forEach(v=>{v.cat=v.icp?8:v.cat!==undefined?v.cat:(CATS[v.n]!==undefined?CATS[v.n]:3);v.$=v.admin?Infinity:v.n=="Old hatchback"?0:Math.round((150+v.m*25+v.arm*1500+(v.int?1000:0)+(v.px||0)*100+Math.max(0,v.spd-200)*2+(v.pm||0))/10)*10});
+const SPR={dow:1500,probe:600,drone:900,mes:1100,cam:500,med:800},UPR=[1200,500,700,800,600];
+VEH.forEach(v=>v.lv=v.$<500?0:v.$<1000?1:v.$<2000?2:v.$<3500?3:4);SUP.forEach(s=>s.$=s.p||SPR[s.k]);UP.forEach((u,i)=>u.$=u.p||UPR[i]);
+SUP.unshift({n:"No support",d:"Travel light. Free.",k:null,m:0,c:"",$:0});SUP.length=1;
+let wearE=0,wearS=0,cash=200,xp=0,ov=["Old hatchback"],os=["No support"],ou=[],tab=0;
+const RK=[{n:"Rookie",x:0},{n:"Spotter",x:1000},{n:"Chaser",x:3000},{n:"Veteran",x:8000},{n:"Expert",x:20000},{n:"Legend",x:50000}];
+function rank(){let r=RK[0],i=0;RK.forEach((k,j)=>{if(xp>=k.x){r=k;i=j}});return{n:r.n,i,nx:RK[i+1]}}
+function rankStr(){const r=rank();return r.n+" (Lv "+(r.i+1)+")"+(r.nx?" "+xp+"/"+r.nx.x+" XP":" MAX")}
+const SK="twister-save-v1";
+try{const d=JSON.parse(localStorage.getItem(SK)||"null");if(d){cash=d.cash||0;xp=d.xp||0;wearE=d.wE||0;wearS=d.wS||0;ov=d.ov||ov;os=d.os||os;ou=d.ou||[];const a=VEH.findIndex(v=>v.n==d.sv);if(a>=0&&ov.includes(d.sv))sv=a;const b=SUP.findIndex(s=>s.n==d.ss);if(b>=0&&os.includes(d.ss))ss=b;up=(d.up||[]).filter(i=>ou.includes(i))}}catch(e){}
+function save(){try{localStorage.setItem(SK,JSON.stringify({cash,xp,wE:wearE,wS:wearS,ov,os,ou,sv:VEH[sv].n,ss:SUP[ss].n,up}))}catch(e){}}
+const VT=9,TABS=["Cars","SUVs","Trucks and vans","Sports and muscle","Off-road","Luxury","Classics","Eco and city","Interceptors","Upgrades","Kits"];
+function build(){
+ $("cash").textContent="Cash $"+Math.floor(cash)+"  |  "+rankStr();try{svc()}catch(e){}
+ const t=$("tabs");t.innerHTML="";TABS.forEach((n,i)=>{if(i==VT-1&&!DEVON)return;const b=document.createElement("button");b.className="tab"+(i==tab?" sel":"");b.textContent=n;b.onclick=()=>{tab=i;$("mm").textContent="";build()};t.appendChild(b)});
+ const el=$("vs");el.innerHTML="";
+ const list=tab<VT?VEH.map((v,i)=>[v,i]).filter(([v])=>v.cat==tab&&(!v.admin||ov.includes(v.n))):tab==-1?SUP.map((v,i)=>[v,i]):UP.map((v,i)=>[v,i]).filter(([v])=>tab==VT+1?v.kit:!v.kit);
+ list.forEach(([a,i])=>{
+  const own=tab<VT?ov.includes(a.n):tab==-1?os.includes(a.n):ou.includes(i);
+  const cur=tab<VT?sv==i:tab==-1?ss==i:up.includes(i);
+  const b=document.createElement("button");b.className="card"+(cur?" cur":own?"":" lock");
+  const st=cur?"Equipped":own?(tab>=VT?"Owned. Tap to equip":"Owned. Tap to use"):a.admin?"Dev panel only":tab<VT&&rank().i<a.lv?"Requires "+RK[a.lv].n+" rank":"Buy for $"+a.$;
+  const stats=tab<VT?"<span>Speed "+a.spd+", armor "+Math.round(a.arm*100)+"%, weight "+a.m+(a.px?", +"+a.px+" probes":"")+"</span>":"";
+  b.innerHTML="<b>"+a.n+"</b><em>"+st+"</em><span>"+a.d+"</span>"+stats;
+  b.onclick=()=>{
+   if(!own){if(a.admin){$("mm").textContent="Dev panel only.";return}if(tab<VT&&rank().i<a.lv){$("mm").textContent="Reach "+RK[a.lv].n+" rank first.";return}if(cash<a.$){$("mm").textContent="Not enough cash for "+a.n+". Sell more data.";return}cash-=a.$;(tab<VT?ov:tab==-1?os:ou).push(tab<VT?a.n:i);$("mm").textContent="Bought "+a.n+"!"}
+   if(tab<VT)sv=i;else if(tab==-1)ss=i;else up=up.includes(i)?up.filter(x=>x!=i):up.filter(x=>!!UP[x].kit==!!a.kit).length<4?[...up,i]:up;
+   save();build()};
+  el.appendChild(b)})
+}build();
+const GLAT=36.5,GLON=-98,GSC=1800,GOFF=8000;
+function geoPt(la,lo){return{x:(lo-GLON)*GSC+GOFF,y:(GLAT-la)*GSC+GOFF}}
+const TOWNS=[["Silverton",34.4753,-101.3039,0,2,"Panhandle farm town"],["Wakita",36.8837,-97.9067,0,3,"Tornado Alley film town"],["Dodge City",37.7528,-100.0171,1,2,"Cattle town on the plains"],["Greensburg",37.6028,-99.2926,0,2,"Rebuilt after the 2007 EF5"],["Cordell",35.2906,-98.9901,0,3,"Small Oklahoma town"],["Oklahoma City",35.4676,-97.5164,3,0,"Big city with towers"],["Norman",35.2226,-97.4395,1,0,"University and weather research"],["Stillwater",36.1156,-97.0584,1,1,"College town"],["Enid",36.3956,-97.8784,1,2,"Grain elevators and houses"],["Wichita",37.6872,-97.3301,3,0,"Big city with towers"],["Amarillo",35.222,-101.8313,2,1,"Panhandle city"],["Clinton",35.5156,-98.967,0,2,"Route 66 town"],["El Reno",35.5323,-97.9553,0,2,"Railroad town"],["Lawton",34.6037,-98.3959,1,1,"Army town"],["Hutchinson",38.0608,-97.9296,1,2,"Salt and space museum"],["Topeka",39.0473,-95.6752,2,0,"State capital"]].map(([n,la,lo,t,b,d])=>({n,...geoPt(la,lo),t,b,d}));
+const LM=[["National Weather Center",35.205,-97.4419],["Oklahoma State Capitol",35.4922,-97.5033],["OKC National Memorial",35.4731,-97.5171],["Will Rogers Airport",35.3931,-97.6007],["Route 66 Museum",35.5156,-98.969],["Boot Hill Museum",37.752,-100.022],["Cosmosphere",38.0608,-97.9296],["Old Cowtown Museum",37.7044,-97.3938],["Tallgrass Prairie Preserve",38.4436,-96.5627],["Great Salt Plains",36.7519,-98.1788],["Palo Duro Canyon",34.985,-101.6638]].map(([n,la,lo])=>({n,...geoPt(la,lo)}));
+const HWYS=[[[39,-97.3],[37.6872,-97.3301],[35.4676,-97.5164],[35.2226,-97.4395],[34.6,-97.1]],[[35.222,-101.8313],[35.5156,-98.967],[35.4676,-97.5164],[35.34,-96.96],[36.15,-95.99]],[[37.7528,-100.0171],[37.6872,-97.3301]],[[37.7528,-100.0171],[37.6028,-99.2926],[37.55,-98.7],[37.6872,-97.3301]],[[34.4753,-101.3039],[35.222,-101.8313],[35.5156,-98.967]]].map(p=>p.map(([a,b])=>geoPt(a,b)));
+const WXD={clear:{l:"Clear",w:38,n:900,f:5200,h:.8,b:1},cloudy:{l:"Cloudy",w:22,n:700,f:4200,h:.65,b:.85},rain:{l:"Rain",w:20,n:300,f:2600,h:.5,b:.6},thunderstorm:{l:"Thunderstorm",w:14,n:200,f:1900,h:.4,b:.4},fog:{l:"Fog",w:6,n:40,f:900,h:.7,b:.9},hail:{l:"Hail",w:9,n:300,f:2400,h:.45,b:.55}};
+let FZ=0,FZk="dust",FZt=0;let wx="clear",wxT=30,wxC={n:900,f:5200,h:.8,b:1};
+function nextWx(){const ks=Object.keys(WXD).filter(k=>k!=wx);let r=Math.random()*ks.reduce((s,k)=>s+WXD[k].w,0);for(const k of ks){r-=WXD[k].w;if(r<=0)return k}return ks[0]}
+function updWx(dt){wxT-=dt;if(wxT<=0){wx=nextWx();wxT=50+Math.random()*90;if(running)toast("Weather: "+WXD[wx].l)}
+ const w=WXD[wx],k=1-Math.exp(-dt*1.2);for(const p of["n","f","h","b"])wxC[p]+=(w[p]-wxC[p])*k;
+ SC.fog.near=wxC.n;SC.fog.far=wxC.f;SC.fog.color.setRGB(.557*wxC.b,.604*wxC.b,.639*wxC.b);SC.background.copy(SC.fog.color);SKY.material.color.setScalar(wxC.b);HL.intensity=wxC.h+flash*2.2;
+ /* close to a dust or rain-wrapped tornado: thick, colored fog closes in */
+ let tf=0;if(typeof T!="undefined"&&T&&T.fog&&T.cd<=0){tf=Math.max(0,Math.min(1,1-(Math.hypot(T.x-P.x,T.y-P.y)-500)/1300));FZk=T.fog}
+ FZ+=(tf-FZ)*(1-Math.exp(-dt*1.5));
+ if(FZ>.01){const c=FZk=="dust"?[.74,.6,.4]:[.3,.35,.41],b=Math.max(.55,wxC.b),m=FZ*.95;SC.fog.near=SC.fog.near*(1-m)+12*m;SC.fog.far=SC.fog.far*(1-FZ)+480*FZ;SC.fog.color.setRGB(SC.fog.color.r*(1-m)+c[0]*b*m,SC.fog.color.g*(1-m)+c[1]*b*m,SC.fog.color.b*(1-m)+c[2]*b*m);SC.background.copy(SC.fog.color);SKY.material.color.setScalar(wxC.b*(1-FZ*.45));
+  if(FZ>.35&&!FZt){FZt=1;if(running)toast(FZk=="dust"?"Dust is choking visibility":"Rain wrap: visibility dropping fast")}}else if(FZ<.05)FZt=0}
+function toggleAnchor(){if(P.foot)return;if(!V.int)return toast("Only interceptors can deploy");P.anch=!P.anch;toast(P.anch?(P.ad>1?"Deploying anchors... "+P.ad.toFixed(1)+" s":"Anchored"):"Raising anchors...")}
+const STORMS=[
+{sn:"Rope",fc:"EF0 to EF1",p0:10,gr:.7,gl:30,dc:.5,spd:80,wm:.6,sat:0},
+{sn:"Cone",fc:"EF1 to EF3",p0:20,gr:1.1,gl:45,dc:.45,spd:60,wm:1,sat:0},
+{sn:"Wedge",fc:"EF3 to EF5",p0:32,gr:1.5,gl:60,dc:.4,spd:40,wm:1.5,sat:0},
+{sn:"Multi-vortex",fc:"EF2 to EF4",p0:22,gr:1.2,gl:50,dc:.45,spd:55,wm:1.1,sat:2},
+{sn:"Stovepipe",fc:"EF2 to EF4",p0:24,gr:1.1,gl:48,dc:.45,spd:55,wm:.75,sat:0},
+{sn:"Dust",fc:"EF1 to EF3",p0:18,gr:1,gl:45,dc:.45,spd:60,wm:.9,sat:0,fog:"dust"},
+{sn:"Rain-wrapped",fc:"EF2 to EF4",p0:24,gr:1.2,gl:50,dc:.45,spd:50,wm:1.1,sat:0,fog:"rain"}];
+let FC={st:1,ta:0,x:8000,y:8000},M={reads:0,hand:0,minD:1e9,peak:0},curM=[];
+const MS=[{t:"Survive 90 seconds",f:()=>tm>=90},{t:"Get a probe reading",f:()=>M.reads>=1},{t:"Hand-place 2 probes",f:()=>M.hand>=2},{t:"Get within 100 m of the funnel",f:()=>M.minD/3<100},{t:"Collect 1,500 data",f:()=>score>=1500},{t:"Witness an EF3 or stronger",f:()=>M.peak>=3},{t:"Destroy 25 objects",f:()=>objs.filter(o=>o.st).length>=25}];
+function pickM(){curM=[...MS].sort(()=>Math.random()-.5).slice(0,3)}pickM();
+const STW=[0,1,1,1,2,3,4,5,5,6,6],pickSt=()=>STW[Math.floor(Math.random()*STW.length)];
+function stormWx(){if(T.fog=="rain"){wx=Math.random()<.5?"rain":"thunderstorm";wxT=120}else if(T.fog=="dust"){wx="clear";wxT=120}}
+function newFC(){FC={st:pickSt(),ta:Math.random()*6.28,x:600+Math.random()*(WS-1200),y:600+Math.random()*(WS-1200)}}
+const GARR=46;let GN=null,garage=null,helpOpen=false;let spawn=5,NP=[],NPR=[],TRK=[],trkT=0,rsite=0,MPH=0,CTL={lights:0,left:0,right:0,haz:0,cruise:0,pb:0},PR=[],objs,debris,T,P,S,V,tm,score,running=false,last=0,keys={},ptr=null,flash=0,rain=[];
+const rnd=(a,b)=>a+Math.random()*(b-a),rad=()=>(34+T.p*1.1)*(T.wm||1);
+function ef(){const p=T.p;return p<20?0:p<38?1:p<60?2:p<90?3:p<130?4:5}
+function toast(s){const e=$("toast");e.textContent=s;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2400)}
+function init(){
+  const tw=TOWNS[spawn],ta=FC.ta;M={reads:0,hand:0,minD:1e9,peak:0};T={x:FC.x,y:FC.y,vx:0,vy:0,p:20,ph:0,life:0,tx:0,ty:0,wp:0};(T.fog=0,Object.assign(T,STORMS[FC.st]));T.p=T.p0;T.cd=6+Math.random()*10;stormWx();
+  V=VEH[sv];P={x:tw.x,y:tw.y,h:Math.atan2(T.y-tw.y,T.x-tw.x),v:0,hp:100,arm:V.arm};
+  const s=SUP[ss];S=!s.k?null:{k:s.k,m:s.m,c:s.c,x:P.x-70,y:P.y,h:0,hp:100,arm:.1,dep:0,dr:null,cd:0,n0:s.n,dm:s.dm||0,sm:s.sm||0,rg:s.rg||0,big:s.big};P.mx=4+kit("px")+(V.px||0)+(up.includes(1)?4:0)+(S&&S.k=="probe"?6:0);P.pn=P.mx;P.ac=0;P.foot=null;PR=[];P.fm=Math.round((80+V.m*1.5)*(1+kit("fc2")+(hasKit("fc")?.4:0)));P.fuel=P.fm;P.anch=false;P.ap=0;P.dn=0;P.ad=V.int?2+V.int*1.2:.7;P.st=0;P.sp=V.spd*(up.includes(2)?1.12:1)*(1+kit("sp"));if(up.includes(3))P.arm=Math.min(.85,P.arm+.15);P.arm=Math.min(.85,P.arm+kit("ar"));
+  objs=[];debris=[];score=0;tm=0;
+  for(const n of NP)if(n.g)SC.remove(n.g);NP=[];NPR=[];TRK=[];CTL.cruise=0;CTL.pb=0;{const cvs=VEH.filter(v=>v.cat<8&&!v.admin);for(let i=0;i<12;i++){const tn=TOWNS[Math.floor(Math.random()*TOWNS.length)];NP.push({pn:4,pc:rnd(2,8),x:tn.x+rnd(-250,250),y:tn.y+rnd(-250,250),h:rnd(0,6.28),v:0,k:cvs[Math.floor(Math.random()*cvs.length)],g:null,park:rnd(2.4,4.2)})}}
+  const mix=["tree","tree","tree","tree","car","car","car","house","house","house","barn","tower"];
+  for(let i=0;i<450;i++){const t=mix[Math.floor(Math.random()*mix.length)],d=TYPES[t];
+    const o={t,x:rnd(60,WS-60),y:rnd(60,WS-60),w:d.w,h:d.h,req:d.req,hp:1,st:0,c:t=="car"?CARS[i%5]:t=="house"?["#c9b79c","#b8c4cf","#d6a98a"][i%3]:""};
+    if(Math.hypot(o.x-T.x,o.y-T.y)<140||Math.hypot(o.x-P.x,o.y-P.y)<60)continue;objs.push(o)}
+  for(const tn of TOWNS){const L=[...Array(9).fill("house"),...Array(5).fill("car"),...Array(5).fill("tree"),...Array(tn.b).fill("barn"),...Array(tn.t).fill("tower")];
+    L.forEach((t,j)=>{const d=TYPES[t],a=rnd(0,6.28),r=rnd(70,300);
+      const o={t,x:tn.x+Math.cos(a)*r,y:tn.y+Math.sin(a)*r,w:d.w,h:d.h,req:d.req,hp:1,st:0,c:t=="car"?CARS[j%5]:t=="house"?["#c9b79c","#b8c4cf","#d6a98a"][j%3]:""};
+      if(Math.hypot(o.x-T.x,o.y-T.y)<140||Math.hypot(o.x-P.x,o.y-P.y)<80)return;objs.push(o)})}
+  rain=Array.from({length:120},()=>({x:Math.random()*2000,y:Math.random()*2000}));
+}
+init();
+function start(){try{document.activeElement.blur()}catch(e){}initAudio();init();running=true;$("msg").style.display="none";$("eb").hidden=false;$("fb").hidden=false;toast("A "+T.sn+" storm cell is developing ("+T.fc+" expected). Watch the radar.");last=performance.now();openHelp()}
+$("go").onclick=start;$("fb").onpointerdown=e=>{e.stopPropagation();toggleFoot()};$("eb").onpointerdown=e=>{e.stopPropagation();ability()};
+addEventListener("keydown",e=>{const k=e.key.toLowerCase();if(helpOpen){if(k=="escape"||k=="enter")closeHelp();return}if(garage){if(k=="g"||k=="escape")closeGarage();return}keys[k]=1;if(e.key=="?"&&running)openHelp(true);if(k=="enter"&&!running&&ms.hidden&&!$("ld"))start();if(k=="e")ability();if(k=="f")toggleFoot();if(k=="r")rmode^=1;if(k=="b")toggleAnchor();if(k=="m"&&AC)AC[AC.state=="running"?"suspend":"resume"]();if(k=="g"){if(GN&&running&&!P.foot&&Math.abs(P.v)<60)openGarage(GN);else CTL.lights^=1};if(k=="y"){CTL.left^=1;CTL.right=0}if(k=="u"){CTL.right^=1;CTL.left=0}if(k=="t")CTL.haz^=1;if(k=="n")cruise();if(k=="p"){CTL.pb^=1;toast(CTL.pb?"Parking brake on":"Parking brake off")}if(k=="o")rsite=(rsite+1)%RS.length;if(k=="q")takePhoto();if(e.code=="Space"){e.preventDefault();if(!e.repeat)horn()}if(e.key=="`"){dp.hidden=!dp.hidden;if(!dp.hidden&&!DEVON){DEVON=true;try{localStorage.setItem("twisted-dev","1")}catch(e){}build()}}});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=0);
+function pp(e){ptr={x:e.clientX,y:e.clientY}}
+cv.addEventListener("pointerdown",pp);cv.addEventListener("pointermove",e=>{if(e.buttons)pp(e)});
+cv.addEventListener("pointerup",e=>{if(e.pointerType!="mouse")ptr=null});
+function place(p,q){if(P.pn<=0)return toast("Out of probes");if(PR.length>=10)return toast("10 probes already out");P.pn--;if(q==1)M.hand++;PR.push({x:p.x,y:p.y,t:80,q});toast(q==1?"Probe placed":"Probe auto-placed")}
+function toggleFoot(){if(!running)return;if(P.foot){if(Math.hypot(P.foot.x-P.x,P.foot.y-P.y)<70){P.foot=null;toast("Back in the vehicle")}else toast("Too far from your vehicle")}else{if(P.v>70)return toast("Slow down to get out");P.v=0;P.foot={x:P.x,y:P.y+V.h,h:0,hp:100,arm:0};toast("On foot. E places a probe, F gets back in")}}
+function ability(){if(!running)return;if(P.foot){const i=PR.findIndex(p=>Math.hypot(p.x-P.foot.x,p.y-P.foot.y)<30);if(i>=0){PR.splice(i,1);P.pn++;return toast("Probe picked up")}return place(P.foot,1)}if(!S)return;
+  if(S.k=="dow"||S.k=="mes"){S.dep=!S.dep;toast(S.dep?"Scanning deployed":"Stowed")}
+  else if(S.k=="probe"){if(S.cd>0)return toast("Restock cooling down");if(Math.hypot(S.x-P.x,S.y-P.y)>140)return toast("Too far from the truck");P.pn=P.mx;S.cd=15;toast("Probes restocked")}else if(S.k=="med"){if(S.cd>0)return toast("Medic recharging");if(Math.hypot(S.x-P.x,S.y-P.y)>140)return toast("Too far from the medic");P.hp=Math.min(100,P.hp+40);S.cd=30;toast("Hull patched")}else if(S.k=="cam"){if(S.cd>0)return toast("Camera recharging");S.cd=10;const dc=Math.hypot(P.x-T.x,P.y-T.y);if(dc<600){const v=Math.round((1-dc/600)*400*(1+ef()));score+=v;toast("Great footage! +"+v)}else toast("Too far for good footage")}
+  else if(S.k=="stick"){if(S.cd>0)return toast("StickNet recharging");if(PR.length>=10)return toast("10 probes already out");S.cd=10;PR.push({x:S.x,y:S.y,t:80,q:.8});toast("StickNet probe deployed")}else if(S.k=="toto"||S.k=="cmd"||S.k=="tank"){toast("Passive bonus is always active")}
+  else{if(S.dr)return toast("Drone already flying");if(S.cd>0)return toast("Drone recharging");S.dr={x:S.x,y:S.y,t:12,a:0};toast("Drone launched")}}
+function launch(o,boost){o.st=1;o.z=1;o.vx=rnd(-40,40);o.vy=rnd(-40,40);o.vz=boost||rnd(60,160);o.rot=0;o.spin=rnd(-6,6);o.b=0;
+  if(!boost)T.p+=o.req*.55;
+  for(let i=0;i<5;i++)debris.push({x:o.x,y:o.y,z:rnd(0,20),vx:rnd(-90,90),vy:rnd(-90,90),vz:rnd(80,260),s:rnd(2,5),life:4})}
+function hit(o,sp){for(const q of objs){if(q.st||q===o)continue;if(Math.hypot(q.x-o.x,q.y-o.y)<o.w*.5+q.w*.5){q.hp-=sp/500*(o.req+4)/q.req;if(q.hp<=0)launch(q,rnd(120,260))}}
+  for(let i=0;i<6;i++)debris.push({x:o.x,y:o.y,z:2,vx:rnd(-120,120),vy:rnd(-120,120),vz:rnd(60,200),s:rnd(2,4),life:2.5})}
+function phys(dt){const R=rad(),G=520,inf=R*2.6,k=Math.exp(-dt*.5);
+  const force=(p,m)=>{const dx=p.x-T.x,dy=p.y-T.y,d=Math.hypot(dx,dy)||1;if(d>=inf)return;const f=1-d/inf,nx=dx/d,ny=dy/d,ZM=260+T.p*2.2,sw=1100*f*m;
+    p.vx+=(-ny*sw-nx*420*f+T.vx*f*2)*dt;p.vy+=(nx*sw-ny*420*f+T.vy*f*2)*dt;p.vz+=900*f*Math.min(2,m)*Math.max(0,1-p.z/ZM)*dt};
+  for(const o of objs){if(o.st!=1)continue;
+    force(o,Math.min(2.5,T.p/o.req));o.vz-=G*dt;o.vx*=k;o.vy*=k;o.vz*=Math.exp(-dt*.15);
+    o.x=Math.max(0,Math.min(WS,o.x+o.vx*dt));o.y=Math.max(0,Math.min(WS,o.y+o.vy*dt));o.z+=o.vz*dt;o.rot+=o.spin*dt;
+    if(o.z<=0&&o.vz<0){o.z=0;const sp=Math.hypot(o.vx,o.vy,o.vz);if(sp>120)hit(o,sp);
+      if(sp>230&&o.b<2){o.b++;o.vz*=-.35;o.vx*=.55;o.vy*=.55;o.spin*=.5}else{o.st=3;o.vx=o.vy=o.vz=0}}}
+  for(const d of debris){force(d,1.5);d.vz-=G*dt;d.vx*=k;d.vy*=k;d.x+=d.vx*dt;d.y+=d.vy*dt;d.z+=d.vz*dt;d.life-=dt;
+    if(d.z<=0){d.z=0;d.vz*=-.4;d.vx*=.7;d.vy*=.7;d.life-=dt*2}}
+  debris=debris.filter(d=>d.life>0).slice(-260)}
+function wind(e,m,dt){if(T.cd>0)return;if(DEV.god&&(e===P||e===P.foot||e===S))return;for(const s of T.ss||[])if(Math.hypot(e.x-s.x,e.y-s.y)<s.r*1.2)e.hp-=dt*35*(1-(e.arm||0));const dx=e.x-T.x,dy=e.y-T.y,d=Math.hypot(dx,dy)||1,R=rad(),inf=R*2.4;
+  if(d<inf){const f=1-d/inf,r=Math.min(2.5,T.p/m),nx=dx/d,ny=dy/d;
+    e.x+=(-nx*140-ny*200)*f*r*dt;e.y+=(-ny*140+nx*200)*f*r*dt;
+    if(d<R*1.5)e.hp-=dt*f*r*r*30*(1-e.arm);
+    if(d<R*.8&&r>2.2)e.hp=0}
+  for(const o of objs)if(o.st==1&&o.z<70&&Math.hypot(o.x-e.x,o.y-e.y)<o.w*.5+16)e.hp-=dt*(10+o.req)*3*(1-e.arm)}
+function aiT(dt){if(DEV.freeze){T.ph+=dt*6;return}if(T.cd>0){T.cd-=dt;if(T.cd<=0)toast("Tornado on the ground!")}else T.life+=dt;
+  if(!T.wp||Math.hypot(T.tx-T.x,T.ty-T.y)<80){let b=null,bd=1e9;
+    for(const o of objs){if(o.st)continue;const d=Math.hypot(o.x-T.x,o.y-T.y);if(d>150&&d<1000&&d<bd){b=o;bd=d}}
+    if(b&&Math.random()<.7){T.tx=b.x;T.ty=b.y}else{T.tx=rnd(300,WS-300);T.ty=rnd(300,WS-300)}T.wp=1}
+  const dx=T.tx-T.x,dy=T.ty-T.y,d=Math.hypot(dx,dy)||1;
+  T.vx+=((dx/d)*T.spd-T.vx)*dt;T.vy+=((dy/d)*T.spd-T.vy)*dt;
+  T.x=Math.max(0,Math.min(WS,T.x+T.vx*dt));T.y=Math.max(0,Math.min(WS,T.y+T.vy*dt));T.ph+=dt*6;
+  T.p=Math.max(0,T.p+(T.cd>0?0:dt*(T.life<T.gl?T.gr:-T.dc)));T.a=(T.a||0)+dt*1.4;T.ss=[];const R=rad();for(let k=0;k<T.sat;k++){const a=T.a+k*6.28/T.sat;T.ss.push({x:T.x+Math.cos(a)*R*1.2,y:T.y+Math.sin(a)*R*1.2,r:R*.5})}}
+function update(dt){
+  tm+=dt;aiT(dt);const R=rad();
+  for(const o of objs){if(o.st)continue;const d=Math.hypot(o.x-T.x,o.y-T.y);
+    if(T.cd<=0&&(d<R+o.w*.3||(T.ss||[]).some(s=>Math.hypot(o.x-s.x,o.y-s.y)<s.r+o.w*.3))&&T.p>=o.req*.7){o.hp-=dt*(T.p/o.req)*.9;if(o.hp<=0)launch(o)}}
+  phys(dt);
+  const steer=(n,tx,ty)=>{let df=Math.atan2(ty-n.y,tx-n.x)-n.h;df=Math.atan2(Math.sin(df),Math.cos(df));n.h+=Math.sign(df)*Math.min(Math.abs(df),dt*2.2)};
+  for(const n of NP){const d=Math.hypot(T.x-n.x,T.y-n.y),st=R*n.park+260;let tv=0;
+    if(!n.ax){roadSnap(n,1);n.mode="road";n.wait=0}
+    n.pc-=dt;
+    /* only leave the road to place a probe */
+    if(n.mode=="road"&&T.cd<=0&&n.pn>0&&n.pc<=0){if(d<1700&&d>R*3&&NPR.length<10){const px=T.x+T.vx*5+rnd(-60,60),py=T.y+T.vy*5+rnd(-60,60);if(!NPR.some(q=>Math.hypot(q.x-px,q.y-py)<140)){n.px=Math.max(40,Math.min(WS-40,px));n.py=Math.max(40,Math.min(WS-40,py));n.mode="probe";n.go=null}else n.pc=3}else n.pc=3}
+    if(n.mode=="probe"){
+      if(Math.hypot(n.px-n.x,n.py-n.y)<30||T.cd>0){if(T.cd<=0&&NPR.length<10){NPR.push({x:n.px,y:n.py,t:80,hp:100});n.pn--;n.pc=rnd(6,12)}else n.pc=3;n.mode="rejoin";roadSnap(n,0)}
+      else{steer(n,n.px,n.py);tv=105}}
+    else if(n.mode=="rejoin"){const ln=n.line+7*(n.ax=="x"?n.dir:-n.dir),ac=n.ax=="x"?n.y:n.x;steer(n,n.ax=="x"?n.x+n.dir*40:ln,n.ax=="x"?ln:n.y+n.dir*40);tv=80;if(Math.abs(ac-ln)<9){n.mode="road";n.wait=0}}
+    else{
+      /* obey the road: right-hand lane, speed limit, full stop at every intersection, no tailgating */
+      const vx=n.ax=="x"?n.dir:0,vy=n.ax=="y"?n.dir:0,along=n.ax=="x"?n.x:n.y,ln=n.line+7*(n.ax=="x"?n.dir:-n.dir);
+      let g=n.dir>0?Math.ceil((along-200)/800-1e-6)*800+200:Math.floor((along-200)/800+1e-6)*800+200;
+      if(g<200||g>15400){n.dir=-n.dir;g=Math.max(200,Math.min(15400,g))}
+      const ahead=(g-along)*n.dir,cx=n.ax=="x"?g:n.line,cy=n.ax=="x"?n.line:g,fresh=n.li&&Math.hypot(n.x-n.li.x,n.y-n.li.y)<70;
+      tv=130;
+      if(!fresh){
+        if(ahead<110)tv=Math.min(tv,Math.max(35,ahead*1.1));
+        if(!n.go){if(ahead<24){tv=0;if(Math.abs(n.v)<12){n.wait+=dt;if(n.wait>=1){n.wait=0;n.go=pickTurn(n,cx,cy,d,st,R)}}}}
+        else{tv=Math.min(tv,60);if(ahead<=3){n.ax=n.go.ax;n.dir=n.go.dir;n.line=n.go.line;n.li={x:cx,y:cy};n.go=null}}}
+      if(T.cd<=0&&d<=st)tv=0;
+      for(const o of NP.concat(P.foot?[]:[P])){if(o===n)continue;const dx=o.x-n.x,dy=o.y-n.y,al=dx*vx+dy*vy,cr=Math.abs(n.ax=="x"?dy:dx);if(al>0&&al<55&&cr<9)tv=Math.min(tv,Math.max(0,(al-20)*2))}
+      const ln2=n.line+7*(n.ax=="x"?n.dir:-n.dir);steer(n,n.ax=="x"?n.x+n.dir*50:ln2,n.ax=="x"?ln2:n.y+n.dir*50)}
+    n.v+=(tv-n.v)*Math.min(1,dt*(tv<n.v?3:1.5));n.x+=Math.cos(n.h)*n.v*dt;n.y+=Math.sin(n.h)*n.v*dt;if(T.cd<=0&&d<R*.9&&T.p>18)n.dead=1}
+  for(const q of NPR){q.t-=dt;const dq=Math.hypot(q.x-T.x,q.y-T.y);if(T.cd<=0&&dq<R*2.2&&q.hp>0){if(!q.rd){q.rd=1;toast("A chaser probe is reading the storm")}score+=dt*60*(1+ef())*.35;if(dq<R*1.3)q.hp-=dt*(8+T.p*.5)}}NPR=NPR.filter(q=>q.t>0&&q.hp>0);
+  NP=NP.filter(n=>{if(n.dead&&n.g)SC.remove(n.g);return!n.dead});
+  let ax=0,ay=0;
+  if(keys.a||keys.arrowleft)ax--;if(keys.d||keys.arrowright)ax++;if(keys.w||keys.arrowup)ay--;if(keys.s||keys.arrowdown)ay++;
+  if(ptr){const dx=ptr.x-W/2,dy=ptr.y-H/2,d=Math.hypot(dx,dy);if(d>16){ax=Math.max(-1,Math.min(1,dx/(W*.2)));ay=Math.max(-1,Math.min(1,dy/(H*.2)))}}
+  if(P.foot){const F=P.foot,fx=Math.cos(CH),fy=Math.sin(CH),mx=fx*-ay-fy*ax,my=fy*-ay+fx*ax;
+    F.x=Math.max(10,Math.min(WS-10,F.x+mx*95*dt));F.y=Math.max(10,Math.min(WS-10,F.y+my*95*dt));wind(F,2,dt);if(F.hp<=0)return end("You were swept away on foot.")}
+  /* WASD driving: W gas, S brake/reverse, A/D steer relative to the vehicle */
+  const fu=((P.fuel>0&&!P.anch&&P.ap<=0)?1:0)*(.5+.5*Math.min(1,P.hp/45)),tg=(P.foot||CTL.pb?0:(ay<0?-ay*P.sp:(ay>0?ay*-P.sp*.4:(CTL.cruise||0))))*fu*(1-.25*wearE/100);if(ay>0)CTL.cruise=0;
+  if(!P.foot&&!P.anch&&P.ap<=0)P.h+=ax*dt*2.4*(1+kit("st"))*(1-.35*wearS/100)*Math.min(1,.25+Math.abs(P.v)/110)*(P.v<-5?-1:1);
+  P.v+=(tg-P.v)*Math.min(1,dt*((tg*P.v<0||(tg==0&&P.v!=0&&ay>0))?3*(1+kit("br")):1.8*(1+kit("ac"))));
+  P.x=Math.max(20,Math.min(WS-20,P.x+Math.cos(P.h)*P.v*dt));P.y=Math.max(20,Math.min(WS-20,P.y+Math.sin(P.h)*P.v*dt));
+  {const gt=TOWNS.find(t=>Math.hypot(t.x-P.x,t.y-P.y)<GARR);GN=gt&&!P.foot?gt:null;gpEl.style.display=GN?"block":"none";if(GN)gpEl.textContent=Math.abs(P.v)<60?"GARAGE \u2014 press G (or tap here)":"Slow down to use the garage"}
+  /* lane assist: always on, nudges you into the right-hand lane on grid roads; off when you steer, reverse, or are within 300 m of the tornado */
+  LA=0;if(!P.foot&&!P.anch&&P.ap<=0&&P.v>30&&ax==0&&Math.hypot(P.x-T.x,P.y-T.y)>900){const cs=Math.cos(P.h),sn=Math.sin(P.h),alx=Math.abs(cs)>Math.abs(sn),aax=alx?"x":"y",dir=(alx?cs:sn)>=0?1:-1,line=RDL(alx?P.y:P.x),across=alx?P.y:P.x;
+    if(Math.abs(across-line)<22){const base=alx?(dir>0?0:Math.PI):(dir>0?Math.PI/2:-Math.PI/2);let df=Math.atan2(Math.sin(P.h-base),Math.cos(P.h-base));
+      if(Math.abs(df)<.5){const ln=line+7*(alx?dir:-dir),er=ln-across,mg=Math.min(.35,Math.abs(er)*.03)*Math.sign(er),fx=alx?dir:0,fy=alx?0:dir,ux=alx?0:1,uy=alx?1:0,want=Math.atan2(fy+uy*mg,fx+ux*mg);P.h+=Math.atan2(Math.sin(want-P.h),Math.cos(want-P.h))*Math.min(1,dt*1.6);LA=1}}}
+  /* solid scenery: trees, houses, barns and towers block the vehicle (and you on foot) */
+  {const SOLID={tree:1,house:1,barn:1,tower:1,car:1};
+   const block=(e,pr,veh)=>{for(const o of objs){if(o.st||!SOLID[o.t])continue;const dx=e.x-o.x,dy=e.y-o.y;if(Math.abs(dx)>200||Math.abs(dy)>200)continue;const mn=o.w*.5+pr,d2=dx*dx+dy*dy;if(d2<mn*mn){const d=Math.sqrt(d2)||.01,nx=dx/d,ny=dy/d;e.x=o.x+nx*mn;e.y=o.y+ny*mn;if(veh){const vn=P.v*(Math.cos(P.h)*nx+Math.sin(P.h)*ny);if(vn<0)P.v*=.2}}}};
+   if(!P.foot)block(P,Math.max(3,V.h*.5),true);else block(P.foot,4,false);
+   if(!P.foot){const pr=Math.max(3,V.h*.5);for(const n of NP){const dx=P.x-n.x,dy=P.y-n.y,mn=n.k.w*.4+pr,d2=dx*dx+dy*dy;if(d2<mn*mn){const d=Math.sqrt(d2)||.01,nx=dx/d,ny=dy/d;P.x=n.x+nx*mn;P.y=n.y+ny*mn;const vn=P.v*(Math.cos(P.h)*nx+Math.sin(P.h)*ny);if(vn<0)P.v*=.2}}}}
+  P.ap=Math.max(0,Math.min(1,P.ap+(P.anch?1:-1.6)*dt/P.ad));if(P.anch&&P.ap>=1&&!P.dn){P.dn=1;toast("Anchors set")}if(!P.anch)P.dn=0;wind(P,V.m*(1+2.2*P.ap),dt);
+  if(!P.foot){const sr=Math.abs(P.v)/Math.max(60,P.sp);wearE=Math.min(100,wearE+sr*dt*.04);wearS=Math.min(100,wearS+sr*dt*.03)}
+  if(CTL.pb)P.v*=Math.pow(.02,dt);
+  if(T.cd<=0){trkT-=dt;if(trkT<=0){trkT=3;TRK.push({x:T.x,y:T.y});if(TRK.length>80)TRK.shift()}}
+  if(wx=="hail"&&!DEV.god&&!TOWNS.some(t=>Math.hypot(t.x-P.x,t.y-P.y)<330)){P.hp-=dt*2.2*(1-P.arm)*(hasKit("hg")?.08:1);if(P.foot)P.foot.hp-=dt*5}
+  if(!P.foot&&!DEV.god)P.fuel=Math.max(0,P.fuel-Math.abs(P.v)/Math.max(60,P.sp)*.55*(1-kit("fb"))*dt);
+  {const tn=TOWNS.find(t=>Math.hypot(t.x-P.x,t.y-P.y)<330);if(tn&&Math.abs(P.v)<40&&P.fuel<P.fm&&cash>0){const a=Math.min(P.fm-P.fuel,cash,30*dt);P.fuel+=a;cash-=a;if(P.fuel>=P.fm-.01)toast("Tank full")}}
+  if(P.fuel<=0&&Math.abs(P.v)<8&&!P.foot){if(P.st===0)toast("Out of fuel. A tow is coming...");P.st+=dt;if(P.st>(hasKit("tow")?2:6)){let bt=TOWNS[0],bd=1e9;for(const t of TOWNS){const dd=Math.hypot(t.x-P.x,t.y-P.y);if(dd<bd){bd=dd;bt=t}}P.x=bt.x;P.y=bt.y+60;P.v=0;P.fuel=P.fm*.3;P.st=0;P.anch=false;P.ap=0;score*=(hasKit("tow")?1:.9);toast("Towed to "+bt.n)}}else if(P.fuel>0)P.st=0;
+  P.ac-=dt;if(up.includes(0)&&P.ac<=0&&P.pn>0&&PR.length<10){const px=T.x+T.vx*5,py=T.y+T.vy*5;if(Math.hypot(px-P.x,py-P.y)<420&&!PR.some(p=>Math.hypot(p.x-px,p.y-py)<140)){place({x:px,y:py},.7);P.ac=5}else P.ac=1}
+  for(const p of PR){p.t-=dt;if(p.hp===undefined)p.hp=100;const dp=Math.hypot(p.x-T.x,p.y-T.y);if(T.cd<=0&&dp<R*2.2&&p.hp>0){const v=dt*60*(1+ef())*p.q*(up.includes(4)?1.5:1);score+=v;p.got=(p.got||0)+v;if(!p.rd){p.rd=1;M.reads++}if(dp<R*1.3)p.hp-=dt*(8+T.p*.5)}if(p.hp<=0&&!p.dead){p.dead=1;p.t=0;toast(p.got>60?"Probe destroyed after +"+Math.round(p.got)+" data":"Probe destroyed")}}PR=PR.filter(p=>p.t>0);
+  if(kit("rg")&&!P.foot)P.hp=Math.min(100,P.hp+kit("rg")*dt);if(hasKit("cam")){camT-=dt;if(camT<=0&&T.cd<=0){camT=20;autoPhoto()}}if(hasKit("drn")&&T.cd<=0){drT-=dt;if(drT<=0){drT=30;if(Math.hypot(T.x-P.x,T.y-P.y)<2500){const v=Math.round(150*(1+ef()));score+=v;toast("Drone survey +"+v)}}}if(hasKit("dop")&&T.cd<=0){const dd=Math.hypot(T.x-P.x,T.y-P.y);if(dd<1600){const q=1-dd/1600;score+=q*q*(25+T.p*1.1)*(1+ef())*dt}}if(hasKit("rad")&&T.cd<=0){const dd=Math.hypot(T.x-P.x,T.y-P.y);if(dd<1000){const q=1-dd/1000;score+=q*q*30*(1+ef())*dt}}M.minD=Math.min(M.minD,Math.hypot(P.x-T.x,P.y-T.y));M.peak=Math.max(M.peak,ef());
+  const d=Math.hypot(P.x-T.x,P.y-T.y),zr=R+500;
+  {const mes=(S&&S.k=="mes")||hasKit("mes");MPH=0;if(mes&&T.cd<=0&&d<R*2.4){MPH=40+T.p*2.2*(1-d/(R*2.4));if(MPH>=80)score+=dt*MPH*.35}if(hasKit("dop")&&T.cd<=0&&d<R*3.5)MPH=Math.max(MPH,40+T.p*2.2*(1-d/(R*3.5)))}
+  if(d<zr&&T.cd<=0){const q=(zr-d)/zr;score+=q*q*18*(P.ap>=1?1.8:1)*(1+(S&&S.dm||0)+kit("dm"))*(1+ef())*(V.int||1)*(V.int&&d<R*1.3?2:1)*dt}
+  if(S){
+    if(!((S.k=="dow"||S.k=="mes")&&S.dep)){const tx=P.x-Math.cos(P.h)*80,ty=P.y-Math.sin(P.h)*80;S.x+=(tx-S.x)*Math.min(1,dt*2);S.y+=(ty-S.y)*Math.min(1,dt*2);S.h=P.h}
+    wind(S,S.m,dt);S.cd=Math.max(0,S.cd-dt);if(S.rg)P.hp=Math.min(100,P.hp+S.rg*dt);
+    if((S.k=="dow"||S.k=="mes")&&S.dep){const rg=S.k=="dow"?(S.big?1300:900):550,ds=Math.hypot(S.x-T.x,S.y-T.y);if(ds<rg){const q=1-ds/rg;score+=q*q*(S.k=="dow"?(S.big?55:35):60)*(1+ef())*dt}}
+    
+    
+    if(S.dr){const D=S.dr;D.t-=dt;D.a+=dt*1.2;const tx=T.x+Math.cos(D.a)*(R*1.6+60),ty=T.y+Math.sin(D.a)*(R*1.6+60);
+      D.x+=(tx-D.x)*Math.min(1,dt*1.5);D.y+=(ty-D.y)*Math.min(1,dt*1.5);
+      if(Math.hypot(D.x-T.x,D.y-T.y)<R*2.6+200)score+=dt*22*(1+ef());
+      if(D.t<=0){S.dr=null;S.cd=8}}
+    if(S.hp<=0){toast("Support vehicle lost");S=null}}
+  if(P.hp<=0)return end("Your vehicle was destroyed by the storm.");
+  if(T.life>T.gl&&T.p<7){if(tm<300){const st=STORMS[pickSt()],a=rnd(0,6.28),dd=rnd(1500,3500);T.fog=0;Object.assign(T,st);T.x=Math.max(600,Math.min(WS-600,P.x+Math.cos(a)*dd));T.y=Math.max(600,Math.min(WS-600,P.y+Math.sin(a)*dd));T.vx=T.vy=0;T.p=T.p0;T.life=0;T.wp=0;T.cd=rnd(3,8);T.ss=[];stormWx();toast("A new "+T.sn+" tornado is forming ("+T.fc+")");return}return end("The tornado roped out.")}
+  if(T.life>260)return end("The storm finally weakened.");
+  $("sc").textContent=Math.floor(score);$("hp").textContent="Hull "+Math.max(0,Math.round(P.hp))+"%  Probes "+P.pn+"  Fuel "+Math.round(P.fuel/P.fm*100)+"%"+(P.anch?"  \u2693"+(P.ap<1?" "+Math.round(P.ap*100)+"%":""):"");$("tm").textContent=Math.floor(tm);mi.hidden=false;mi.innerHTML=curM.map(m=>(m.f()?"\u2713 ":"\u25cb ")+m.t).join("<br>");
+  $("sp").textContent=!S?"":S.k=="dow"?(S.dep?"DOW scanning: EF"+ef():"DOW stowed"):S.k=="mes"?(S.dep?"Mesonet: "+Math.round(40+T.p*2.2)+" mph":"Mesonet stowed"):["probe","med","cam","stick","toto","cmd","tank"].includes(S.k)?S.n0+(S.cd>0?" "+Math.ceil(S.cd)+"s":" ready"):S.dr?"Drone "+Math.ceil(S.dr.t)+"s":S.cd>0?"Drone recharging":"Drone ready";
+}
+function end(why){running=false;$("eb").hidden=true;$("fb").hidden=true;const s=Math.floor(score),dead=/destroyed|swept/.test(why),got=dead?Math.floor(s*(hasKit("ins")?.85:.5)):s,sale=dead?"Insurance covers half, so you sold the data for $"+got+".":"You sold the data for $"+got+".",gr=s<600?"Rookie":s<2500?"Chaser":s<6000?"Veteran":"Legend";
+  $("mp").textContent=why+" You collected "+s+" data points. Rank: "+gr+". Peak was EF"+ef()+". "+sale+" Use the tabs to spend it.";
+  const dn=curM.filter(m=>m.f()),bn=dn.length*300;cash+=got*(1+(S&&S.sm||0)+kit("sm"))+bn;xp+=Math.round((got+bn)*(1+kit("xp")));newFC();pickM();mi.hidden=true;save();build();$("mp").textContent+=" Missions: "+dn.length+"/3 done"+(bn?" (+$"+bn+")":"")+". Rank: "+rankStr()+".";$("msg").style.display="flex";$("go").textContent="Chase again"}
+/* ===== 3D renderer (three.js). Game logic above is unchanged: ground (x,y) -> world (x,z), height -> y ===== */
+const R3=new THREE.WebGLRenderer({antialias:true});R3.setPixelRatio(Math.min(devicePixelRatio,2));
+R3.shadowMap.enabled=true;R3.shadowMap.type=THREE.PCFSoftShadowMap;R3.domElement.id="c3";R3.domElement.style.cssText="position:fixed;left:0;top:0;width:100%;height:100%";document.body.insertBefore(R3.domElement,cv);
+const SC=new THREE.Scene(),CAM=new THREE.PerspectiveCamera(65,1,2,12000);
+SC.background=new THREE.Color(0x8e9aa3);SC.fog=new THREE.Fog(0x8e9aa3,700,4200);
+const HL=new THREE.HemisphereLight(0xa9b8c6,0x4a5a3a,.8),DL=new THREE.DirectionalLight(0xfff1d8,.75);DL.castShadow=true;DL.shadow.mapSize.set(2048,2048);{const q=DL.shadow.camera;q.left=q.bottom=-450;q.right=q.top=450;q.near=10;q.far=1800}DL.shadow.bias=-.0006;SC.add(HL,DL,DL.target);
+function r3size(){R3.setSize(innerWidth,innerHeight,false);CAM.aspect=innerWidth/innerHeight;CAM.updateProjectionMatrix()}r3size();addEventListener("resize",r3size);
+const MT={},UB=new THREE.BoxGeometry(1,1,1),CY=new THREE.CylinderGeometry(1,1,1,10),CN=new THREE.ConeGeometry(1,1,9),SPH=new THREE.SphereGeometry(1,12,8),
+ICO=new THREE.IcosahedronGeometry(1,1),CN4=new THREE.ConeGeometry(1,1,4).rotateY(Math.PI/4),CYO=new THREE.CylinderGeometry(1,1,1,24,1,true);
+const mat=c=>MT[c]||(MT[c]=new THREE.MeshPhongMaterial({color:c,shininess:28,specular:0x2a2a2a}));
+const col=c=>typeof c=="string"?parseInt(c.slice(1),16):c;
+function bx(w,h,d,c,x,y,z,p){const m=new THREE.Mesh(UB,mat(col(c)));m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;p.add(m);return m}
+function me(G,c,sx,sy,sz,x,y,z,p){const m=new THREE.Mesh(G,mat(col(c)));m.scale.set(sx,sy,sz);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;p.add(m);return m}
+/* ground, roads, towns */
+function tex(w,h,fn,rx,ry){const c=document.createElement("canvas");c.width=w;c.height=h;fn(c.getContext("2d"),w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=8;return t}
+const GT=tex(128,128,(x,w,h)=>{x.fillStyle="#6aa84f";x.fillRect(0,0,w,h);for(let i=0;i<300;i++){x.fillStyle=Math.random()<.5?"#62a048":"#76b45a";x.fillRect(Math.random()*w,Math.random()*h,3,3)}
+  x.fillStyle="rgba(255,255,255,.12)";x.beginPath();x.arc(64,64,15,0,7);x.fill();x.strokeStyle="rgba(0,0,0,.12)";x.lineWidth=2;x.stroke()},WS/64,WS/64);
+const GR=new THREE.Mesh(new THREE.PlaneGeometry(WS,WS),new THREE.MeshPhongMaterial({map:GT,specular:0x111111,shininess:5}));GR.rotation.x=-Math.PI/2;GR.position.set(WS/2,0,WS/2);GR.receiveShadow=true;SC.add(GR);
+const rt=hz=>tex(64,64,(x,w,h)=>{x.fillStyle="#3b3f45";x.fillRect(0,0,w,h);for(let i=0;i<120;i++){x.fillStyle="rgba(255,255,255,.05)";x.fillRect(Math.random()*w,Math.random()*h,2,2)}
+  x.fillStyle="#e8c44a";if(hz){x.fillRect(0,30,34,4);x.fillStyle="#d8d8d8";x.fillRect(0,3,w,2);x.fillRect(0,59,w,2)}else{x.fillRect(30,0,4,34);x.fillStyle="#d8d8d8";x.fillRect(3,0,2,h);x.fillRect(59,0,2,h)}},hz?WS/64:1,hz?1:WS/64);
+const RMV=new THREE.MeshPhongMaterial({map:rt(0),shininess:15,specular:0x222222}),RMH=new THREE.MeshPhongMaterial({map:rt(1),shininess:15,specular:0x222222});
+for(let k=200;k<WS;k+=800){const v=new THREE.Mesh(UB,RMV);v.scale.set(28,.6,WS);v.position.set(k,.3,WS/2);v.receiveShadow=true;SC.add(v);const h=new THREE.Mesh(UB,RMH);h.scale.set(WS,.7,28);h.position.set(WS/2,.35,k);h.receiveShadow=true;SC.add(h)}
+for(const l of LM){ const c=document.createElement("canvas");c.width=320;c.height=64;const q=c.getContext("2d");q.font="bold 26px sans-serif";q.textAlign="center";q.fillStyle="#ffeaa0";q.fillText(l.n,160,44);
+ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false}));s.scale.set(260,52,1);s.position.set(l.x,90,l.y);SC.add(s)}
+for(const p of HWYS)for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],dx=b.x-a.x,dz=b.y-a.y,m=new THREE.Mesh(UB,mat(0x4a4d52));m.scale.set(Math.hypot(dx,dz),.5,56);m.position.set((a.x+b.x)/2,.4,(a.y+b.y)/2);m.rotation.y=-Math.atan2(dz,dx);m.receiveShadow=true;SC.add(m)}
+const SKY=new THREE.Mesh((()=>{const g=new THREE.SphereGeometry(8000,24,16),p=g.attributes.position,cs=[],top=new THREE.Color(0x2e3944),mid=new THREE.Color(0x66737e),hz=new THREE.Color(0x8e9aa3),c=new THREE.Color();
+  for(let i=0;i<p.count;i++){const t=Math.max(0,p.getY(i)/8000);c.copy(hz).lerp(mid,Math.min(1,t*3)).lerp(top,Math.max(0,t*1.6-.3));cs.push(c.r,c.g,c.b)}
+  g.setAttribute("color",new THREE.Float32BufferAttribute(cs,3));return g})(),new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));SC.add(SKY);
+const CT=tex(256,256,(x,w,h)=>{x.fillStyle="#4c565f";x.fillRect(0,0,w,h);for(let i=0;i<110;i++){const r=20+Math.random()*50,px=Math.random()*w,py=Math.random()*h,gr=x.createRadialGradient(px,py,0,px,py,r);gr.addColorStop(0,i%3?"rgba(28,34,40,.4)":"rgba(120,130,138,.3)");gr.addColorStop(1,"rgba(0,0,0,0)");x.fillStyle=gr;x.fillRect(px-r,py-r,2*r,2*r)}},6,6);
+const CLD=new THREE.Mesh(new THREE.PlaneGeometry(14000,14000),new THREE.MeshBasicMaterial({map:CT,fog:false,transparent:true,opacity:.92,depthWrite:false,side:2}));CLD.rotation.x=Math.PI/2;SC.add(CLD);
+const TWM=new THREE.MeshPhongMaterial({map:tex(32,32,(x,w,h)=>{x.fillStyle="#9aa3ad";x.fillRect(0,0,w,h);x.fillStyle="#4f7596";x.fillRect(5,6,22,16);x.fillStyle="rgba(255,255,255,.25)";x.fillRect(5,6,22,4)},6,20),shininess:50,specular:0x444444});
+for(const tn of TOWNS){const d=new THREE.Mesh(new THREE.CircleGeometry(330,32),mat(0x8d9297));d.rotation.x=-Math.PI/2;d.position.set(tn.x,.1,tn.y);SC.add(d);
+  const c=document.createElement("canvas");c.width=256;c.height=64;const x=c.getContext("2d");x.font="bold 36px sans-serif";x.textAlign="center";x.fillStyle="#fff";x.fillText(tn.n,128,44);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false}));s.scale.set(200,50,1);s.position.set(tn.x,230,tn.y);SC.add(s)}
+/* world objects */
+let OBJ=null,OG=null;
+function mkObj(o){const b=new THREE.Group(),w=o.w,h=o.h;
+  if(o.t=="tree"){me(CY,0x6b4a2b,1.1,9,1.1,0,4.5,0,b);me(ICO,0x3f8f3a,w*.55,w*.6,w*.55,0,15,0,b);me(ICO,0x4aa044,w*.38,w*.45,w*.38,0,23,0,b)}
+  else if(o.t=="car"){const q=Math.abs(o.x*7+o.y*3)|0;b.add(mkVeh(w,h,4.4,o.c,{st:["hatch","suv","wagon","coupe"][q%4],cheap:1,sub:1}));b.rotation.y=(q%4)*Math.PI/2}
+  else if(o.t=="house"){bx(w,14,h,o.c,0,7,0,b);me(CN4,0xa5503c,w*.72,9,h*.72,0,18.5,0,b);for(const sx of[-1,1])bx(w*.18,5,.5,0xbfe3ff,sx*w*.28,8,h/2+.1,b);bx(4,8,.5,0x5a3a22,0,4,h/2+.1,b);bx(3,8,3,0x7a4a3a,w*.25,22,0,b)}
+  else if(o.t=="barn"){bx(w,20,h,0xa23a30,0,10,0,b);me(CN4,0x5a2420,w*.72,14,h*.72,0,27,0,b);bx(w*.2,14,.5,0xe8e0d0,0,8,h/2,b)}
+  else{const m=new THREE.Mesh(UB,TWM);m.scale.set(w,180,h);m.position.y=90;m.castShadow=m.receiveShadow=true;b.add(m);bx(w*.3,6,w*.3,0x555a60,0,183,0,b)}
+  b.position.set(o.x,0,o.y);b.updateMatrix();b.matrixAutoUpdate=false;OG.add(b);
+  const r=bx(o.w*.7,2,o.h*.6,0x3a3530,0,0,0,OG);r.visible=false;r.matrixAutoUpdate=false;return{b,r}}
+function syncObjs(){
+  if(OBJ!==objs){if(OG)SC.remove(OG);OG=new THREE.Group();SC.add(OG);OBJ=objs;for(const o of objs)o.m=mkObj(o)}
+  for(const o of objs){const m=o.m;if(!o.st)continue;m.b.matrixAutoUpdate=true;m.r.matrixAutoUpdate=true;
+    if(o.st==1){m.b.position.set(o.x,o.z,o.y);m.b.rotation.set(o.rot*.4,-o.rot,o.rot*.6)}
+    else{m.b.visible=false;m.r.visible=true;m.r.position.set(o.x,1,o.y);m.r.rotation.y=-(o.rot||0)}}}
+/* vehicles */
+/* ===== detailed vehicles: extruded side-profile bodies, glass, wheels with rims, lights, per-style extras ===== */
+const GL=new THREE.MeshPhongMaterial({color:0x4c6f8f,shininess:140,specular:0xffffff}),TIRE=new THREE.MeshPhongMaterial({color:0x15161a,shininess:10}),RIM=new THREE.MeshPhongMaterial({color:0xd0d4d8,shininess:120,specular:0xffffff}),
+DK=new THREE.MeshPhongMaterial({color:0x1b1d21,shininess:30}),MT2=new THREE.MeshPhongMaterial({color:0x3a3f46,shininess:40,specular:0x333333}),CHR=new THREE.MeshPhongMaterial({color:0xb9bec4,shininess:100,specular:0xffffff}),
+WHM=new THREE.MeshPhongMaterial({color:0xf2f2f2,shininess:60}),ORM=new THREE.MeshPhongMaterial({color:0xe87a2a,shininess:40}),RED=new THREE.MeshPhongMaterial({color:0xd02828,shininess:40});
+const AK={"TIV":{sl:.82,sh:.56,rib:1},"TIV2":{sl:.9,sh:.62,rib:1,dome:1},"TIV3":{sl:.92,sh:.66,rib:1,dome:1,strip:"#ff3b30"},
+"Dominator":{sl:.66,sh:.4,pm:1,plow:1,lb:1},"Dominator 2":{sl:.7,sh:.45,pm:1,plow:1,lb:1,rack:1},"Dominator 3":{sl:.72,sh:.48,pm:1,plow:1,lb:1,dome:1},"Dominator 1":{pm:1,lb:1,cage:1},"Dominator 4":{pm:1,lb:1,rack:1},
+"Interceptor Prototype":{sl:.6,sh:.35,rack:1},"Rapid Interceptor":{sl:.66,sh:.4,rib:1},"Vortex Ranger":{sl:.7,sh:.42,pm:1,lb:1},"Cyclone Sentinel":{sl:.72,sh:.45,rib:1,lb:1},"Maelstrom Warden":{sl:.76,sh:.46,pm:1,rib:1},"Tempest Juggernaut":{sl:.8,sh:.5,rib:1,dome:1,lb:1},
+"Joker":{sl:.7,sh:.42,pm:1,strip:"#43e65b",grin:1},"Joker 2":{sl:.74,sh:.46,pm:1,strip:"#00f0ff",grin:1,wing:1},"Armored pickup":{pm:1,rib:1,lb:1},"Armored SUV":{pm:1,rib:1,lb:1},"Military humvee":{pm:1,rib:1,rack:1},"Riot truck":{rib:1,lb:1,rack:1},"Tornado interceptor":{rib:1,dome:1}};
+const PMC={},paintM=c=>PMC[c]||(PMC[c]=new THREE.MeshPhongMaterial({color:c,shininess:90,specular:0x777777}));
+const EMC={},emM=c=>EMC[c]||(EMC[c]=new THREE.MeshPhongMaterial({color:c,emissive:c,emissiveIntensity:.9}));
+const CYH=new THREE.CylinderGeometry(1,1,1,20),GC={};
+function mb(w,h,d,m,x,y,z,p){const q=new THREE.Mesh(UB,m);q.scale.set(w,h,d);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;p.add(q);return q}
+function mq(G,m,sx,sy,sz,x,y,z,p){const q=new THREE.Mesh(G,m);q.scale.set(sx,sy,sz);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;p.add(q);return q}
+function ex(pts,d,m,key,p){let g=GC[key];if(!g){const sh=new THREE.Shape();pts.forEach((a,i)=>i?sh.lineTo(a[0],a[1]):sh.moveTo(a[0],a[1]));g=new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:false});g.translate(0,0,-d/2);GC[key]=g}
+  const q=new THREE.Mesh(g,m);q.castShadow=q.receiveShadow=true;p.add(q);return q}
+const SP={hatch:[.12,-.02,-.34,-.46,.52],coupe:[.08,-.12,-.3,-.42,.6],muscle:[.1,-.05,-.28,-.4,.56],wagon:[.14,0,-.4,-.46,.5],suv:[.15,.02,-.4,-.48,.5],jeep:[.18,.12,-.38,-.4,.52],pickup:[.1,0,-.2,-.26,.52],humvee:[.15,.1,-.38,-.4,.55],van:[.34,.24,-.46,-.5,.42],sedan:[.14,.02,-.26,-.32,.5],conv:[.12,0,-.08,-.12,.56],super:[.02,-.18,-.34,-.4,.64],ute:[.12,0,-.22,-.28,.54]};
+const VS={"Old hatchback":"hatch","Compact hatch":"hatch","Sports coupe":"coupe","Muscle car":"muscle","Rally wagon":"wagon","Family SUV":"suv","Jeep":"jeep","Pickup truck":"pickup","Heavy-duty truck":"pickup","Box truck":"box","Minivan":"van","Camper van":"box","Armored pickup":"pickup","Armored SUV":"suv","Military humvee":"humvee","Riot truck":"box","Tornado interceptor":"suv","Dominator TIV":"humvee","Sedan":"wagon","Hatchback":"hatch","SUV":"suv","Chaser Van":"van","Interceptor Prototype":"pickup","Rapid Interceptor":"suv","TIV":"suv","Dominator 1":"suv","Dominator":"humvee","Vortex Ranger":"suv","Cyclone Sentinel":"humvee","Dominator 2":"humvee","Maelstrom Warden":"pickup","Tempest Juggernaut":"humvee","Dominator 3":"humvee","TIV2":"suv","TIV3":"humvee","Dominator 4":"humvee","Joker":"muscle","Joker 2":"muscle"};VX.forEach(x=>VS[x.n]=x.st);Object.assign(VS,{"Family Sedan":"sedan","Hybrid Sedan":"sedan","Electric Sedan":"sedan","Luxury Sedan":"sedan","Limousine":"sedan","Sedan":"sedan","Lowrider":"sedan","Roadster":"conv","Beach Cruiser":"conv","Super Coupe":"super","Grand Tourer":"super","Exotic Supercar":"super","Hypercar":"super","Vintage Pickup":"ute","Electric Pickup":"ute"});
+const SS={dow:"box",probe:"pickup",drone:"van",mes:"suv",cam:"van",med:"van",toto:"pickup",stick:"pickup",cmd:"van",tank:"box"};
+function mkInt(L,Wd,Hh,c,o){const a=AK[o.nm],g=new THREE.Group(),wr=Math.min(1.9,.28*Hh+.5),y0=wr*.9,H=Hh-y0,PM=paintM(c),HM=paintM("#"+new THREE.Color(c).multiplyScalar(.7).getHexString()),SM=a.pm?PM:MT2,tw=Wd*.15,
+ dom=/Dominator|Armored pickup|humvee|Warden|Ranger|Joker|Sentinel|Prototype/i.test(o.nm),six=/TIV2|TIV3|Juggernaut|Riot|Dominator 3|Dominator 4/.test(o.nm),ax=six?[.34,.02,-.3]:[.3,-.3],sg="I|"+o.nm+"|"+L+"|"+Wd+"|"+Hh,cc=dom?L*.2:0,yb=y0+H*.55;
+ for(const fx of ax)for(const sz of[1,-1]){const x=fx*L,z=sz*(Wd/2-tw*.2);mq(CYH,TIRE,wr,tw,wr,x,wr,z,g).rotation.x=Math.PI/2;mq(CYH,RIM,wr*.55,tw*1.05,wr*.55,x,wr,z,g).rotation.x=Math.PI/2;mb(wr*2.7,wr*.45,tw*1.3,DK,x,2*wr+.2,z,g)}
+ armSkirts(g,L,Wd,wr,y0,H,ax,HM,DK,true);
+ ex([[-L/2,y0+.4],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,y0+H*.34],[L*.4,yb],[-L*.42,yb],[-L/2,y0+H*.4]],Wd*.96,a.pm?PM:HM,sg+"h",g);
+ ex(dom?[[0,yb],[L*.36,yb],[L*.24,Hh],[L*.06,Hh]]:[[-L*.24,yb],[L*.22,yb],[L*.12,Hh],[-L*.2,Hh]],Wd*.8,PM,sg+"c",g);
+ if(dom)mb(L*.36,H*.2,Wd*.9,HM,-L*.2,yb+H*.1,0,g);
+ mb(.4,H*.16,Wd*.62,GL,(dom?L*.3:L*.17)+.1,y0+H*.8,0,g);
+ for(const sz of[1,-1]){mb(L*.16,H*.14,.3,GL,cc,y0+H*.8,sz*(Wd*.4+.12),g);
+  if(a.rib)for(let i=-3;i<=3;i++)mb(.28,H*.3,.12,DK,i*L*.12,y0+H*.25,sz*(Wd*.48+.05),g);
+  if(a.strip)mb(L*.7,.4,.1,emM(a.strip),0,y0+H*.4,sz*(Wd*.48+.1),g);
+  for(const fx of[1,-1]){const x=fx*L*.42,z=sz*(Wd/2+Wd*.02);mb(L*.08,H*.38,Wd*.1,DK,x,y0+H*.28,z,g);const sp=mq(CYH,CHR,.4,H*.45,.4,x,y0+H*.05,z,g);(g.userData.spk=g.userData.spk||[]).push([sp,y0+H*.05,H*.35])}
+  mb(.3,.7,Wd*.18,emM(0xfff4c2),L/2+.05,y0+H*.25,sz*Wd*.3,g);mb(.3,.7,Wd*.18,emM(0xd02828),-L/2-.05,y0+H*.25,sz*Wd*.3,g)}
+ mb(L*.05,H*.4,Wd*.98,DK,L/2+L*.02,y0+H*.2,0,g);
+ mb(L*.3,.5,Wd*.82,SM,cc,Hh+.2,0,g);
+ if(a.lb){const m1=new THREE.MeshPhongMaterial({color:0xff9a00,emissive:0xff9a00,emissiveIntensity:1}),m2=new THREE.MeshPhongMaterial({color:0xffc000,emissive:0xffc000,emissiveIntensity:.1});mb(Wd*.5,.5,1.2,DK,cc+L*.06,Hh+.7,0,g);mb(Wd*.22,.5,1.1,m1,cc+L*.06,Hh+.75,Wd*.13,g);mb(Wd*.22,.5,1.1,m2,cc+L*.06,Hh+.75,-Wd*.13,g);g.userData.blink=[m1,m2]}
+ if(a.rack)for(let i=0;i<3;i++)mb(.3,.3,Wd*.8,DK,cc-L*.1+i*L*.1,Hh+1,0,g);
+ if(a.wing){mb(1.2,.6,Wd*1.05,DK,-L/2-.4,Hh+1.2,0,g);for(const sz of[1,-1])mb(.5,2.6,.5,DK,-L/2-.2,Hh-.1,sz*Wd*.4,g)}
+ if(a.grin)for(let i=-3;i<=3;i++)mb(.2,.8,Wd*.07,WHM,L/2+.45,y0+H*.28,i*Wd*.1,g);
+ if(a.dome){const dm=new THREE.Group();dm.position.set(cc-L*.08,Hh+.5,0);g.add(dm);mq(CYH,DK,Wd*.2,.8,Wd*.2,0,0,0,dm);mq(SPH,PM,Wd*.17,Wd*.11,Wd*.17,0,.5,0,dm);mb(.5,.5,Wd*.12,DK,Wd*.1,.9,0,dm);g.userData.turret=dm}
+ SC.add(g);return g}
+
+/* ===== realistic TIV (wedge armored shell, slit windows, plow nose, skirts) and Dominator (armored truck) ===== */
+function armWheels(g,L,Wd,wr,y0,H,tw,ax,DKP){
+ for(const fx of ax)for(const sz of[1,-1]){const x=fx*L,z=sz*(Wd/2-tw*.2);mq(CYH,TIRE,wr,tw,wr,x,wr,z,g).rotation.x=Math.PI/2;mq(CYH,RIM,wr*.55,tw*1.05,wr*.55,x,wr,z,g).rotation.x=Math.PI/2;
+  mb(wr*2.9,H*.14,tw*1.5,DKP,x,2*wr+.1,sz*(Wd/2-tw*.1),g);mb(wr*2.4,H*.3,.22,DKP,x,2*wr-H*.1,sz*(Wd/2+tw*.4),g)}}
+function armSkirts(g,L,Wd,wr,y0,H,ax,mat,dk,reg){const kw=ax.length>2?1.05:1.5,xs=ax.map(f=>f*L).sort((a,b)=>a-b),sg=[[-L/2+.4,xs[0]-wr*kw]];for(let i=0;i<xs.length-1;i++)sg.push([xs[i]+wr*kw,xs[i+1]-wr*kw]);sg.push([xs[xs.length-1]+wr*kw,L/2-.4]);
+ const fl=reg?(g.userData.flaps=g.userData.flaps||[]):null,dl=Math.max(0,y0+H*.01-1.2),add=m=>{if(fl)fl.push([m,m.position.y,dl]);return m};
+ for(const [a,b] of sg){if(b-a<1)continue;for(const sz of[1,-1]){add(mb(b-a,H*.3,.35,mat,(a+b)/2,y0+H*.16,sz*(Wd*.49+.1),g));for(let x=a+.6;x<b-.3;x+=1.5)add(mb(.22,.22,.1,dk,x,y0+H*.2,sz*(Wd*.49+.3),g))}}}
+function armTurret(g,L,Wd,Hh,PM,x){const dm=new THREE.Group();dm.position.set(x,Hh+.3,0);g.add(dm);mq(CYH,DK,Wd*.24,.9,Wd*.24,0,0,0,dm);mq(CYH,paintM("#2b2f33"),Wd*.2,.5,Wd*.2,0,.65,0,dm);mq(SPH,PM,Wd*.19,Wd*.12,Wd*.19,0,.95,0,dm);mb(.8,.9,Wd*.14,GL,Wd*.15,1.0,0,dm);mb(.6,.5,Wd*.1,DK,Wd*.2,1.0,0,dm);g.userData.turret=dm}
+function mkTIV(L,Wd,Hh,c,o){
+ const a=AK[o.nm],g=new THREE.Group(),wr=Math.min(1.9,.28*Hh+.5),y0=wr*.9,H=Hh-y0,PM=paintM(c),AM=paintM("#"+new THREE.Color(c).multiplyScalar(.5).getHexString()),t2=/TIV[23]|Tornado interceptor/.test(o.nm),ax=/TIV[23]/.test(o.nm)?[.34,.02,-.3]:[.3,-.3],tw=Wd*.15,sg="T|"+o.nm+"|"+L+"|"+Wd+"|"+Hh,yn=y0+H*.34,p1=[L*.3,y0+H*.54],p2=[L*.1,Hh];
+ armWheels(g,L,Wd,wr,y0,H,tw,ax,AM);
+ ex([[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,yn],[p1[0],p1[1]],[p2[0],p2[1]],[-L*.38,Hh],[-L/2,Hh-H*.18]],Wd*.94,PM,sg+"b",g);
+ ex([[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,y0+H*.3],[-L/2,y0+H*.3]],Wd*.99,AM,sg+"l",g);
+ armSkirts(g,L,Wd,wr,y0,H,ax,AM,DK,true);
+ {const dx=p1[0]-p2[0],dy=p1[1]-p2[1],ln=Math.hypot(dx,dy),nx=-dy/ln,ny=dx/ln,cx=(p1[0]+p2[0])/2,cy=(p1[1]+p2[1])/2,an=Math.atan2(dy,dx);
+  mb(ln*1.02,.5,Wd*.8,DK,cx+nx*.12,cy+ny*.12,0,g).rotation.z=an;mb(ln*.9,.5,Wd*.66,GL,cx+nx*.28,cy+ny*.28,0,g).rotation.z=an;
+  for(let i=-1;i<=1;i+=2)mb(ln*.95,.55,.35,DK,cx+nx*.34,cy+ny*.34,i*Wd*.16,g).rotation.z=an}
+ for(const sz of[1,-1]){mb(L*.26,H*.22,.2,DK,-L*.1,Hh-H*.2,sz*(Wd*.47+.05),g);mb(L*.2,H*.12,.25,GL,-L*.1,Hh-H*.2,sz*(Wd*.47+.1),g);mb(L*.1,H*.12,.25,GL,L*.1,Hh-H*.27,sz*(Wd*.47+.1),g);
+  for(let i=-3;i<=3;i++)mb(.28,H*.26,.12,DK,i*L*.115,y0+H*.2+H*.3,sz*(Wd*.48+.05),g);
+  mb(L*.8,.35,.12,AM,-L*.02,y0+H*.58,sz*(Wd*.48+.04),g);
+  if(a.strip)mb(L*.7,.4,.1,emM(a.strip),0,y0+H*.45,sz*(Wd*.48+.12),g);
+  mb(.3,.7,Wd*.16,emM(0xfff4c2),L/2+.05,y0+H*.2,sz*Wd*.3,g);mb(.3,.45,Wd*.1,emM(0xffa21a),L/2+.05,y0+H*.2,sz*Wd*.44,g);mb(.3,.7,Wd*.18,emM(0xd02828),-L/2-.05,y0+H*.25,sz*Wd*.3,g);
+  for(const fx of[1,-1]){const x=fx*L*.42,z=sz*(Wd/2+Wd*.02);mb(L*.08,H*.38,Wd*.1,DK,x,y0+H*.28,z,g);const sp=mq(CYH,CHR,.4,H*.45,.4,x,y0+H*.05,z,g);(g.userData.spk=g.userData.spk||[]).push([sp,y0+H*.05,H*.35])}}
+ /* heavy plow nose and bumper */
+ mb(L*.09,H*.34,Wd*1.0,AM,L/2+L*.04,y0+H*.17,0,g).rotation.z=-.35;mb(L*.04,H*.2,Wd*1.02,DK,L/2+L*.07,y0+H*.08,0,g);for(const sz of[1,-1])mb(.5,.5,.5,CHR,L/2+L*.08,y0+H*.3,sz*Wd*.3,g);
+ mb(L*.05,H*.4,Wd*.98,DK,-L/2-L*.02,y0+H*.2,0,g);
+ /* roof: camera turret on the big ones, sensor mast and light strobes on all */
+ if(a.dome||t2)armTurret(g,L,Wd,Hh,PM,-L*.12);else{mb(L*.14,.9,Wd*.42,DK,-L*.14,Hh+.45,0,g);mq(CYH,DK,.14,3.4,.14,-L*.32,Hh+1.7,0,g)}
+ const m1=new THREE.MeshPhongMaterial({color:0xff9a00,emissive:0xff9a00,emissiveIntensity:1}),m2=new THREE.MeshPhongMaterial({color:0xffc000,emissive:0xffc000,emissiveIntensity:.1});mb(.6,.5,Wd*.14,m1,L*.08,Hh+.25,Wd*.34,g);mb(.6,.5,Wd*.14,m2,L*.08,Hh+.25,-Wd*.34,g);mb(.6,.5,Wd*.14,m1,-L*.36,Hh+.15,Wd*.34,g);mb(.6,.5,Wd*.14,m2,-L*.36,Hh+.15,-Wd*.34,g);g.userData.blink=[m1,m2];
+ SC.add(g);return g}
+function mkDomi(L,Wd,Hh,c,o){
+ const a=AK[o.nm],g=new THREE.Group(),wr=Math.min(1.9,.28*Hh+.5),y0=wr*.9,H=Hh-y0,PM=paintM(c),BK=paintM("#1d2125"),AM=paintM("#2a2f34"),six=/Dominator [34]/.test(o.nm),ax=six?[.34,.02,-.3]:[.3,-.3],tw=Wd*.15,sg="D|"+o.nm+"|"+L+"|"+Wd+"|"+Hh,hy=y0+H*.52;
+ armWheels(g,L,Wd,wr,y0,H,tw,ax,AM);
+ /* lower armored hull (black), upright cab and rear compartment in livery color */
+ ex([[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,hy-H*.08],[L*.28,hy],[-L/2,hy]],Wd*.98,BK,sg+"h",g);
+ ex([[L*.3,hy],[L*.12,Hh],[-L*.42,Hh],[-L/2+.2,Hh-H*.08],[-L/2+.2,hy]],Wd*.9,PM,sg+"c",g);
+ mb(L*.1,H*.22,Wd*.94,BK,L*.34,hy+H*.1,0,g);
+ armSkirts(g,L,Wd,wr,y0,H,ax,AM,DK);
+ {const dx=L*.3-L*.12,dy=hy-Hh,ln=Math.hypot(dx,dy),nx=-dy/ln,ny=dx/ln,cx=(L*.3+L*.12)/2,cy=(hy+Hh)/2,an=Math.atan2(dy,dx);mb(ln*1.02,.5,Wd*.78,BK,cx+nx*.12,cy+ny*.12,0,g).rotation.z=an;mb(ln*.9,.5,Wd*.66,GL,cx+nx*.28,cy+ny*.28,0,g).rotation.z=an}
+ for(const sz of[1,-1]){const zz=sz*(Wd*.45+.08);for(const wx of[L*.02,-L*.2]){mb(L*.17,H*.26,.22,BK,wx,Hh-H*.22,zz,g);mb(L*.14,H*.19,.26,GL,wx,Hh-H*.22,zz+sz*.04,g)}
+  mb(L*.9,.4,.12,AM,0,hy+H*.04,sz*(Wd*.46+.04),g);for(let i=-3;i<=3;i++)mb(.28,H*.2,.14,BK,i*L*.12,hy-H*.1,sz*(Wd*.5+.05),g);
+  if(a.strip)mb(L*.8,.5,.1,emM(a.strip),0,hy+H*.18,sz*(Wd*.46+.1),g);
+  mb(.3,.7,Wd*.16,emM(0xfff4c2),L/2+.05,y0+H*.28,sz*Wd*.3,g);mb(.3,.5,Wd*.12,emM(0xffa21a),L/2+.05,y0+H*.28,sz*Wd*.44,g);mb(.3,.7,Wd*.18,emM(0xd02828),-L/2-.05,y0+H*.3,sz*Wd*.3,g);
+  for(const fx of[1,-1]){const x=fx*L*.42,z=sz*(Wd/2+Wd*.02);mb(L*.08,H*.38,Wd*.1,DK,x,y0+H*.28,z,g);const sp=mq(CYH,CHR,.4,H*.45,.4,x,y0+H*.05,z,g);(g.userData.spk=g.userData.spk||[]).push([sp,y0+H*.05,H*.35])}}
+ /* bull bar, plow and grille */
+ mb(L*.04,H*.34,Wd*1.0,DK,L/2+L*.025,y0+H*.2,0,g);mb(.3,H*.2,Wd*.64,DK,L/2+.1,y0+H*.35,0,g);
+ mb(L*.05,H*.4,Wd*.98,DK,-L/2-L*.02,y0+H*.2,0,g);
+ /* roof gear */
+ const cc=-L*.08;mb(L*.5,.6,Wd*.84,AM,cc,Hh+.3,0,g);
+ const m1=new THREE.MeshPhongMaterial({color:0xff9a00,emissive:0xff9a00,emissiveIntensity:1}),m2=new THREE.MeshPhongMaterial({color:0xffc000,emissive:0xffc000,emissiveIntensity:.1});mb(Wd*.6,.5,1.2,DK,L*.12,Hh+.55,0,g);mb(Wd*.26,.5,1.1,m1,L*.12,Hh+.6,Wd*.15,g);mb(Wd*.26,.5,1.1,m2,L*.12,Hh+.6,-Wd*.15,g);g.userData.blink=[m1,m2];
+ if(a.rack){for(let i=0;i<4;i++)mb(.3,.3,Wd*.8,DK,cc-L*.15+i*L*.1,Hh+1.1,0,g);for(const sz of[1,-1])mb(L*.4,.3,.3,DK,cc,Hh+1.1,sz*Wd*.4,g)}
+ mq(CYH,DK,.14,3.6,.14,-L*.4,Hh+2,Wd*.3,g);mq(CYH,DK,.14,2.8,.14,-L*.4,Hh+1.6,-Wd*.3,g);mb(.9,.3,.3,CHR,-L*.4,Hh+3.5,Wd*.3,g);
+ if(a.wing){mb(1.2,.6,Wd*1.05,DK,-L/2-.4,Hh+1.2,0,g);for(const sz of[1,-1])mb(.5,2.6,.5,DK,-L/2-.2,Hh-.1,sz*Wd*.4,g)}
+ if(a.dome)armTurret(g,L,Wd,Hh+.5,PM,-L*.22);
+ g.userData.drop=y0*.92;SC.add(g);return g}
+
+/* ===== armored SUV Dominators: Dominator 1 (2007 Tahoe, roll cage), Dominator 2 (2011 Yukon XL, aero shell), Dominator 4 (4WARN-livery Dominator 2) ===== */
+let T4W=null;function tex4w(){if(T4W)return T4W;const cv=document.createElement("canvas"),W=800,Hc=240;cv.width=W;cv.height=Hc;const x=cv.getContext("2d");
+ const bolt=[[.55,0],[.15,.55],[.45,.55],[.3,1],[.85,.4],[.52,.4],[.75,0]];x.beginPath();bolt.forEach(([u,v],i)=>{const px=v*W*.98+8,py=Hc*(.5+(u-.5)*.5);i?x.lineTo(px,py):x.moveTo(px,py)});x.closePath();
+ x.fillStyle="#0b2f8a";x.fill();x.lineWidth=8;x.strokeStyle="#111111";x.lineJoin="round";x.stroke();
+ x.font="bold 70px sans-serif";x.textAlign="center";x.textBaseline="middle";x.lineWidth=14;x.strokeStyle="#111111";x.strokeText("4 WARN",W/2,Hc/2+6);x.fillStyle="#ffffff";x.fillText("4 WARN",W/2,Hc/2+6);
+ T4W=new THREE.CanvasTexture(cv);return T4W}
+function mkYukon(L,Wd,Hh,c,o){
+ const nm=o.nm,d1=nm=="Dominator 1",d4=nm=="Dominator 4",a=AK[nm],g=new THREE.Group(),wr=Math.min(1.9,.28*Hh+.5),y0=wr*.9,H=Hh-y0,PM=paintM(c),BK=paintM("#16191c"),AM=paintM("#2a2f34"),ax=[.3,-.3],tw=Wd*.15,sg="Y|"+nm+"|"+L+"|"+Wd+"|"+Hh;
+ const p1=d1?[L*.27,y0+H*.55]:[L*.22,y0+H*.72],p2=d1?[L*.15,Hh]:[L*.1,Hh];
+ armWheels(g,L,Wd,wr,y0,H,tw,ax,AM);
+ const prof=d1?[[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,y0+H*.4],[L*.34,y0+H*.5],[p1[0],p1[1]],[p2[0],p2[1]],[-L*.44,Hh],[-L/2,Hh-H*.06]]
+              :[[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,y0+H*.62],[L*.4,y0+H*.68],[p1[0],p1[1]],[p2[0],p2[1]],[-L*.26,Hh],[-L*.42,Hh-H*.14],[-L/2,y0+H*.5]];
+ ex(prof,Wd*.94,d1?BK:PM,sg+"b",g);
+ ex([[-L/2,y0+.3],[-L/2+.5,y0],[L/2-.5,y0],[L/2,y0+.5],[L/2,y0+H*.3],[-L/2,y0+H*.3]],Wd*.99,AM,sg+"l",g);
+ armSkirts(g,L,Wd,wr,y0,H,ax,AM,DK);
+ {const dx=p1[0]-p2[0],dy=p1[1]-p2[1],ln=Math.hypot(dx,dy),nx=-dy/ln,ny=dx/ln,cx=(p1[0]+p2[0])/2,cy=(p1[1]+p2[1])/2,an=Math.atan2(dy,dx);
+  mb(ln*1.02,.5,Wd*.8,BK,cx+nx*.12,cy+ny*.12,0,g).rotation.z=an;mb(ln*.9,.5,Wd*.68,GL,cx+nx*.28,cy+ny*.28,0,g).rotation.z=an}
+ const wxs=d1?[L*.04,-L*.2]:[L*.02,-L*.15,-L*.32];
+ for(const sz of[1,-1]){const zz=sz*(Wd*.46+.08);
+  for(const wx of wxs){mb(L*(d1?.2:.15),H*.28,.22,BK,wx,Hh-H*.22,zz,g);mb(L*(d1?.17:.12),H*.2,.26,GL,wx,Hh-H*.22,zz+sz*.04,g)}
+  mb(L*.9,.4,.12,AM,0,y0+H*.58,sz*(Wd*.47+.04),g);
+  if(d1)for(let i=-4;i<=4;i++){mb(.22,.22,.1,DK,i*L*.1,y0+H*.45,sz*(Wd*.48+.05),g);mb(.22,.22,.1,DK,i*L*.1,y0+H*.7,sz*(Wd*.48+.05),g)}
+  else{mb(.5,H*.22,.14,AM,L*.2,y0+H*.4,sz*(Wd*.48+.05),g);mb(.5,H*.22,.14,AM,-L*.18,y0+H*.4,sz*(Wd*.48+.05),g)}
+  mb(.3,.7,Wd*.16,emM(0xfff4c2),L/2+.05,y0+H*(d1?.26:.42),sz*Wd*.3,g);mb(.3,.45,Wd*.1,emM(0xffa21a),L/2+.05,y0+H*(d1?.26:.42),sz*Wd*.44,g);mb(.3,.7,Wd*.18,emM(0xd02828),-L/2-.05,y0+H*.3,sz*Wd*.3,g);
+  for(const fx of[1,-1]){const x=fx*L*.42,z=sz*(Wd/2+Wd*.02);mb(L*.08,H*.38,Wd*.1,DK,x,y0+H*.28,z,g);const sp=mq(CYH,CHR,.4,H*.45,.4,x,y0+H*.05,z,g);(g.userData.spk=g.userData.spk||[]).push([sp,y0+H*.05,H*.35])}}
+ /* bull bar and grille */
+ mb(L*.04,H*(d1?.34:.5),Wd*1.0,DK,L/2+L*.025,y0+H*(d1?.2:.28),0,g);
+ mb(L*.05,H*.4,Wd*.98,DK,-L/2-L*.02,y0+H*.2,0,g);
+ /* roof: light bar on all */
+ const m1=new THREE.MeshPhongMaterial({color:0xff9a00,emissive:0xff9a00,emissiveIntensity:1}),m2=new THREE.MeshPhongMaterial({color:0xffc000,emissive:0xffc000,emissiveIntensity:.1});
+ mb(Wd*.6,.5,1.2,DK,L*.06,Hh+.35,0,g);mb(Wd*.26,.5,1.1,m1,L*.06,Hh+.4,Wd*.15,g);mb(Wd*.26,.5,1.1,m2,L*.06,Hh+.4,-Wd*.15,g);g.userData.blink=[m1,m2];
+ if(d1){ /* external roll cage over the roof */
+  for(const sz of[1,-1]){for(const x of[L*.2,-L*.4]){mb(.3,H*.45,.3,CHR,x,Hh+H*.2,sz*Wd*.4,g)}mb(L*.62,.3,.3,CHR,-L*.1,Hh+H*.42,sz*Wd*.4,g)}
+  for(const x of[L*.2,-L*.4,-L*.1])mb(.3,.3,Wd*.8,CHR,x,Hh+H*.42,0,g);
+  for(const sz of[1,-1])mb(.3,H*.4,.3,CHR,L*.3,y0+H*.8,sz*Wd*.4,g).rotation.z=.9;
+  mb(L*.16,.7,Wd*.5,DK,-L*.25,Hh+H*.55,0,g);mq(CYH,DK,.14,3,.14,-L*.42,Hh+H*.2+1.5,Wd*.3,g)}
+ else{mb(L*.16,.9,Wd*.42,DK,-L*.12,Hh+.45,0,g);mb(L*.4,.35,Wd*.8,AM,-L*.18,Hh+.2,0,g);mq(CYH,DK,.14,3.4,.14,-L*.4,Hh+1.2,Wd*.3,g);mq(CYH,DK,.14,2.6,.14,-L*.4,Hh+.9,-Wd*.3,g);
+  if(a.rack){for(let i=0;i<3;i++)mb(.3,.3,Wd*.8,DK,-L*.3+i*L*.08,Hh+.8,0,g)}}
+ if(d4){const tx=tex4w(),mt=new THREE.MeshBasicMaterial({map:tx,transparent:true});
+  for(const sz of[1,-1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(L*.55,L*.55*.3),mt);pl.position.set(-L*.02,y0+H*.5,sz*(Wd*.47+.22));if(sz<0)pl.rotation.y=Math.PI;g.add(pl)}}
+ g.userData.drop=y0*.92;SC.add(g);return g}
+function mkVeh(L,Wd,Hh,c,o){o=o||{};if(o.nm&&AK[o.nm])return /^(TIV|Tornado interceptor)/.test(o.nm)?mkTIV(L,Wd,Hh,c,o):/^Dominator [124]$/.test(o.nm)?mkYukon(L,Wd,Hh,c,o):/^Dominator [3]$|^Dominator$/.test(o.nm)?mkDomi(L,Wd,Hh,c,o):mkInt(L,Wd,Hh,c,o);const g=new THREE.Group(),st=o.st||"suv",ch=o.cheap,wr=Math.min(1.5,.28*Hh+.4),y0=wr*.8,H=Hh-y0,PM=paintM(c),tw=Wd*.14,sg=st+"|"+L+"|"+Wd+"|"+Hh;
+  let yb=y0+H*.5,yt=Hh,xw=.15,xrf=0,xrr=-.4,xr=-.48,cx=0;
+  for(const fx of[1,-1])for(const sz of[1,-1]){const x=fx*L*.31,z=sz*(Wd/2-tw*.35);mq(CYH,TIRE,wr,tw,wr,x,wr,z,g).rotation.x=Math.PI/2;
+    if(!ch){mq(CYH,RIM,wr*.62,tw*1.04,wr*.62,x,wr,z,g).rotation.x=Math.PI/2;mq(CYH,MT2,wr*.2,tw*1.1,wr*.2,x,wr,z,g).rotation.x=Math.PI/2;mq(CYH,DK,wr*1.22,tw*.5,wr*1.22,x,wr,sz*(Wd/2-tw*.05),g).rotation.x=Math.PI/2}}
+  if(st!="box"){const p=SP[st]||SP.suv;xw=p[0];xrf=p[1];xrr=p[2];xr=p[3];const bf=p[4];yb=y0+H*bf;const bh=yb-y0,yhd=yb-bh*.2;
+    const top=/^(pickup|ute)$/.test(st)?[[xr*L,yb],[xr*L,y0+H*.3],[-L/2,y0+H*.3]]:[[xr*L,yb],[-L/2,yb-bh*.15]];
+    ex([[-L/2,y0+.7],[-L/2+.7,y0],[L/2-.7,y0],[L/2,y0+.7],[L/2,yhd],[xw*L,yb],...top],Wd,PM,sg+"b",g);
+    const ct=yt-.3;cx=(xrf+xrr)/2*L;ex([[xw*L,yb],[xrf*L,ct],[xrr*L,ct],[xr*L,yb]],Wd*.9,GL,sg+"c",g);
+    mb((xrf-xrr)*L+.4,.5,Wd*.92,PM,cx,yt-.15,0,g);mb(.7,ct-yb,Wd*.93,PM,cx-L*.02,(yb+ct)/2,0,g);
+    if(/^(pickup|ute)$/.test(st)){const bl=(xr+.5)*L-.6,bx0=-L/2+bl/2+.3,wy=y0+H*.3+H*.11;for(const sz of[-1,1])mb(bl,H*.22,.35,PM,bx0,wy,sz*(Wd/2-.15),g);mb(.35,H*.22,Wd,PM,-L/2+.2,wy,0,g);mb(.35,H*.22,Wd*.95,PM,xr*L-.2,wy,0,g);mb(bl,.2,Wd*.9,DK,bx0,y0+H*.3+.1,0,g)}
+    if(!ch){for(const sz of[-1,1]){mb(.5,.7,.5,PM,xw*L-.3,yb+.6,sz*(Wd/2+.35),g);
+        for(const dx of[L*.14,-L*.12]){mb(.14,bh*.9,.12,DK,cx+dx,y0+bh*.5+.05,sz*(Wd/2+.07),g);mb(.9,.22,.14,CHR,cx+dx+.7,yb-.4,sz*(Wd/2+.1),g)}
+        if(/suv|wagon|jeep|humvee/.test(st))mb((xrf-xrr)*L,.22,.28,DK,cx,yt+.25,sz*Wd*.34,g)}
+      if(st=="coupe"||st=="muscle")for(const sz of[-1,1])mb((xrf-xrr)*L+.4,.05,Wd*.09,WHM,cx,yt+.12,sz*Wd*.11,g);
+      if(st=="coupe"){for(const sz of[-1,1])mb(.4,1.2,.4,DK,-L/2+.8,yb+.5,sz*Wd*.3,g);mb(1.4,.25,Wd*.9,DK,-L/2+.8,yb+1.2,0,g)}
+      if(st=="muscle")mb(L*.12,.7,Wd*.3,DK,xw*L+L*.12,yhd+.3,0,g);
+      if(st=="jeep"||st=="humvee"){mq(CYH,TIRE,wr*.95,tw,wr*.95,-L/2-.9,y0+H*.6,0,g).rotation.z=Math.PI/2;mb(.5,H*.5,Wd,MT2,L/2+.6,y0+H*.4,0,g)}
+      if(o.arm){for(const sz of[-1,1])mb(L*.55,H*.3,.45,MT2,0,y0+H*.28,sz*(Wd/2+.1),g);mb(L*.22,.5,Wd*.92,MT2,xw*L+L*.12,yhd+.45,0,g);mb((xrf-xrr)*L*.8,.4,Wd*.8,MT2,cx,yt+.4,0,g);mb(.6,H*.5,Wd*1.02,MT2,L/2+.5,y0+H*.35,0,g)}
+      if(st=="humvee"){mq(CYH,MT2,Wd*.22,.5,Wd*.22,cx-L*.1,yt+.6,0,g);mb(2.6,.5,.5,DK,cx-L*.1+1.3,yt+1.1,0,g)}}
+  }else{const cl=L*.3,bxL=L-cl,ck=H*.95;cx=-cl/2;xw=0;
+    mb(bxL,ck,Wd,PM,-cl/2,y0+ck/2,0,g);
+    ex([[L/2-cl,y0],[L/2-.7,y0],[L/2,y0+.7],[L/2,y0+H*.5],[L/2-cl*.2,y0+H*.9],[L/2-cl,y0+H*.9]],Wd*.96,PM,sg+"cab",g);
+    ex([[L/2-.05,y0+H*.52],[L/2-cl*.2-.05,y0+H*.88],[L/2-cl*.75,y0+H*.88],[L/2-cl*.75,y0+H*.52]],Wd*.98,GL,sg+"wg",g);
+    for(let i=1;i<6;i++)for(const sz of[-1,1])mb(.25,ck*.96,.2,MT2,-L/2+i*bxL/6,y0+ck/2,sz*(Wd/2+.05),g);
+    mb(.2,ck*.9,Wd*.9,DK,-L/2-.05,y0+ck/2,0,g);mb(.6,.6,Wd*.96,MT2,-L/2-.1,y0+.3,0,g);yt=y0+ck;
+    if(o.cmp){for(const sz of[-1,1]){mb(bxL*.45,H*.28,.2,GL,-cl/2,y0+H*.6,sz*(Wd/2+.08),g);mb(bxL,H*.1,.15,ORM,-cl/2,y0+H*.3,sz*(Wd/2+.08),g)}mb(L*.12,1,Wd*.4,WHM,-L*.2,yt+.5,0,g)}
+    if(o.k=="dow"){const d=new THREE.Group(),dm=new THREE.Mesh(new THREE.SphereGeometry(1,18,10,0,Math.PI*2,0,Math.PI*.42),new THREE.MeshPhongMaterial({color:0xf2f4f6,side:2,shininess:80})),tl=new THREE.Group();
+      dm.scale.set(Wd*.42,Wd*.22,Wd*.42);dm.rotation.x=Math.PI;dm.castShadow=true;tl.add(dm);tl.position.y=Wd*.3+1.2;tl.rotation.z=.7;d.add(tl);mq(CYH,MT2,.4,Wd*.3+1.2,.4,0,(Wd*.3+1.2)/2,0,d);
+      d.position.set(-cl/2-L*.05,yt+.2,0);g.userData.dish=d;g.add(d)}}
+  if(o.nm&&AK[o.nm]){const a=AK[o.nm],SM=a.pm?PM:MT2,sy=y0+H*a.sh/2+.3;
+    for(const sz of[-1,1]){mb(L*a.sl,H*a.sh,.55,SM,-L*.02,sy,sz*(Wd/2+.28),g);
+      if(a.rib)for(let i=-2;i<=2;i++)mb(.3,H*a.sh,.75,DK,i*L*a.sl*.2,sy,sz*(Wd/2+.4),g);
+      if(a.strip)mb(L*a.sl*.9,.45,.12,emM(a.strip),-L*.02,sy+H*a.sh*.3,sz*(Wd/2+.62),g)}
+    mb((xrf-xrr)*L+1,.9,Wd*1.02,SM,cx,yt+.35,0,g);
+    mb(1.1,H*.55,Wd,MT2,L/2+.3,y0+H*.35,0,g).rotation.z=-.5;
+    for(const fx of[1,-1])for(const sz of[1,-1]){mq(CYH,DK,.95,H*.3,.95,fx*L*.39,y0+H*.2,sz*(Wd/2+.55),g);(g.userData.spk=g.userData.spk||[]).push([mq(CYH,CHR,.35,H*.34,.35,fx*L*.39,y0+H*.05,sz*(Wd/2+.55),g),y0+H*.05,H*.3])}
+    if(a.plow)mb(.9,H*.5,Wd*1.06,DK,L/2+.8,y0+H*.3,0,g);
+    if(a.lb){mb(Wd*.7,.6,1.4,DK,cx,yt+1.2,0,g);mb(Wd*.3,.5,1.2,emM(0xff9a00),cx,yt+1.35,Wd*.18,g);mb(Wd*.3,.5,1.2,emM(0xffc000),cx,yt+1.35,-Wd*.18,g)}
+    if(a.rack)for(let i=0;i<3;i++)mb(.3,.3,Wd*.8,DK,cx-L*.12+i*L*.12,yt+1,0,g);
+    if(a.wing){mb(1.2,.6,Wd*1.1,DK,-L/2-.4,yt+2.4,0,g);for(const sz of[-1,1])mb(.5,3,.5,DK,-L/2-.2,yt+1,sz*Wd*.4,g)}
+    if(a.grin)for(let i=-3;i<=3;i++)mb(.2,.9,Wd*.07,WHM,L/2+.45,y0+H*.3,i*Wd*.1,g);
+    if(a.dome){const dm=new THREE.Group();dm.position.set(cx-L*.04,yt+.9,0);g.add(dm);mq(CYH,DK,Wd*.2,.8,Wd*.2,0,0,0,dm);mq(SPH,PM,Wd*.17,Wd*.11,Wd*.17,0,.5,0,dm);mb(.5,.5,Wd*.12,DK,Wd*.1,.9,0,dm);g.userData.turret=dm}}
+  /* shared front/rear details */
+  mb(.5,.9,Wd*.98,MT2,L/2+.1,y0+.5,0,g);mb(.5,.9,Wd*.98,MT2,-L/2-.1,y0+.5,0,g);
+  for(const sz of[-1,1]){mb(.35,.9,Wd*.2,emM(0xfff4c2),L/2+.02,y0+H*.33,sz*Wd*.32,g);mb(.35,.8,Wd*.2,emM(0xd02828),-L/2-.02,y0+H*.35,sz*Wd*.32,g)}
+  if(!ch){mb(.35,H*.16,Wd*.36,DK,L/2+.03,y0+H*.3,0,g);mb(.3,.6,Wd*.2,WHM,-L/2-.12,y0+H*.2,0,g)}
+  const lb=(x,y)=>{const a=new THREE.MeshPhongMaterial({color:0xff8c00,emissive:0xff8c00,emissiveIntensity:1}),b=new THREE.MeshPhongMaterial({color:0xffb000,emissive:0xffb000,emissiveIntensity:.1});
+    mb(.8,.5,Wd*.8,DK,x,y,0,g);mb(.7,.55,Wd*.36,a,x,y+.05,Wd*.2,g);mb(.7,.55,Wd*.36,b,x,y+.05,-Wd*.2,g);g.userData.blink=[a,b]};
+  if(o.it){lb(cx,yt+.8);mq(CYH,MT2,.12,4,.12,cx-L*.2,yt+2.2,Wd*.3,g);mb(.6,H*.5,Wd*1.04,MT2,L/2+.6,y0+H*.3,0,g)}
+  if(o.k=="med"){lb(cx,yt+.5);for(const sz of[-1,1]){mb(2.2,.7,.12,RED,cx,y0+H*.4,sz*(Wd/2+.08),g);mb(.7,2.2,.12,RED,cx,y0+H*.4,sz*(Wd/2+.08),g)}}
+  if(o.k=="probe")for(let i=0;i<3;i++){const x=-L*.36+i*L*.08,z=(i-1)*Wd*.25;mq(CYH,ORM,.25,5,.25,x,y0+H*.3+2.5,z,g);mq(SPH,ORM,.6,.6,.6,x,y0+H*.3+5.2,z,g)}
+  if(o.k=="drone"){mb(L*.5,.25,Wd*.8,MT2,-L*.1,yt+.3,0,g);mb(2,.5,2,DK,-L*.1,yt+.8,0,g);mb(5,.15,.4,DK,-L*.1,yt+1,0,g);mb(.4,.15,5,DK,-L*.1,yt+1,0,g)}
+  if(o.k=="mes"){mq(CYH,MT2,.15,7,.15,-L*.3,yt+3.5,0,g);for(let i=0;i<3;i++){const a=i*2.09;mq(SPH,CHR,.5,.5,.5,-L*.3+Math.cos(a)*1.2,yt+7,Math.sin(a)*1.2,g)}}
+  if(o.k=="cam"){mq(SPH,WHM,1.5,1.5,1.5,cx,yt+.6,0,g);mb(1.6,.9,.9,DK,cx+1.2,yt+1.4,0,g)}
+  if(o.nm=="Tow Truck"){mb(L*.32,.6,.6,DK,-L*.28,yt+.7,0,g).rotation.z=.35;mb(.4,.4,2.2,ORM,-L*.42,yt+1.4,0,g)}
+  if(!o.sub)SC.add(g);return g}
+const PV={g:null,v:null},SV={g:null,s:null};
+const FG=new THREE.Group();bx(1.6,3.4,1,0x2a6fd9,0,2.6,0,FG);me(SPH,0xf0c8a0,.8,.8,.8,0,4.7,0,FG);SC.add(FG);
+/* probes, debris, drone, scanner ring */
+{const G3=new THREE.Group(),cv=document.createElement("canvas");cv.width=256;cv.height=128;const c2=cv.getContext("2d");c2.fillStyle="#ffc400";c2.fillRect(0,0,256,128);c2.fillStyle="#222";c2.font="bold 52px sans-serif";c2.textAlign="center";c2.textBaseline="middle";c2.fillText("GARAGE",128,66);const tx=new THREE.CanvasTexture(cv);
+ for(const t of TOWNS){const r=new THREE.Mesh(new THREE.RingGeometry(GARR-5,GARR,48),new THREE.MeshBasicMaterial({color:0xffc400,side:THREE.DoubleSide}));r.rotation.x=-Math.PI/2;r.position.set(t.x,.4,t.y);G3.add(r);
+  const d=new THREE.Mesh(new THREE.CircleGeometry(GARR-5,40),new THREE.MeshBasicMaterial({color:0xffc400,transparent:true,opacity:.18,side:THREE.DoubleSide}));d.rotation.x=-Math.PI/2;d.position.set(t.x,.3,t.y);G3.add(d);
+  const pl=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,22,8),new THREE.MeshLambertMaterial({color:0x444444}));pl.position.set(t.x+GARR+4,11,t.y);G3.add(pl);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx}));sp.scale.set(26,13,1);sp.position.set(t.x+GARR+4,28,t.y);G3.add(sp)}SC.add(G3)}
+const NG=[];for(let i=0;i<10;i++){const g=new THREE.Group();me(CY,0x444444,.3,7,.3,0,3.5,0,g);me(CY,0x3a7bd5,4,.3,4,0,.15,0,g);const s=new THREE.Mesh(SPH,new THREE.MeshLambertMaterial({color:0x66aaff}));s.scale.set(2,2,2);s.position.y=7.5;g.add(s);g.visible=false;SC.add(g);NG.push(g)}
+const PG=[];for(let i=0;i<10;i++){const g=new THREE.Group();me(CY,0x444444,.3,7,.3,0,3.5,0,g);me(CY,0xe87a2a,4,.3,4,0,.15,0,g);const s=new THREE.Mesh(SPH,new THREE.MeshLambertMaterial({color:0xe87a2a}));s.scale.set(2,2,2);s.position.y=7.5;g.add(s);g.userData.s=s;g.visible=false;SC.add(g);PG.push(g)}
+const IM=new THREE.InstancedMesh(UB,mat(0x2a2420),260),DM=new THREE.Object3D();IM.frustumCulled=false;SC.add(IM);
+const DR=new THREE.Group();bx(2,.6,2,0x333333,0,0,0,DR);bx(7,.3,.6,0xffffff,0,.4,0,DR);bx(.6,.3,7,0xffffff,0,.4,0,DR);DR.visible=false;SC.add(DR);
+const RG=new THREE.Mesh(new THREE.RingGeometry(.99,1,72),new THREE.MeshBasicMaterial({color:0xe8c44a,transparent:true,opacity:.5,side:2}));RG.rotation.x=-Math.PI/2;RG.position.y=2;RG.visible=false;SC.add(RG);
+/* tornado */
+const TX=(()=>{const c=document.createElement("canvas");c.width=128;c.height=64;const x=c.getContext("2d");x.fillStyle="#8a949c";x.fillRect(0,0,128,64);
+  for(let i=0;i<80;i++){x.fillStyle=i%2?"rgba(40,46,52,.4)":"rgba(200,208,214,.35)";x.fillRect(Math.random()*128,0,2+Math.random()*10,64)}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t})();
+function mkFun(n){const g=new THREE.Group(),a=[];for(let i=0;i<n;i++){const m=new THREE.Mesh(CYO,new THREE.MeshBasicMaterial({map:TX,transparent:true,opacity:.82,side:2,depthWrite:false}));m.material.color.set(0x8a7a66).lerp(new THREE.Color(0x3a424a),i/n);g.add(m);a.push(m)}SC.add(g);return{g,a,n}}
+function setFun(f,x,y,R,Ht,ph){f.g.visible=true;f.a.forEach((m,i)=>{const q=i/f.n,w=R*(T.sn=="Stovepipe"?.75:(.45+q*q*1.6+q*.4))*(1+.06*Math.sin(ph+q*9));
+  m.scale.set(w,Ht/f.n*1.15,w);m.position.set(x+Math.sin(ph*.7+q*5)*(8+q*30),(i+.5)*Ht/f.n,y);m.rotation.y=ph*(1+q*.5)*.5})}
+const TF=mkFun(18),TS=[mkFun(10),mkFun(10)];
+const WC=new THREE.Mesh(CY,new THREE.MeshBasicMaterial({color:0x20272d,transparent:true,opacity:.92}));SC.add(WC);
+let CH=0,CYW=0,CP=.45,CD=200;const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const PS=[[.45,200,"Chase view"],[.9,330,"High view"],[1.35,520,"Overhead view"],[.2,90,"Low view"]];let vi=1;
+const pts=new Map();let orb=0,pd=0;
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("wheel",e=>{e.preventDefault();CD=cl(CD*Math.exp(e.deltaY*.001),40,900)},{passive:false});
+cv.addEventListener("pointerdown",e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(e.button==2)orb=1;if(orb||pts.size>1){ptr=null;pd=0}});
+cv.addEventListener("pointermove",e=>{const o=pts.get(e.pointerId);if(!o)return;const dx=e.clientX-o.x,dy=e.clientY-o.y;o.x=e.clientX;o.y=e.clientY;
+  if(orb){ptr=null;CYW+=dx*.006;CP=cl(CP+dy*.005,.08,1.45)}
+  else if(pts.size==2){ptr=null;const[a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pd)CD=cl(CD*pd/d,40,900);pd=d;CYW+=dx*.004;CP=cl(CP+dy*.003,.08,1.45)}});
+const pe=e=>{pts.delete(e.pointerId);if(!pts.size)orb=0;pd=0;ptr=null};addEventListener("pointerup",pe);addEventListener("pointercancel",pe);
+addEventListener("keydown",e=>{if(e.key.toLowerCase()=="v"&&running){const q=PS[vi++%PS.length];CP=q[0];CD=q[1];CYW=0;toast(q[2])}});
+/* frame */
+function draw(t){
+  const F=P.foot||P,R=rad(),Ht=(260+T.p*2.2)*2.2;
+  const dt=Math.min(.05,(t-(draw.l||t))/1000);draw.l=t;
+  if(draw.P!==P){draw.P=P;CH=P.h;CYW=0}
+  if(!P.foot){let df=P.h-CH;df=Math.atan2(Math.sin(df),Math.cos(df));CH+=df*Math.min(1,dt*3)}
+  if(keys.j)CYW+=dt*1.8;if(keys.l)CYW-=dt*1.8;if(keys.i)CP=cl(CP+dt*1.2,.08,1.45);if(keys.k)CP=cl(CP-dt*1.2,.08,1.45);
+  if(keys.z)CD=cl(CD*Math.exp(-dt*1.5),40,900);if(keys.x)CD=cl(CD*Math.exp(dt*1.5),40,900);
+  const cx=Math.cos(CH),cz=Math.sin(CH),dr=CH+CYW,hz=CD*Math.cos(CP);
+  CAM.position.set(F.x-Math.cos(dr)*hz,CD*Math.sin(CP)+3,F.y-Math.sin(dr)*hz);CAM.lookAt(F.x+cx*CD*.1,4,F.y+cz*CD*.1);updWx(dt);SKY.position.set(F.x,0,F.y);CLD.position.set(F.x,2300,F.y);CT.offset.x+=dt*.003;DL.target.position.set(F.x,0,F.y);DL.position.set(F.x-260,520,F.y+220);
+  syncObjs();
+  if(PV.v!==V){if(PV.g)SC.remove(PV.g);PV.v=V;PV.g=mkVeh(V.w,V.h,V.ht,V.c,{nm:V.n,st:VS[V.n]||"suv",arm:!AK[V.n]&&/Armored|Riot|humvee|interceptor|TIV|Dominator|Joker|Ranger|Sentinel|Warden|Juggernaut|Prototype/i.test(V.n),it:V.int,cmp:/Camper/.test(V.n)})}
+  {const ks=up.join(",")+"|"+V.n;if(PV.ks!==ks||PV.kgOf!==PV.g){if(PV.kg&&PV.kgOf)PV.kgOf.remove(PV.kg);PV.kg=kitVis(V);PV.g.add(PV.kg);PV.ks=ks;PV.kgOf=PV.g}}
+  PV.g.position.set(P.x,-(PV.g.userData.drop||1.2)*P.ap,P.y);PV.g.rotation.y=-P.h;drawCT(t);if(PV.g.userData.turret)PV.g.userData.turret.rotation.y=T.ph*.3;if(PV.g.userData.spk)for(const q of PV.g.userData.spk)q[0].position.y=q[1]+(1-P.ap)*q[2];if(PV.g.userData.flaps)for(const q of PV.g.userData.flaps)q[0].position.y=q[1]-q[2]*P.ap;
+  for(const n of NP){if(!n.g)n.g=mkVeh(n.k.w,n.k.h,n.k.ht,n.k.c,{st:VS[n.k.n]||"suv"});n.g.position.set(n.x,0,n.y);n.g.rotation.y=-n.h;n.g.visible=Math.hypot(n.x-F.x,n.y-F.y)<3500}
+  FG.visible=!!P.foot;if(P.foot)FG.position.set(P.foot.x,0,P.foot.y);
+  if(SV.s!==S){if(SV.g)SC.remove(SV.g);SV.s=S;SV.g=S?mkVeh(SDIM[S.k][0],SDIM[S.k][1],SDIM[S.k][2],S.c,{st:SS[S.k],k:S.k}):null}
+  RG.visible=!!(S&&S.dep);
+  if(SV.g){SV.g.position.set(S.x,0,S.y);SV.g.rotation.y=-S.h;const d=SV.g.userData.dish;if(d)d.rotation.y=T.ph*(S.dep?.6:0);
+    if(S.dep){RG.position.x=S.x;RG.position.z=S.y;const r=S.k=="dow"?(S.big?1300:900):550;RG.scale.set(r,r,1)}}
+  NG.forEach((g,i)=>{const p=NPR[i];g.visible=!!p;if(p)g.position.set(p.x,0,p.y)});
+  PG.forEach((g,i)=>{const p=PR[i];g.visible=!!p;if(p){g.position.set(p.x,0,p.y);g.userData.s.material.color.set((p.hp!==undefined&&p.hp<40)?0xff3030:p.q==1?0xffffff:0x99ffdd)}});
+  const nd=Math.min(260,debris.length);IM.count=nd;
+  for(let i=0;i<nd;i++){const d=debris[i];DM.position.set(d.x,d.z+d.s/2,d.y);DM.scale.set(d.s,d.s,d.s);DM.rotation.set(d.x,d.y,0);DM.updateMatrix();IM.setMatrixAt(i,DM.matrix)}IM.instanceMatrix.needsUpdate=true;
+  const D=S&&S.dr;DR.visible=!!D;if(D){DR.position.set(D.x,24,D.y);DR.rotation.y+=.3}
+  TF.g.visible=T.cd<=0;if(T.cd<=0)setFun(TF,T.x,T.y,R,Ht,T.ph);
+  TS.forEach((f,i)=>{const s=(T.ss||[])[i];f.g.visible=!!s&&T.cd<=0;if(s&&T.cd<=0)setFun(f,s.x,s.y,s.r,Ht*.6,T.ph*1.3+i)});
+  WC.position.set(T.x,Ht+25,T.y);WC.scale.set(R*8+300,90,R*8+300);
+  for(const q of[PV.g,SV.g]){const bl=q&&q.userData.blink;if(bl){const on=(t/200|0)%2;bl[0].emissiveIntensity=on?1:.08;bl[1].emissiveIntensity=on?.08:1}}
+  R3.render(SC,CAM);
+  /* 2D overlay: off-screen arrow, rain, lightning */
+  g.clearRect(0,0,W,H);
+  const v=new THREE.Vector3(T.x,120,T.y).project(CAM),sx=(v.x*.5+.5)*W,sy=(-v.y*.5+.5)*H;
+  if(v.z>1||sx<20||sx>W-20||sy<20||sy>H-20){let a=Math.atan2(sy-H/2,sx-W/2);if(v.z>1)a+=Math.PI;const rr=Math.min(W,H)/2-40,px=W/2+Math.cos(a)*rr,py=H/2+Math.sin(a)*rr;
+    g.save();g.translate(px,py);g.rotate(a);g.fillStyle="#e8c44a";g.beginPath();g.moveTo(14,0);g.lineTo(-10,-10);g.lineTo(-10,10);g.fill();g.restore();
+    g.fillStyle="#fff";g.font="12px sans-serif";g.textAlign="center";g.fillText(Math.round(Math.hypot(T.x-F.x,T.y-F.y)/3)+" m",px,py+26)}
+  const rn=wx=="rain"||wx=="thunderstorm"||wx=="hail";g.strokeStyle="rgba(200,215,230,.35)";g.lineWidth=1;g.beginPath();
+  for(const r of (rn?rain:[])){const y=(r.y+t*.9)%H,x=(r.x*W/2000)%W;g.moveTo(x,y);g.lineTo(x-4,y+14)}g.stroke();if(wx=="hail"){g.fillStyle="rgba(240,248,255,.85)";for(const r of rain){const y=(r.y*1.3+t*1.4)%H,x=(r.x*W/2000*1.1)%W;g.beginPath();g.arc(x,y,2.4,0,7);g.fill()}}
+  if(flash>0){g.fillStyle="rgba(255,255,255,"+flash*.4+")";g.fillRect(0,0,W,H)}
+}
+function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;
+  if(running){update(dt*DEV.ts);updAudio();if(Math.random()<(wx=="thunderstorm"?.012:wx=="rain"?.003:.0006)){flash=1;setTimeout(thunder,300+Math.random()*1500)}flash=Math.max(0,flash-dt*3)}draw(t);if(!ms.hidden)drawMap();drawMini();if(!dp.hidden&&running)dr.textContent="Power "+T.p.toFixed(1)+"  EF"+ef()+"  Tornado "+Math.round(Math.hypot(T.x-P.x,T.y-P.y)/3)+" m  Life "+Math.round(T.life)+"s";requestAnimationFrame(loop)}
+/* road helpers: grid roads every 800 units starting at 200, two lanes, drive on the right */
+const RDL=c=>Math.max(200,Math.min(15400,Math.round((c-200)/800)*800+200));
+function roadSnap(n,tp){const kx=RDL(n.x),ky=RDL(n.y);if(Math.abs(n.x-kx)<=Math.abs(n.y-ky)){n.ax="y";n.line=kx;n.dir=Math.sin(n.h)>=0?1:-1}else{n.ax="x";n.line=ky;n.dir=Math.cos(n.h)>=0?1:-1}
+ n.go=null;if(tp){const ln=n.line+7*(n.ax=="x"?n.dir:-n.dir);if(n.ax=="x")n.y=ln;else n.x=ln;n.h=n.ax=="x"?(n.dir>0?0:Math.PI):(n.dir>0?Math.PI/2:-Math.PI/2)}}
+function pickTurn(n,cx,cy,d,st,R){const vx=n.ax=="x"?n.dir:0,vy=n.ax=="y"?n.dir:0,opts=[];
+ const ok=(ax,dir)=>{const a=ax=="x"?cx:cy;const nx=a+dir*800;return nx>=200&&nx<=15400};
+ if(ok(n.ax,n.dir))opts.push({ax:n.ax,dir:n.dir,line:n.line,w:.5});
+ const rv=[-vy,vx],lv=[vy,-vx];
+ for(const [v,w] of [[rv,.25],[lv,.25]]){const ax=v[0]!=0?"x":"y",dir=v[0]||v[1];if(ok(ax,dir))opts.push({ax,dir,line:ax=="x"?cy:cx,w})}
+ if(!opts.length)return{ax:n.ax,dir:-n.dir,line:n.line};
+ if(T.cd<=0&&d>st){let best=opts[0],bd=1e9;for(const o of opts){const ox=o.ax=="x"?o.dir:0,oy=o.ax=="y"?o.dir:0,dd=Math.hypot(cx+ox*700-T.x,cy+oy*700-T.y);if(dd<bd){bd=dd;best=o}}return{ax:best.ax,dir:best.dir,line:best.line}}
+ let r=Math.random()*opts.reduce((a,o)=>a+o.w,0);for(const o of opts){r-=o.w;if(r<=0)return{ax:o.ax,dir:o.dir,line:o.line}}const o=opts[0];return{ax:o.ax,dir:o.dir,line:o.line}}
+let LA=0;
+const DEV={god:0,ts:1,freeze:0};
+const HELP=[["W / S","Gas and brake / reverse"],["A / D","Steer (arrow keys or dragging also work)"],["E","Use your support vehicle's ability; on foot, place or pick up a probe"],["F","Get out of / back into your vehicle"],["Q","Take a storm photo"],["B","Deploy / raise anchors (interceptors only)"],["G","Open the garage when in a town's yellow circle; otherwise headlights"],["Space","Horn (hold to keep honking)"],["Y / U","Left / right turn signal"],["T","Hazard lights"],["N","Cruise control on / off"],["P","Parking brake"],["R","Radar mode: reflectivity / velocity"],["O","Switch radar site"],["M","Mute / unmute sound"],["V","Switch camera view"],["J L I K / right-drag","Orbit the camera"],["Z X / scroll","Zoom the camera"],["Lane assist","Automatic on roads: keeps you in the right lane. Off when you steer, reverse, or are within 300 m of the tornado"],["?","Show this help again"]];
+let HK="twisted-hide-help";const hideHelp=()=>{try{return localStorage.getItem(HK)=="1"}catch(e){return false}};
+const hpEl=document.createElement("div");hpEl.style.cssText="position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:12px;box-sizing:border-box";
+hpEl.innerHTML='<div style="position:relative;max-width:520px;width:100%;max-height:90%;overflow:auto;background:#10201a;color:#e8f3ee;border:2px solid #39ff14;border-radius:12px;padding:18px 20px;font:14px sans-serif"><button id="hx" aria-label="Close" style="position:absolute;top:8px;right:10px;width:34px;height:34px;font-size:20px;line-height:1;border-radius:8px;border:2px solid #39ff14;background:transparent;color:#e8f3ee;cursor:pointer;margin:0;padding:0">\u2715</button><h2 style="margin:0 0 10px;font-size:20px">Controls</h2><div id="hl"></div><button id="hn" style="margin-top:14px;padding:8px 14px;font:inherit;border-radius:8px;border:2px solid #39ff14;background:transparent;color:#e8f3ee;cursor:pointer">Don\u2019t show this again</button></div>';
+document.body.appendChild(hpEl);
+$("hl").innerHTML=HELP.map(([k,d])=>'<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.1)"><b style="flex:0 0 150px;color:#39ff14">'+k+'</b><span>'+d+'</span></div>').join("");
+function openHelp(force){if(!force&&hideHelp())return;if(helpOpen||garage)return;helpOpen=true;keys={};ptr=null;hpEl.dataset.was=running?"1":"";running=false;hpEl.style.display="flex"}
+function closeHelp(){if(!helpOpen)return;helpOpen=false;hpEl.style.display="none";running=true;last=performance.now()}
+$("hx").onclick=closeHelp;$("hn").onclick=()=>{try{localStorage.setItem(HK,"1")}catch(e){}closeHelp();toast("Controls help hidden. Press ? to show it again")};
+const gpEl=document.createElement("div");gpEl.style.cssText="position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:10px 18px;background:rgba(20,16,0,.85);color:#ffc400;border:2px solid #ffc400;border-radius:10px;font:bold 16px sans-serif;z-index:5;display:none;cursor:pointer";gpEl.onpointerdown=e=>{e.stopPropagation();if(GN&&running&&!P.foot&&Math.abs(P.v)<60)openGarage(GN)};document.body.appendChild(gpEl);
+function openGarage(tn){if(!running||P.foot||garage)return;garage=tn;running=false;keys={};ptr=null;gpEl.style.display="none";
+ $("msg").style.display="";$("mp").style.display="none";$("lg2").style.display="none";$("sb").style.display="none";document.querySelector("#in h1").textContent=tn.n+" Garage";
+ $("go").textContent="Leave garage";$("go").onclick=closeGarage;$("mm").textContent="Buy upgrades or switch vehicles. Hull, fuel and probes are restored when you leave. (G or Esc also leaves.)";build();$("eb").hidden=true;$("fb").hidden=true}
+function applyLoadout(){V=VEH[sv];P.arm=V.arm;P.mx=4+kit("px")+(V.px||0)+(up.includes(1)?4:0)+(S&&S.k=="probe"?6:0);P.pn=P.mx;P.fm=Math.round((80+V.m*1.5)*(1+kit("fc2")+(hasKit("fc")?.4:0)));P.fuel=P.fm;P.sp=V.spd*(up.includes(2)?1.12:1)*(1+kit("sp"));if(up.includes(3))P.arm=Math.min(.85,P.arm+.15);P.arm=Math.min(.85,P.arm+kit("ar"));P.ad=V.int?2+V.int*1.2:.7;P.hp=100;P.v=0;P.anch=false;P.ap=0;P.dn=0;P.st=0}
+function closeGarage(){if(!garage)return;applyLoadout();garage=null;$("msg").style.display="none";$("mp").style.display="";$("lg2").style.display="";$("sb").style.display="";document.querySelector("#in h1").textContent="Twisted";
+ $("go").textContent="Start chase";$("go").onclick=start;$("mm").textContent="";$("eb").hidden=false;$("fb").hidden=false;running=true;last=performance.now();toast("Back on the road")}
+const dp=document.createElement("div");dp.id="dp";dp.hidden=true;document.body.appendChild(dp);
+
+const dh=document.createElement("b");dh.textContent="Dev panel (` toggles)";dp.appendChild(dh);
+const dr=document.createElement("div");dr.id="dr";dr.textContent="Start a chase to see storm stats";dp.appendChild(dr);
+function A(l,f){const b=document.createElement("button");b.textContent=l;b.onclick=e=>{e.stopPropagation();f(b);save();build()};dp.appendChild(b);return b}
+A("+$1,000",()=>cash+=1000);A("+$10,000",()=>cash+=10000);
+A("Unlock interceptors",()=>{for(const v of VEH)if(v.icp&&!ov.includes(v.n))ov.push(v.n)});
+A("Unlock everything",()=>{ov=VEH.map(v=>v.n);os=SUP.map(s=>s.n);ou=UP.map((u,i)=>i)});
+A("Reset progress",()=>{cash=200;xp=0;ov=["Old hatchback"];os=["No support"];ou=[];up=[];sv=VEH.findIndex(v=>v.n=="Old hatchback");ss=0;try{localStorage.removeItem(SK)}catch(e){}});
+A("God mode: off",b=>{DEV.god^=1;b.textContent="God mode: "+(DEV.god?"on":"off")});
+A("Freeze tornado: off",b=>{DEV.freeze^=1;b.textContent="Freeze tornado: "+(DEV.freeze?"on":"off")});
+A("Time scale: 1x",b=>{const o=[1,2,4,.5];DEV.ts=o[(o.indexOf(DEV.ts)+1)%4];b.textContent="Time scale: "+DEV.ts+"x"});
+A("Refill probes and heal",()=>{if(running){P.pn=P.mx;P.hp=100;if(P.foot)P.foot.hp=100}});
+A("Teleport to tornado",()=>{if(running){P.foot=null;P.x=Math.max(20,Math.min(WS-20,T.x-450));P.y=T.y}});
+A("+1000 data",()=>{if(running)score+=1000});
+A("End chase",()=>{if(running)end("Chase ended from the dev panel.")});
+const dl=document.createElement("label");dl.textContent="Tornado power";dp.appendChild(dl);
+const sl=document.createElement("input");sl.type="range";sl.min=0;sl.max=150;sl.value=20;sl.oninput=()=>{if(running)T.p=+sl.value};dp.appendChild(sl);
+const ms=document.createElement("div");ms.id="ms";ms.hidden=true;ms.innerHTML='<h1>Radar and spawn select</h1><canvas id="mc" width="560" height="560"></canvas><p id="mt"></p><button id="mb">Spawn here</button>';document.body.appendChild(ms);
+const mc=$("mc"),mg=mc.getContext("2d"),MK=560/WS;let hov=-1;
+function drawMap(){mg.fillStyle="#4a5e3a";mg.fillRect(0,0,560,560);mg.fillStyle="#55693f";for(let x=0;x<WS;x+=400)for(let y=0;y<WS;y+=400)if((x+y)/400%2==0)mg.fillRect(x*MK,y*MK,400*MK,400*MK);
+ mg.fillStyle="#3d4147";for(let k=200;k<WS;k+=800){mg.fillRect((k-14)*MK,0,28*MK,560);mg.fillRect(0,(k-14)*MK,560,28*MK)}
+ mg.strokeStyle="rgba(120,150,130,.7)";mg.lineWidth=2;HWYS.forEach(p=>{mg.beginPath();p.forEach((q,i)=>i?mg.lineTo(q.x*MK,q.y*MK):mg.moveTo(q.x*MK,q.y*MK));mg.stroke()});
+ mg.fillStyle="#ffd23f";LM.forEach(l=>{mg.beginPath();mg.arc(l.x*MK,l.y*MK,3,0,7);mg.fill()});
+ {const tw=TOWNS[spawn],S0=STORMS[FC.st],sx=FC.x,sy=FC.y;
+ {const st=sitePos();mg.strokeStyle="rgba(57,255,20,.45)";mg.lineWidth=1.5;mg.beginPath();mg.arc(st.x*MK,st.y*MK,RS[rsite].r*MK,0,7);mg.stroke();mg.fillStyle="#39ff14";mg.fillRect(st.x*MK-4,st.y*MK-4,8,8)}
+ if(cov(sx,sy))echo(mg,sx*MK,sy*MK,Math.max(4,120*S0.wm*MK),FC.st);else{mg.fillStyle="#ff7a1a";mg.font="bold 13px sans-serif";mg.textAlign="left";mg.fillText("Storm outside radar coverage. Switch site (O).",10,24)}
+ $("rs").textContent="Radar: "+RS[rsite].n+" ("+sitePos().n+", "+(RS[rsite].r>6000?"wide":"high-res")+") (O)";$("rb").textContent="Radar: "+(rmode?"Velocity":"Reflectivity")+" (R)";
+ const a=performance.now()/700;mg.strokeStyle="rgba(120,255,140,.4)";mg.lineWidth=2;mg.beginPath();mg.moveTo(tw.x*MK,tw.y*MK);mg.lineTo(tw.x*MK+Math.cos(a)*420,tw.y*MK+Math.sin(a)*420);mg.stroke()}
+ TOWNS.forEach((t,i)=>{const x=t.x*MK,y=t.y*MK,sel=i==spawn;mg.fillStyle=sel?"rgba(232,196,74,.35)":"rgba(255,255,255,.14)";mg.beginPath();mg.arc(x,y,300*MK,0,7);mg.fill();
+  mg.fillStyle=sel?"#e8c44a":i==hov?"#fff":"#d94a3a";mg.beginPath();mg.arc(x,y,sel?9:7,0,7);mg.fill();mg.strokeStyle="#111";mg.lineWidth=2;mg.stroke();
+  mg.font="bold 13px sans-serif";mg.textAlign="center";mg.fillStyle="#fff";mg.strokeStyle="rgba(0,0,0,.7)";mg.lineWidth=3;mg.strokeText(t.n,x,y-14);mg.fillText(t.n,x,y-14)});
+ mg.strokeStyle="#222";mg.lineWidth=4;mg.strokeRect(0,0,560,560);$("mt").textContent="Spawn: "+TOWNS[spawn].n+" ("+TOWNS[spawn].d+"). Forecast: "+STORMS[FC.st].sn+" storm, "+STORMS[FC.st].fc+" expected.";th.textContent=thermo()}
+function mhit(e){const r=mc.getBoundingClientRect(),x=(e.clientX-r.left)*560/r.width/MK,y=(e.clientY-r.top)*560/r.height/MK;let b=-1,bd=900;TOWNS.forEach((t,i)=>{const d=Math.hypot(t.x-x,t.y-y);if(d<bd){bd=d;b=i}});return b}
+mc.onpointermove=e=>{const i=mhit(e);if(i!=hov){hov=i;drawMap()}};
+mc.onpointerdown=e=>{const i=mhit(e);if(i>=0){spawn=i;drawMap()}};
+function spl(){$("sb").textContent="Radar and spawn: "+TOWNS[spawn].n+" (change)"}spl();
+$("mb").onclick=()=>{ms.hidden=true;spl()};$("sb").onclick=()=>{ms.hidden=false;drawMap()};
+requestAnimationFrame(loop);
+const mi=document.createElement("div");mi.style.cssText="position:fixed;left:8px;top:calc(60px + env(safe-area-inset-top,0px));background:var(--hud);padding:6px 10px;border-radius:8px;font-size:12.5px;line-height:1.5;pointer-events:none;max-width:230px";mi.hidden=true;document.body.appendChild(mi);
+A("Next storm type",()=>{FC.st=(FC.st+1)%STORMS.length;if(running){const p=T.p;(T.fog=0,Object.assign(T,STORMS[FC.st]));T.p=p}});
+A("Next weather",()=>{wx=nextWx();wxT=80});
+let rmode=0;
+function echo(c,x,y,r,st){if(rmode==0){[["rgba(60,200,80,.35)",5.5],["rgba(240,220,60,.45)",3.4],["rgba(240,120,40,.55)",2],["rgba(230,40,40,.7)",1]].forEach(([k,m])=>{c.fillStyle=k;c.beginPath();c.arc(x,y,Math.max(2,r*m),0,7);c.fill()});
+ if(wx=="hail"){c.fillStyle="rgba(255,190,230,.8)";c.beginPath();c.arc(x+r*.8,y-r*.4,Math.max(1.5,r*.7),0,7);c.fill()}if(st!=0){c.strokeStyle="rgba(230,40,40,.8)";c.lineWidth=Math.max(1.5,r*.5);c.beginPath();c.arc(x-r*1.6,y+r*1.5,r*1.4,-1.2,2.2);c.stroke()}}
+ else{const q=Math.max(3,r*1.6);c.fillStyle="rgba(60,220,90,.7)";c.beginPath();c.arc(x-q*.55,y,q,Math.PI/2,Math.PI*1.5);c.fill();c.fillStyle="rgba(240,60,60,.75)";c.beginPath();c.arc(x+q*.55,y,q,-Math.PI/2,Math.PI/2);c.fill()}
+ if(st!=0){c.fillStyle=["#ffd23f","#ff7a1a","#ff2fd6"][((FC.x*7|0)+st)%3];c.beginPath();c.moveTo(x,y-r*1.2);c.lineTo(x-r,y+r*.8);c.lineTo(x+r,y+r*.8);c.fill()}}
+const rb=document.createElement("button");rb.id="rb";rb.className="tab";rb.onclick=()=>{rmode^=1};ms.insertBefore(rb,$("mb"));
+const rd=document.createElement("canvas");rd.width=rd.height=190;rd.style.cssText="position:fixed;left:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));width:150px;height:150px;border-radius:50%;border:2px solid #2c5a2c;background:#0a120d;z-index:6;pointer-events:none";rd.hidden=true;document.body.appendChild(rd);
+const rg=rd.getContext("2d");
+function drawMini(){if(!running){rd.hidden=true;return}rd.hidden=false;const F=P.foot||P,k=95/3200;rg.clearRect(0,0,190,190);rg.save();rg.translate(95,95);rg.fillStyle="#0a120d";rg.fillRect(-95,-95,190,190);
+ rg.strokeStyle="rgba(57,255,20,.15)";rg.lineWidth=1;for(let i=1;i<4;i++){rg.beginPath();rg.arc(0,0,i*95/3,0,7);rg.stroke()}
+ rg.strokeStyle="rgba(120,150,130,.6)";rg.lineWidth=1.5;HWYS.forEach(p=>{rg.beginPath();p.forEach((q,i)=>{const x=(q.x-F.x)*k,y=(q.y-F.y)*k;i?rg.lineTo(x,y):rg.moveTo(x,y)});rg.stroke()});
+ rg.fillStyle="#39ff14";TOWNS.forEach(t=>{rg.fillRect((t.x-F.x)*k-2,(t.y-F.y)*k-2,4,4)});
+ rg.fillStyle="#a855f7";for(const n of NP)rg.fillRect((n.x-F.x)*k-1.5,(n.y-F.y)*k-1.5,3,3);
+ rg.fillStyle="rgba(255,221,51,.6)";for(const q of TRK)rg.fillRect((q.x-F.x)*k-1,(q.y-F.y)*k-1,2,2);if(cov(T.x,T.y))echo(rg,(T.x-F.x)*k,(T.y-F.y)*k,Math.max(2.5,rad()*k),STORMS.findIndex(s=>s.sn==T.sn));else{rg.fillStyle="#ff7a1a";rg.fillText("NO COVERAGE (O)",-88,-62)}
+ rg.fillStyle="#ff3131";rg.beginPath();rg.arc(0,0,3,0,7);rg.fill();rg.fillStyle="#9fcf9f";rg.font="10px monospace";rg.fillText(rmode?"VEL (R)":"REFL (R)",-88,-78);rg.restore()}
+const th=document.createElement("p");th.style.cssText="margin:0;font-size:12px;color:#9fcf9f;text-align:center;max-width:560px";ms.insertBefore(th,$("mb"));
+function thermo(){const s=FC.st,b=[900,2500,4200,3000,2400][s]||2500,n=(FC.x%97)/97,cape=Math.round(b*(.85+n*.3)),srh=Math.round([120,260,420,300,280][s]*(.9+n*.2)),stp=(cape/1500*(srh/150)*.7).toFixed(1);return"CAPE "+cape+" J/kg · SRH "+srh+" · STP "+stp+" · VTP "+(stp*.45).toFixed(1)+" · PWAT "+(1.1+cape/4500).toFixed(1)+" in · RH "+Math.round(55+cape/160)+"% · Lapse "+(6+cape/1400).toFixed(1)+" C/km"}
+const RS=[{n:"Site A",t:"Oklahoma City",r:7500},{n:"Site B",t:"Dodge City",r:4800}];
+function sitePos(){return TOWNS.find(t=>t.n==RS[rsite].t)||TOWNS[0]}
+function cov(x,y){const s=sitePos();return Math.hypot(x-s.x,y-s.y)<RS[rsite].r}
+const rsb=document.createElement("button");rsb.id="rs";rsb.className="tab";rsb.onclick=()=>{rsite=(rsite+1)%RS.length};ms.insertBefore(rsb,$("mb"));
+function svc(){let e=$("sv");if(!e){e=document.createElement("div");e.id="sv";e.style.cssText="margin:8px 0;font-size:13px;color:#9fb3aa";const s=document.createElement("span");s.id="svt";const b=document.createElement("button");b.className="tab";b.id="svb";b.onclick=()=>{const c=Math.round((wearE+wearS)*6);if(c<=0)return;if(cash<c){$("mm").textContent="Not enough cash for service.";return}cash-=c;wearE=wearS=0;$("mm").textContent="Vehicle serviced.";save();build()};e.appendChild(s);e.appendChild(document.createTextNode(" "));e.appendChild(b);$("in").insertBefore(e,$("mm"))}
+ const c=Math.round((wearE+wearS)*6);$("svt").textContent="Engine wear "+Math.round(wearE)+"% \u00b7 Suspension wear "+Math.round(wearS)+"%";$("svb").textContent=c>0?"Service all $"+c:"Vehicle in good shape"}
+let HN=null;
+function horn(){if(!AC||AC.state!="running"||HN)return;const t=AC.currentTime,out=AC.createGain(),lp=AC.createBiquadFilter(),hp=AC.createBiquadFilter(),sh=AC.createWaveShaper(),cv=new Float32Array(256),os=[];
+ for(let i=0;i<256;i++){const x=i/128-1;cv[i]=Math.tanh(x*1.3)}sh.curve=cv;
+ lp.type="lowpass";lp.frequency.value=1500;lp.Q.value=.7;hp.type="highpass";hp.frequency.value=160;
+ out.gain.setValueAtTime(.0001,t);out.gain.exponentialRampToValueAtTime(.18,t+.03);
+ /* two-tone horn, a minor third apart; lightly filtered so it is smooth rather than buzzy */
+ for(const [f,v] of [[415,.6],[523,.6]]){const o=AC.createOscillator(),g=AC.createGain();o.type="sawtooth";o.frequency.setValueAtTime(f*.97,t);o.frequency.exponentialRampToValueAtTime(f,t+.05);g.gain.value=v;o.connect(g);g.connect(sh);o.start(t);os.push(o)}
+ sh.connect(hp);hp.connect(lp);lp.connect(out);out.connect(AC.destination);HN={out,os}}
+function hornStop(){if(!HN)return;const h=HN,t=AC.currentTime;HN=null;h.out.gain.cancelScheduledValues(t);h.out.gain.setValueAtTime(Math.max(.0001,h.out.gain.value),t);h.out.gain.exponentialRampToValueAtTime(.0001,t+.08);for(const o of h.os)o.stop(t+.1)}
+addEventListener("keyup",e=>{if(e.code=="Space"){e.preventDefault();hornStop()}});addEventListener("blur",hornStop);
+function cruise(){if(!running||P.foot)return;if(CTL.cruise){CTL.cruise=0;toast("Cruise off")}else{CTL.cruise=Math.max(40,Math.abs(P.v));toast("Cruise set")}}
+const HLT=new THREE.SpotLight(0xfff6dd,0,2400,.8,.45,1);SC.add(HLT,HLT.target);const HLP=new THREE.PointLight(0xfff2cc,0,520,1);SC.add(HLP);
+const ctEl=document.createElement("div");ctEl.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--hud);padding:5px 12px;border-radius:8px;font-size:12.5px;pointer-events:none;color:#cfe0d6;z-index:6";ctEl.hidden=true;document.body.appendChild(ctEl);
+function drawCT(t){HLT.intensity=CTL.lights?12:0;HLP.intensity=CTL.lights?3.5:0;HLP.position.set(P.x+Math.cos(P.h)*26,6,P.y+Math.sin(P.h)*26);HLT.position.set(P.x+Math.cos(P.h)*8,7,P.y+Math.sin(P.h)*8);HLT.target.position.set(P.x+Math.cos(P.h)*300,0,P.y+Math.sin(P.h)*300);
+ const g=PV.g;if(!g.userData.sg){const mk=z=>{const m=new THREE.MeshPhongMaterial({color:0xff9a00,emissive:0xff9a00,emissiveIntensity:0});for(const fx of[1,-1]){const b=new THREE.Mesh(UB,m);b.scale.set(.5,.7,1.2);b.position.set(fx*V.w/2,V.ht*.35,z*V.h/2);g.add(b)}return m};g.userData.sg=[mk(-1),mk(1)]}
+ const on=(t/350|0)%2,L=(CTL.left||CTL.haz)&&on,R=(CTL.right||CTL.haz)&&on;g.userData.sg[0].emissiveIntensity=L?1.4:0;g.userData.sg[1].emissiveIntensity=R?1.4:0;
+ ctEl.hidden=!running;ctEl.textContent=(CTL.lights?"LIGHTS  ":"")+(CTL.cruise?"CRUISE  ":"")+(CTL.pb?"PARK  ":"")+(CTL.haz?"HAZ  ":CTL.left?"\u25c4  ":CTL.right?"\u25ba  ":"")+"ENG "+(100-Math.round(wearE))+"%  SUSP "+(100-Math.round(wearS))+"%"+(MPH?"  WIND "+Math.round(MPH)+" mph":"")+(LA?"  LANE ASSIST":"")}
+let AC=null,wG,rG,eO,eG,NB;
+function initAudio(){if(AC)return;try{AC=new(window.AudioContext||window.webkitAudioContext)();const buf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;NB=buf;
+ const mk=(f,type)=>{const s=AC.createBufferSource();s.buffer=buf;s.loop=true;const fl=AC.createBiquadFilter();fl.type=type;fl.frequency.value=f;const g=AC.createGain();g.gain.value=0;s.connect(fl);fl.connect(g);g.connect(AC.destination);s.start();return g};
+ wG=mk(300,"lowpass");rG=mk(3000,"highpass");eO=AC.createOscillator();eO.type="sawtooth";eO.frequency.value=40;const lf=AC.createBiquadFilter();lf.type="lowpass";lf.frequency.value=260;eG=AC.createGain();eG.gain.value=0;eO.connect(lf);lf.connect(eG);eG.connect(AC.destination);eO.start()}catch(e){AC=null}}
+function updAudio(){if(!AC||AC.state!="running")return;const t=AC.currentTime,F=P.foot||P,d=Math.hypot(T.x-F.x,T.y-F.y),R=rad(),pr=T.cd>0?0:Math.max(0,1-d/(R*7+500)),sp=Math.abs(P.v)/Math.max(60,P.sp),rn=wx=="thunderstorm"?.07:wx=="hail"?.08:wx=="rain"?.05:0;
+ wG.gain.setTargetAtTime(.02+pr*.5+(wx=="clear"?0:.03),t,.2);rG.gain.setTargetAtTime(rn,t,.3);eO.frequency.setTargetAtTime(38+sp*70,t,.1);eG.gain.setTargetAtTime(P.foot?0:.02+sp*.05,t,.1)}
+function thunder(){if(!AC||AC.state!="running")return;const s=AC.createBufferSource();s.buffer=NB;const f=AC.createBiquadFilter();f.type="lowpass";f.frequency.value=180;const g=AC.createGain();g.gain.setValueAtTime(.5,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+3.2);s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}
+function kitVis(V){const g=new THREE.Group(),L=V.w,W=V.h,Hh=V.ht,has=n=>up.some(i=>UP[i]&&UP[i].n===n),rp=[-L*.04,-L*.2,L*.12,-L*.34];let ri=0;const rx=()=>rp[ri++%4],ry=Hh+.3;
+ if(has("Mobile Mesonet")){const x=rx();mq(CYH,DK,.25,5,.25,x,ry+2.5,0,g);for(let i=0;i<3;i++){const a=i*2.09;mq(SPH,CHR,.5,.5,.5,x+Math.cos(a)*1.3,ry+5.2,Math.sin(a)*1.3,g)}}
+ if(has("Roof Camera Rig")){const x=rx();mb(1.2,.9,.9,DK,x,ry+.5,0,g);mq(CYH,MT2,.35,1.4,.35,x+1,ry+.5,0,g).rotation.z=Math.PI/2}
+ if(has("Doppler Radar")){const dst=VS[V.n]||"suv";
+  if(/^(pickup|ute)$/.test(dst)){const wr=Math.min(1.5,.28*Hh+.4),y0=wr*.8,H=Hh-y0,xr=(SP[dst]||SP.pickup)[3],bx=(-.5+xr)*L/2,fl=y0+H*.3+.2;mb(Math.max(1.6,(.5+xr)*L*.6),.35,Math.min(W*.5,3),DK,bx,fl+.1,0,g);mq(CYH,MT2,.3,2.2,.3,bx,fl+1.3,0,g);mq(SPH,WHM,1.9,.5,1.9,bx,fl+2.6,0,g).rotation.z=.9}
+  else{const x=rx();mq(CYH,MT2,.3,2.4,.3,x,ry+1.2,0,g);mq(SPH,WHM,1.9,.5,1.9,x,ry+2.9,0,g).rotation.z=.9}}if(has("Portable Radar")||has("Satellite Uplink")){const x=rx();mq(CYH,MT2,.3,2,.3,x,ry+1,0,g);mq(SPH,WHM,1.4,.7,1.4,x,ry+2.4,0,g).rotation.z=.6}
+ if(has("Drone Launcher")){const x=rx();mb(2.2,.5,2.2,DK,x,ry+.25,0,g);mb(1.6,.2,.3,WHM,x,ry+.7,0,g);mb(.3,.2,1.6,WHM,x,ry+.7,0,g)}
+ if(has("Field Lab")){const x=rx();mb(2.2,1.1,Math.min(W*.7,2.4),WHM,x,ry+.55,0,g);mb(.5,.2,1,MT2,x,ry+1.2,0,g)}
+ if(has("Telephoto Lens")||has("Spotter Binoculars")){const x=rx();mb(.9,.7,.7,DK,x,ry+.35,0,g);mq(CYH,MT2,.3,2.6,.3,x+1.4,ry+.5,0,g).rotation.z=Math.PI/2}
+ if(has("Probe Case")||has("Probe Rack XL")||has("StickNet Case")||has("Extra Probe Slots")){const x=-L*.44,xl=has("Probe Rack XL");mb(1.4,xl?1.6:1,Math.min(W*.8,4),ORM,x,ry+(xl?.8:.5),0,g);if(xl)for(let i=-1;i<=1;i++)mq(CYH,ORM,.25,3,.25,x,ry+2.4,i*1.2,g)}
+ if(has("Weather Computer")||has("Data Logger"))mq(CYH,DK,.15,3.5,.15,L*.2,ry+1.7,W*.32,g);
+ if(has("Hail Guard")){const n=mb(L*.5,.12,W*.95,MT2,-L*.05,ry+.9,0,g);n.material=new THREE.MeshBasicMaterial({color:0x222222,transparent:true,opacity:.4})}
+ if(has("Roll Cage")||has("Reinforced Frame")){for(const sz of[-1,1]){mb(L*.4,.25,.25,DK,-L*.05,ry+.4,sz*W*.38,g);mb(.25,1.6,.25,DK,-L*.25,ry-.4,sz*W*.38,g);mb(.25,1.6,.25,DK,L*.15,ry-.4,sz*W*.38,g)}}
+ if(has("Bull Bar")){mb(.5,1.6,W*.9,DK,L/2+.6,1.6,0,g);for(const sz of[-1,1])mb(.4,2,.4,DK,L/2+.4,1.4,sz*W*.35,g)}
+ if(has("Reinforced Windshield"))mb(.35,.4,W*.8,DK,L*.17,Hh*.62,0,g);
+ if(has("Turbo Kit")||has("Overdrive")||has("Engine Tuning"))mb(1.8,.5,1.4,DK,L*.28,Hh*.5,0,g);
+ if(has("Med Kit")||has("Auto-repair Module")){mb(.5,1.4,1.8,WHM,-L/2-.4,Hh*.5,0,g);mb(.3,.9,.3,RED,-L/2-.7,Hh*.5,0,g);mb(.3,.3,.9,RED,-L/2-.7,Hh*.5,0,g)}
+ if(has("Spare Fuel Cans")){for(const sz of[-1,1])mb(.7,1.3,1.1,RED,-L/2-.5,Hh*.35,sz*W*.3,g)}
+ if(has("Long-range Tank")||has("Bigger Tank")){mq(CYH,MT2,.9,L*.3,.9,-L*.2,.9,0,g).rotation.z=Math.PI/2}
+ if(has("Tow Contract")){mb(1.4,.4,.5,CHR,-L/2-.7,.9,0,g);mq(SPH,CHR,.4,.4,.4,-L/2-1.4,.9,0,g)}
+ return g}
+let camT=0,drT=0;
+function autoPhoto(){const R=rad(),v=new THREE.Vector3(T.x,Math.min(260,R*2),T.y).project(CAM),F=P.foot||P,d=Math.hypot(T.x-F.x,T.y-F.y);if(v.z>1||Math.abs(v.x)>.9||Math.abs(v.y)>.9||d>4000)return;let q=Math.min(1,R*7/d)*(1-.45*Math.hypot(v.x,v.y));q=Math.max(.05,q);const p=Math.round(q*320*(1+ef())*.6);score+=p;toast("Roof camera captured the storm +"+p)}
+let lastPh=null,phCd=0;
+function takePhoto(){if(!running)return;const now=performance.now();if(now<phCd)return;phCd=now+2500*(1-kit("pc"));flash=.7;const R=rad(),v=new THREE.Vector3(T.x,Math.min(260,R*2),T.y).project(CAM),F=P.foot||P,d=Math.hypot(T.x-F.x,T.y-F.y);
+ if(T.cd>0||v.z>1||Math.abs(v.x)>.9||Math.abs(v.y)>.9||d>4000)return toast("Nothing worth photographing in frame");
+ let q=Math.min(1,R*7/d)*(1-.45*Math.hypot(v.x,v.y));q=Math.max(.05,q);
+ let sim=1;if(lastPh&&Math.hypot(lastPh.x-F.x,lastPh.y-F.y)<350&&lastPh.ef==ef()&&now-lastPh.t<45000)sim=.25;
+ lastPh={x:F.x,y:F.y,ef:ef(),t:now};const p=Math.round(q*320*(1+ef())*sim*(1+kit("ph")));score+=p;toast("Photo! +"+p+(sim<1?" (too similar to your last shot)":"")+" · quality "+Math.round(q*100)+"%")}
+newFC();
+$("lg2").src=$("lg").src;(function(){const ld=$("ld"),bar=$("lb"),tx=$("lt"),msgs=["Reading radar","Fueling up the hatchback","Loading probes","Checking the sky","Watching the horizon"],t0=performance.now(),D=12000;
+function step(t){const f=Math.min(1,(t-t0)/D);bar.style.width=(f*f*(3-2*f)*100)+"%";tx.textContent=msgs[Math.min(msgs.length-1,Math.floor(f*msgs.length))]+"…";
+if(f<1)requestAnimationFrame(step);else{ms.hidden=false;drawMap();ld.style.opacity=0;setTimeout(()=>ld.remove(),600)}}
+requestAnimationFrame(step)})();
+</script>
+</body>
+</html>
